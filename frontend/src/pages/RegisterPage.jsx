@@ -84,7 +84,7 @@ export default function RegisterPage() {
             name="password"
             label="Password"
             rules={[
-              { required: true, message: "Please input your password" },
+              { required: true, message: "Enter your password" },
               { min: 6, message: "Password must be at least 6 characters" },
             ]}
             hasFeedback
@@ -104,7 +104,7 @@ export default function RegisterPage() {
             dependencies={["password"]}
             hasFeedback
             rules={[
-              { required: true, message: "Please confirm your password" },
+              { required: true, message: "Confirm your password" },
               validatePasswordsMatch,
             ]}
           >
