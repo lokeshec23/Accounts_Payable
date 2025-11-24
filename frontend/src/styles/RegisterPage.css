@@ -1,0 +1,191 @@
+.register-container {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #3ba5d8 0%, #2b8fc4 50%, #1e7db0 100%);
+    position: relative;
+    overflow: hidden;
+    padding: 20px;
+}
+
+/* Decorative background circles */
+.register-container::before {
+    content: '';
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    top: -200px;
+    left: -150px;
+}
+
+.register-container::after {
+    content: '';
+    position: absolute;
+    width: 800px;
+    height: 800px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    bottom: -300px;
+    right: -200px;
+}
+
+/* White curved shape at bottom */
+.register-container .bottom-curve {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    background: #f5f5f5;
+    clip-path: ellipse(100% 60% at 50% 100%);
+    z-index: 0;
+}
+
+.register-card {
+    width: 100%;
+    max-width: 420px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    background: white;
+    position: relative;
+    z-index: 1;
+    padding: 24px 28px 20px 28px;
+}
+
+.register-logo {
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.register-logo img {
+    width: 120px;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+/* loanDNA text logo styling */
+.register-logo .logo-text {
+    font-size: 32px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #3ba5d8 0%, #2b8fc4 50%, #1e7db0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
+    margin: 0;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+.register-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 18px;
+    font-family: "Jura", sans-serif;
+}
+
+/* Form styling */
+.register-form .ant-form-item {
+    margin-bottom: 12px;
+}
+
+.register-form .ant-form-item-label>label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+}
+
+.register-form .ant-input,
+.register-form .ant-input-password {
+    height: 38px;
+    border-radius: 6px;
+    border: 1px solid #d9d9d9;
+    font-size: 14px;
+}
+
+.register-form .ant-input:focus,
+.register-form .ant-input-password:focus,
+.register-form .ant-input-focused,
+.register-form .ant-input-password-focused {
+    border-color: #3ba5d8;
+    box-shadow: 0 0 0 2px rgba(59, 165, 216, 0.1);
+}
+
+.register-form .ant-input-prefix {
+    color: #999;
+    margin-right: 8px;
+}
+
+/* Register button */
+.register-submit-btn {
+    height: 42px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #3ba5d8 0%, #2b8fc4 100%);
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: capitalize;
+    box-shadow: 0 4px 12px rgba(59, 165, 216, 0.3);
+    transition: all 0.3s ease;
+    margin-top: 4px;
+}
+
+.register-submit-btn:hover {
+    background: linear-gradient(90deg, #2b8fc4 0%, #1e7db0 100%);
+    box-shadow: 0 6px 16px rgba(59, 165, 216, 0.4);
+    transform: translateY(-1px);
+}
+
+.register-submit-btn:active {
+    transform: translateY(0);
+}
+
+/* Links */
+.register-link {
+    color: #3ba5d8;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.register-link:hover {
+    color: #2b8fc4;
+    text-decoration: underline;
+}
+
+.register-footer {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 13px;
+    color: #666;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .register-card {
+        padding: 20px 24px 16px 24px;
+    }
+
+    .register-title {
+        font-size: 20px;
+        margin-bottom: 16px;
+    }
+
+    .register-logo {
+        margin-bottom: 6px;
+    }
+
+    .register-logo img {
+        width: 110px;
+    }
+
+    .register-form .ant-form-item {
+        margin-bottom: 10px;
+    }
+}
