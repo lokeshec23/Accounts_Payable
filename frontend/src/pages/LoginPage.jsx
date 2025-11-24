@@ -16,9 +16,11 @@ const LoginPage = () => {
 
   return (
     <div className="login-container">
+      <div className="bottom-curve"></div>
+
       <div className="login-card">
         <div className="logo-container">
-          <img src="/loandna_logo.png" alt="VanDNA Logo" className="logo" />
+          <img src="/loandna_logo.png" alt="LoanDNA Logo" className="logo" />
         </div>
 
         <h2 className="login-title">Log in</h2>
@@ -30,8 +32,8 @@ const LoginPage = () => {
             label="Email"
             name="email"
             rules={[
-              { required: true, message: 'Please input your email!' },
-              { type: 'email', message: 'Please enter a valid email!' }
+              { required: true, message: 'Enter your email!' },
+              { type: 'email', message: 'Enter a valid email!' }
             ]}
           >
             <Input
@@ -46,7 +48,7 @@ const LoginPage = () => {
           <Form.Item
             label="Password"
             name="password"
-            rules={[{ required: true, message: 'Please input your password!' }]}
+            rules={[{ required: true, message: 'Enter your password!' }]}
           >
             <Input.Password
               placeholder="••••••••••••"
@@ -69,6 +71,11 @@ const LoginPage = () => {
               Login <ArrowRightOutlined />
             </Button>
           </Form.Item>
+
+          <div className="login-footer">
+            <span>Don't have an account? </span>
+            <a href="/register" className="register-link">Register</a>
+          </div>
 
         </Form>
       </div>
