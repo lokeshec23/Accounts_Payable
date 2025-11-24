@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Table, Button, Space, Tag } from 'antd';
+import { Table, Button, Space, Modal } from 'antd';
 import { PlusOutlined, FolderOpenOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
+import InvoiceUpload from './InvoiceUpload';
 import '../styles/MainLayout.css';
 
 const MainLayout = () => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
     // Sample data for the table
     const [data] = useState([
         {
@@ -111,8 +114,11 @@ const MainLayout = () => {
     ];
 
     const handleAddInvoice = () => {
-        console.log('Add Invoice clicked');
-        // Add your logic here
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
     };
 
     const handleViewFiles = () => {
@@ -167,6 +173,17 @@ const MainLayout = () => {
                     className="invoices-table"
                 />
             </div>
+
+            <Modal
+                title={null}
+                open={isModalOpen}
+                onCancel={handleCloseModal}
+                footer={null}
+                width={700}
+                destroyOnClose
+            >
+                <InvoiceUpload onUploadSuccess={handleCloseModal} />
+            </Modal>
         </div>
     );
 };
