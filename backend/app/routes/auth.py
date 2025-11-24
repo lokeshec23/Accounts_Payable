@@ -4,7 +4,7 @@ from app.models.auth import LoginRequest, Token
 from app.models.user import User, UserResponse
 from app.database.mongodb import get_database
 from app.auth.jwt import verify_password, get_password_hash, create_access_token, verify_token
-from datetime import timedelta
+from datetime import datetime, timedelta
 from app.config.settings import settings
 
 router = APIRouter()
@@ -31,7 +31,8 @@ async def register(user: User):
     hashed_password = get_password_hash(user.password)
     user_dict = user.dict()
     user_dict["password"] = hashed_password
-    user_dict["created_at"] = user_dict.get("created_at")
+    # Set created_at to current UTC time if not present
+    user_dict["created_at"] = datetime.utcnow()
     
     # Insert user
     result = db.users.insert_one(user_dict)
