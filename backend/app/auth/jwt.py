@@ -2,6 +2,10 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.config.settings import settings
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from app.database.mongodb import get_database
+from app.models.user import UserResponse
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -30,3 +34,28 @@ def verify_token(token: str):
         return email
     except JWTError:
         return None
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    email = verify_token(token)
+    if email is None:
+        raise credentials_exception
+        
+    db = get_database()
+    user = db.users.find_one({"email": email})
+    if user is None:
+        raise credentials_exception
+        
+    return UserResponse(
+        id=str(user["_id"]),
+        username=user["username"],
+        email=user["email"],
+        created_at=user["created_at"]
+    )

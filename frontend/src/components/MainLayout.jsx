@@ -1,70 +1,88 @@
-import React, { useState } from 'react';
-import { Table, Button, Space, Tag } from 'antd';
-import { PlusOutlined, FolderOpenOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Table, Button, Space, Tag, message, Spin, Modal } from 'antd';
+import { PlusOutlined, FolderOpenOutlined, EyeOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { invoiceService } from '../services/api';
 import '../styles/MainLayout.css';
 
+const { confirm } = Modal;
+
 const MainLayout = () => {
-    // Sample data for the table
-    const [data] = useState([
-        {
-            key: '1',
-            filename: '123456789_W2.json',
-            vendorName: 'John Doe',
-            invoiceId: 'INV-20250915-001',
-            lastUpdated: '2025-09-14 10:45 AM',
-            uploadedBy: 'John Doe',
-            status: 'Completed'
-        },
-        {
-            key: '2',
-            filename: '12345_LoanFile.json',
-            vendorName: 'Lando Norris',
-            invoiceId: 'INV-20250914-005',
-            lastUpdated: '2025-09-13 04:22 PM',
-            uploadedBy: 'Emily Johnson',
-            status: 'Pending'
-        },
-        {
-            key: '3',
-            filename: '12345_LoanFile1.json',
-            vendorName: 'Lewis Hamilton',
-            invoiceId: 'INV-20250913-009',
-            lastUpdated: '2025-09-12 02:17 PM',
-            uploadedBy: 'Michael Smith',
-            status: 'Error'
-        },
-        {
-            key: '4',
-            filename: '12_CreditReport.json',
-            vendorName: 'Max Verstappen',
-            invoiceId: 'INV-20250912-003',
-            lastUpdated: '2025-09-13 04:22 PM',
-            uploadedBy: 'Daniel Miller',
-            status: 'Completed'
-        },
-        {
-            key: '5',
-            filename: '123_TaxReturn.json',
-            vendorName: 'Charles Leclerc',
-            invoiceId: 'INV-20250911-007',
-            lastUpdated: '2025-09-12 02:17 PM',
-            uploadedBy: 'Ashley Davis',
-            status: 'Error'
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [pagination, setPagination] = useState({
+        current: 1,
+        pageSize: 10,
+        total: 0,
+    });
+
+    // Fetch invoices from backend
+    const fetchInvoices = async (page = 1, pageSize = 10) => {
+        try {
+            setLoading(true);
+            const skip = (page - 1) * pageSize;
+            const response = await invoiceService.getInvoices(skip, pageSize);
+
+            // Backend returns an array directly, not an object with invoices property
+            const invoicesArray = Array.isArray(response) ? response : [];
+
+            // Transform backend data to table format
+            const transformedData = invoicesArray.map((invoice) => ({
+                key: invoice._id || invoice.id,
+                id: invoice._id || invoice.id,
+                filename: invoice.original_filename || invoice.filename || 'N/A',
+                vendorName: invoice.extracted_data?.vendor_info?.name?.value || 'N/A',
+                invoiceId: invoice.extracted_data?.invoice_details?.invoice_number?.value || 'N/A',
+                lastUpdated: new Date(invoice.processed_at || invoice.uploaded_at).toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                }),
+                uploadedBy: invoice.uploaded_by || 'Unknown',
+                status: invoice.status || 'pending',
+                rawData: invoice // Keep raw data for viewing
+            }));
+
+            setData(transformedData);
+            setPagination({
+                current: page,
+                pageSize: pageSize,
+                total: transformedData.length, // Since we don't have total count from backend
+            });
+        } catch (error) {
+            console.error('Error fetching invoices:', error);
+            message.error('Failed to load invoices. Please try again.');
+            setData([]); // Set empty array on error
+        } finally {
+            setLoading(false);
         }
-    ]);
+    };
+
+    // Load invoices on component mount
+    useEffect(() => {
+        fetchInvoices();
+    }, []);
+
+    // Handle table pagination change
+    const handleTableChange = (newPagination) => {
+        fetchInvoices(newPagination.current, newPagination.pageSize);
+    };
 
     const columns = [
         {
             title: 'File Name',
             dataIndex: 'filename',
             key: 'filename',
-            width: 200,
+            width: 250,
+            ellipsis: true,
         },
         {
             title: 'Vendor Name',
             dataIndex: 'vendorName',
             key: 'vendorName',
-            width: 150,
+            width: 180,
         },
         {
             title: 'Invoice ID',
@@ -76,18 +94,56 @@ const MainLayout = () => {
             title: 'Last Updated',
             dataIndex: 'lastUpdated',
             key: 'lastUpdated',
-            width: 180,
+            width: 200,
         },
         {
             title: 'Uploaded By',
             dataIndex: 'uploadedBy',
             key: 'uploadedBy',
-            width: 150,
+            width: 180,
+            ellipsis: true,
+        },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            width: 130,
+            render: (status) => {
+                let color = 'default';
+                let text = status;
+
+                switch (status) {
+                    case 'completed':
+                    case 'approved':
+                        color = 'success';
+                        text = 'Completed';
+                        break;
+                    case 'waiting_approval':
+                    case 'pending':
+                        color = 'warning';
+                        text = 'Pending';
+                        break;
+                    case 'error':
+                    case 'failed':
+                    case 'rejected':
+                        color = 'error';
+                        text = 'Error';
+                        break;
+                    case 'processing':
+                        color = 'processing';
+                        text = 'Processing';
+                        break;
+                    default:
+                        color = 'default';
+                }
+
+                return <Tag color={color}>{text}</Tag>;
+            },
         },
         {
             title: 'Actions',
             key: 'actions',
-            width: 150,
+            width: 180,
             render: (_, record) => (
                 <Space size="small">
                     <Button
@@ -112,22 +168,42 @@ const MainLayout = () => {
 
     const handleAddInvoice = () => {
         console.log('Add Invoice clicked');
-        // Add your logic here
+        // Navigate to upload page or open upload modal
+        message.info('Upload functionality - to be implemented');
     };
 
     const handleViewFiles = () => {
         console.log('View Files clicked');
-        // Add your logic here
+        // Navigate to files view
+        message.info('View files functionality - to be implemented');
     };
 
     const handleView = (record) => {
         console.log('View:', record);
-        // Add your view logic here
+        // Navigate to invoice details page or open modal
+        message.info(`Viewing invoice: ${record.invoiceId}`);
     };
 
     const handleDelete = (record) => {
-        console.log('Delete:', record);
-        // Add your delete logic here
+        confirm({
+            title: 'Are you sure you want to delete this invoice?',
+            icon: <ExclamationCircleOutlined />,
+            content: `Invoice: ${record.invoiceId} (${record.filename})`,
+            okText: 'Yes, Delete',
+            okType: 'danger',
+            cancelText: 'Cancel',
+            async onOk() {
+                try {
+                    await invoiceService.deleteInvoice(record.id);
+                    message.success('Invoice deleted successfully');
+                    // Refresh the list
+                    fetchInvoices(pagination.current, pagination.pageSize);
+                } catch (error) {
+                    console.error('Error deleting invoice:', error);
+                    message.error('Failed to delete invoice. Please try again.');
+                }
+            },
+        });
     };
 
     return (
@@ -155,17 +231,21 @@ const MainLayout = () => {
             </div>
 
             <div className="layout-content">
-                <Table
-                    columns={columns}
-                    dataSource={data}
-                    pagination={{
-                        pageSize: 10,
-                        showSizeChanger: true,
-                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-                        pageSizeOptions: ['5', '10', '20', '50']
-                    }}
-                    className="invoices-table"
-                />
+                <Spin spinning={loading} tip="Loading invoices...">
+                    <Table
+                        columns={columns}
+                        dataSource={data}
+                        pagination={{
+                            ...pagination,
+                            showSizeChanger: true,
+                            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+                            pageSizeOptions: ['5', '10', '20', '50']
+                        }}
+                        onChange={handleTableChange}
+                        className="invoices-table"
+                        scroll={{ x: 1300 }}
+                    />
+                </Spin>
             </div>
         </div>
     );

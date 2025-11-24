@@ -29,6 +29,23 @@ bcrypt==4.2.1
 python-dotenv==1.0.1
 
 # ===========================
+# Azure Document Intelligence
+# ===========================
+azure-ai-documentintelligence==1.0.2
+azure-core==1.31.0
+
+# ===========================
+# LangChain for Azure OpenAI
+# ===========================
+langchain-openai==0.2.14
+langchain-core==0.3.28
+
+# ===========================
+# OpenAI API
+# ===========================
+openai==1.54.0
+
+# ===========================
 # CORS & Middleware
 # ===========================
 # (Included in FastAPI)

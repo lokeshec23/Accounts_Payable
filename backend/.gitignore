@@ -172,3 +172,7 @@ account_payable_venv*/
 # Logs
 *.log
 logs/
+.env.example
+
+uploads\
+output\

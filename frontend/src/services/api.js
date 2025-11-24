@@ -36,4 +36,39 @@ api.interceptors.response.use(
   }
 );
 
+// Add invoice service methods
+export const invoiceService = {
+  async uploadInvoice(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post('/invoices/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  async getInvoices(skip = 0, limit = 10) {
+    const response = await api.get(`/invoices?skip=${skip}&limit=${limit}`);
+    return response.data;
+  },
+
+  async getInvoice(invoiceId) {
+    const response = await api.get(`/invoices/${invoiceId}`);
+    return response.data;
+  },
+
+  async updateInvoiceStatus(invoiceId, status) {
+    const response = await api.put(`/invoices/${invoiceId}/status`, { status });
+    return response.data;
+  },
+
+  async deleteInvoice(invoiceId) {
+    const response = await api.delete(`/invoices/${invoiceId}`);
+    return response.data;
+  }
+};
+
 export default api;

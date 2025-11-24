@@ -1,0 +1,35 @@
+from pydantic import BaseModel, EmailStr
+from typing import Optional, Dict, Any, List
+from datetime import datetime
+from enum import Enum
+
+class InvoiceStatus(str, Enum):
+    WAITING_APPROVAL = "waiting_approval"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    PROCESSED = "processed"
+
+class InvoiceBase(BaseModel):
+    filename: str
+    original_filename: str
+    file_path: str
+    uploaded_by: str
+    status: InvoiceStatus = InvoiceStatus.WAITING_APPROVAL
+
+class InvoiceCreate(InvoiceBase):
+    pass
+
+class Invoice(InvoiceBase):
+    id: str
+    extracted_data: Optional[Dict[str, Any]] = None
+    processing_steps: Optional[List[str]] = None
+    validation_results: Optional[Dict[str, Any]] = None
+    confidence_score: Optional[str] = None
+    uploaded_at: datetime
+    processed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class InvoiceResponse(Invoice):
+    pass

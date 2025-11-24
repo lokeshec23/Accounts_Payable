@@ -1,12 +1,76 @@
 import React, { useState } from 'react';
-import { Upload, Button, message } from 'antd';
-import { UploadOutlined, InboxOutlined } from '@ant-design/icons';
+import { Upload, Button, message, Table, Tag, Space, Modal } from 'antd';
+import { UploadOutlined, InboxOutlined, EyeOutlined } from '@ant-design/icons';
+import { invoiceService } from '../services/api';
 import '../styles/InvoicePage.css';
 
 const { Dragger } = Upload;
 
 const InvoicePage = () => {
     const [fileList, setFileList] = useState([]);
+    const [invoices, setInvoices] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [previewVisible, setPreviewVisible] = useState(false);
+    const [previewData, setPreviewData] = useState(null);
+
+    // Columns for invoices table
+    const columns = [
+        {
+            title: 'Filename',
+            dataIndex: 'original_filename',
+            key: 'filename',
+        },
+        {
+            title: 'Uploaded',
+            dataIndex: 'uploaded_at',
+            key: 'uploaded_at',
+            render: (date) => new Date(date).toLocaleDateString(),
+        },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            render: (status) => {
+                const statusColors = {
+                    'waiting_approval': 'orange',
+                    'approved': 'green',
+                    'rejected': 'red',
+                    'processed': 'blue'
+                };
+                return <Tag color={statusColors[status]}>{status.replace('_', ' ').toUpperCase()}</Tag>;
+            },
+        },
+        {
+            title: 'Confidence',
+            dataIndex: 'confidence_score',
+            key: 'confidence_score',
+            render: (score) => (
+                <Tag color={score === 'high' ? 'green' : score === 'medium' ? 'orange' : 'red'}>
+                    {score?.toUpperCase() || 'LOW'}
+                </Tag>
+            ),
+        },
+        {
+            title: 'Actions',
+            key: 'actions',
+            render: (_, record) => (
+                <Space>
+                    <Button 
+                        icon={<EyeOutlined />} 
+                        onClick={() => showInvoiceDetails(record)}
+                        size="small"
+                    >
+                        View
+                    </Button>
+                </Space>
+            ),
+        },
+    ];
+
+    const showInvoiceDetails = (invoice) => {
+        setPreviewData(invoice);
+        setPreviewVisible(true);
+    };
 
     const uploadProps = {
         name: 'file',
@@ -23,43 +87,59 @@ const InvoicePage = () => {
             newFileList.splice(index, 1);
             setFileList(newFileList);
         },
-        onChange: (info) => {
-            const { status } = info.file;
-            if (status === 'done') {
-                message.success(`${info.file.name} file uploaded successfully.`);
-            } else if (status === 'error') {
-                message.error(`${info.file.name} file upload failed.`);
-            }
-        },
+        accept: '.pdf',
     };
 
-    const handleUpload = () => {
+    const handleUpload = async () => {
         if (fileList.length === 0) {
             message.warning('Please select files to upload');
             return;
         }
 
-        // Here you would typically upload to your backend
-        console.log('Uploading files:', fileList);
-        message.success(`${fileList.length} file(s) uploaded successfully`);
-        setFileList([]);
+        setLoading(true);
+        try {
+            for (const file of fileList) {
+                await invoiceService.uploadInvoice(file);
+            }
+            message.success(`${fileList.length} file(s) uploaded successfully`);
+            setFileList([]);
+            loadInvoices(); // Refresh the invoices list
+        } catch (error) {
+            message.error('Upload failed. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
+
+    const loadInvoices = async () => {
+        try {
+            const response = await invoiceService.getInvoices();
+            setInvoices(response);
+        } catch (error) {
+            message.error('Failed to load invoices');
+        }
+    };
+
+    // Load invoices on component mount
+    React.useEffect(() => {
+        loadInvoices();
+    }, []);
 
     return (
         <div className="invoice-page">
             <div className="upload-container">
                 <h2 className="upload-title">Upload Invoice Files</h2>
                 <p className="upload-description">
-                    Drag and drop your invoice files here or click to browse
+                    Drag and drop your invoice PDF files here or click to browse
                 </p>
 
                 <Dragger {...uploadProps} className="upload-dragger">
                     <p className="ant-upload-drag-icon">
                         <InboxOutlined />
                     </p>
-                    <p className="ant-upload-text">Click or drag file to this area to upload</p>
+                    <p className="ant-upload-text">Click or drag PDF files to this area to upload</p>
                     <p className="ant-upload-hint">
-                        Support for single or bulk upload. Accepted formats: PDF, JSON, XML, CSV
+                        Support for single or bulk upload. Only PDF files are accepted.
                     </p>
                 </Dragger>
 
@@ -69,6 +149,7 @@ const InvoicePage = () => {
                         onClick={handleUpload}
                         icon={<UploadOutlined />}
                         className="upload-submit-btn"
+                        loading={loading}
                     >
                         Upload {fileList.length} File{fileList.length > 1 ? 's' : ''}
                     </Button>
