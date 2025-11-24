@@ -45,7 +45,8 @@ const InvoiceUpload = ({ onUploadSuccess }) => {
         setFileList([]);
 
         if (onUploadSuccess) {
-            onUploadSuccess();
+            // Pass the first file for demonstration
+            onUploadSuccess(fileList[0]);
         }
     };
 

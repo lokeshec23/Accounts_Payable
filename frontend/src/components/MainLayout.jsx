@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { Table, Button, Space, Modal } from 'antd';
 import { PlusOutlined, FolderOpenOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import InvoiceUpload from './InvoiceUpload';
+import InvoiceReview from './InvoiceReview';
 import '../styles/MainLayout.css';
 
 const MainLayout = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [currentView, setCurrentView] = useState('upload'); // 'upload' or 'review'
+    const [uploadedFile, setUploadedFile] = useState(null);
 
     // Sample data for the table
     const [data] = useState([
@@ -119,6 +122,21 @@ const MainLayout = () => {
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
+        // Reset state after closing
+        setTimeout(() => {
+            setCurrentView('upload');
+            setUploadedFile(null);
+        }, 300);
+    };
+
+    const handleUploadSuccess = (file) => {
+        setUploadedFile(file);
+        setCurrentView('review');
+    };
+
+    const handleBackToUpload = () => {
+        setUploadedFile(null);
+        setCurrentView('upload');
     };
 
     const handleViewFiles = () => {
@@ -179,10 +197,20 @@ const MainLayout = () => {
                 open={isModalOpen}
                 onCancel={handleCloseModal}
                 footer={null}
-                width={700}
+                width={currentView === 'review' ? '95vw' : 700}
+                style={{ top: currentView === 'review' ? 20 : 100 }}
                 destroyOnClose
+                bodyStyle={{ height: currentView === 'review' ? '85vh' : 'auto', padding: 0 }}
             >
-                <InvoiceUpload onUploadSuccess={handleCloseModal} />
+                {currentView === 'upload' ? (
+                    <div style={{ padding: '24px' }}>
+                        <InvoiceUpload onUploadSuccess={handleUploadSuccess} />
+                    </div>
+                ) : (
+                    <div style={{ height: '100%' }}>
+                        <InvoiceReview file={uploadedFile} onBack={handleBackToUpload} />
+                    </div>
+                )}
             </Modal>
         </div>
     );
