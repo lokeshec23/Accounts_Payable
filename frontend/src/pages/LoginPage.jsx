@@ -1,5 +1,6 @@
-import React from 'react';
-import { Form, Input, Button } from 'antd';
+import React, { useState } from 'react';
+import { Form, Input, Button, Typography, message } from 'antd';
+import { Link, useNavigate } from "react-router-dom";
 import {
   LockOutlined,
   EyeInvisibleOutlined,
@@ -7,11 +8,26 @@ import {
   ArrowRightOutlined,
   MailOutlined
 } from '@ant-design/icons';
+import { authService } from '../services/auth';
 import '../styles/Loginpage.css';
 
+const { Text } = Typography;
+
 const LoginPage = () => {
-  const handleLogin = (values) => {
-    console.log('Login values:', values);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogin = async (values) => {
+    setLoading(true);
+    try {
+      await authService.login(values);
+      message.success('Login successful!');
+      navigate('/dashboard');
+    } catch (error) {
+      message.error(error.detail || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -27,7 +43,6 @@ const LoginPage = () => {
 
         <Form name="login" onFinish={handleLogin} autoComplete="off" layout="vertical">
 
-          {/* Email field with Mail icon */}
           <Form.Item
             label="Email"
             name="email"
@@ -44,7 +59,6 @@ const LoginPage = () => {
             />
           </Form.Item>
 
-          {/* Password */}
           <Form.Item
             label="Password"
             name="password"
@@ -59,7 +73,7 @@ const LoginPage = () => {
           </Form.Item>
 
           <div className="forgot-password">
-            <a href="/forgot-password">Forgot password?</a>
+            <Link to="/forgot-password">Forgot password?</Link>
           </div>
 
           <Form.Item>
@@ -67,14 +81,15 @@ const LoginPage = () => {
               type="primary"
               htmlType="submit"
               className="login-button"
+              loading={loading}
             >
               Login <ArrowRightOutlined />
             </Button>
           </Form.Item>
 
           <div className="login-footer">
-            <span>Don't have an account? </span>
-            <a href="/register" className="register-link">Register</a>
+            <Text type="primary">Don't have an account? </Text>
+            <Link to="/register" className="register-link">Register</Link>
           </div>
 
         </Form>

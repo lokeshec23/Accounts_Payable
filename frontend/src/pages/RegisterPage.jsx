@@ -1,5 +1,5 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Form, Input, Button, Typography, message } from "antd";
 import {
   EyeInvisibleOutlined,
@@ -8,19 +8,28 @@ import {
   MailOutlined,
   LockOutlined,
 } from "@ant-design/icons";
+import { authService } from '../services/auth';
 import "../styles/RegisterPage.css";
 
 const { Text } = Typography;
 
 export default function RegisterPage() {
   const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const onFinish = (values) => {
-    // In a real app you'd call your API here.
-    // For demo we just show a message and reset the password fields.
-    message.success("Registration successful (demo). Check console for values.");
-    console.log("REGISTER VALUES", values);
-    form.resetFields(["password", "confirm"]);
+  const onFinish = async (values) => {
+    setLoading(true);
+    try {
+      await authService.register(values);
+      message.success('Registration successful! Please login.');
+      form.resetFields();
+      navigate('/');
+    } catch (error) {
+      message.error(error.detail || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const validatePasswordsMatch = ({ getFieldValue }) => ({
@@ -59,7 +68,6 @@ export default function RegisterPage() {
           initialValues={{}}
         >
 
-
           <Form.Item
             name="username"
             label="Username"
@@ -67,7 +75,6 @@ export default function RegisterPage() {
           >
             <Input prefix={<UserOutlined />} placeholder="Username" />
           </Form.Item>
-
 
           <Form.Item
             name="email"
@@ -123,6 +130,7 @@ export default function RegisterPage() {
               htmlType="submit"
               block
               className="register-submit-btn"
+              loading={loading}
             >
               Register →
             </Button>
