@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Upload, Button, message, Table, Tag, Space, Modal } from 'antd';
 import { UploadOutlined, InboxOutlined, EyeOutlined } from '@ant-design/icons';
 import { invoiceService } from '../services/api';
+import InvoiceUpload from '../components/InvoiceUpload';
+import InvoiceReview from '../components/InvoiceReview';
 import '../styles/InvoicePage.css';
-
-const { Dragger } = Upload;
+import Dragger from 'antd/es/upload/Dragger';
 
 const InvoicePage = () => {
     const [fileList, setFileList] = useState([]);

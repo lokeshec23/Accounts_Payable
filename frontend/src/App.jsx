@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import InvoicePage from './pages/InvoicePage';
+import InvoiceReviewPage from './pages/InvoiceReviewPage';
 import CodingPage from './pages/CodingPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import Header from './components/Header';
@@ -11,7 +12,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 const AppContent = () => {
   const location = useLocation();
-  const hideHeader = location.pathname === '/' || location.pathname === '/register';
+  const hideHeader = location.pathname === '/' ||
+    location.pathname === '/register' ||
+    location.pathname === '/invoice/review';
 
   return (
     <>
@@ -24,6 +27,9 @@ const AppContent = () => {
         </ProtectedRoute>} />
         <Route path="/invoice" element={<ProtectedRoute>
           <InvoicePage />
+        </ProtectedRoute>} />
+        <Route path="/invoice/review" element={<ProtectedRoute>
+          <InvoiceReviewPage />
         </ProtectedRoute>} />
         <Route path="/coding" element={<ProtectedRoute>
           <CodingPage />

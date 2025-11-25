@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Tag, message, Spin, Modal } from 'antd';
 import { PlusOutlined, FolderOpenOutlined, EyeOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { invoiceService } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import InvoiceUpload from './InvoiceUpload';
+import InvoiceReview from './InvoiceReview';
 import '../styles/MainLayout.css';
 
 const { confirm } = Modal;
@@ -14,6 +17,9 @@ const MainLayout = () => {
         pageSize: 10,
         total: 0,
     });
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [currentView, setCurrentView] = useState('upload');
+    const [uploadedFile, setUploadedFile] = useState(null);
 
     // Fetch invoices from backend
     const fetchInvoices = async (page = 1, pageSize = 10) => {
@@ -167,9 +173,26 @@ const MainLayout = () => {
     ];
 
     const handleAddInvoice = () => {
-        console.log('Add Invoice clicked');
-        // Navigate to upload page or open upload modal
-        message.info('Upload functionality - to be implemented');
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        // Reset state after closing
+        setTimeout(() => {
+            setCurrentView('upload');
+            setUploadedFile(null);
+        }, 300);
+    };
+
+    const handleUploadSuccess = (file) => {
+        setUploadedFile(file);
+        setCurrentView('review');
+    };
+
+    const handleBackToUpload = () => {
+        setUploadedFile(null);
+        setCurrentView('upload');
     };
 
     const handleViewFiles = () => {
@@ -179,9 +202,8 @@ const MainLayout = () => {
     };
 
     const handleView = (record) => {
-        console.log('View:', record);
-        // Navigate to invoice details page or open modal
-        message.info(`Viewing invoice: ${record.invoiceId}`);
+        // Navigate to invoice review page with the record data
+        navigate('/invoice/review', { state: { invoice: record } });
     };
 
     const handleDelete = (record) => {
@@ -247,6 +269,27 @@ const MainLayout = () => {
                     />
                 </Spin>
             </div>
+
+            <Modal
+                title={null}
+                open={isModalOpen}
+                onCancel={handleCloseModal}
+                footer={null}
+                width={currentView === 'review' ? '95vw' : 700}
+                style={{ top: currentView === 'review' ? 20 : 100 }}
+                destroyOnClose
+                bodyStyle={{ height: currentView === 'review' ? '85vh' : 'auto', padding: 0 }}
+            >
+                {currentView === 'upload' ? (
+                    <div style={{ padding: '24px' }}>
+                        <InvoiceUpload onUploadSuccess={handleUploadSuccess} />
+                    </div>
+                ) : (
+                    <div style={{ height: '100%' }}>
+                        <InvoiceReview file={uploadedFile} onBack={handleBackToUpload} />
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };
