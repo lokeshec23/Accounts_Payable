@@ -5,37 +5,84 @@ import { Button } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { schemaMap } from '../config/schemaMap';
 
-const InvoiceReview = ({ file, onBack }) => {
+const InvoiceReview = ({ file, onBack, invoiceData }) => {
     const [numPages, setNumPages] = useState(null);
     const [pageNumber, setPageNumber] = useState(1);
     const [hoveredKey, setHoveredKey] = useState(null);
+    const [formattedData, setFormattedData] = useState(null);
 
-    // Mock data for demonstration since we don't have real backend extraction yet
-    const [mockData, setMockData] = useState({
-        doc_type: 'invoice',
-        extraction_json: {
-            'Vendor Name': { value: 'Example Vendor Inc.', page_num: 1 },
-            'Invoice Number': { value: 'INV-2023-001', page_num: 1 },
-            'Invoice Date': { value: '2023-10-25', page_num: 1 },
-            'Total Amount': { value: '1,250.00', page_num: 1 },
-            'Tax Amount': { value: '100.00', page_num: 1 },
-            'Subtotal': { value: '1,150.00', page_num: 1 }
-        },
-        items: [
-            {
-                Description: { value: 'Consulting Services' },
-                Quantity: { value: '10' },
-                UnitPrice: { value: '100.00' },
-                NetAmount: { value: '1000.00' }
-            },
-            {
-                Description: { value: 'Software License' },
-                Quantity: { value: '1' },
-                UnitPrice: { value: '150.00' },
-                NetAmount: { value: '150.00' }
+    useEffect(() => {
+        if (invoiceData && invoiceData.extracted_data) {
+            // Transform backend data to the format expected by GenericInputFields
+            const extractedData = invoiceData.extracted_data;
+
+            // Create extraction_json from the extracted data
+            const extraction_json = {};
+
+            // Map vendor info
+            if (extractedData.vendor_info) {
+                if (extractedData.vendor_info.name) {
+                    extraction_json['Vendor Name'] = extractedData.vendor_info.name;
+                }
+                if (extractedData.vendor_info.address) {
+                    extraction_json['Vendor Address'] = extractedData.vendor_info.address;
+                }
             }
-        ]
-    });
+
+            // Map client info
+            if (extractedData.client_info) {
+                if (extractedData.client_info.name) {
+                    extraction_json['Client Name'] = extractedData.client_info.name;
+                }
+                if (extractedData.client_info.billing_address) {
+                    extraction_json['Billing Address'] = extractedData.client_info.billing_address;
+                }
+                if (extractedData.client_info.shipping_address) {
+                    extraction_json['Shipping Address'] = extractedData.client_info.shipping_address;
+                }
+            }
+
+            // Map invoice details
+            if (extractedData.invoice_details) {
+                if (extractedData.invoice_details.invoice_number) {
+                    extraction_json['Invoice Number'] = extractedData.invoice_details.invoice_number;
+                }
+                if (extractedData.invoice_details.invoice_date) {
+                    extraction_json['Invoice Date'] = extractedData.invoice_details.invoice_date;
+                }
+                if (extractedData.invoice_details.due_date) {
+                    extraction_json['Due Date'] = extractedData.invoice_details.due_date;
+                }
+            }
+
+            // Map financial info from 'amounts' object (database uses 'amounts' not 'financial_info')
+            if (extractedData.amounts) {
+                // Always set these fields, even if null, so they appear in the form
+                extraction_json['Total Amount'] = extractedData.amounts.total_invoice_amount || { value: null };
+                extraction_json['Tax Amount'] = extractedData.amounts.total_tax_amount || { value: null };
+                extraction_json['Subtotal'] = extractedData.amounts.subtotal || { value: null };
+            }
+
+            // Map line items from 'Items' object (database uses 'Items' with capital I)
+            const items = [];
+            if (extractedData.Items && extractedData.Items.value && Array.isArray(extractedData.Items.value)) {
+                extractedData.Items.value.forEach(item => {
+                    items.push({
+                        Description: item.description || { value: '' },
+                        Quantity: item.quantity || { value: '' },
+                        UnitPrice: item.unit_price || { value: '' },
+                        NetAmount: item.amount || { value: '' }  // Database uses 'amount' for net amount
+                    });
+                });
+            }
+
+            setFormattedData({
+                doc_type: 'invoice',
+                extraction_json: extraction_json,
+                items: items
+            });
+        }
+    }, [invoiceData]);
 
     return (
         <div style={{
@@ -77,7 +124,7 @@ const InvoiceReview = ({ file, onBack }) => {
                         setNumPages={setNumPages}
                         pageNumber={pageNumber}
                         setPageNumber={setPageNumber}
-                        data={mockData}
+                        data={formattedData}
                         hoveredKey={hoveredKey}
                     />
                 </div>
@@ -88,11 +135,15 @@ const InvoiceReview = ({ file, onBack }) => {
                     overflow: 'auto',
                     background: 'white'
                 }}>
-                    <GenericInputFields
-                        data={mockData}
-                        schema={schemaMap.invoice}
-                        setHoveredKey={setHoveredKey}
-                    />
+                    {formattedData && (
+                        <GenericInputFields
+                            data={formattedData}
+                            schema={schemaMap.invoice}
+                            setHoveredKey={setHoveredKey}
+                            invoiceId={invoiceData?.id}
+                            originalData={invoiceData}
+                        />
+                    )}
                 </div>
             </div>
         </div>

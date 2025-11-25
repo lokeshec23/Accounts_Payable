@@ -19,6 +19,10 @@ class InvoiceBase(BaseModel):
 class InvoiceCreate(InvoiceBase):
     pass
 
+class InvoiceUpdate(BaseModel):
+    extracted_data: Optional[Dict[str, Any]] = None
+    status: Optional[InvoiceStatus] = None
+
 class Invoice(InvoiceBase):
     id: str
     extracted_data: Optional[Dict[str, Any]] = None
