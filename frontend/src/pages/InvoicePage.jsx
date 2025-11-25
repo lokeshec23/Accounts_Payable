@@ -151,7 +151,7 @@ const InvoicePage = () => {
     return (
         <div className="invoice-page">
             <div className="upload-container">
-                <h2 className="upload-title">Upload Invoice Files - invoie page</h2>
+                <h2 className="upload-title">Upload Invoice Files</h2>
                 <p className="upload-description">
                     Drag and drop your invoice PDF files here or click to browse
                 </p>
@@ -162,7 +162,7 @@ const InvoicePage = () => {
                     </p>
                     <p className="ant-upload-text">Click or drag PDF files to this area to upload</p>
                     <p className="ant-upload-hint">
-                        Support for single or bulk upload. Only PDF files are accepted.
+                        Only PDF files are accepted.
                     </p>
                 </Dragger>
 
