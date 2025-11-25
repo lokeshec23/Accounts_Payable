@@ -10,6 +10,7 @@ import '../styles/MainLayout.css';
 const { confirm } = Modal;
 
 const MainLayout = () => {
+    const navigate = useNavigate();
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [pagination, setPagination] = useState({
