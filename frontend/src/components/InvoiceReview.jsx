@@ -4,6 +4,11 @@ import GenericInputFields from './GenericInputFields';
 import { schemaMap } from '../config/schemaMap';
 
 const InvoiceReview = ({ file, onBack, invoiceData }) => {
+    console.log('InvoiceReview received invoiceData:', invoiceData);
+    console.log('Extracted ID attempt 1 (_id.$oid):', invoiceData?._id?.$oid);
+    console.log('Extracted ID attempt 2 (_id):', invoiceData?._id);
+    console.log('Extracted ID attempt 3 (id):', invoiceData?.id);
+
     const [numPages, setNumPages] = useState(null);
     const [pageNumber, setPageNumber] = useState(1);
     const [hoveredKey, setHoveredKey] = useState(null);
@@ -171,7 +176,7 @@ const InvoiceReview = ({ file, onBack, invoiceData }) => {
                             data={formattedData}
                             schema={schemaMap.invoice}
                             setHoveredKey={setHoveredKey}
-                            invoiceId={invoiceData?._id?.$oid || invoiceData?._id}
+                            invoiceId={invoiceData?.id}
                             originalData={invoiceData}
                         />
                     )}

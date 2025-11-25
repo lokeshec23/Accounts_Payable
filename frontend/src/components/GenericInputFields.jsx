@@ -8,10 +8,12 @@ import {
     DatePicker,
     Table,
     Button,
-    Checkbox
+    Checkbox,
+    message
 } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { invoiceService } from '../services/api';
 
 const { Panel } = Collapse;
 const { TextArea } = Input;
@@ -26,6 +28,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
     });
 
     const [lineItems, setLineItems] = useState(lineItemsFromData);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         setFormData({
@@ -81,6 +84,133 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
             return fieldValue.value === null || fieldValue.value === undefined ? '' : fieldValue.value;
         }
         return fieldValue;
+    };
+
+    const handleSave = async () => {
+        if (!invoiceId) {
+            message.error('No invoice ID provided');
+            return;
+        }
+
+        try {
+            setSaving(true);
+
+            // Deep copy original extracted_data to preserve structure
+            const updatedExtractedData = JSON.parse(JSON.stringify(originalData?.extracted_data || {}));
+
+            // Helper to safely update nested values
+            const safeUpdate = (obj, path, newValue) => {
+                const keys = path.split('.');
+                let current = obj;
+
+                for (let i = 0; i < keys.length - 1; i++) {
+                    if (!current[keys[i]]) current[keys[i]] = {};
+                    current = current[keys[i]];
+                }
+
+                const lastKey = keys[keys.length - 1];
+                if (!current[lastKey]) current[lastKey] = {};
+
+                if (typeof current[lastKey] === 'object' && current[lastKey] !== null) {
+                    current[lastKey].value = newValue;
+                } else {
+                    current[lastKey] = { value: newValue };
+                }
+            };
+
+            // Map formData to backend structure
+            // Vendor Info
+            if (formData['Vendor Name'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.name', extractValue(formData['Vendor Name']));
+            if (formData['Vendor Address'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.address', extractValue(formData['Vendor Address']));
+            if (formData['Vendor Country'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.country', extractValue(formData['Vendor Country']));
+            if (formData['Vendor Tax ID (VAT/GST/TIN/W9, etc.)'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.tax_id', extractValue(formData['Vendor Tax ID (VAT/GST/TIN/W9, etc.)']));
+            if (formData['Vendor Contact Email'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.contact_email', extractValue(formData['Vendor Contact Email']));
+            if (formData['Vendor Phone'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.phone', extractValue(formData['Vendor Phone']));
+            if (formData['Vendor Bank Name'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.bank_name', extractValue(formData['Vendor Bank Name']));
+            if (formData['Vendor Bank Account Number'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.bank_account_number', extractValue(formData['Vendor Bank Account Number']));
+            if (formData['Vendor Bank Details (Account/IBAN/SWIFT/Routing No)'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.bank_details', extractValue(formData['Vendor Bank Details (Account/IBAN/SWIFT/Routing No)']));
+            if (formData['Vendor Contact Person'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.contact_person', extractValue(formData['Vendor Contact Person']));
+            if (formData['Vendor Website (if applicable)'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.website', extractValue(formData['Vendor Website (if applicable)']));
+
+            // Client Info
+            if (formData['Client Name or Company Name'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.name', extractValue(formData['Client Name or Company Name']));
+            if (formData['Billing Address'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.billing_address', extractValue(formData['Billing Address']));
+            if (formData['Shipping Address (if different)'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.shipping_address', extractValue(formData['Shipping Address (if different)']));
+            if (formData['Phone Number'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.phone', extractValue(formData['Phone Number']));
+            if (formData['Email Address (if applicable)'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.email', extractValue(formData['Email Address (if applicable)']));
+            if (formData['Client Tax ID (if applicable)'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.tax_id', extractValue(formData['Client Tax ID (if applicable)']));
+            if (formData['Contact Person'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.contact_person', extractValue(formData['Contact Person']));
+
+            // Invoice Details
+            if (formData['Invoice Number'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.invoice_number', extractValue(formData['Invoice Number']));
+            if (formData['Invoice Date'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.invoice_date', extractValue(formData['Invoice Date']));
+            if (formData['Due Date'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.due_date', extractValue(formData['Due Date']));
+            if (formData['Invoice Currency'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.currency', extractValue(formData['Invoice Currency']));
+            if (formData['Invoice Type'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.type', extractValue(formData['Invoice Type']));
+            if (formData['PO Number'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.po_number', extractValue(formData['PO Number']));
+            if (formData['Payment Terms'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.payment_terms', extractValue(formData['Payment Terms']));
+            if (formData['Payment Method'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.payment_method', extractValue(formData['Payment Method']));
+            if (formData['Cost Center / Project Code (if printed)'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.cost_center', extractValue(formData['Cost Center / Project Code (if printed)']));
+
+            // Service Period
+            if (formData['Service period start'] !== undefined) safeUpdate(updatedExtractedData, 'service_period.start_date', extractValue(formData['Service period start']));
+            if (formData['Service period end'] !== undefined) safeUpdate(updatedExtractedData, 'service_period.end_date', extractValue(formData['Service period end']));
+
+            // Amounts
+            if (formData['Subtotal'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.subtotal', extractValue(formData['Subtotal']));
+            if (formData['Shipping / Handling / Fees'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.shipping_handling_fees', extractValue(formData['Shipping / Handling / Fees']));
+            if (formData['Surcharges'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.surcharges', extractValue(formData['Surcharges']));
+            if (formData['Total Tax Amount'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.total_tax_amount', extractValue(formData['Total Tax Amount']));
+            if (formData['Tax Type Breakdown (VAT/GST/PST/IGST etc.)'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.tax_type_breakdown', extractValue(formData['Tax Type Breakdown (VAT/GST/PST/IGST etc.)']));
+            if (formData['Withholding Tax'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.withholding_tax', extractValue(formData['Withholding Tax']));
+            if (formData['Total Invoice Amount'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.total_invoice_amount', extractValue(formData['Total Invoice Amount']));
+            if (formData['Amount Paid'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.amount_paid', extractValue(formData['Amount Paid']));
+            if (formData['Amount Due'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.amount_due', extractValue(formData['Amount Due']));
+
+            // Additional Info
+            if (formData['Notes / Terms'] !== undefined) safeUpdate(updatedExtractedData, 'additional_info.notes_terms', extractValue(formData['Notes / Terms']));
+            if (formData['QR Code / IRN / ZATCA ID (region-specific)'] !== undefined) safeUpdate(updatedExtractedData, 'additional_info.qr_code_irn', extractValue(formData['QR Code / IRN / ZATCA ID (region-specific)']));
+            if (formData['Company Registration Number'] !== undefined) safeUpdate(updatedExtractedData, 'additional_info.company_registration_number', extractValue(formData['Company Registration Number']));
+
+            // Line Items
+            if (lineItems && Array.isArray(lineItems)) {
+                if (!updatedExtractedData.Items) {
+                    updatedExtractedData.Items = { value: [] };
+                }
+
+                const originalItems = updatedExtractedData.Items.value || [];
+
+                updatedExtractedData.Items.value = lineItems.map((item, index) => {
+                    const originalItem = originalItems[index] || {};
+
+                    return {
+                        description: { ...(originalItem.description || {}), value: extractValue(item.Description) },
+                        item_code: { ...(originalItem.item_code || {}), value: extractValue(item.ItemCode) },
+                        quantity: { ...(originalItem.quantity || {}), value: extractValue(item.Quantity) },
+                        unit_of_measure: { ...(originalItem.unit_of_measure || {}), value: extractValue(item.UnitOfMeasure) },
+                        unit_price: { ...(originalItem.unit_price || {}), value: extractValue(item.UnitPrice) },
+                        discount: { ...(originalItem.discount || {}), value: extractValue(item.Discount) },
+                        amount: { ...(originalItem.amount || {}), value: extractValue(item.NetAmount) },
+                        tax_rate: { ...(originalItem.tax_rate || {}), value: extractValue(item.TaxRate) },
+                        tax_amount: { ...(originalItem.tax_amount || {}), value: extractValue(item.TaxAmount) },
+                        gross_amount: { ...(originalItem.gross_amount || {}), value: extractValue(item.GrossAmount) }
+                    };
+                });
+            }
+
+            const updatedData = {
+                extracted_data: updatedExtractedData
+            };
+
+            await invoiceService.updateInvoice(invoiceId, updatedData);
+            message.success('Invoice updated successfully!');
+
+        } catch (error) {
+            console.error('Error saving invoice:', error);
+            message.error(error.response?.data?.detail || 'Failed to save invoice. Please try again.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const renderFieldInput = (field, value) => {
@@ -264,6 +394,17 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
     // Tab 1: Quick View
     const quickViewTab = (
         <div style={{ padding: '20px' }}>
+            <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+                <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    onClick={handleSave}
+                    loading={saving}
+                    size="large"
+                >
+                    Save Changes
+                </Button>
+            </div>
             <Collapse defaultActiveKey={['header', 'lineitems']}>
                 <Panel header="Header" key="header">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -331,6 +472,17 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
     // Tab 2: All Fields
     const allFieldsTab = (
         <div style={{ padding: '10px 20px' }}>
+            <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+                <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    onClick={handleSave}
+                    loading={saving}
+                    size="large"
+                >
+                    Save Changes
+                </Button>
+            </div>
             <Collapse defaultActiveKey={['Vendor Level', 'Invoice Header', 'Line Items']}>
                 <Panel header="Vendor Level" key="Vendor Level">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
