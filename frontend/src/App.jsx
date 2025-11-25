@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { ConfigProvider, message } from 'antd';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
@@ -9,12 +10,23 @@ import CodingPage from './pages/CodingPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
+import './styles/message-override.css';
 
 const AppContent = () => {
   const location = useLocation();
-  const hideHeader = location.pathname === '/' ||
-    location.pathname === '/register' ||
-    location.pathname === '/invoice/review';
+  const hideHeader = location.pathname === '/' || location.pathname === '/register';
+
+  // Configure message to appear in bottom right
+  useEffect(() => {
+    message.config({
+      top: undefined,
+      bottom: 50,
+      duration: 3,
+      maxCount: 3,
+      rtl: false,
+      prefixCls: 'ant-message',
+    });
+  }, []);
 
   return (
     <>
@@ -44,9 +56,17 @@ const AppContent = () => {
 
 const App = () => {
   return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: '#1890ff',
+        },
+      }}
+    >
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </ConfigProvider>
   );
 };
 

@@ -52,7 +52,7 @@ const InvoiceUpload = ({ onUploadSuccess }) => {
 
     return (
         <div className="upload-container" style={{ boxShadow: 'none', padding: '0', maxWidth: '100%' }}>
-            <h2 className="upload-title">Upload Invoice Files</h2>
+            <h2 className="upload-title">Upload Invoice Files - Dashboard</h2>
             <p className="upload-description">
                 Drag and drop your invoice files here or click to browse
             </p>

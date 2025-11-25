@@ -1,0 +1,44 @@
+/* Override Ant Design message position to bottom right */
+.ant-message {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 50px !important;
+    right: 24px !important;
+    left: auto !important;
+    z-index: 9999 !important;
+    width: auto !important;
+    max-width: 400px !important;
+}
+
+.ant-message-notice {
+    text-align: left !important;
+    float: none !important;
+}
+
+.ant-message-notice-content {
+    padding: 10px 16px !important;
+    border-radius: 4px !important;
+    box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
+    background: #fff !important;
+    display: inline-block !important;
+}
+
+/* Success message */
+.ant-message-success .anticon {
+    color: #52c41a !important;
+}
+
+/* Error message */
+.ant-message-error .anticon {
+    color: #ff4d4f !important;
+}
+
+/* Info message */
+.ant-message-info .anticon {
+    color: #1890ff !important;
+}
+
+/* Warning message */
+.ant-message-warning .anticon {
+    color: #faad14 !important;
+}

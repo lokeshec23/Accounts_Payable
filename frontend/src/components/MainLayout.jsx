@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import InvoiceUpload from './InvoiceUpload';
 import InvoiceReview from './InvoiceReview';
 import '../styles/MainLayout.css';
+import InvoicePage from '../pages/InvoicePage';
 
 const { confirm } = Modal;
 
@@ -19,8 +20,6 @@ const MainLayout = () => {
         total: 0,
     });
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [currentView, setCurrentView] = useState('upload');
-    const [uploadedFile, setUploadedFile] = useState(null);
 
     // Fetch invoices from backend
     const fetchInvoices = async (page = 1, pageSize = 10) => {
@@ -49,6 +48,7 @@ const MainLayout = () => {
                 }),
                 uploadedBy: invoice.uploaded_by || 'Unknown',
                 status: invoice.status || 'pending',
+                fileUrl: invoice.file_url || '/sample-invoice.pdf',
                 rawData: invoice // Keep raw data for viewing
             }));
 
@@ -56,12 +56,12 @@ const MainLayout = () => {
             setPagination({
                 current: page,
                 pageSize: pageSize,
-                total: transformedData.length, // Since we don't have total count from backend
+                total: transformedData.length,
             });
         } catch (error) {
             console.error('Error fetching invoices:', error);
             message.error('Failed to load invoices. Please try again.');
-            setData([]); // Set empty array on error
+            setData([]);
         } finally {
             setLoading(false);
         }
@@ -174,31 +174,35 @@ const MainLayout = () => {
     ];
 
     const handleAddInvoice = () => {
-        setIsModalOpen(true);
+        // setIsModalOpen(true);
+        navigate('/invoice');
     };
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
-        // Reset state after closing
-        setTimeout(() => {
-            setCurrentView('upload');
-            setUploadedFile(null);
-        }, 300);
     };
 
     const handleUploadSuccess = (file) => {
-        setUploadedFile(file);
-        setCurrentView('review');
-    };
 
-    const handleBackToUpload = () => {
-        setUploadedFile(null);
-        setCurrentView('upload');
+        // Close the modal
+        setIsModalOpen(false);
+        // Navigate to review page with the uploaded file
+        navigate('/invoice/review', {
+            state: {
+                invoice: {
+                    fileUrl: file instanceof File ? URL.createObjectURL(file) : file,
+                    filename: file.name || 'Uploaded Invoice',
+                    invoiceId: 'NEW',
+                    vendorName: 'To be extracted',
+                    uploadedBy: 'Current User',
+                    lastUpdated: new Date().toLocaleString()
+                }
+            }
+        });
     };
 
     const handleViewFiles = () => {
         console.log('View Files clicked');
-        // Navigate to files view
         message.info('View files functionality - to be implemented');
     };
 
@@ -272,24 +276,14 @@ const MainLayout = () => {
             </div>
 
             <Modal
-                title={null}
+                title="Upload Invoice"
                 open={isModalOpen}
                 onCancel={handleCloseModal}
                 footer={null}
-                width={currentView === 'review' ? '95vw' : 700}
-                style={{ top: currentView === 'review' ? 20 : 100 }}
+                width={700}
                 destroyOnClose
-                bodyStyle={{ height: currentView === 'review' ? '85vh' : 'auto', padding: 0 }}
             >
-                {currentView === 'upload' ? (
-                    <div style={{ padding: '24px' }}>
-                        <InvoiceUpload onUploadSuccess={handleUploadSuccess} />
-                    </div>
-                ) : (
-                    <div style={{ height: '100%' }}>
-                        <InvoiceReview file={uploadedFile} onBack={handleBackToUpload} />
-                    </div>
-                )}
+                <InvoiceUpload onUploadSuccess={handleUploadSuccess} />
             </Modal>
         </div>
     );

@@ -6,8 +6,11 @@ import InvoiceUpload from '../components/InvoiceUpload';
 import InvoiceReview from '../components/InvoiceReview';
 import '../styles/InvoicePage.css';
 import Dragger from 'antd/es/upload/Dragger';
+import { useNavigate } from 'react-router-dom';
+
 
 const InvoicePage = () => {
+    const navigate = useNavigate();
     const [fileList, setFileList] = useState([]);
     const [invoices, setInvoices] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -56,8 +59,8 @@ const InvoicePage = () => {
             key: 'actions',
             render: (_, record) => (
                 <Space>
-                    <Button 
-                        icon={<EyeOutlined />} 
+                    <Button
+                        icon={<EyeOutlined />}
                         onClick={() => showInvoiceDetails(record)}
                         size="small"
                     >
@@ -68,10 +71,10 @@ const InvoicePage = () => {
         },
     ];
 
-    const showInvoiceDetails = (invoice) => {
-        setPreviewData(invoice);
-        setPreviewVisible(true);
-    };
+    // const showInvoiceDetails = (invoice) => {
+    //     setPreviewData(invoice);
+    //     setPreviewVisible(true);
+    // };
 
     const uploadProps = {
         name: 'file',
@@ -92,6 +95,7 @@ const InvoicePage = () => {
     };
 
     const handleUpload = async () => {
+        debugger
         if (fileList.length === 0) {
             message.warning('Please select files to upload');
             return;
@@ -99,14 +103,31 @@ const InvoicePage = () => {
 
         setLoading(true);
         try {
-            for (const file of fileList) {
-                await invoiceService.uploadInvoice(file);
+            // for (const file of fileList) {
+            // }
+            const response = await invoiceService.uploadInvoice(fileList[0]);
+            console.log("response", response);
+            if (Object.values(response).length) {
+                const { invoice_details } = response
+                navigate('/invoice/review', {
+                    state: {
+                        invoice: {
+                            // fileUrl: file instanceof File ? URL.createObjectURL(file) : file,
+                            filename: 'Uploaded Invoice',
+                            invoiceId: invoice_details?.invoice_number?.value,
+                            vendorName: 'To be extracted',
+                            uploadedBy: 'Current User',
+                            lastUpdated: new Date().toLocaleString()
+                        }
+                    }
+                });
             }
             message.success(`${fileList.length} file(s) uploaded successfully`);
             setFileList([]);
             loadInvoices(); // Refresh the invoices list
         } catch (error) {
             message.error('Upload failed. Please try again.');
+            console.log("error in handleUpload  ", error);
         } finally {
             setLoading(false);
         }
@@ -129,7 +150,7 @@ const InvoicePage = () => {
     return (
         <div className="invoice-page">
             <div className="upload-container">
-                <h2 className="upload-title">Upload Invoice Files</h2>
+                <h2 className="upload-title">Upload Invoice Files - invoie page</h2>
                 <p className="upload-description">
                     Drag and drop your invoice PDF files here or click to browse
                 </p>
