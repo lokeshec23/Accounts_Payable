@@ -1,12 +1,15 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status
+from fastapi.responses import FileResponse
 from typing import List
 from app.services.invoice_processor import InvoiceProcessor
-from app.models.invoice import InvoiceCreate, InvoiceResponse, InvoiceStatus
+from app.models.invoice import InvoiceCreate, InvoiceResponse, InvoiceStatus, InvoiceUpdate
 from app.database.mongodb import get_database
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
 from datetime import datetime
 import json
+import os
+from pathlib import Path
 
 router = APIRouter()
 invoice_processor = InvoiceProcessor()
@@ -62,8 +65,8 @@ async def upload_invoice(
                 {"$set": update_data}
             )
             
-            # Cleanup uploaded file
-            invoice_processor.cleanup_file(file_info["file_path"])
+            # Don't cleanup uploaded file - keep it for viewing
+            # invoice_processor.cleanup_file(file_info["file_path"])
             
             # Return complete invoice data
             invoice_dict.update(update_data)
@@ -132,6 +135,30 @@ async def get_invoice(
     invoice["id"] = str(invoice["_id"])
     return InvoiceResponse(**invoice)
 
+@router.get("/{invoice_id}/pdf")
+async def get_invoice_pdf(
+    invoice_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Get PDF file for a specific invoice"""
+    db = get_database()
+    
+    from bson.objectid import ObjectId
+    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    file_path = invoice.get("file_path")
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="PDF file not found")
+    
+    return FileResponse(
+        path=file_path,
+        media_type="application/pdf",
+        filename=invoice.get("original_filename", "invoice.pdf")
+    )
+
 @router.put("/{invoice_id}/status")
 async def update_invoice_status(
     invoice_id: str,
@@ -152,6 +179,53 @@ async def update_invoice_status(
         raise HTTPException(status_code=404, detail="Invoice not found")
     
     return {"message": "Invoice status updated successfully"}
+
+@router.put("/{invoice_id}")
+async def update_invoice(
+    invoice_id: str,
+    invoice_update: InvoiceUpdate,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Update invoice data"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    db = get_database()
+    from bson.objectid import ObjectId
+    
+    # Log what we're receiving
+    logger.info(f"Updating invoice {invoice_id}")
+    logger.info(f"Update data: {invoice_update.dict()}")
+    
+    # Filter out None values
+    update_data = {k: v for k, v in invoice_update.dict().items() if v is not None}
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No data to update")
+    
+    # Find the existing invoice first
+    existing_invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    if not existing_invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    logger.info(f"Found existing invoice: {existing_invoice.get('filename')}")
+    
+    # Update the existing document using $set
+    result = db.invoices.update_one(
+        {"_id": ObjectId(invoice_id)},
+        {"$set": update_data}
+    )
+    
+    logger.info(f"Update result - matched: {result.matched_count}, modified: {result.modified_count}")
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # Return the updated invoice
+    updated_invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    updated_invoice["id"] = str(updated_invoice["_id"])
+    
+    return InvoiceResponse(**updated_invoice)
 
 @router.delete("/{invoice_id}")
 async def delete_invoice(

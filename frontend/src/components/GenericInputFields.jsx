@@ -6,14 +6,18 @@ import {
     Select,
     Checkbox,
     DatePicker,
-    Table
+    Table,
+    Button,
+    message
 } from 'antd';
+import { SaveOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { invoiceService } from '../services/api';
 
 const { Panel } = Collapse;
 const { TextArea } = Input;
 
-const GenericInputFields = ({ data, schema, setHoveredKey }) => {
+const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalData }) => {
     // UPDATED: Handle both extraction_json and direct data structure
     const extractionData = data?.extraction_json || {};
 
@@ -24,6 +28,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey }) => {
         ...extractionData,
         LineItems: lineItemsFromData
     });
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         setFormData({
@@ -54,6 +59,135 @@ const GenericInputFields = ({ data, schema, setHoveredKey }) => {
             [field]: newValue,
         }));
     };
+
+//     const handleSave = async () => {
+//     if (!invoiceId) {
+//         message.error('No invoice ID provided');
+//         return;
+//     }
+
+//     try {
+//         setSaving(true);
+
+//         // Start with the complete original extracted_data from the database
+//         const updatedExtractedData = JSON.parse(JSON.stringify(originalData?.extracted_data || {}));
+
+//         // Helper to safely update a value in nested structure
+//         const safeUpdate = (obj, path, newValue) => {
+//             const keys = path.split('.');
+//             let current = obj;
+            
+//             for (let i = 0; i < keys.length - 1; i++) {
+//                 if (!current[keys[i]]) current[keys[i]] = {};
+//                 current = current[keys[i]];
+//             }
+            
+//             const lastKey = keys[keys.length - 1];
+//             if (!current[lastKey]) current[lastKey] = {};
+            
+//             // If it has a 'value' property, update it; otherwise set value
+//             if (typeof current[lastKey] === 'object' && current[lastKey] !== null) {
+//                 current[lastKey].value = newValue;
+//             } else {
+//                 current[lastKey] = { value: newValue };
+//             }
+//         };
+
+//         // Update vendor_info
+//         if (formData['Vendor Name'] !== undefined) {
+//             safeUpdate(updatedExtractedData, 'vendor_info.name', extractValue(formData['Vendor Name']));
+//         }
+//         if (formData['Vendor Address'] !== undefined) {
+//             safeUpdate(updatedExtractedData, 'vendor_info.address', extractValue(formData['Vendor Address']));
+//         }
+
+//         // Update client_info
+//         if (formData['Client Name'] !== undefined) {
+//             safeUpdate(updatedExtractedData, 'client_info.name', extractValue(formData['Client Name']));
+//         }
+//         if (formData['Billing Address'] !== undefined) {
+//             safeUpdate(updatedExtractedData, 'client_info.billing_address', extractValue(formData['Billing Address']));
+//         }
+//         if (formData['Shipping Address'] !== undefined) {
+//             safeUpdate(updatedExtractedData, 'client_info.shipping_address', extractValue(formData['Shipping Address']));
+//         }
+
+//         // Update invoice_details
+//         if (formData['Invoice Number'] !== undefined) {
+//             safeUpdate(updatedExtractedData, 'invoice_details.invoice_number', extractValue(formData['Invoice Number']));
+//         }
+//         if (formData['Invoice Date'] !== undefined) {
+//             safeUpdate(updatedExtractedData, 'invoice_details.invoice_date', extractValue(formData['Invoice Date']));
+//         }
+//         if (formData['Due Date'] !== undefined) {
+//             safeUpdate(updatedExtractedData, 'invoice_details.due_date', extractValue(formData['Due Date']));
+//         }
+
+//         // Update amounts
+//         if (formData['Total Amount'] !== undefined) {
+//             safeUpdate(updatedExtractedData, 'amounts.total_invoice_amount', extractValue(formData['Total Amount']));
+//         }
+//         if (formData['Tax Amount'] !== undefined) {
+//             safeUpdate(updatedExtractedData, 'amounts.total_tax_amount', extractValue(formData['Tax Amount']));
+//         }
+//         if (formData['Subtotal'] !== undefined) {
+//             safeUpdate(updatedExtractedData, 'amounts.subtotal', extractValue(formData['Subtotal']));
+//         }
+
+//         // Update Items (line items)
+//         if (formData.LineItems && Array.isArray(formData.LineItems)) {
+//             if (!updatedExtractedData.Items) {
+//                 updatedExtractedData.Items = { value: [] };
+//             }
+            
+//             // Get original items array
+//             const originalItems = updatedExtractedData.Items.value || [];
+            
+//             // Update items array
+//             updatedExtractedData.Items.value = formData.LineItems.map((item, index) => {
+//                 const originalItem = originalItems[index] || {};
+                
+//                 return {
+//                     description: {
+//                         ...(originalItem.description || {}),
+//                         value: extractValue(item.Description)
+//                     },
+//                     quantity: {
+//                         ...(originalItem.quantity || {}),
+//                         value: extractValue(item.Quantity)
+//                     },
+//                     unit_price: {
+//                         ...(originalItem.unit_price || {}),
+//                         value: extractValue(item.UnitPrice)
+//                     },
+//                     amount: {
+//                         ...(originalItem.amount || {}),
+//                         value: extractValue(item.NetAmount)
+//                     }
+//                 };
+//             });
+//         }
+
+//         // Log what we're sending for debugging
+//         console.log('Updating invoice:', invoiceId);
+//         console.log('Sending extracted_data:', updatedExtractedData);
+
+//         // Call the API to update
+//         const response = await invoiceService.updateInvoice(invoiceId, {
+//             extracted_data: updatedExtractedData
+//         });
+
+//         console.log('Update successful:', response);
+//         message.success('Invoice updated successfully!');
+        
+//     } catch (error) {
+//         console.error('Error saving invoice:', error);
+//         console.error('Error details:', error.response?.data);
+//         message.error(error.response?.data?.detail || 'Failed to save invoice. Please try again.');
+//     } finally {
+//         setSaving(false);
+//     }
+// };
 
     // Field categorization
     const categorizeFields = (fields) => {
@@ -119,23 +253,28 @@ const GenericInputFields = ({ data, schema, setHoveredKey }) => {
     const extractValue = (fieldValue) => {
         if (fieldValue === null || fieldValue === undefined) return '';
         if (typeof fieldValue === 'object' && fieldValue !== null && 'value' in fieldValue) {
-            return fieldValue.value;
+            // Check if value property is null/undefined
+            return fieldValue.value === null || fieldValue.value === undefined ? '' : fieldValue.value;
         }
         return fieldValue;
     };
 
     // Render field input
     const renderFieldInput = (field, value) => {
-        const stringValue = typeof value === "object" ? value?.value || "" : value || "";
+        const stringValue = extractValue(value);
 
         if (field.includes('Amount') || field.includes('Price') || field.includes('Total') || field.includes('Tax')) {
+            // Clean the string value (remove currency symbols and commas) before parsing
+            const cleanValue = stringValue.toString().replace(/[^\d.-]/g, '');
+            const numValue = parseFloat(cleanValue);
+
             return (
                 <InputNumber
                     style={{ width: '100%' }}
-                    value={parseFloat(stringValue) || 0}
+                    value={isNaN(numValue) ? null : numValue}
                     onChange={(val) => handleInputChange(field, val)}
                     step={0.01}
-                    formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    formatter={value => (value !== null && value !== undefined && value !== '') ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
                     parser={value => value.replace(/\$\s?|(,*)/g, '')}
                 />
             );
@@ -223,6 +362,21 @@ const GenericInputFields = ({ data, schema, setHoveredKey }) => {
 
     return (
         <div style={{ padding: '10px 20px' }}>
+            {/* Save Button */}
+            {/* {invoiceId && (
+                <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                        type="primary"
+                        icon={<SaveOutlined />}
+                        onClick={handleSave}
+                        loading={saving}
+                        size="large"
+                    >
+                        Save Changes
+                    </Button>
+                </div>
+            )} */}
+
             <Collapse defaultActiveKey={['Vendor Information', 'Invoice Header', 'Line Items', 'Financial Information']}>
                 {renderFieldSection('Vendor Information', categorizedFields.vendor)}
                 {renderFieldSection('Buyer Information', categorizedFields.buyer)}

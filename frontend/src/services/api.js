@@ -51,23 +51,44 @@ export const invoiceService = {
   },
 
   async getInvoices(skip = 0, limit = 10) {
-    const response = await api.get(`/invoices?skip=${skip}&limit=${limit}`);
+    const response = await api.get(`/invoices/?skip=${skip}&limit=${limit}`);
     return response.data;
   },
 
   async getInvoice(invoiceId) {
-    const response = await api.get(`/invoices/${invoiceId}`);
+    const response = await api.get(`/invoices/${invoiceId}/`);
     return response.data;
   },
 
   async updateInvoiceStatus(invoiceId, status) {
-    const response = await api.put(`/invoices/${invoiceId}/status`, { status });
+    const response = await api.put(`/invoices/${invoiceId}/status/`, { status });
+    return response.data;
+  },
+
+  async updateInvoice(invoiceId, data) {
+    console.log(`Calling PUT /invoices/${invoiceId}`, data);
+
+    // This should use PUT to update existing record
+    const response = await api.put(`/invoices/${invoiceId}`, data);
+
+    console.log('Update response:', response.data);
     return response.data;
   },
 
   async deleteInvoice(invoiceId) {
-    const response = await api.delete(`/invoices/${invoiceId}`);
+    const response = await api.delete(`/invoices/${invoiceId}/`);
     return response.data;
+  },
+
+  getPdfUrl(invoiceId) {
+    return `${API_BASE_URL}/invoices/${invoiceId}/pdf`;
+  },
+
+  async getPdfBlob(invoiceId) {
+    const response = await api.get(`/invoices/${invoiceId}/pdf`, {
+      responseType: 'blob'
+    });
+    return URL.createObjectURL(response.data);
   }
 };
 
