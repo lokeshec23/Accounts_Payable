@@ -24,7 +24,13 @@ const Header = () => {
         }
     }, []);
 
-    const isActive = (path) => location.pathname === path;
+    const isActive = (path) => {
+        // For exact match on dashboard, otherwise check if path starts with the route
+        if (path === '/dashboard') {
+            return location.pathname === path;
+        }
+        return location.pathname.startsWith(path);
+    };
 
     const handleLogout = () => {
         authService.logout();
@@ -82,7 +88,7 @@ const Header = () => {
 
                 {/* Right Section - Icons */}
                 <div className="header-actions">
-                    {/* Toggle Switch */}
+                    {/* Toggle Switch
                     <div className="header-toggle">
                         <Switch
                             checked={toggleChecked}
@@ -91,16 +97,16 @@ const Header = () => {
                     </div>
 
                     {/* Search Icon */}
-                    <button className="header-icon-btn" aria-label="Search">
+                    {/* <button className="header-icon-btn" aria-label="Search">
                         <SearchOutlined />
-                    </button>
+                    </button> */}
 
                     {/* Notification Icon with Badge */}
-                    <button className="header-icon-btn" aria-label="Notifications">
+                    {/* <button className="header-icon-btn" aria-label="Notifications">
                         <Badge count={5} size="small">
                             <BellOutlined />
                         </Badge>
-                    </button>
+                    </button> */} 
 
                     {/* User Account with Dropdown */}
                     <Dropdown
