@@ -1,14 +1,48 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Switch, Badge } from 'antd';
-import { SearchOutlined, BellOutlined, UserOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Switch, Badge, Dropdown } from 'antd';
+import { SearchOutlined, BellOutlined, LogoutOutlined } from '@ant-design/icons';
+import { authService } from '../services/auth';
 import '../styles/Header.css';
 
 const Header = () => {
     const [toggleChecked, setToggleChecked] = useState(false);
+    const [username, setUsername] = useState('User');
     const location = useLocation();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        // Get username from localStorage or use default
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser);
+                setUsername(user.username || user.email || 'User');
+            } catch (e) {
+                setUsername('User');
+            }
+        }
+    }, []);
 
     const isActive = (path) => location.pathname === path;
+
+    const handleLogout = () => {
+        authService.logout();
+        navigate('/');
+    };
+
+    const userMenuItems = [
+        {
+            key: 'logout',
+            label: 'Logout',
+            icon: <LogoutOutlined />,
+            onClick: handleLogout,
+            danger: true,
+        },
+    ];
+
+    // Get first letter of username
+    const userInitial = username.charAt(0).toUpperCase();
 
     return (
         <header className="app-header">
@@ -68,12 +102,18 @@ const Header = () => {
                         </Badge>
                     </button>
 
-                    {/* User Account */}
-                    <div className="header-user">
-                        <div className="user-avatar">
-                            <UserOutlined />
+                    {/* User Account with Dropdown */}
+                    <Dropdown
+                        menu={{ items: userMenuItems }}
+                        placement="bottomRight"
+                        trigger={['click']}
+                    >
+                        <div className="header-user" style={{ cursor: 'pointer' }}>
+                            <div className="user-avatar">
+                                {userInitial}
+                            </div>
                         </div>
-                    </div>
+                    </Dropdown>
                 </div>
             </div>
         </header>

@@ -15,6 +15,11 @@ export const authService = {
       const response = await api.post('/auth/login', credentials);
       if (response.data.access_token) {
         localStorage.setItem('token', response.data.access_token);
+        // Store user info for display purposes
+        localStorage.setItem('user', JSON.stringify({
+          email: credentials.email,
+          username: credentials.email.split('@')[0] // Extract username from email (e.g., "lokesh" from "lokesh@example.com")
+        }));
       }
       return response.data;
     } catch (error) {
