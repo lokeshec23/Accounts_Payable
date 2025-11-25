@@ -38,15 +38,39 @@ const InvoiceReview = ({ file, onBack }) => {
     });
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div style={{ padding: '10px', borderBottom: '1px solid #e8e8e8', background: 'white' }}>
-                <Button icon={<ArrowLeftOutlined />} onClick={onBack}>
-                    Back to Upload
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100vh',
+            width: '100vw',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            background: 'white',
+            zIndex: 1000
+        }}>
+            <div style={{
+                padding: '15px 20px',
+                borderBottom: '1px solid #e8e8e8',
+                background: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}>
+                <Button icon={<ArrowLeftOutlined />} onClick={onBack} size="large">
+                    Back to Dashboard
                 </Button>
             </div>
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                 {/* Left Side: PDF Viewer */}
-                <div style={{ flex: 1, borderRight: '1px solid #e8e8e8', overflow: 'auto', background: '#f5f5f5', padding: '20px' }}>
+                <div style={{
+                    flex: 1,
+                    borderRight: '1px solid #e8e8e8',
+                    overflow: 'hidden',
+                    background: '#f5f5f5',
+                    display: 'flex',
+                    flexDirection: 'column'
+                }}>
                     <PdfViewer
                         file={file}
                         numPages={numPages}
@@ -59,7 +83,11 @@ const InvoiceReview = ({ file, onBack }) => {
                 </div>
 
                 {/* Right Side: Input Fields */}
-                <div style={{ flex: 1, overflow: 'auto', background: 'white', padding: '20px' }}>
+                <div style={{
+                    flex: 1,
+                    overflow: 'auto',
+                    background: 'white'
+                }}>
                     <GenericInputFields
                         data={mockData}
                         schema={schemaMap.invoice}

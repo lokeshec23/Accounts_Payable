@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Table, Button, Space, Modal } from 'antd';
 import { PlusOutlined, FolderOpenOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import InvoiceUpload from './InvoiceUpload';
@@ -6,6 +7,7 @@ import InvoiceReview from './InvoiceReview';
 import '../styles/MainLayout.css';
 
 const MainLayout = () => {
+    const navigate = useNavigate();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentView, setCurrentView] = useState('upload'); // 'upload' or 'review'
     const [uploadedFile, setUploadedFile] = useState(null);
@@ -14,48 +16,53 @@ const MainLayout = () => {
     const [data] = useState([
         {
             key: '1',
-            filename: '123456789_W2.json',
+            filename: '123456789_W2.pdf',
             vendorName: 'John Doe',
             invoiceId: 'INV-20250915-001',
             lastUpdated: '2025-09-14 10:45 AM',
             uploadedBy: 'John Doe',
-            status: 'Completed'
+            status: 'Completed',
+            fileUrl: '/sample-invoice.pdf' // Mock file URL
         },
         {
             key: '2',
-            filename: '12345_LoanFile.json',
+            filename: '12345_LoanFile.pdf',
             vendorName: 'Lando Norris',
             invoiceId: 'INV-20250914-005',
             lastUpdated: '2025-09-13 04:22 PM',
             uploadedBy: 'Emily Johnson',
-            status: 'Pending'
+            status: 'Pending',
+            fileUrl: '/sample-invoice.pdf'
         },
         {
             key: '3',
-            filename: '12345_LoanFile1.json',
+            filename: '12345_LoanFile1.pdf',
             vendorName: 'Lewis Hamilton',
             invoiceId: 'INV-20250913-009',
             lastUpdated: '2025-09-12 02:17 PM',
             uploadedBy: 'Michael Smith',
-            status: 'Error'
+            status: 'Error',
+            fileUrl: '/sample-invoice.pdf'
         },
         {
             key: '4',
-            filename: '12_CreditReport.json',
+            filename: '12_CreditReport.pdf',
             vendorName: 'Max Verstappen',
             invoiceId: 'INV-20250912-003',
             lastUpdated: '2025-09-13 04:22 PM',
             uploadedBy: 'Daniel Miller',
-            status: 'Completed'
+            status: 'Completed',
+            fileUrl: '/sample-invoice.pdf'
         },
         {
             key: '5',
-            filename: '123_TaxReturn.json',
+            filename: '123_TaxReturn.pdf',
             vendorName: 'Charles Leclerc',
             invoiceId: 'INV-20250911-007',
             lastUpdated: '2025-09-12 02:17 PM',
             uploadedBy: 'Ashley Davis',
-            status: 'Error'
+            status: 'Error',
+            fileUrl: '/sample-invoice.pdf'
         }
     ]);
 
@@ -145,8 +152,8 @@ const MainLayout = () => {
     };
 
     const handleView = (record) => {
-        console.log('View:', record);
-        // Add your view logic here
+        // Navigate to invoice review page with the record data
+        navigate('/invoice/review', { state: { invoice: record } });
     };
 
     const handleDelete = (record) => {
