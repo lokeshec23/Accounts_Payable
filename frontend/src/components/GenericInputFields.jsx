@@ -459,8 +459,80 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
     // Tab 3: Coding
     const codingTab = (
         <div style={{ padding: '20px' }}>
-            <h3>Coding Functionality</h3>
-            <p>Coding features will be implemented here.</p>
+            <Collapse defaultActiveKey={['header', 'lineitems']}>
+                <Panel header="Header" key="header">
+                    <Table
+                        columns={[
+                            {
+                                title: 'File Name',
+                                dataIndex: 'fileName',
+                                key: 'fileName',
+                                width: '20%'
+                            },
+                            {
+                                title: 'Invoice ID',
+                                dataIndex: 'invoiceId',
+                                key: 'invoiceId',
+                                width: '15%'
+                            },
+                            {
+                                title: 'Total Amount',
+                                dataIndex: 'totalAmount',
+                                key: 'totalAmount',
+                                width: '15%'
+                            },
+                            {
+                                title: 'Due Date',
+                                dataIndex: 'dueDate',
+                                key: 'dueDate',
+                                width: '15%'
+                            },
+                            {
+                                title: 'Header Coding',
+                                dataIndex: 'headerCoding',
+                                key: 'headerCoding',
+                                width: '35%',
+                                render: () => (
+                                    <DatePicker
+                                        style={{ width: '100%' }}
+                                        format="YYYY-MM-DD"
+                                    />
+                                )
+                            }
+                        ]}
+                        dataSource={[
+                            {
+                                key: '1',
+                                fileName: formData['Vendor Name']?.value || formData['Vendor Name'] || '',
+                                invoiceId: formData['Invoice Number']?.value || formData['Invoice Number'] || '',
+                                totalAmount: formData['Total Invoice Amount']?.value || formData['Total Invoice Amount'] || '',
+                                dueDate: formData['Due Date']?.value || formData['Due Date'] || '',
+                                headerCoding: ''
+                            }
+                        ]}
+                        pagination={false}
+                        size="small"
+                    />
+                </Panel>
+
+                <Panel header="Line Items" key="lineitems">
+                    <Table
+                        columns={lineItemColumns}
+                        dataSource={lineItems.map((item, index) => ({ ...item, key: index }))}
+                        pagination={false}
+                        scroll={{ x: 'max-content' }}
+                        size="small"
+                    />
+                    <Button
+                        type="dashed"
+                        icon={<PlusOutlined />}
+                        onClick={handleAddLineItem}
+                        style={{ marginTop: '16px', width: '100%' }}
+                    >
+                        Add Line Item
+                    </Button>
+                </Panel>
+            </Collapse>
         </div>
     );
 
