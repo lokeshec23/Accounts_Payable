@@ -213,6 +213,7 @@ const MainLayout = () => {
     };
 
     const handleView = (record) => {
+        debugger
         // Navigate to invoice review page with the record data
         navigate('/invoice/review', { state: { invoice: record } });
     };

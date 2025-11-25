@@ -108,19 +108,20 @@ const InvoicePage = () => {
             const response = await invoiceService.uploadInvoice(fileList[0]);
             console.log("response", response);
             if (Object.values(response).length) {
-                const { invoice_details } = response
-                navigate('/invoice/review', {
-                    state: {
-                        invoice: {
-                            // fileUrl: file instanceof File ? URL.createObjectURL(file) : file,
-                            filename: 'Uploaded Invoice',
-                            invoiceId: invoice_details?.invoice_number?.value,
-                            vendorName: 'To be extracted',
-                            uploadedBy: 'Current User',
-                            lastUpdated: new Date().toLocaleString()
-                        }
-                    }
-                });
+                navigate('/invoice/review', { state: { invoice: response } });
+                // const { invoice_details } = response
+                // navigate('/invoice/review', {
+                //     state: {
+                //         invoice: {
+                //             // fileUrl: file instanceof File ? URL.createObjectURL(file) : file,
+                //             filename: 'Uploaded Invoice',
+                //             invoiceId: invoice_details?.invoice_number?.value,
+                //             vendorName: 'To be extracted',
+                //             uploadedBy: 'Current User',
+                //             lastUpdated: new Date().toLocaleString()
+                //         }
+                //     }
+                // });
             }
             message.success(`${fileList.length} file(s) uploaded successfully`);
             setFileList([]);
