@@ -10,7 +10,7 @@ import {
     Button,
     Checkbox
 } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 const { Panel } = Collapse;
@@ -26,6 +26,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
     });
 
     const [lineItems, setLineItems] = useState(lineItemsFromData);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         setFormData({
@@ -73,6 +74,20 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
     const handleDeleteLineItem = (index) => {
         const updatedItems = lineItems.filter((_, i) => i !== index);
         setLineItems(updatedItems);
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            console.log('Saving data:', { ...formData, LineItems: lineItems });
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            alert('Data saved successfully!');
+        } catch (error) {
+            console.error('Error saving data:', error);
+            alert('Failed to save data');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const extractValue = (fieldValue) => {
@@ -441,6 +456,14 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         </div>
     );
 
+    // Tab 3: Coding
+    const codingTab = (
+        <div style={{ padding: '20px' }}>
+            <h3>Coding Functionality</h3>
+            <p>Coding features will be implemented here.</p>
+        </div>
+    );
+
     const tabItems = [
         {
             key: '1',
@@ -451,16 +474,48 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
             key: '2',
             label: 'All Fields',
             children: allFieldsTab
+        },
+        {
+            key: '3',
+            label: 'Coding',
+            children: codingTab
         }
     ];
 
     return (
-        <Tabs
-            defaultActiveKey="1"
-            items={tabItems}
-            centered
-            style={{ height: '100%' }}
-        />
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                backgroundColor: '#fff',
+                borderBottom: '1px solid #f0f0f0'
+            }}>
+                <Tabs
+                    defaultActiveKey="1"
+                    items={tabItems}
+                    centered
+                    style={{ margin: 0 }}
+                    tabBarExtraContent={{
+                        right: (
+                            <Button
+                                type="primary"
+                                icon={<SaveOutlined />}
+                                onClick={handleSave}
+                                loading={saving}
+                                size="large"
+                                style={{ marginLeft: '24px' }}
+                            >
+                                Save
+                            </Button>
+                        )
+                    }}
+                />
+            </div>
+            <div style={{ flex: 1, overflow: 'auto', padding: '0' }}>
+                {/* Tab content will be rendered here by Ant Design */}
+            </div>
+        </div>
     );
 };
 
