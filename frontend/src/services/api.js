@@ -39,6 +39,7 @@ api.interceptors.response.use(
 // Add invoice service methods
 export const invoiceService = {
   async uploadInvoice(file) {
+    debugger
     const formData = new FormData();
     formData.append('file', file);
 
@@ -47,7 +48,7 @@ export const invoiceService = {
         'Content-Type': 'multipart/form-data',
       },
     });
-    return response.data;
+    return response.data || null;
   },
 
   async getInvoices(skip = 0, limit = 10) {

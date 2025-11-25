@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PdfViewer from './Pdfviewer';
 import GenericInputFields from './GenericInputFields';
-import { Button } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
 import { schemaMap } from '../config/schemaMap';
 
 const InvoiceReview = ({ file, onBack, invoiceData }) => {
@@ -87,27 +85,11 @@ const InvoiceReview = ({ file, onBack, invoiceData }) => {
     return (
         <div style={{
             display: 'flex',
-            flexDirection: 'column',
-            height: '100vh',
-            width: '100vw',
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            background: 'white',
-            zIndex: 1000
+            height: 'calc(100vh - 10vh)',
+            width: '100%',
+            background: 'white'
         }}>
-            <div style={{
-                padding: '15px 20px',
-                borderBottom: '1px solid #e8e8e8',
-                background: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-            }}>
-                <Button icon={<ArrowLeftOutlined />} onClick={onBack} size="large">
-                    Back to Dashboard
-                </Button>
-            </div>
+
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                 {/* Left Side: PDF Viewer */}
                 <div style={{

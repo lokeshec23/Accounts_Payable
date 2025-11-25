@@ -67,7 +67,7 @@ const InvoiceReviewPage = () => {
     }
 
     return (
-        <div style={{ height: '100vh', width: '100%' }}>
+        <div style={{ height: 'calc(100vh - 10vh)', width: '100%' }}>
             <InvoiceReview
                 file={pdfUrl}
                 onBack={handleBack}
