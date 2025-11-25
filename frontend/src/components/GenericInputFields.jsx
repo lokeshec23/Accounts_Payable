@@ -12,13 +12,11 @@ import {
 } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { invoiceService } from '../services/api';
 
 const { Panel } = Collapse;
 const { TextArea } = Input;
 
 const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalData }) => {
-    // UPDATED: Handle both extraction_json and direct data structure
     const extractionData = data?.extraction_json || {};
     const lineItemsFromData = data?.items || data?.LineItems || [];
 
@@ -26,7 +24,6 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         ...extractionData,
         LineItems: lineItemsFromData
     });
-    const [saving, setSaving] = useState(false);
 
     const [lineItems, setLineItems] = useState(lineItemsFromData);
 
@@ -51,6 +48,12 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         }));
     };
 
+    const handleLineItemChange = (index, field, value) => {
+        const updatedItems = [...lineItems];
+        updatedItems[index][field] = { value };
+        setLineItems(updatedItems);
+    };
+
     const handleAddLineItem = () => {
         const newItem = {
             Description: { value: '' },
@@ -72,33 +75,18 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         setLineItems(updatedItems);
     };
 
-    // Helper functions
-    const formatCurrency = (value) => {
-        if (value === null || value === undefined || value === 'N/A' || value === '') return 'N/A';
-        const numValue = typeof value === 'string' ? parseFloat(value.replace(/[^\d.-]/g, '')) : value;
-        if (isNaN(numValue)) return 'N/A';
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 2
-        }).format(numValue);
-    };
-
     const extractValue = (fieldValue) => {
         if (fieldValue === null || fieldValue === undefined) return '';
         if (typeof fieldValue === 'object' && fieldValue !== null && 'value' in fieldValue) {
-            // Check if value property is null/undefined
             return fieldValue.value === null || fieldValue.value === undefined ? '' : fieldValue.value;
         }
         return fieldValue;
     };
 
-    // Render field input
     const renderFieldInput = (field, value) => {
         const stringValue = extractValue(value);
 
         if (field.includes('Amount') || field.includes('Price') || field.includes('Total') || field.includes('Tax')) {
-            // Clean the string value (remove currency symbols and commas) before parsing
             const cleanValue = stringValue.toString().replace(/[^\d.-]/g, '');
             const numValue = parseFloat(cleanValue);
 
@@ -121,7 +109,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     format="YYYY-MM-DD"
                 />
             );
-        } else if (field.includes('Notes') || field.includes('Terms') || field.includes('Description')) {
+        } else if (field.includes('Notes') || field.includes('Terms')) {
             return (
                 <TextArea
                     rows={3}
@@ -148,17 +136,113 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         }
     };
 
-
-    // Line items table columns
+    // Editable line items table columns
     const lineItemColumns = [
-        { title: 'S.No', dataIndex: 'item_number', key: 'item_number', width: 50, render: (text, record, index) => index + 1 },
-        { title: 'Description', dataIndex: 'Description', key: 'Description', width: 200, render: (val) => extractValue(val) || 'N/A' },
-        { title: 'Item Code', dataIndex: 'ItemCode', key: 'ItemCode', width: 120, render: (val) => extractValue(val) || 'N/A' },
-        { title: 'Qty', dataIndex: 'Quantity', key: 'Quantity', width: 80, render: (val) => extractValue(val) || 'N/A' },
-        { title: 'Unit', dataIndex: 'UnitOfMeasure', key: 'UnitOfMeasure', width: 80, render: (val) => extractValue(val) || 'N/A' },
-        { title: 'Unit Price', dataIndex: 'UnitPrice', key: 'UnitPrice', width: 100, render: (val) => formatCurrency(extractValue(val)) },
-        { title: 'Discount', dataIndex: 'Discount', key: 'Discount', width: 100, render: (val) => formatCurrency(extractValue(val)) },
-        { title: 'Net Amount', dataIndex: 'NetAmount', key: 'NetAmount', width: 120, render: (val) => formatCurrency(extractValue(val)) },
+        {
+            title: 'S.No',
+            dataIndex: 'item_number',
+            key: 'item_number',
+            width: 50,
+            render: (text, record, index) => index + 1
+        },
+        {
+            title: 'Description',
+            dataIndex: 'Description',
+            key: 'Description',
+            width: 200,
+            render: (val, record, index) => (
+                <Input.TextArea
+                    rows={2}
+                    value={extractValue(val)}
+                    onChange={(e) => handleLineItemChange(index, 'Description', e.target.value)}
+                />
+            )
+        },
+        {
+            title: 'Item Code',
+            dataIndex: 'ItemCode',
+            key: 'ItemCode',
+            width: 120,
+            render: (val, record, index) => (
+                <Input
+                    value={extractValue(val)}
+                    onChange={(e) => handleLineItemChange(index, 'ItemCode', e.target.value)}
+                />
+            )
+        },
+        {
+            title: 'Qty',
+            dataIndex: 'Quantity',
+            key: 'Quantity',
+            width: 80,
+            render: (val, record, index) => (
+                <InputNumber
+                    style={{ width: '100%' }}
+                    value={extractValue(val)}
+                    onChange={(value) => handleLineItemChange(index, 'Quantity', value)}
+                />
+            )
+        },
+        {
+            title: 'Unit',
+            dataIndex: 'UnitOfMeasure',
+            key: 'UnitOfMeasure',
+            width: 80,
+            render: (val, record, index) => (
+                <Input
+                    value={extractValue(val)}
+                    onChange={(e) => handleLineItemChange(index, 'UnitOfMeasure', e.target.value)}
+                />
+            )
+        },
+        {
+            title: 'Unit Price',
+            dataIndex: 'UnitPrice',
+            key: 'UnitPrice',
+            width: 120,
+            render: (val, record, index) => (
+                <InputNumber
+                    style={{ width: '100%' }}
+                    value={extractValue(val)}
+                    onChange={(value) => handleLineItemChange(index, 'UnitPrice', value)}
+                    step={0.01}
+                    formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                />
+            )
+        },
+        {
+            title: 'Discount',
+            dataIndex: 'Discount',
+            key: 'Discount',
+            width: 120,
+            render: (val, record, index) => (
+                <InputNumber
+                    style={{ width: '100%' }}
+                    value={extractValue(val)}
+                    onChange={(value) => handleLineItemChange(index, 'Discount', value)}
+                    step={0.01}
+                    formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                />
+            )
+        },
+        {
+            title: 'Net Amount',
+            dataIndex: 'NetAmount',
+            key: 'NetAmount',
+            width: 120,
+            render: (val, record, index) => (
+                <InputNumber
+                    style={{ width: '100%' }}
+                    value={extractValue(val)}
+                    onChange={(value) => handleLineItemChange(index, 'NetAmount', value)}
+                    step={0.01}
+                    formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                />
+            )
+        },
         {
             title: 'Action',
             key: 'action',
@@ -218,7 +302,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
                             <div style={{ fontWeight: 500 }}>Total Amount:</div>
-                            <div>{renderFieldInput('Total Amount', formData['Total Amount'])}</div>
+                            <div>{renderFieldInput('Total Invoice Amount', formData['Total Invoice Amount'])}</div>
                         </div>
                     </div>
                 </Panel>
@@ -248,7 +332,6 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
     const allFieldsTab = (
         <div style={{ padding: '10px 20px' }}>
             <Collapse defaultActiveKey={['Vendor Level', 'Invoice Header', 'Line Items']}>
-                {/* Vendor Level */}
                 <Panel header="Vendor Level" key="Vendor Level">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {['Vendor Name', 'Vendor Address', 'Vendor Country', 'Vendor Tax ID (VAT/GST/TIN/W9, etc.)',
@@ -263,7 +346,6 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     </div>
                 </Panel>
 
-                {/* Buyer Information */}
                 <Panel header="Buyer Information" key="Buyer Information">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {['Client Name or Company Name', 'Billing Address', 'Shipping Address (if different)',
@@ -277,7 +359,6 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     </div>
                 </Panel>
 
-                {/* Invoice Header */}
                 <Panel header="Invoice Header" key="Invoice Header">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {['Invoice Number', 'Invoice Date', 'Due Date', 'Invoice Currency', 'Invoice Type',
@@ -291,7 +372,6 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     </div>
                 </Panel>
 
-                {/* Line Items */}
                 <Panel header="Line Items" key="Line Items">
                     <Table
                         columns={lineItemColumns}
@@ -310,7 +390,6 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     </Button>
                 </Panel>
 
-                {/* Taxes */}
                 <Panel header="Taxes" key="Taxes">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {['Total Tax Amount', 'Tax Type Breakdown (VAT/GST/PST/IGST etc.)',
@@ -323,7 +402,6 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     </div>
                 </Panel>
 
-                {/* Totals */}
                 <Panel header="Totals" key="Totals">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {['Subtotal', 'Shipping / Handling / Fees', 'Surcharges', 'Total Invoice Amount',
@@ -336,7 +414,6 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     </div>
                 </Panel>
 
-                {/* Compliance */}
                 <Panel header="Compliance" key="Compliance">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {['Notes / Terms', 'QR Code / IRN / ZATCA ID (region-specific)',
@@ -349,7 +426,6 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     </div>
                 </Panel>
 
-                {/* Approval Workflow */}
                 <Panel header="Approval Workflow" key="Approval Workflow">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {['Approval Workflow ID', 'Approval Required', 'Approver List / Roles:',
