@@ -309,8 +309,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                     style={{ width: '100%' }}
                                     defaultValue="USD"
                                     options={[
-                                        { value: 'USD', label: '$ Dollar' },
-                                        { value: 'INR', label: '₹ Rupees' }
+                                        { value: 'USD', label: '$ USD' },
+                                        { value: 'INR', label: '₹ INR' }
                                     ]}
                                 />
                             </div>
