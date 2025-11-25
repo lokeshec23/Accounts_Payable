@@ -73,12 +73,6 @@ const Header = () => {
                         Invoice
                     </Link>
                     <Link
-                        to="/coding"
-                        className={`nav-tab ${isActive('/coding') ? 'active' : ''}`}
-                    >
-                        Coding
-                    </Link>
-                    <Link
                         to="/approvals"
                         className={`nav-tab ${isActive('/approvals') ? 'active' : ''}`}
                     >
@@ -88,26 +82,6 @@ const Header = () => {
 
                 {/* Right Section - Icons */}
                 <div className="header-actions">
-                    {/* Toggle Switch
-                    <div className="header-toggle">
-                        <Switch
-                            checked={toggleChecked}
-                            onChange={setToggleChecked}
-                        />
-                    </div>
-
-                    {/* Search Icon */}
-                    {/* <button className="header-icon-btn" aria-label="Search">
-                        <SearchOutlined />
-                    </button> */}
-
-                    {/* Notification Icon with Badge */}
-                    {/* <button className="header-icon-btn" aria-label="Notifications">
-                        <Badge count={5} size="small">
-                            <BellOutlined />
-                        </Badge>
-                    </button> */} 
-
                     {/* User Account with Dropdown */}
                     <Dropdown
                         menu={{ items: userMenuItems }}
