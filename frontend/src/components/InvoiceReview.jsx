@@ -147,7 +147,7 @@ const InvoiceReview = ({ file, onBack, invoiceData }) => {
 
                 {/* LEFT SIDE PDF VIEWER */}
                 <div style={{
-                    flex: 1,
+                    flex: '0 0 35%',
                     borderRight: '1px solid #e8e8e8',
                     overflow: 'hidden',
                     background: '#f5f5f5',
@@ -167,7 +167,7 @@ const InvoiceReview = ({ file, onBack, invoiceData }) => {
 
                 {/* RIGHT SIDE: INPUT FIELDS */}
                 <div style={{
-                    flex: 1,
+                    flex: '0 0 65%',
                     overflow: 'auto',
                     background: 'white'
                 }}>

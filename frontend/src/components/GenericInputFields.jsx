@@ -78,6 +78,20 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         setLineItems(updatedItems);
     };
 
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            console.log('Saving data:', { ...formData, LineItems: lineItems });
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            alert('Data saved successfully!');
+        } catch (error) {
+            console.error('Error saving data:', error);
+            alert('Failed to save data');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const extractValue = (fieldValue) => {
         if (fieldValue === null || fieldValue === undefined) return '';
         if (typeof fieldValue === 'object' && fieldValue !== null && 'value' in fieldValue) {
@@ -435,8 +449,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                     style={{ width: '100%' }}
                                     defaultValue="USD"
                                     options={[
-                                        { value: 'USD', label: '$ Dollar' },
-                                        { value: 'INR', label: '₹ Rupees' }
+                                        { value: 'USD', label: '$ USD' },
+                                        { value: 'INR', label: '₹ INR' }
                                     ]}
                                 />
                             </div>
@@ -593,6 +607,216 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         </div>
     );
 
+    // Tab 3: Coding
+    const codingTab = (
+        <div style={{ padding: '20px' }}>
+            <Collapse defaultActiveKey={['header', 'lineitems']}>
+                <Panel header="Header" key="header">
+                    <Table
+                        columns={[
+                            {
+                                title: 'File Name',
+                                dataIndex: 'fileName',
+                                key: 'fileName',
+                                width: '20%'
+                            },
+                            {
+                                title: 'Invoice ID',
+                                dataIndex: 'invoiceId',
+                                key: 'invoiceId',
+                                width: '15%'
+                            },
+                            {
+                                title: 'Total Amount',
+                                dataIndex: 'totalAmount',
+                                key: 'totalAmount',
+                                width: '15%'
+                            },
+                            {
+                                title: 'Due Date',
+                                dataIndex: 'dueDate',
+                                key: 'dueDate',
+                                width: '15%'
+                            },
+                            {
+                                title: 'Header Coding',
+                                dataIndex: 'headerCoding',
+                                key: 'headerCoding',
+                                width: '35%',
+                                render: () => (
+                                    <Input
+                                        style={{ width: '100%' }}
+                                        placeholder="Enter header coding"
+                                    />
+                                )
+                            }
+                        ]}
+                        dataSource={[
+                            {
+                                key: '1',
+                                fileName: formData['Vendor Name']?.value || formData['Vendor Name'] || '',
+                                invoiceId: formData['Invoice Number']?.value || formData['Invoice Number'] || '',
+                                totalAmount: formData['Total Invoice Amount']?.value || formData['Total Invoice Amount'] || '',
+                                dueDate: formData['Due Date']?.value || formData['Due Date'] || '',
+                                headerCoding: ''
+                            }
+                        ]}
+                        pagination={false}
+                        size="small"
+                    />
+                </Panel>
+
+                <Panel header="Line Items" key="lineitems">
+                    <Table
+                        columns={[
+                            {
+                                title: 'S.No',
+                                dataIndex: 'sNo',
+                                key: 'sNo',
+                                width: '5%',
+                                render: (text, record, index) => index + 1
+                            },
+                            {
+                                title: 'Description',
+                                dataIndex: 'description',
+                                key: 'description',
+                                width: '15%',
+                                render: (text, record, index) => (
+                                    <Input
+                                        value={text}
+                                        placeholder="Enter description"
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Line Type',
+                                dataIndex: 'lineType',
+                                key: 'lineType',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <Select
+                                        defaultValue="Expense"
+                                        style={{ width: '100%' }}
+                                        options={[
+                                            { value: 'Expense', label: 'Expense' },
+                                            { value: 'Asset', label: 'Asset' },
+                                            { value: 'Liability', label: 'Liability' }
+                                        ]}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Quantity',
+                                dataIndex: 'quantity',
+                                key: 'quantity',
+                                width: '8%',
+                                render: (text, record, index) => (
+                                    <InputNumber
+                                        value={text}
+                                        style={{ width: '100%' }}
+                                        min={0}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Unit Price',
+                                dataIndex: 'unitPrice',
+                                key: 'unitPrice',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <InputNumber
+                                        value={text}
+                                        style={{ width: '100%' }}
+                                        min={0}
+                                        precision={2}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Net Amount',
+                                dataIndex: 'netAmount',
+                                key: 'netAmount',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <InputNumber
+                                        value={text}
+                                        style={{ width: '100%' }}
+                                        min={0}
+                                        precision={2}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'GL Code',
+                                dataIndex: 'glCode',
+                                key: 'glCode',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <Input
+                                        value={text}
+                                        placeholder="GL Code"
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Cost Center',
+                                dataIndex: 'costCenter',
+                                key: 'costCenter',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <Input
+                                        value={text}
+                                        placeholder="Cost Center"
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Project Code',
+                                dataIndex: 'projectCode',
+                                key: 'projectCode',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <Input
+                                        value={text}
+                                        placeholder="Project Code"
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Action',
+                                key: 'action',
+                                width: '7%',
+                                render: (text, record, index) => (
+                                    <Button
+                                        type="text"
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={() => handleDeleteLineItem(index)}
+                                    />
+                                )
+                            }
+                        ]}
+                        dataSource={lineItems.map((item, index) => ({
+                            key: index,
+                            sNo: index + 1,
+                            description: item.Description?.value || '',
+                            lineType: 'Expense',
+                            quantity: item.Quantity?.value || 0,
+                            unitPrice: item.UnitPrice?.value || 0,
+                            netAmount: item.NetAmount?.value || 0,
+                            glCode: '',
+                            costCenter: '',
+                            projectCode: ''
+                        }))}
+                        pagination={false}
+                        scroll={{ x: 'max-content' }}
+                        size="small"
+                    />
+                </Panel>
+            </Collapse>
+        </div>
+    );
+
     const tabItems = [
         {
             key: '1',
@@ -603,16 +827,48 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
             key: '2',
             label: 'All Fields',
             children: allFieldsTab
+        },
+        {
+            key: '3',
+            label: 'Coding',
+            children: codingTab
         }
     ];
 
     return (
-        <Tabs
-            defaultActiveKey="1"
-            items={tabItems}
-            centered
-            style={{ height: '100%' }}
-        />
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                backgroundColor: '#fff',
+                borderBottom: '1px solid #f0f0f0'
+            }}>
+                <Tabs
+                    defaultActiveKey="1"
+                    items={tabItems}
+                    centered
+                    style={{ margin: 0 }}
+                    tabBarExtraContent={{
+                        right: (
+                            <Button
+                                type="primary"
+                                icon={<SaveOutlined />}
+                                onClick={handleSave}
+                                loading={saving}
+                                size="large"
+                                style={{ marginLeft: '24px' }}
+                            >
+                                Save
+                            </Button>
+                        )
+                    }}
+                />
+            </div>
+            <div style={{ flex: 1, overflow: 'auto', padding: '0' }}>
+                {/* Tab content will be rendered here by Ant Design */}
+            </div>
+        </div>
     );
 };
 
