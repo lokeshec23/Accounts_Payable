@@ -1,0 +1,37 @@
+from pydantic import BaseModel
+from typing import Optional, List
+from datetime import datetime
+
+class LineItemCoding(BaseModel):
+    s_no: int
+    description: str
+    line_type: str  # Expense, Asset, Liability
+    quantity: float
+    unit_price: float
+    net_amount: float
+    gl_code: str
+    cost_center: str
+    project_code: str
+
+class CodingBase(BaseModel):
+    invoice_id: str
+    header_coding: Optional[str] = None
+    line_items: Optional[List[LineItemCoding]] = []
+
+class CodingCreate(CodingBase):
+    pass
+
+class CodingUpdate(BaseModel):
+    header_coding: Optional[str] = None
+    line_items: Optional[List[LineItemCoding]] = None
+
+class Coding(CodingBase):
+    id: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class CodingResponse(Coding):
+    pass

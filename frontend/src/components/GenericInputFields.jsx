@@ -13,7 +13,7 @@ import {
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { invoiceService } from '../services/api';
+import { invoiceService, codingService } from '../services/api';
 
 const { Panel } = Collapse;
 const { TextArea } = Input;
@@ -29,6 +29,28 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
 
     const [lineItems, setLineItems] = useState(lineItemsFromData);
     const [saving, setSaving] = useState(false);
+    const [activeTab, setActiveTab] = useState('1');
+
+    // Coding tab state
+    const [headerCoding, setHeaderCoding] = useState('');
+    const [codingLineItems, setCodingLineItems] = useState([]);
+
+    // Helper function to parse currency values
+    const parseCurrencyValue = (value) => {
+        if (!value) return 0;
+        // Remove currency symbols, commas, and spaces, then parse
+        const cleanValue = String(value).replace(/[$,\s]/g, '');
+        const parsed = parseFloat(cleanValue);
+        return isNaN(parsed) ? 0 : parsed;
+    };
+
+    const extractValue = (fieldValue) => {
+        if (fieldValue === null || fieldValue === undefined) return '';
+        if (typeof fieldValue === 'object' && fieldValue !== null && 'value' in fieldValue) {
+            return fieldValue.value === null || fieldValue.value === undefined ? '' : fieldValue.value;
+        }
+        return fieldValue;
+    };
 
     useEffect(() => {
         setFormData({
@@ -36,7 +58,111 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
             LineItems: data?.items || data?.LineItems || []
         });
         setLineItems(data?.items || data?.LineItems || []);
+
+        // Initialize coding line items from invoice line items
+        if (data?.items || data?.LineItems) {
+            const items = data?.items || data?.LineItems || [];
+            console.log('=== INITIALIZING CODING LINE ITEMS ===');
+            console.log('Total items:', items.length);
+
+            setCodingLineItems(items.map((item, index) => {
+                const extractedUnitPrice = extractValue(item.UnitPrice);
+                const extractedNetAmount = extractValue(item.NetAmount);
+
+                const unitPrice = parseCurrencyValue(extractedUnitPrice || extractValue(item.unit_price));
+                const netAmount = parseCurrencyValue(extractedNetAmount || extractValue(item.amount) || extractValue(item.net_amount));
+
+                console.log(`Item ${index}: UnitPrice='${extractedUnitPrice}' -> ${unitPrice}, NetAmount='${extractedNetAmount}' -> ${netAmount}`);
+
+                return {
+                    s_no: index + 1,
+                    description: extractValue(item.Description) || '',
+                    line_type: 'Expense',
+                    quantity: parseFloat(extractValue(item.Quantity)) || 0,
+                    unit_price: unitPrice,
+                    net_amount: netAmount,
+                    gl_code: '',
+                    cost_center: '',
+                    project_code: ''
+                };
+            }));
+        }
     }, [data]);
+
+    // Load existing coding data
+    useEffect(() => {
+        const loadCodingData = async () => {
+            if (!invoiceId) return;
+
+            try {
+                const codingData = await codingService.getCoding(invoiceId);
+                if (codingData) {
+                    setHeaderCoding(codingData.header_coding || '');
+                    if (codingData.line_items && codingData.line_items.length > 0) {
+                        // Merge saved coding data with current codingLineItems to preserve invoice amounts
+                        setCodingLineItems(prevItems => {
+                            return prevItems.map((item, index) => {
+                                const savedItem = codingData.line_items[index];
+                                if (savedItem) {
+                                    // Keep invoice values for unit_price and net_amount if saved values are 0
+                                    return {
+                                        ...item,
+                                        line_type: savedItem.line_type || item.line_type,
+                                        gl_code: savedItem.gl_code || item.gl_code,
+                                        cost_center: savedItem.cost_center || item.cost_center,
+                                        project_code: savedItem.project_code || item.project_code,
+                                        // Only use saved amounts if they're non-zero, otherwise keep invoice amounts
+                                        unit_price: savedItem.unit_price || item.unit_price,
+                                        net_amount: savedItem.net_amount || item.net_amount
+                                    };
+                                }
+                                return item;
+                            });
+                        });
+                    }
+                }
+            } catch (error) {
+                // If coding data doesn't exist yet, that's okay
+                if (error.response?.status !== 404) {
+                    console.error('Error loading coding data:', error);
+                }
+            }
+        };
+
+        loadCodingData();
+    }, [invoiceId]);
+
+    // Sync coding line items with invoice line items when they change
+    useEffect(() => {
+        if (lineItems && lineItems.length > 0) {
+            setCodingLineItems(prevCodingItems => {
+                // Map over the current invoice line items
+                return lineItems.map((item, index) => {
+                    // Get existing coding data for this index if it exists
+                    const existingCoding = prevCodingItems[index] || {};
+
+                    // Extract current values from invoice line item
+                    const extractedUnitPrice = extractValue(item.UnitPrice);
+                    const extractedNetAmount = extractValue(item.NetAmount);
+
+                    const unitPrice = parseCurrencyValue(extractedUnitPrice || extractValue(item.unit_price));
+                    const netAmount = parseCurrencyValue(extractedNetAmount || extractValue(item.amount) || extractValue(item.net_amount));
+
+                    return {
+                        s_no: index + 1,
+                        description: extractValue(item.Description) || '',
+                        line_type: existingCoding.line_type || 'Expense', // Preserve or default
+                        quantity: parseFloat(extractValue(item.Quantity)) || 0,
+                        unit_price: unitPrice,
+                        net_amount: netAmount,
+                        gl_code: existingCoding.gl_code || '', // Preserve
+                        cost_center: existingCoding.cost_center || '', // Preserve
+                        project_code: existingCoding.project_code || '' // Preserve
+                    };
+                });
+            });
+        }
+    }, [lineItems]);
 
     const handleInputChange = (field, value) => {
         const oldValue = formData[field];
@@ -76,6 +202,21 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
     const handleDeleteLineItem = (index) => {
         const updatedItems = lineItems.filter((_, i) => i !== index);
         setLineItems(updatedItems);
+
+        // Also delete from coding line items to keep indices in sync
+        const updatedCodingItems = codingLineItems.filter((_, i) => i !== index);
+        setCodingLineItems(updatedCodingItems);
+    };
+
+    // Coding tab handlers
+    const handleHeaderCodingChange = (value) => {
+        setHeaderCoding(value);
+    };
+
+    const handleCodingLineItemChange = (index, field, value) => {
+        const updatedItems = [...codingLineItems];
+        updatedItems[index][field] = value;
+        setCodingLineItems(updatedItems);
     };
 
     // const handleSave = async () => {
@@ -92,15 +233,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
     //     }
     // };
 
-    const extractValue = (fieldValue) => {
-        if (fieldValue === null || fieldValue === undefined) return '';
-        if (typeof fieldValue === 'object' && fieldValue !== null && 'value' in fieldValue) {
-            return fieldValue.value === null || fieldValue.value === undefined ? '' : fieldValue.value;
-        }
-        return fieldValue;
-    };
-
-    const handleSave = async () => {
+    const saveInvoiceData = async () => {
         if (!invoiceId) {
             message.error('No invoice ID provided');
             return;
@@ -222,6 +355,50 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         } catch (error) {
             console.error('Error saving invoice:', error);
             message.error(error.response?.data?.detail || 'Failed to save invoice. Please try again.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!invoiceId) {
+            message.error('No invoice ID provided');
+            return;
+        }
+
+        if (activeTab === '3') {
+            await handleSaveCoding();
+            await saveInvoiceData();
+        } else {
+            await saveInvoiceData();
+        }
+    };
+
+    const handleSaveCoding = async () => {
+        if (!invoiceId) {
+            message.error('No invoice ID provided');
+            return;
+        }
+
+        try {
+            setSaving(true);
+
+            const codingData = {
+                header_coding: headerCoding,
+                line_items: codingLineItems
+            };
+
+            console.log('Saving coding data:', codingData);
+            console.log('Invoice ID:', invoiceId);
+
+            const response = await codingService.saveCoding(invoiceId, codingData);
+            console.log('Save response:', response);
+            message.success('Coding data saved successfully!');
+
+        } catch (error) {
+            console.error('Error saving coding data:', error);
+            console.error('Error response:', error.response);
+            message.error(error.response?.data?.detail || 'Failed to save coding data. Please try again.');
         } finally {
             setSaving(false);
         }
@@ -603,6 +780,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                             ))}
                     </div>
                 </Panel>
+
             </Collapse>
         </div>
     );
@@ -647,6 +825,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                     <Input
                                         style={{ width: '100%' }}
                                         placeholder="Enter header coding"
+                                        value={headerCoding}
+                                        onChange={(e) => handleHeaderCodingChange(e.target.value)}
                                     />
                                 )
                             }
@@ -671,8 +851,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                         columns={[
                             {
                                 title: 'S.No',
-                                dataIndex: 'sNo',
-                                key: 'sNo',
+                                dataIndex: 's_no',
+                                key: 's_no',
                                 width: '5%',
                                 render: (text, record, index) => index + 1
                             },
@@ -680,23 +860,18 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 title: 'Description',
                                 dataIndex: 'description',
                                 key: 'description',
-                                width: '15%',
-                                render: (text, record, index) => (
-                                    <Input
-                                        value={text}
-                                        placeholder="Enter description"
-                                    />
-                                )
+                                width: '15%'
                             },
                             {
                                 title: 'Line Type',
-                                dataIndex: 'lineType',
-                                key: 'lineType',
+                                dataIndex: 'line_type',
+                                key: 'line_type',
                                 width: '10%',
                                 render: (text, record, index) => (
                                     <Select
-                                        defaultValue="Expense"
+                                        value={codingLineItems[index]?.line_type || 'Expense'}
                                         style={{ width: '100%' }}
+                                        onChange={(value) => handleCodingLineItemChange(index, 'line_type', value)}
                                         options={[
                                             { value: 'Expense', label: 'Expense' },
                                             { value: 'Asset', label: 'Asset' },
@@ -712,73 +887,83 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 width: '8%',
                                 render: (text, record, index) => (
                                     <InputNumber
-                                        value={text}
+                                        value={codingLineItems[index]?.quantity || 0}
                                         style={{ width: '100%' }}
                                         min={0}
+                                        onChange={(value) => handleCodingLineItemChange(index, 'quantity', value)}
                                     />
                                 )
                             },
                             {
                                 title: 'Unit Price',
-                                dataIndex: 'unitPrice',
-                                key: 'unitPrice',
+                                dataIndex: 'unit_price',
+                                key: 'unit_price',
                                 width: '10%',
                                 render: (text, record, index) => (
                                     <InputNumber
-                                        value={text}
+                                        value={codingLineItems[index]?.unit_price || 0}
                                         style={{ width: '100%' }}
                                         min={0}
                                         precision={2}
+                                        formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+                                        parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                                        onChange={(value) => handleCodingLineItemChange(index, 'unit_price', value)}
                                     />
                                 )
                             },
                             {
                                 title: 'Net Amount',
-                                dataIndex: 'netAmount',
-                                key: 'netAmount',
+                                dataIndex: 'net_amount',
+                                key: 'net_amount',
                                 width: '10%',
                                 render: (text, record, index) => (
                                     <InputNumber
-                                        value={text}
+                                        value={codingLineItems[index]?.net_amount || 0}
                                         style={{ width: '100%' }}
                                         min={0}
                                         precision={2}
+                                        formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+                                        parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                                        onChange={(value) => handleCodingLineItemChange(index, 'net_amount', value)}
                                     />
                                 )
                             },
                             {
                                 title: 'GL Code',
-                                dataIndex: 'glCode',
-                                key: 'glCode',
+                                dataIndex: 'gl_code',
+                                key: 'gl_code',
                                 width: '10%',
                                 render: (text, record, index) => (
                                     <Input
-                                        value={text}
+                                        value={codingLineItems[index]?.gl_code || ''}
                                         placeholder="GL Code"
+                                        onChange={(e) => handleCodingLineItemChange(index, 'gl_code', e.target.value)}
                                     />
                                 )
                             },
                             {
                                 title: 'Cost Center',
-                                dataIndex: 'costCenter',
-                                key: 'costCenter',
+                                dataIndex: 'cost_center',
+                                key: 'cost_center',
                                 width: '10%',
                                 render: (text, record, index) => (
                                     <Input
-                                        value={text}
+                                        value={codingLineItems[index]?.cost_center || ''}
                                         placeholder="Cost Center"
+                                        onChange={(e) => handleCodingLineItemChange(index, 'cost_center', e.target.value)}
                                     />
                                 )
                             },
                             {
                                 title: 'Project Code',
-                                dataIndex: 'projectCode',
-                                key: 'projectCode',
+                                dataIndex: 'project_code',
+                                key: 'project_code',
                                 width: '10%',
                                 render: (text, record, index) => (
                                     <Input
-                                        value={text}
+                                        value={codingLineItems[index]?.project_code || ''}
                                         placeholder="Project Code"
+                                        onChange={(e) => handleCodingLineItemChange(index, 'project_code', e.target.value)}
                                     />
                                 )
                             },
@@ -796,17 +981,9 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 )
                             }
                         ]}
-                        dataSource={lineItems.map((item, index) => ({
+                        dataSource={codingLineItems.map((item, index) => ({
                             key: index,
-                            sNo: index + 1,
-                            description: item.Description?.value || '',
-                            lineType: 'Expense',
-                            quantity: item.Quantity?.value || 0,
-                            unitPrice: item.UnitPrice?.value || 0,
-                            netAmount: item.NetAmount?.value || 0,
-                            glCode: '',
-                            costCenter: '',
-                            projectCode: ''
+                            ...item
                         }))}
                         pagination={false}
                         scroll={{ x: 'max-content' }}
@@ -814,7 +991,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     />
                 </Panel>
             </Collapse>
-        </div>
+        </div >
     );
 
     const tabItems = [
@@ -835,7 +1012,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         }
     ];
 
-    const [activeTab, setActiveTab] = useState('1');
+   
 
     const renderTabContent = () => {
         switch (activeTab) {
