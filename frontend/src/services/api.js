@@ -93,4 +93,25 @@ export const invoiceService = {
   }
 };
 
+// Add coding service methods
+export const codingService = {
+  async saveCoding(invoiceId, codingData) {
+    const response = await api.post('/coding/', {
+      invoice_id: invoiceId,
+      ...codingData
+    });
+    return response.data;
+  },
+
+  async getCoding(invoiceId) {
+    const response = await api.get(`/coding/${invoiceId}`);
+    return response.data;
+  },
+
+  async deleteCoding(invoiceId) {
+    const response = await api.delete(`/coding/${invoiceId}`);
+    return response.data;
+  }
+};
+
 export default api;
