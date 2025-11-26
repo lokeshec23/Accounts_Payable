@@ -78,19 +78,19 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         setLineItems(updatedItems);
     };
 
-    const handleSave = async () => {
-        setSaving(true);
-        try {
-            console.log('Saving data:', { ...formData, LineItems: lineItems });
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            alert('Data saved successfully!');
-        } catch (error) {
-            console.error('Error saving data:', error);
-            alert('Failed to save data');
-        } finally {
-            setSaving(false);
-        }
-    };
+    // const handleSave = async () => {
+    //     setSaving(true);
+    //     try {
+    //         console.log('Saving data:', { ...formData, LineItems: lineItems });
+    //         await new Promise(resolve => setTimeout(resolve, 1000));
+    //         alert('Data saved successfully!');
+    //     } catch (error) {
+    //         console.error('Error saving data:', error);
+    //         alert('Failed to save data');
+    //     } finally {
+    //         setSaving(false);
+    //     }
+    // };
 
     const extractValue = (fieldValue) => {
         if (fieldValue === null || fieldValue === undefined) return '';
@@ -408,7 +408,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
     // Tab 1: Quick View
     const quickViewTab = (
         <div style={{ padding: '20px' }}>
-            <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+            {/* <div style={{ marginBottom: '16px', textAlign: 'right' }}>
                 <Button
                     type="primary"
                     icon={<SaveOutlined />}
@@ -418,7 +418,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 >
                     Save Changes
                 </Button>
-            </div>
+            </div> */}
             <Collapse defaultActiveKey={['header', 'lineitems']}>
                 <Panel header="Header" key="header">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
