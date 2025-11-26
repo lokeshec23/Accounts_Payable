@@ -165,20 +165,26 @@ async def update_invoice_status(
     status: InvoiceStatus,
     current_user: UserResponse = Depends(get_current_user)
 ):
-    """Update invoice status"""
     db = get_database()
-    
     from bson.objectid import ObjectId
-    # Allow any user to update status (removed ownership check)
-    result = db.invoices.update_one(
+
+    approver_name = current_user.username
+    timestamp = datetime.utcnow().isoformat()
+
+    db.invoices.update_one(
         {"_id": ObjectId(invoice_id)},
-        {"$set": {"status": status}}
+        {
+            "$set": {
+                "status": status,
+                "validation_results.approver_name": approver_name,
+                "validation_results.approval_timestamp": timestamp,
+                "validation_results.last_action": status
+            }
+        }
     )
-    
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    
-    return {"message": "Invoice status updated successfully"}
+
+    return {"message": "Status updated"}
+
 
 @router.put("/{invoice_id}")
 async def update_invoice(
@@ -186,45 +192,52 @@ async def update_invoice(
     invoice_update: InvoiceUpdate,
     current_user: UserResponse = Depends(get_current_user)
 ):
-    """Update invoice data"""
+    """Update invoice data safely"""
     import logging
     logger = logging.getLogger(__name__)
-    
+
     db = get_database()
     from bson.objectid import ObjectId
-    
-    # Log what we're receiving
+
     logger.info(f"Updating invoice {invoice_id}")
     logger.info(f"Update data: {invoice_update.dict()}")
-    
-    # Filter out None values
+
+    # Remove None values
     update_data = {k: v for k, v in invoice_update.dict().items() if v is not None}
-    
+
     if not update_data:
         raise HTTPException(status_code=400, detail="No data to update")
-    
-    # Find the existing invoice first
+
+    # ❗ FETCH DOCUMENT FIRST (the correct sequence)
     existing_invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
     if not existing_invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    
-    logger.info(f"Found existing invoice: {existing_invoice.get('filename')}")
-    
-    # Update the existing document using $set
+
+    logger.info(f"Found invoice: {existing_invoice.get('filename')}")
+
+    # ---- Special handling for validation_results ----
+    if "validation_results" in update_data:
+        existing_validation = existing_invoice.get("validation_results", {}) or {}
+        new_validation = update_data["validation_results"]
+
+        # merge existing and new values safely
+        merged_validation = {**existing_validation, **new_validation}
+
+        update_data["validation_results"] = merged_validation
+
+    # Perform database update
     result = db.invoices.update_one(
         {"_id": ObjectId(invoice_id)},
         {"$set": update_data}
     )
-    
-    logger.info(f"Update result - matched: {result.matched_count}, modified: {result.modified_count}")
-    
-    if result.matched_count == 0:
+
+    if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    
+
     # Return the updated invoice
     updated_invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
     updated_invoice["id"] = str(updated_invoice["_id"])
-    
+
     return InvoiceResponse(**updated_invoice)
 
 @router.delete("/{invoice_id}")

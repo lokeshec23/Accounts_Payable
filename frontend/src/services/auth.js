@@ -18,7 +18,7 @@ export const authService = {
         // Store user info for display purposes
         localStorage.setItem('user', JSON.stringify({
           email: credentials.email,
-          username: credentials.email.split('@')[0] // Extract username from email (e.g., "lokesh" from "lokesh@example.com")
+          username: credentials.email.split('@')[0]
         }));
       }
       return response.data;
@@ -38,5 +38,10 @@ export const authService = {
 
   isAuthenticated() {
     return !!localStorage.getItem('token');
+  },
+
+  getCurrentUser() {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
   }
 };
