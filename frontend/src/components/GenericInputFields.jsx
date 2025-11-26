@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Tabs,
     Collapse,
@@ -9,16 +10,25 @@ import {
     Table,
     Button,
     Checkbox,
-    message
+    message,
+    Space
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
+import {
+    PlusOutlined,
+    DeleteOutlined,
+    SaveOutlined,
+    CheckCircleOutlined,
+    CloseCircleOutlined,
+    RollbackOutlined
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { invoiceService, codingService } from '../services/api';
 
 const { Panel } = Collapse;
 const { TextArea } = Input;
 
-const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalData }) => {
+const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalData, readOnly = false }) => {
+    const navigate = useNavigate();
     const extractionData = data?.extraction_json || {};
     const lineItemsFromData = data?.items || data?.LineItems || [];
 
@@ -51,6 +61,14 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         }
         return fieldValue;
     };
+
+    const disabledStyle = readOnly ? {
+        color: '#000000',
+        backgroundColor: '#ffffff',
+        cursor: 'default',
+        borderColor: '#d9d9d9',
+        opacity: 1
+    } : {};
 
     useEffect(() => {
         setFormData({
@@ -413,21 +431,23 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
 
             return (
                 <InputNumber
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', ...disabledStyle }}
                     value={isNaN(numValue) ? null : numValue}
                     onChange={(val) => handleInputChange(field, val)}
                     step={0.01}
                     formatter={value => (value !== null && value !== undefined && value !== '') ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
                     parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    disabled={readOnly}
                 />
             );
         } else if (field.includes('Date') || field.includes('period')) {
             return (
                 <DatePicker
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', ...disabledStyle }}
                     value={stringValue ? dayjs(stringValue) : null}
                     onChange={(date, dateString) => handleInputChange(field, dateString)}
                     format="YYYY-MM-DD"
+                    disabled={readOnly}
                 />
             );
         } else if (field.includes('Notes') || field.includes('Terms')) {
@@ -436,6 +456,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     rows={3}
                     value={stringValue}
                     onChange={(e) => handleInputChange(field, e.target.value)}
+                    disabled={readOnly}
+                    style={disabledStyle}
                 />
             );
         } else if (field.includes('Approval Required')) {
@@ -443,6 +465,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 <Checkbox
                     checked={stringValue === 'true' || stringValue === true}
                     onChange={(e) => handleInputChange(field, e.target.checked)}
+                    disabled={readOnly}
                 >
                     {field}
                 </Checkbox>
@@ -452,6 +475,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 <Input
                     value={stringValue}
                     onChange={(e) => handleInputChange(field, e.target.value)}
+                    disabled={readOnly}
+                    style={disabledStyle}
                 />
             );
         }
@@ -476,6 +501,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     rows={2}
                     value={extractValue(val)}
                     onChange={(e) => handleLineItemChange(index, 'Description', e.target.value)}
+                    disabled={readOnly}
+                    style={disabledStyle}
                 />
             )
         },
@@ -488,6 +515,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 <Input
                     value={extractValue(val)}
                     onChange={(e) => handleLineItemChange(index, 'ItemCode', e.target.value)}
+                    disabled={readOnly}
+                    style={disabledStyle}
                 />
             )
         },
@@ -498,9 +527,10 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
             width: 80,
             render: (val, record, index) => (
                 <InputNumber
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', ...disabledStyle }}
                     value={extractValue(val)}
                     onChange={(value) => handleLineItemChange(index, 'Quantity', value)}
+                    disabled={readOnly}
                 />
             )
         },
@@ -513,6 +543,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 <Input
                     value={extractValue(val)}
                     onChange={(e) => handleLineItemChange(index, 'UnitOfMeasure', e.target.value)}
+                    disabled={readOnly}
+                    style={disabledStyle}
                 />
             )
         },
@@ -523,12 +555,13 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
             width: 120,
             render: (val, record, index) => (
                 <InputNumber
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', ...disabledStyle }}
                     value={extractValue(val)}
                     onChange={(value) => handleLineItemChange(index, 'UnitPrice', value)}
                     step={0.01}
                     formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
                     parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    disabled={readOnly}
                 />
             )
         },
@@ -539,12 +572,13 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
             width: 120,
             render: (val, record, index) => (
                 <InputNumber
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', ...disabledStyle }}
                     value={extractValue(val)}
                     onChange={(value) => handleLineItemChange(index, 'Discount', value)}
                     step={0.01}
                     formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
                     parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    disabled={readOnly}
                 />
             )
         },
@@ -555,12 +589,13 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
             width: 120,
             render: (val, record, index) => (
                 <InputNumber
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', ...disabledStyle }}
                     value={extractValue(val)}
                     onChange={(value) => handleLineItemChange(index, 'NetAmount', value)}
                     step={0.01}
                     formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
                     parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    disabled={readOnly}
                 />
             )
         },
@@ -575,6 +610,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     icon={<DeleteOutlined />}
                     onClick={() => handleDeleteLineItem(index)}
                     size="small"
+                    disabled={readOnly}
                 >
                     Delete
                 </Button>
@@ -647,14 +683,16 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                         scroll={{ x: 'max-content' }}
                         size="small"
                     />
-                    <Button
-                        type="dashed"
-                        icon={<PlusOutlined />}
-                        onClick={handleAddLineItem}
-                        style={{ marginTop: '16px', width: '100%' }}
-                    >
-                        Add Line Item
-                    </Button>
+                    {!readOnly && (
+                        <Button
+                            type="dashed"
+                            icon={<PlusOutlined />}
+                            onClick={handleAddLineItem}
+                            style={{ marginTop: '16px', width: '100%' }}
+                        >
+                            Add Line Item
+                        </Button>
+                    )}
                 </Panel>
             </Collapse>
         </div>
@@ -723,14 +761,16 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                         scroll={{ x: 'max-content' }}
                         size="small"
                     />
-                    <Button
-                        type="dashed"
-                        icon={<PlusOutlined />}
-                        onClick={handleAddLineItem}
-                        style={{ marginTop: '16px', width: '100%' }}
-                    >
-                        Add Line Item
-                    </Button>
+                    {!readOnly && (
+                        <Button
+                            type="dashed"
+                            icon={<PlusOutlined />}
+                            onClick={handleAddLineItem}
+                            style={{ marginTop: '16px', width: '100%' }}
+                        >
+                            Add Line Item
+                        </Button>
+                    )}
                 </Panel>
 
                 <Panel header="Taxes" key="Taxes">
@@ -823,10 +863,11 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 width: '35%',
                                 render: () => (
                                     <Input
-                                        style={{ width: '100%' }}
+                                        style={{ width: '100%', ...disabledStyle }}
                                         placeholder="Enter header coding"
                                         value={headerCoding}
                                         onChange={(e) => handleHeaderCodingChange(e.target.value)}
+                                        disabled={readOnly}
                                     />
                                 )
                             }
@@ -860,7 +901,15 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 title: 'Description',
                                 dataIndex: 'description',
                                 key: 'description',
-                                width: '15%'
+                                width: '15%',
+                                render: (text, record, index) => (
+                                    <Input
+                                        value={text}
+                                        placeholder="Enter description"
+                                        disabled={readOnly}
+                                        style={disabledStyle}
+                                    />
+                                )
                             },
                             {
                                 title: 'Line Type',
@@ -870,13 +919,16 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 render: (text, record, index) => (
                                     <Select
                                         value={codingLineItems[index]?.line_type || 'Expense'}
-                                        style={{ width: '100%' }}
+
                                         onChange={(value) => handleCodingLineItemChange(index, 'line_type', value)}
+                                        defaultValue="Expense"
                                         options={[
                                             { value: 'Expense', label: 'Expense' },
                                             { value: 'Asset', label: 'Asset' },
                                             { value: 'Liability', label: 'Liability' }
                                         ]}
+                                        disabled={readOnly}
+                                        style={{ width: '100%', ...disabledStyle }}
                                     />
                                 )
                             },
@@ -888,9 +940,13 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 render: (text, record, index) => (
                                     <InputNumber
                                         value={codingLineItems[index]?.quantity || 0}
-                                        style={{ width: '100%' }}
-                                        min={0}
+
+
                                         onChange={(value) => handleCodingLineItemChange(index, 'quantity', value)}
+
+                                        style={{ width: '100%', ...disabledStyle }}
+                                        min={0}
+                                        disabled={readOnly}
                                     />
                                 )
                             },
@@ -902,12 +958,15 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 render: (text, record, index) => (
                                     <InputNumber
                                         value={codingLineItems[index]?.unit_price || 0}
-                                        style={{ width: '100%' }}
-                                        min={0}
-                                        precision={2}
+
                                         formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
                                         parser={value => value.replace(/\$\s?|(,*)/g, '')}
                                         onChange={(value) => handleCodingLineItemChange(index, 'unit_price', value)}
+                                        // value={text}
+                                        style={{ width: '100%', ...disabledStyle }}
+                                        min={0}
+                                        precision={2}
+                                        disabled={readOnly}
                                     />
                                 )
                             },
@@ -919,12 +978,15 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 render: (text, record, index) => (
                                     <InputNumber
                                         value={codingLineItems[index]?.net_amount || 0}
-                                        style={{ width: '100%' }}
-                                        min={0}
-                                        precision={2}
+
                                         formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
                                         parser={value => value.replace(/\$\s?|(,*)/g, '')}
                                         onChange={(value) => handleCodingLineItemChange(index, 'net_amount', value)}
+
+                                        style={{ width: '100%', ...disabledStyle }}
+                                        min={0}
+                                        precision={2}
+                                        disabled={readOnly}
                                     />
                                 )
                             },
@@ -938,6 +1000,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                         value={codingLineItems[index]?.gl_code || ''}
                                         placeholder="GL Code"
                                         onChange={(e) => handleCodingLineItemChange(index, 'gl_code', e.target.value)}
+                                        disabled={readOnly}
+                                        style={disabledStyle}
                                     />
                                 )
                             },
@@ -951,6 +1015,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                         value={codingLineItems[index]?.cost_center || ''}
                                         placeholder="Cost Center"
                                         onChange={(e) => handleCodingLineItemChange(index, 'cost_center', e.target.value)}
+                                        disabled={readOnly}
+                                        style={disabledStyle}
                                     />
                                 )
                             },
@@ -964,6 +1030,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                         value={codingLineItems[index]?.project_code || ''}
                                         placeholder="Project Code"
                                         onChange={(e) => handleCodingLineItemChange(index, 'project_code', e.target.value)}
+                                        disabled={readOnly}
+                                        style={disabledStyle}
                                     />
                                 )
                             },
@@ -977,6 +1045,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                         danger
                                         icon={<DeleteOutlined />}
                                         onClick={() => handleDeleteLineItem(index)}
+                                        disabled={readOnly}
                                     />
                                 )
                             }
@@ -991,7 +1060,18 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     />
                 </Panel>
             </Collapse>
-        </div >
+            {!readOnly && (
+                <div style={{ marginTop: '20px', textAlign: 'right' }}>
+                    <Button
+                        type="primary"
+                        size="large"
+                        onClick={() => navigate('/approvals')}
+                    >
+                        Send to Approval
+                    </Button>
+                </div>
+            )}
+        </div>
     );
 
     const tabItems = [
@@ -1012,7 +1092,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         }
     ];
 
-   
+
 
     const renderTabContent = () => {
         switch (activeTab) {
@@ -1037,13 +1117,12 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 borderBottom: '1px solid #f0f0f0',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                justifyContent: 'space-between',
                 padding: '8px 20px'
             }}>
                 <Tabs
                     activeKey={activeTab}
                     onChange={setActiveTab}
-                    centered
                     style={{ margin: 0, flex: 1 }}
                     items={[
                         { key: '1', label: 'Quick View' },
@@ -1051,16 +1130,46 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                         { key: '3', label: 'Coding' }
                     ]}
                 />
-                <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    onClick={handleSave}
-                    loading={saving}
-                    size="large"
-                    style={{ marginLeft: '24px' }}
-                >
-                    Save
-                </Button>
+                {!readOnly && (
+                    <Button
+                        type="primary"
+                        icon={<SaveOutlined />}
+                        onClick={handleSave}
+                        loading={saving}
+                        size="large"
+                        style={{ marginLeft: '24px' }}
+                    >
+                        Save
+                    </Button>
+                )}
+                {readOnly && (
+                    <Space style={{ marginLeft: '24px' }}>
+                        <Button
+                            type="primary"
+                            icon={<CheckCircleOutlined />}
+                            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                            onClick={() => console.log('Approve')}
+                        >
+                            Approve
+                        </Button>
+                        <Button
+                            type="primary"
+                            icon={<CloseCircleOutlined />}
+                            danger
+                            onClick={() => console.log('Reject')}
+                        >
+                            Reject
+                        </Button>
+                        <Button
+                            type="primary"
+                            icon={<RollbackOutlined />}
+                            style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
+                            onClick={() => console.log('Rework')}
+                        >
+                            Rework
+                        </Button>
+                    </Space>
+                )}
             </div>
             <div style={{ flex: 1, overflow: 'auto' }}>
                 {renderTabContent()}

@@ -13,6 +13,7 @@ const InvoiceReviewPage = () => {
 
     // Get invoice from location state (passed from MainLayout)
     const invoice = location.state?.invoice;
+    const readOnly = location.state?.readOnly || false;
 
     useEffect(() => {
         const fetchInvoiceData = async () => {
@@ -72,6 +73,7 @@ const InvoiceReviewPage = () => {
                 file={pdfUrl}
                 onBack={handleBack}
                 invoiceData={invoiceData}
+                readOnly={readOnly}
             />
         </div>
     );

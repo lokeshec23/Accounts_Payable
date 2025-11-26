@@ -3,7 +3,7 @@ import PdfViewer from './Pdfviewer';
 import GenericInputFields from './GenericInputFields';
 import { schemaMap } from '../config/schemaMap';
 
-const InvoiceReview = ({ file, onBack, invoiceData }) => {
+const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     console.log('InvoiceReview received invoiceData:', invoiceData);
     console.log('Extracted ID attempt 1 (_id.$oid):', invoiceData?._id?.$oid);
     console.log('Extracted ID attempt 2 (_id):', invoiceData?._id);
@@ -178,6 +178,7 @@ const InvoiceReview = ({ file, onBack, invoiceData }) => {
                             setHoveredKey={setHoveredKey}
                             invoiceId={invoiceData?.id}
                             originalData={invoiceData}
+                            readOnly={readOnly}
                         />
                     )}
                 </div>
