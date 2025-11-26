@@ -493,9 +493,9 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 key: 'headerCoding',
                                 width: '35%',
                                 render: () => (
-                                    <DatePicker
+                                    <Input
                                         style={{ width: '100%' }}
-                                        format="YYYY-MM-DD"
+                                        placeholder="Enter header coding"
                                     />
                                 )
                             }
@@ -517,20 +517,150 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
 
                 <Panel header="Line Items" key="lineitems">
                     <Table
-                        columns={lineItemColumns}
-                        dataSource={lineItems.map((item, index) => ({ ...item, key: index }))}
+                        columns={[
+                            {
+                                title: 'S.No',
+                                dataIndex: 'sNo',
+                                key: 'sNo',
+                                width: '5%',
+                                render: (text, record, index) => index + 1
+                            },
+                            {
+                                title: 'Description',
+                                dataIndex: 'description',
+                                key: 'description',
+                                width: '15%',
+                                render: (text, record, index) => (
+                                    <Input
+                                        value={text}
+                                        placeholder="Enter description"
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Line Type',
+                                dataIndex: 'lineType',
+                                key: 'lineType',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <Select
+                                        defaultValue="Expense"
+                                        style={{ width: '100%' }}
+                                        options={[
+                                            { value: 'Expense', label: 'Expense' },
+                                            { value: 'Asset', label: 'Asset' },
+                                            { value: 'Liability', label: 'Liability' }
+                                        ]}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Quantity',
+                                dataIndex: 'quantity',
+                                key: 'quantity',
+                                width: '8%',
+                                render: (text, record, index) => (
+                                    <InputNumber
+                                        value={text}
+                                        style={{ width: '100%' }}
+                                        min={0}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Unit Price',
+                                dataIndex: 'unitPrice',
+                                key: 'unitPrice',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <InputNumber
+                                        value={text}
+                                        style={{ width: '100%' }}
+                                        min={0}
+                                        precision={2}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Net Amount',
+                                dataIndex: 'netAmount',
+                                key: 'netAmount',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <InputNumber
+                                        value={text}
+                                        style={{ width: '100%' }}
+                                        min={0}
+                                        precision={2}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'GL Code',
+                                dataIndex: 'glCode',
+                                key: 'glCode',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <Input
+                                        value={text}
+                                        placeholder="GL Code"
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Cost Center',
+                                dataIndex: 'costCenter',
+                                key: 'costCenter',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <Input
+                                        value={text}
+                                        placeholder="Cost Center"
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Project Code',
+                                dataIndex: 'projectCode',
+                                key: 'projectCode',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <Input
+                                        value={text}
+                                        placeholder="Project Code"
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Action',
+                                key: 'action',
+                                width: '7%',
+                                render: (text, record, index) => (
+                                    <Button
+                                        type="text"
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={() => handleDeleteLineItem(index)}
+                                    />
+                                )
+                            }
+                        ]}
+                        dataSource={lineItems.map((item, index) => ({
+                            key: index,
+                            sNo: index + 1,
+                            description: item.Description?.value || '',
+                            lineType: 'Expense',
+                            quantity: item.Quantity?.value || 0,
+                            unitPrice: item.UnitPrice?.value || 0,
+                            netAmount: item.NetAmount?.value || 0,
+                            glCode: '',
+                            costCenter: '',
+                            projectCode: ''
+                        }))}
                         pagination={false}
                         scroll={{ x: 'max-content' }}
                         size="small"
                     />
-                    <Button
-                        type="dashed"
-                        icon={<PlusOutlined />}
-                        onClick={handleAddLineItem}
-                        style={{ marginTop: '16px', width: '100%' }}
-                    >
-                        Add Line Item
-                    </Button>
                 </Panel>
             </Collapse>
         </div>
