@@ -7,152 +7,137 @@ from app.database.mongodb import get_database
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
 from datetime import datetime
-import json
 import os
-from pathlib import Path
+from bson.objectid import ObjectId
+import uuid
 
 router = APIRouter()
 invoice_processor = InvoiceProcessor()
 
-@router.post("/upload", response_model=InvoiceResponse)
-async def upload_invoice(
-    file: UploadFile = File(...),
+
+@router.post("/upload")
+async def upload_invoices(
+    files: List[UploadFile] = File(...),
     current_user: UserResponse = Depends(get_current_user)
 ):
-    """Upload and process invoice file"""
     db = get_database()
-    
-    try:
-        # Save uploaded file
-        file_info = await invoice_processor.save_uploaded_file(file)
-        
-        # Create invoice record in database
-        invoice_data = InvoiceCreate(
-            filename=file_info["filename"],
-            original_filename=file_info["original_filename"],
-            file_path=file_info["file_path"],
-            uploaded_by=current_user.username,
-            status=InvoiceStatus.WAITING_APPROVAL
-        )
-        
-        # Insert into database
-        invoice_dict = invoice_data.dict()
-        invoice_dict["uploaded_at"] = datetime.utcnow()
-        invoice_dict["extracted_data"] = {}
-        invoice_dict["processing_steps"] = []
-        
-        result = db.invoices.insert_one(invoice_dict)
-        invoice_id = str(result.inserted_id)
-        
+    saved_invoices = []
+
+    upload_dir = "uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+
+    for file in files:
         try:
-            # Process invoice extraction
-            extraction_result = invoice_processor.process_invoice_extraction(
-                file_info["file_path"]
+            # ---- CLEAN FILENAME ----
+            clean_name = file.filename.replace("\\", "/").split("/")[-1]
+
+            new_name = f"{uuid.uuid4()}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{clean_name}"
+            file_path = os.path.join(upload_dir, new_name)
+
+            # ---- SAVE FILE ----
+            with open(file_path, "wb") as f:
+                f.write(await file.read())
+
+            # ---- CREATE DB RECORD ----
+            invoice_data = InvoiceCreate(
+                filename=new_name,
+                original_filename=clean_name,
+                file_path=file_path,
+                uploaded_by=current_user.username,
+                status=InvoiceStatus.WAITING_APPROVAL
             )
-            
-            # Update invoice with extraction results
+
+            invoice_dict = invoice_data.dict()
+            invoice_dict["uploaded_at"] = datetime.utcnow()
+            invoice_dict["extracted_data"] = {}
+            invoice_dict["processing_steps"] = []
+
+            result = db.invoices.insert_one(invoice_dict)
+            invoice_id = str(result.inserted_id)
+
+            # ---- RUN EXTRACTION ----
+            extraction = invoice_processor.process_invoice_extraction(file_path)
+
             update_data = {
-                "extracted_data": extraction_result.get("extracted_data", {}),
-                "processing_steps": extraction_result.get("processing_steps", []),
-                "validation_results": extraction_result.get("validation_results", {}),
-                "confidence_score": extraction_result.get("metadata", {}).get("confidence_score", "low"),
-                "processed_at": datetime.utcnow(),
-                "status": InvoiceStatus.WAITING_APPROVAL
+                "extracted_data": extraction.get("extracted_data", {}),
+                "processing_steps": extraction.get("processing_steps", []),
+                "validation_results": extraction.get("validation_results", {}),
+                "confidence_score": extraction.get("metadata", {}).get("confidence_score", "low"),
+                "processed_at": datetime.utcnow()
             }
-            
-            db.invoices.update_one(
-                {"_id": result.inserted_id},
-                {"$set": update_data}
-            )
-            
-            # Don't cleanup uploaded file - keep it for viewing
-            # invoice_processor.cleanup_file(file_info["file_path"])
-            
-            # Return complete invoice data
+
+            db.invoices.update_one({"_id": result.inserted_id}, {"$set": update_data})
+
+            # ---- PREPARE JSON SAFE RESPONSE ----
             invoice_dict.update(update_data)
             invoice_dict["id"] = invoice_id
-            
-            return InvoiceResponse(**invoice_dict)
-            
-        except Exception as extraction_error:
-            # Update invoice with error status
-            db.invoices.update_one(
-                {"_id": result.inserted_id},
-                {"$set": {
-                    "status": InvoiceStatus.REJECTED,
-                    "processing_steps": [f"Extraction failed: {str(extraction_error)}"]
-                }}
-            )
-            raise HTTPException(
-                status_code=500,
-                detail=f"Invoice processing failed: {str(extraction_error)}"
-            )
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+            invoice_dict.pop("_id", None)  # ❗ remove ObjectId
+
+            saved_invoices.append(invoice_dict)
+
+        except Exception as e:
+            print("Error processing file:", e)
+            continue
+
+    return {
+        "count": len(saved_invoices),
+        "invoices": saved_invoices
+    }
 
 @router.get("/", response_model=List[InvoiceResponse])
 async def get_invoices(
     current_user: UserResponse = Depends(get_current_user),
     skip: int = 0,
     limit: int = 10,
-    show_all: bool = True  # Default to True to show all invoices
+    show_all: bool = True
 ):
-    """Get invoices - all invoices if show_all=true, otherwise only current user's invoices"""
     db = get_database()
-    
-    # If show_all is True, get all invoices from all users
-    # Otherwise, filter by current user's username
+
     if show_all:
         invoices = db.invoices.find().sort("uploaded_at", -1).skip(skip).limit(limit)
     else:
         invoices = db.invoices.find(
             {"uploaded_by": current_user.username}
         ).sort("uploaded_at", -1).skip(skip).limit(limit)
-    
+
     invoice_list = []
     for invoice in invoices:
         invoice["id"] = str(invoice["_id"])
         invoice_list.append(InvoiceResponse(**invoice))
-    
+
     return invoice_list
+
 
 @router.get("/{invoice_id}", response_model=InvoiceResponse)
 async def get_invoice(
     invoice_id: str,
     current_user: UserResponse = Depends(get_current_user)
 ):
-    """Get specific invoice by ID"""
     db = get_database()
-    
-    from bson.objectid import ObjectId
+
     invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
-    
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    
-    # Allow viewing any invoice (removed ownership check for viewing)
+
     invoice["id"] = str(invoice["_id"])
     return InvoiceResponse(**invoice)
+
 
 @router.get("/{invoice_id}/pdf")
 async def get_invoice_pdf(
     invoice_id: str,
     current_user: UserResponse = Depends(get_current_user)
 ):
-    """Get PDF file for a specific invoice"""
     db = get_database()
-    
-    from bson.objectid import ObjectId
+
     invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
-    
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    
+
     file_path = invoice.get("file_path")
     if not file_path or not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="PDF file not found")
-    
+
     return FileResponse(
         path=file_path,
         media_type="application/pdf",
@@ -166,21 +151,18 @@ async def update_invoice_status(
     current_user: UserResponse = Depends(get_current_user)
 ):
     db = get_database()
-    from bson.objectid import ObjectId
 
     approver_name = current_user.username
     timestamp = datetime.utcnow().isoformat()
 
     db.invoices.update_one(
         {"_id": ObjectId(invoice_id)},
-        {
-            "$set": {
-                "status": status,
-                "validation_results.approver_name": approver_name,
-                "validation_results.approval_timestamp": timestamp,
-                "validation_results.last_action": status
-            }
-        }
+        {"$set": {
+            "status": status,
+            "validation_results.approver_name": approver_name,
+            "validation_results.approval_timestamp": timestamp,
+            "validation_results.last_action": status
+        }}
     )
 
     return {"message": "Status updated"}
@@ -192,74 +174,46 @@ async def update_invoice(
     invoice_update: InvoiceUpdate,
     current_user: UserResponse = Depends(get_current_user)
 ):
-    """Update invoice data safely"""
-    import logging
-    logger = logging.getLogger(__name__)
-
     db = get_database()
-    from bson.objectid import ObjectId
 
-    logger.info(f"Updating invoice {invoice_id}")
-    logger.info(f"Update data: {invoice_update.dict()}")
-
-    # Remove None values
     update_data = {k: v for k, v in invoice_update.dict().items() if v is not None}
-
     if not update_data:
         raise HTTPException(status_code=400, detail="No data to update")
 
-    # ❗ FETCH DOCUMENT FIRST (the correct sequence)
-    existing_invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
-    if not existing_invoice:
+    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
 
-    logger.info(f"Found invoice: {existing_invoice.get('filename')}")
-
-    # ---- Special handling for validation_results ----
+    # merge validation
     if "validation_results" in update_data:
-        existing_validation = existing_invoice.get("validation_results", {}) or {}
-        new_validation = update_data["validation_results"]
+        existing_validation = invoice.get("validation_results", {}) or {}
+        update_data["validation_results"] = {
+            **existing_validation,
+            **update_data["validation_results"]
+        }
 
-        # merge existing and new values safely
-        merged_validation = {**existing_validation, **new_validation}
-
-        update_data["validation_results"] = merged_validation
-
-    # Perform database update
-    result = db.invoices.update_one(
+    db.invoices.update_one(
         {"_id": ObjectId(invoice_id)},
         {"$set": update_data}
     )
 
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-
-    # Return the updated invoice
     updated_invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
     updated_invoice["id"] = str(updated_invoice["_id"])
 
     return InvoiceResponse(**updated_invoice)
+
 
 @router.delete("/{invoice_id}")
 async def delete_invoice(
     invoice_id: str,
     current_user: UserResponse = Depends(get_current_user)
 ):
-    """Delete invoice by ID"""
     db = get_database()
-    
-    from bson.objectid import ObjectId
-    
-    # Check if invoice exists (removed ownership check for deletion)
+
     invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
-    
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    
-    # Delete the invoice
-    result = db.invoices.delete_one({"_id": ObjectId(invoice_id)})
-    
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    
+
+    db.invoices.delete_one({"_id": ObjectId(invoice_id)})
+
     return {"message": "Invoice deleted successfully"}

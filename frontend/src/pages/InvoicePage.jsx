@@ -1,184 +1,140 @@
-import React, { useState } from 'react';
-import { Upload, Button, message, Table, Tag, Space, Modal } from 'antd';
-import { UploadOutlined, InboxOutlined, EyeOutlined } from '@ant-design/icons';
-import { invoiceService } from '../services/api';
-import InvoiceUpload from '../components/InvoiceUpload';
-import InvoiceReview from '../components/InvoiceReview';
-import '../styles/InvoicePage.css';
-import Dragger from 'antd/es/upload/Dragger';
-import { useNavigate } from 'react-router-dom';
-
+import React, { useState } from "react";
+import { Upload, Button, message } from "antd";
+import { UploadOutlined, InboxOutlined } from "@ant-design/icons";
+import { invoiceService } from "../services/api";
+import Dragger from "antd/es/upload/Dragger";
+import { useNavigate } from "react-router-dom";
+import "../styles/InvoicePage.css";
 
 const InvoicePage = () => {
     const navigate = useNavigate();
     const [fileList, setFileList] = useState([]);
-    const [invoices, setInvoices] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [previewVisible, setPreviewVisible] = useState(false);
-    const [previewData, setPreviewData] = useState(null);
 
-    // Columns for invoices table
-    const columns = [
-        {
-            title: 'Filename',
-            dataIndex: 'original_filename',
-            key: 'filename',
-        },
-        {
-            title: 'Uploaded',
-            dataIndex: 'uploaded_at',
-            key: 'uploaded_at',
-            render: (date) => new Date(date).toLocaleDateString(),
-        },
-        {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            render: (status) => {
-                const statusColors = {
-                    'waiting_approval': 'orange',
-                    'approved': 'green',
-                    'rejected': 'red',
-                    'processed': 'blue'
-                };
-                return <Tag color={statusColors[status]}>{status.replace('_', ' ').toUpperCase()}</Tag>;
-            },
-        },
-        {
-            title: 'Confidence',
-            dataIndex: 'confidence_score',
-            key: 'confidence_score',
-            render: (score) => (
-                <Tag color={score === 'high' ? 'green' : score === 'medium' ? 'orange' : 'red'}>
-                    {score?.toUpperCase() || 'LOW'}
-                </Tag>
-            ),
-        },
-        {
-            title: 'Actions',
-            key: 'actions',
-            render: (_, record) => (
-                <Space>
-                    <Button
-                        icon={<EyeOutlined />}
-                        onClick={() => showInvoiceDetails(record)}
-                        size="small"
-                    >
-                        View
-                    </Button>
-                </Space>
-            ),
-        },
-    ];
+    const [messageApi, contextHolder] = message.useMessage();
 
-    // const showInvoiceDetails = (invoice) => {
-    //     setPreviewData(invoice);
-    //     setPreviewVisible(true);
-    // };
+    // 🟩 Hidden file input for folder upload
+    const folderInputRef = React.useRef(null);
+
+    const handleFolderSelect = (event) => {
+        const files = Array.from(event.target.files);
+        setFileList((prev) => [...prev, ...files]);
+    };
 
     const uploadProps = {
-        name: 'file',
         multiple: true,
-        fileList: fileList,
+        fileList,
+        accept: ".pdf",
+
         beforeUpload: (file) => {
-            // Add file to list without auto-uploading
-            setFileList([...fileList, file]);
-            return false; // Prevent auto upload
+            setFileList((prev) => [...prev, file]);
+            return false;
         },
+
         onRemove: (file) => {
-            const index = fileList.indexOf(file);
-            const newFileList = fileList.slice();
-            newFileList.splice(index, 1);
-            setFileList(newFileList);
+            setFileList((prev) => prev.filter((f) => f.uid !== file.uid));
         },
-        accept: '.pdf',
+
+        // IMPORTANT: handle click manually so folder upload works
+        customRequest: () => {}
     };
 
     const handleUpload = async () => {
-        debugger
         if (fileList.length === 0) {
-            message.warning('Please select files to upload');
+            messageApi.warning("Please select at least one file");
             return;
         }
 
-        setLoading(true);
         try {
-            // for (const file of fileList) {
-            // }
-            const response = await invoiceService.uploadInvoice(fileList[0]);
-            console.log("response", response);
-            if (Object.values(response).length) {
-                navigate('/invoice/review', { state: { invoice: response } });
-                // const { invoice_details } = response
-                // navigate('/invoice/review', {
-                //     state: {
-                //         invoice: {
-                //             // fileUrl: file instanceof File ? URL.createObjectURL(file) : file,
-                //             filename: 'Uploaded Invoice',
-                //             invoiceId: invoice_details?.invoice_number?.value,
-                //             vendorName: 'To be extracted',
-                //             uploadedBy: 'Current User',
-                //             lastUpdated: new Date().toLocaleString()
-                //         }
-                //     }
-                // });
+            setLoading(true);
+
+            messageApi.open({
+                type: "loading",
+                content: "Processing invoices...",
+                key: "uploading",
+                duration: 0
+            });
+
+            const response = await invoiceService.uploadInvoices(fileList);
+
+            messageApi.open({
+                type: "success",
+                content: `${response.count} invoice(s) processed successfully!`,
+                key: "uploading"
+            });
+
+            if (response.count === 1) {
+                navigate("/invoice/review", { state: { invoice: response.invoices[0] } });
+            } else {
+                navigate("/dashboard");
             }
-            message.success(`${fileList.length} file(s) uploaded successfully`);
+
             setFileList([]);
-            loadInvoices(); // Refresh the invoices list
+
         } catch (error) {
-            message.error('Upload failed. Please try again.');
-            console.log("error in handleUpload  ", error);
+            console.error("Upload failed:", error);
+            messageApi.open({
+                type: "error",
+                content: "Upload failed",
+                key: "uploading"
+            });
+
         } finally {
             setLoading(false);
         }
     };
 
-    const loadInvoices = async () => {
-        try {
-            const response = await invoiceService.getInvoices();
-            setInvoices(response);
-        } catch (error) {
-            message.error('Failed to load invoices');
-        }
-    };
-
-    // Load invoices on component mount
-    React.useEffect(() => {
-        loadInvoices();
-    }, []);
-
     return (
-        <div className="invoice-page">
-            <div className="upload-container">
-                <h2 className="upload-title">Upload Invoice Files</h2>
-                <p className="upload-description">
-                    Drag and drop your invoice PDF files here or click to browse
-                </p>
+        <>
+            {contextHolder}
 
-                <Dragger {...uploadProps} className="upload-dragger">
-                    <p className="ant-upload-drag-icon">
-                        <InboxOutlined />
+            <div className="invoice-page">
+                <div className="upload-container">
+                    <h2 className="upload-title">Upload Invoice Files</h2>
+                    <p className="upload-description">
+                        Drag a PDF, multiple PDFs, or upload a folder.
                     </p>
-                    <p className="ant-upload-text">Click or drag PDF files to this area to upload</p>
-                    <p className="ant-upload-hint">
-                        Only PDF files are accepted.
-                    </p>
-                </Dragger>
 
-                {fileList.length > 0 && (
-                    <Button
-                        type="primary"
-                        onClick={handleUpload}
-                        icon={<UploadOutlined />}
-                        className="upload-submit-btn"
-                        loading={loading}
-                    >
-                        Upload {fileList.length} File{fileList.length > 1 ? 's' : ''}
-                    </Button>
-                )}
+                    {/* 🟩 HIDDEN folder picker */}
+                    <input
+                        type="file"
+                        ref={folderInputRef}
+                        style={{ display: "none" }}
+                        webkitdirectory="true"
+                        onChange={handleFolderSelect}
+                    />
+
+                    <Dragger {...uploadProps} className="upload-dragger">
+                        <p className="ant-upload-drag-icon">
+                            <InboxOutlined />
+                        </p>
+                        <p className="ant-upload-text">Click or drag PDF files/folder to upload</p>
+                        <p className="ant-upload-hint">Supports single, multiple, and folder upload</p>
+
+                        {/* 🟩 Button to open folder picker */}
+                        <Button
+                            style={{ marginTop: 10 }}
+                            onClick={() => folderInputRef.current.click()}
+                        >
+                            Upload Folder
+                        </Button>
+                    </Dragger>
+
+                    {fileList.length > 0 && (
+                        <Button
+                            type="primary"
+                            onClick={handleUpload}
+                            icon={<UploadOutlined />}
+                            loading={loading}
+                            className="upload-submit-btn"
+                            style={{ marginTop: 16, width: "100%" }}
+                        >
+                            Upload {fileList.length} File{fileList.length > 1 ? "s" : ""}
+                        </Button>
+                    )}
+                </div>
             </div>
-        </div>
+        </>
     );
 };
 
