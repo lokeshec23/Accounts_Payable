@@ -835,6 +835,21 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         }
     ];
 
+    const [activeTab, setActiveTab] = useState('1');
+
+    const renderTabContent = () => {
+        switch (activeTab) {
+            case '1':
+                return quickViewTab;
+            case '2':
+                return allFieldsTab;
+            case '3':
+                return codingTab;
+            default:
+                return quickViewTab;
+        }
+    };
+
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div style={{
@@ -842,31 +857,36 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 top: 0,
                 zIndex: 10,
                 backgroundColor: '#fff',
-                borderBottom: '1px solid #f0f0f0'
+                borderBottom: '1px solid #f0f0f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '8px 20px'
             }}>
                 <Tabs
-                    defaultActiveKey="1"
-                    items={tabItems}
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
                     centered
-                    style={{ margin: 0 }}
-                    tabBarExtraContent={{
-                        right: (
-                            <Button
-                                type="primary"
-                                icon={<SaveOutlined />}
-                                onClick={handleSave}
-                                loading={saving}
-                                size="large"
-                                style={{ marginLeft: '24px' }}
-                            >
-                                Save
-                            </Button>
-                        )
-                    }}
+                    style={{ margin: 0, flex: 1 }}
+                    items={[
+                        { key: '1', label: 'Quick View' },
+                        { key: '2', label: 'All Fields' },
+                        { key: '3', label: 'Coding' }
+                    ]}
                 />
+                <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    onClick={handleSave}
+                    loading={saving}
+                    size="large"
+                    style={{ marginLeft: '24px' }}
+                >
+                    Save
+                </Button>
             </div>
-            <div style={{ flex: 1, overflow: 'auto', padding: '0' }}>
-                {/* Tab content will be rendered here by Ant Design */}
+            <div style={{ flex: 1, overflow: 'auto' }}>
+                {renderTabContent()}
             </div>
         </div>
     );
