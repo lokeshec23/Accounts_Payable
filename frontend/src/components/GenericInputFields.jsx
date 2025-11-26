@@ -486,7 +486,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
     // Tab 2: All Fields
     const allFieldsTab = (
         <div style={{ padding: '10px 20px' }}>
-            <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+            {/* <div style={{ marginBottom: '16px', textAlign: 'right' }}>
                 <Button
                     type="primary"
                     icon={<SaveOutlined />}
@@ -496,7 +496,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 >
                     Save Changes
                 </Button>
-            </div>
+            </div> */}
             <Collapse defaultActiveKey={['Vendor Level', 'Invoice Header', 'Line Items']}>
                 <Panel header="Vendor Level" key="Vendor Level">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
