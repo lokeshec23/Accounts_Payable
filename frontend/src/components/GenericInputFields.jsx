@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Tabs,
     Collapse,
@@ -19,6 +20,7 @@ const { Panel } = Collapse;
 const { TextArea } = Input;
 
 const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalData }) => {
+    const navigate = useNavigate();
     const extractionData = data?.extraction_json || {};
     const lineItemsFromData = data?.items || data?.LineItems || [];
 
@@ -814,6 +816,15 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     />
                 </Panel>
             </Collapse>
+            <div style={{ marginTop: '20px', textAlign: 'right' }}>
+                <Button
+                    type="primary"
+                    size="large"
+                    onClick={() => navigate('/approvals')}
+                >
+                    Send to Approval
+                </Button>
+            </div>
         </div>
     );
 
