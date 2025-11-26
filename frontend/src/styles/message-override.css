@@ -2,8 +2,8 @@
 .ant-message {
     position: fixed !important;
     top: auto !important;
-    bottom: 50px !important;
-    right: 24px !important;
+    bottom: 10px !important;
+    right: 5px !important;
     left: auto !important;
     z-index: 9999 !important;
     width: auto !important;

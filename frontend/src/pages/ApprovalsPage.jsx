@@ -215,7 +215,7 @@ const ApprovalsPage = () => {
     return (
         <div style={{ padding: '24px' }}>
             {/* <h1 style={{ marginBottom: '24px' }}>s</h1> */}
-            <Table
+            <Table        
                 columns={columns}
                 dataSource={data}
                 loading={loading}

@@ -1,0 +1,20 @@
+/* Global Table Header Styling - Blue headers for all tables */
+.ant-table-thead>tr>th {
+    background: #1e5a7d !important;
+    color: white !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    padding: 16px 12px !important;
+    border-bottom: none !important;
+    border-right: none !important;
+}
+
+.ant-table-thead>tr>th::before {
+    display: none !important;
+}
+
+/* Ensure hover states don't override the blue header */
+.ant-table-thead>tr>th:hover {
+    background: #1e5a7d !important;
+    color: white !important;
+}

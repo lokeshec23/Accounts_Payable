@@ -677,7 +677,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
 
                 <Panel header="Line Items" key="lineitems">
                     <Table
-                        columns={lineItemColumns}
+                        columns={lineItemColumns}                        
                         dataSource={lineItems.map((item, index) => ({ ...item, key: index }))}
                         pagination={false}
                         scroll={{ x: 'max-content' }}
@@ -1132,11 +1132,11 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 />
                 {!readOnly && (
                     <Button
-                        type="primary"
+                        type="primary" 
                         icon={<SaveOutlined />}
                         onClick={handleSave}
                         loading={saving}
-                        size="large"
+                        size="default"
                         style={{ marginLeft: '24px' }}
                     >
                         Save

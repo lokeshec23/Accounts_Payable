@@ -11,6 +11,7 @@ import ApprovalsPage from './pages/ApprovalsPage';
 import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/message-override.css';
+import './styles/table-headers.css';
 
 const AppContent = () => {
   const location = useLocation();
