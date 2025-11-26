@@ -8,6 +8,7 @@ class InvoiceStatus(str, Enum):
     APPROVED = "approved"
     REJECTED = "rejected"
     PROCESSED = "processed"
+    REWORKED = "reworked"
 
 class InvoiceBase(BaseModel):
     filename: str
@@ -22,6 +23,7 @@ class InvoiceCreate(InvoiceBase):
 class InvoiceUpdate(BaseModel):
     extracted_data: Optional[Dict[str, Any]] = None
     status: Optional[InvoiceStatus] = None
+    validation_results: Optional[Dict[str, Any]] = None
 
 class Invoice(InvoiceBase):
     id: str

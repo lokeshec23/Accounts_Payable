@@ -1,3 +1,4 @@
+// src/components/GenericInputFields.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -11,7 +12,8 @@ import {
     Button,
     Checkbox,
     message,
-    Space
+    Space,
+    Tag
 } from 'antd';
 import {
     PlusOutlined,
@@ -19,15 +21,24 @@ import {
     SaveOutlined,
     CheckCircleOutlined,
     CloseCircleOutlined,
-    RollbackOutlined
+    RollbackOutlined,
+    SendOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { invoiceService, codingService } from '../services/api';
+import { authService } from '../services/auth';
 
 const { Panel } = Collapse;
 const { TextArea } = Input;
 
-const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalData, readOnly = false }) => {
+const GenericInputFields = ({
+    data,
+    schema,
+    setHoveredKey,
+    invoiceId,
+    originalData,
+    readOnly = false
+}) => {
     const navigate = useNavigate();
     const extractionData = data?.extraction_json || {};
     const lineItemsFromData = data?.items || data?.LineItems || [];
@@ -36,19 +47,26 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         ...extractionData,
         LineItems: lineItemsFromData
     });
-
     const [lineItems, setLineItems] = useState(lineItemsFromData);
+
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState('1');
 
-    // Coding tab state
+    // Status & validation info
+    const [invoiceStatus, setInvoiceStatus] = useState(
+        originalData?.status || 'waiting_approval'
+    );
+    const [validationInfo, setValidationInfo] = useState(
+        originalData?.validation_results || {}
+    );
+
+    // Coding tab
     const [headerCoding, setHeaderCoding] = useState('');
     const [codingLineItems, setCodingLineItems] = useState([]);
 
-    // Helper function to parse currency values
+    // ---------- helpers ----------
     const parseCurrencyValue = (value) => {
         if (!value) return 0;
-        // Remove currency symbols, commas, and spaces, then parse
         const cleanValue = String(value).replace(/[$,\s]/g, '');
         const parsed = parseFloat(cleanValue);
         return isNaN(parsed) ? 0 : parsed;
@@ -56,91 +74,97 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
 
     const extractValue = (fieldValue) => {
         if (fieldValue === null || fieldValue === undefined) return '';
-        if (typeof fieldValue === 'object' && fieldValue !== null && 'value' in fieldValue) {
-            return fieldValue.value === null || fieldValue.value === undefined ? '' : fieldValue.value;
+        if (
+            typeof fieldValue === 'object' &&
+            fieldValue !== null &&
+            'value' in fieldValue
+        ) {
+            return fieldValue.value ?? '';
         }
         return fieldValue;
     };
 
-    const disabledStyle = readOnly ? {
-        color: '#000000',
-        backgroundColor: '#ffffff',
-        cursor: 'default',
-        borderColor: '#d9d9d9',
-        opacity: 1
-    } : {};
+    const disabledStyle = readOnly
+        ? {
+            color: '#000000',
+            backgroundColor: '#ffffff',
+            cursor: 'default',
+            borderColor: '#d9d9d9',
+            opacity: 1
+        }
+        : {};
 
+    // ---------- initial load ----------
     useEffect(() => {
+        const items = data?.items || data?.LineItems || [];
+
         setFormData({
             ...extractionData,
-            LineItems: data?.items || data?.LineItems || []
+            LineItems: items
         });
-        setLineItems(data?.items || data?.LineItems || []);
+        setLineItems(items);
 
-        // Initialize coding line items from invoice line items
-        if (data?.items || data?.LineItems) {
-            const items = data?.items || data?.LineItems || [];
-            console.log('=== INITIALIZING CODING LINE ITEMS ===');
-            console.log('Total items:', items.length);
+        setInvoiceStatus(originalData?.status || 'waiting_approval');
+        setValidationInfo(originalData?.validation_results || {});
 
-            setCodingLineItems(items.map((item, index) => {
-                const extractedUnitPrice = extractValue(item.UnitPrice);
-                const extractedNetAmount = extractValue(item.NetAmount);
+        if (items.length) {
+            setCodingLineItems(
+                items.map((item, index) => {
+                    const extractedUnitPrice = extractValue(item.UnitPrice);
+                    const extractedNetAmount = extractValue(item.NetAmount);
 
-                const unitPrice = parseCurrencyValue(extractedUnitPrice || extractValue(item.unit_price));
-                const netAmount = parseCurrencyValue(extractedNetAmount || extractValue(item.amount) || extractValue(item.net_amount));
+                    const unitPrice = parseCurrencyValue(
+                        extractedUnitPrice || extractValue(item.unit_price)
+                    );
+                    const netAmount = parseCurrencyValue(
+                        extractedNetAmount ||
+                        extractValue(item.amount) ||
+                        extractValue(item.net_amount)
+                    );
 
-                console.log(`Item ${index}: UnitPrice='${extractedUnitPrice}' -> ${unitPrice}, NetAmount='${extractedNetAmount}' -> ${netAmount}`);
-
-                return {
-                    s_no: index + 1,
-                    description: extractValue(item.Description) || '',
-                    line_type: 'Expense',
-                    quantity: parseFloat(extractValue(item.Quantity)) || 0,
-                    unit_price: unitPrice,
-                    net_amount: netAmount,
-                    gl_code: '',
-                    cost_center: '',
-                    project_code: ''
-                };
-            }));
+                    return {
+                        s_no: index + 1,
+                        description: extractValue(item.Description) || '',
+                        line_type: 'Expense',
+                        quantity: parseFloat(extractValue(item.Quantity)) || 0,
+                        unit_price: unitPrice,
+                        net_amount: netAmount,
+                        gl_code: '',
+                        cost_center: '',
+                        project_code: ''
+                    };
+                })
+            );
         }
-    }, [data]);
+    }, [data, extractionData, originalData]);
 
-    // Load existing coding data
+    // ---------- load saved coding ----------
     useEffect(() => {
         const loadCodingData = async () => {
             if (!invoiceId) return;
-
             try {
                 const codingData = await codingService.getCoding(invoiceId);
                 if (codingData) {
                     setHeaderCoding(codingData.header_coding || '');
-                    if (codingData.line_items && codingData.line_items.length > 0) {
-                        // Merge saved coding data with current codingLineItems to preserve invoice amounts
-                        setCodingLineItems(prevItems => {
-                            return prevItems.map((item, index) => {
+                    if (codingData.line_items?.length) {
+                        setCodingLineItems((prevItems) =>
+                            prevItems.map((item, index) => {
                                 const savedItem = codingData.line_items[index];
-                                if (savedItem) {
-                                    // Keep invoice values for unit_price and net_amount if saved values are 0
-                                    return {
-                                        ...item,
-                                        line_type: savedItem.line_type || item.line_type,
-                                        gl_code: savedItem.gl_code || item.gl_code,
-                                        cost_center: savedItem.cost_center || item.cost_center,
-                                        project_code: savedItem.project_code || item.project_code,
-                                        // Only use saved amounts if they're non-zero, otherwise keep invoice amounts
-                                        unit_price: savedItem.unit_price || item.unit_price,
-                                        net_amount: savedItem.net_amount || item.net_amount
-                                    };
-                                }
-                                return item;
-                            });
-                        });
+                                if (!savedItem) return item;
+                                return {
+                                    ...item,
+                                    line_type: savedItem.line_type || item.line_type,
+                                    gl_code: savedItem.gl_code || item.gl_code,
+                                    cost_center: savedItem.cost_center || item.cost_center,
+                                    project_code: savedItem.project_code || item.project_code,
+                                    unit_price: savedItem.unit_price || item.unit_price,
+                                    net_amount: savedItem.net_amount || item.net_amount
+                                };
+                            })
+                        );
                     }
                 }
             } catch (error) {
-                // If coding data doesn't exist yet, that's okay
                 if (error.response?.status !== 404) {
                     console.error('Error loading coding data:', error);
                 }
@@ -150,48 +174,51 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         loadCodingData();
     }, [invoiceId]);
 
-    // Sync coding line items with invoice line items when they change
+    // ---------- keep coding items in sync with invoice line items ----------
     useEffect(() => {
-        if (lineItems && lineItems.length > 0) {
-            setCodingLineItems(prevCodingItems => {
-                // Map over the current invoice line items
-                return lineItems.map((item, index) => {
-                    // Get existing coding data for this index if it exists
-                    const existingCoding = prevCodingItems[index] || {};
+        if (!lineItems?.length) return;
 
-                    // Extract current values from invoice line item
-                    const extractedUnitPrice = extractValue(item.UnitPrice);
-                    const extractedNetAmount = extractValue(item.NetAmount);
+        setCodingLineItems((prevCoding) =>
+            lineItems.map((item, index) => {
+                const existing = prevCoding[index] || {};
+                const extractedUnitPrice = extractValue(item.UnitPrice);
+                const extractedNetAmount = extractValue(item.NetAmount);
 
-                    const unitPrice = parseCurrencyValue(extractedUnitPrice || extractValue(item.unit_price));
-                    const netAmount = parseCurrencyValue(extractedNetAmount || extractValue(item.amount) || extractValue(item.net_amount));
+                const unitPrice = parseCurrencyValue(
+                    extractedUnitPrice || extractValue(item.unit_price)
+                );
+                const netAmount = parseCurrencyValue(
+                    extractedNetAmount ||
+                    extractValue(item.amount) ||
+                    extractValue(item.net_amount)
+                );
 
-                    return {
-                        s_no: index + 1,
-                        description: extractValue(item.Description) || '',
-                        line_type: existingCoding.line_type || 'Expense', // Preserve or default
-                        quantity: parseFloat(extractValue(item.Quantity)) || 0,
-                        unit_price: unitPrice,
-                        net_amount: netAmount,
-                        gl_code: existingCoding.gl_code || '', // Preserve
-                        cost_center: existingCoding.cost_center || '', // Preserve
-                        project_code: existingCoding.project_code || '' // Preserve
-                    };
-                });
-            });
-        }
+                return {
+                    s_no: index + 1,
+                    description: extractValue(item.Description) || '',
+                    line_type: existing.line_type || 'Expense',
+                    quantity: parseFloat(extractValue(item.Quantity)) || 0,
+                    unit_price: unitPrice,
+                    net_amount: netAmount,
+                    gl_code: existing.gl_code || '',
+                    cost_center: existing.cost_center || '',
+                    project_code: existing.project_code || ''
+                };
+            })
+        );
     }, [lineItems]);
 
+    // ---------- generic handlers ----------
     const handleInputChange = (field, value) => {
         const oldValue = formData[field];
         const newValue =
-            typeof oldValue === "object" && oldValue !== null && "value" in oldValue
+            typeof oldValue === 'object' && oldValue !== null && 'value' in oldValue
                 ? { ...oldValue, value }
                 : value;
 
         setFormData((prev) => ({
             ...prev,
-            [field]: newValue,
+            [field]: newValue
         }));
     };
 
@@ -218,39 +245,19 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
     };
 
     const handleDeleteLineItem = (index) => {
-        const updatedItems = lineItems.filter((_, i) => i !== index);
-        setLineItems(updatedItems);
-
-        // Also delete from coding line items to keep indices in sync
-        const updatedCodingItems = codingLineItems.filter((_, i) => i !== index);
-        setCodingLineItems(updatedCodingItems);
+        setLineItems((prev) => prev.filter((_, i) => i !== index));
+        setCodingLineItems((prev) => prev.filter((_, i) => i !== index));
     };
 
-    // Coding tab handlers
-    const handleHeaderCodingChange = (value) => {
-        setHeaderCoding(value);
-    };
+    const handleHeaderCodingChange = (value) => setHeaderCoding(value);
 
     const handleCodingLineItemChange = (index, field, value) => {
-        const updatedItems = [...codingLineItems];
-        updatedItems[index][field] = value;
-        setCodingLineItems(updatedItems);
+        const updated = [...codingLineItems];
+        updated[index][field] = value;
+        setCodingLineItems(updated);
     };
 
-    // const handleSave = async () => {
-    //     setSaving(true);
-    //     try {
-    //         console.log('Saving data:', { ...formData, LineItems: lineItems });
-    //         await new Promise(resolve => setTimeout(resolve, 1000));
-    //         alert('Data saved successfully!');
-    //     } catch (error) {
-    //         console.error('Error saving data:', error);
-    //         alert('Failed to save data');
-    //     } finally {
-    //         setSaving(false);
-    //     }
-    // };
-
+    // ---------- save invoice data (extracted_data) ----------
     const saveInvoiceData = async () => {
         if (!invoiceId) {
             message.error('No invoice ID provided');
@@ -260,22 +267,19 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         try {
             setSaving(true);
 
-            // Deep copy original extracted_data to preserve structure
-            const updatedExtractedData = JSON.parse(JSON.stringify(originalData?.extracted_data || {}));
+            const updatedExtractedData = JSON.parse(
+                JSON.stringify(originalData?.extracted_data || {})
+            );
 
-            // Helper to safely update nested values
             const safeUpdate = (obj, path, newValue) => {
                 const keys = path.split('.');
                 let current = obj;
-
                 for (let i = 0; i < keys.length - 1; i++) {
                     if (!current[keys[i]]) current[keys[i]] = {};
                     current = current[keys[i]];
                 }
-
                 const lastKey = keys[keys.length - 1];
                 if (!current[lastKey]) current[lastKey] = {};
-
                 if (typeof current[lastKey] === 'object' && current[lastKey] !== null) {
                     current[lastKey].value = newValue;
                 } else {
@@ -283,62 +287,159 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 }
             };
 
-            // Map formData to backend structure
-            // Vendor Info
-            if (formData['Vendor Name'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.name', extractValue(formData['Vendor Name']));
-            if (formData['Vendor Address'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.address', extractValue(formData['Vendor Address']));
-            if (formData['Vendor Country'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.country', extractValue(formData['Vendor Country']));
-            if (formData['Vendor Tax ID (VAT/GST/TIN/W9, etc.)'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.tax_id', extractValue(formData['Vendor Tax ID (VAT/GST/TIN/W9, etc.)']));
-            if (formData['Vendor Contact Email'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.contact_email', extractValue(formData['Vendor Contact Email']));
-            if (formData['Vendor Phone'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.phone', extractValue(formData['Vendor Phone']));
-            if (formData['Vendor Bank Name'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.bank_name', extractValue(formData['Vendor Bank Name']));
-            if (formData['Vendor Bank Account Number'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.bank_account_number', extractValue(formData['Vendor Bank Account Number']));
-            if (formData['Vendor Bank Details (Account/IBAN/SWIFT/Routing No)'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.bank_details', extractValue(formData['Vendor Bank Details (Account/IBAN/SWIFT/Routing No)']));
-            if (formData['Vendor Contact Person'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.contact_person', extractValue(formData['Vendor Contact Person']));
-            if (formData['Vendor Website (if applicable)'] !== undefined) safeUpdate(updatedExtractedData, 'vendor_info.website', extractValue(formData['Vendor Website (if applicable)']));
+            // -------- Vendor Info --------
+            if (formData['Vendor Name'] !== undefined)
+                safeUpdate(
+                    updatedExtractedData,
+                    'vendor_info.name',
+                    extractValue(formData['Vendor Name'])
+                );
+            if (formData['Vendor Address'] !== undefined)
+                safeUpdate(
+                    updatedExtractedData,
+                    'vendor_info.address',
+                    extractValue(formData['Vendor Address'])
+                );
+            if (formData['Vendor Country'] !== undefined)
+                safeUpdate(
+                    updatedExtractedData,
+                    'vendor_info.country',
+                    extractValue(formData['Vendor Country'])
+                );
+            if (formData['Vendor Tax ID (VAT/GST/TIN/W9, etc.)'] !== undefined)
+                safeUpdate(
+                    updatedExtractedData,
+                    'vendor_info.tax_id',
+                    extractValue(formData['Vendor Tax ID (VAT/GST/TIN/W9, etc.)'])
+                );
+            if (formData['Vendor Contact Email'] !== undefined)
+                safeUpdate(
+                    updatedExtractedData,
+                    'vendor_info.contact_email',
+                    extractValue(formData['Vendor Contact Email'])
+                );
+            if (formData['Vendor Phone'] !== undefined)
+                safeUpdate(
+                    updatedExtractedData,
+                    'vendor_info.phone',
+                    extractValue(formData['Vendor Phone'])
+                );
+            if (formData['Vendor Bank Name'] !== undefined)
+                safeUpdate(
+                    updatedExtractedData,
+                    'vendor_info.bank_name',
+                    extractValue(formData['Vendor Bank Name'])
+                );
+            if (formData['Vendor Bank Account Number'] !== undefined)
+                safeUpdate(
+                    updatedExtractedData,
+                    'vendor_info.bank_account_number',
+                    extractValue(formData['Vendor Bank Account Number'])
+                );
+            if (
+                formData['Vendor Bank Details (Account/IBAN/SWIFT/Routing No)'] !==
+                undefined
+            )
+                safeUpdate(
+                    updatedExtractedData,
+                    'vendor_info.bank_details',
+                    extractValue(
+                        formData['Vendor Bank Details (Account/IBAN/SWIFT/Routing No)']
+                    )
+                );
+            if (formData['Vendor Contact Person'] !== undefined)
+                safeUpdate(
+                    updatedExtractedData,
+                    'vendor_info.contact_person',
+                    extractValue(formData['Vendor Contact Person'])
+                );
+            if (formData['Vendor Website (if applicable)'] !== undefined)
+                safeUpdate(
+                    updatedExtractedData,
+                    'vendor_info.website',
+                    extractValue(formData['Vendor Website (if applicable)'])
+                );
 
-            // Client Info
-            if (formData['Client Name or Company Name'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.name', extractValue(formData['Client Name or Company Name']));
-            if (formData['Billing Address'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.billing_address', extractValue(formData['Billing Address']));
-            if (formData['Shipping Address (if different)'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.shipping_address', extractValue(formData['Shipping Address (if different)']));
-            if (formData['Phone Number'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.phone', extractValue(formData['Phone Number']));
-            if (formData['Email Address (if applicable)'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.email', extractValue(formData['Email Address (if applicable)']));
-            if (formData['Client Tax ID (if applicable)'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.tax_id', extractValue(formData['Client Tax ID (if applicable)']));
-            if (formData['Contact Person'] !== undefined) safeUpdate(updatedExtractedData, 'client_info.contact_person', extractValue(formData['Contact Person']));
+            // -------- Client Info --------
+            const clientFields = [
+                ['Client Name or Company Name', 'client_info.name'],
+                ['Billing Address', 'client_info.billing_address'],
+                ['Shipping Address (if different)', 'client_info.shipping_address'],
+                ['Phone Number', 'client_info.phone'],
+                ['Email Address (if applicable)', 'client_info.email'],
+                ['Client Tax ID (if applicable)', 'client_info.tax_id'],
+                ['Contact Person', 'client_info.contact_person']
+            ];
+            clientFields.forEach(([label, path]) => {
+                if (formData[label] !== undefined) {
+                    safeUpdate(updatedExtractedData, path, extractValue(formData[label]));
+                }
+            });
 
-            // Invoice Details
-            if (formData['Invoice Number'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.invoice_number', extractValue(formData['Invoice Number']));
-            if (formData['Invoice Date'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.invoice_date', extractValue(formData['Invoice Date']));
-            if (formData['Due Date'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.due_date', extractValue(formData['Due Date']));
-            if (formData['Invoice Currency'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.currency', extractValue(formData['Invoice Currency']));
-            if (formData['Invoice Type'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.type', extractValue(formData['Invoice Type']));
-            if (formData['PO Number'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.po_number', extractValue(formData['PO Number']));
-            if (formData['Payment Terms'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.payment_terms', extractValue(formData['Payment Terms']));
-            if (formData['Payment Method'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.payment_method', extractValue(formData['Payment Method']));
-            if (formData['Cost Center / Project Code (if printed)'] !== undefined) safeUpdate(updatedExtractedData, 'invoice_details.cost_center', extractValue(formData['Cost Center / Project Code (if printed)']));
+            // -------- Invoice Details --------
+            const invoiceFields = [
+                ['Invoice Number', 'invoice_details.invoice_number'],
+                ['Invoice Date', 'invoice_details.invoice_date'],
+                ['Due Date', 'invoice_details.due_date'],
+                ['Invoice Currency', 'invoice_details.currency'],
+                ['Invoice Type', 'invoice_details.type'],
+                ['PO Number', 'invoice_details.po_number'],
+                ['Payment Terms', 'invoice_details.payment_terms'],
+                ['Payment Method', 'invoice_details.payment_method'],
+                [
+                    'Cost Center / Project Code (if printed)',
+                    'invoice_details.cost_center'
+                ],
+                ['Service period start', 'service_period.start_date'],
+                ['Service period end', 'service_period.end_date']
+            ];
+            invoiceFields.forEach(([label, path]) => {
+                if (formData[label] !== undefined) {
+                    safeUpdate(updatedExtractedData, path, extractValue(formData[label]));
+                }
+            });
 
-            // Service Period
-            if (formData['Service period start'] !== undefined) safeUpdate(updatedExtractedData, 'service_period.start_date', extractValue(formData['Service period start']));
-            if (formData['Service period end'] !== undefined) safeUpdate(updatedExtractedData, 'service_period.end_date', extractValue(formData['Service period end']));
+            // -------- Amounts --------
+            const amountFields = [
+                ['Subtotal', 'amounts.subtotal'],
+                ['Shipping / Handling / Fees', 'amounts.shipping_handling_fees'],
+                ['Surcharges', 'amounts.surcharges'],
+                ['Total Tax Amount', 'amounts.total_tax_amount'],
+                [
+                    'Tax Type Breakdown (VAT/GST/PST/IGST etc.)',
+                    'amounts.tax_type_breakdown'
+                ],
+                ['Withholding Tax', 'amounts.withholding_tax'],
+                ['Total Invoice Amount', 'amounts.total_invoice_amount'],
+                ['Amount Paid', 'amounts.amount_paid'],
+                ['Amount Due', 'amounts.amount_due']
+            ];
+            amountFields.forEach(([label, path]) => {
+                if (formData[label] !== undefined) {
+                    safeUpdate(updatedExtractedData, path, extractValue(formData[label]));
+                }
+            });
 
-            // Amounts
-            if (formData['Subtotal'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.subtotal', extractValue(formData['Subtotal']));
-            if (formData['Shipping / Handling / Fees'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.shipping_handling_fees', extractValue(formData['Shipping / Handling / Fees']));
-            if (formData['Surcharges'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.surcharges', extractValue(formData['Surcharges']));
-            if (formData['Total Tax Amount'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.total_tax_amount', extractValue(formData['Total Tax Amount']));
-            if (formData['Tax Type Breakdown (VAT/GST/PST/IGST etc.)'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.tax_type_breakdown', extractValue(formData['Tax Type Breakdown (VAT/GST/PST/IGST etc.)']));
-            if (formData['Withholding Tax'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.withholding_tax', extractValue(formData['Withholding Tax']));
-            if (formData['Total Invoice Amount'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.total_invoice_amount', extractValue(formData['Total Invoice Amount']));
-            if (formData['Amount Paid'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.amount_paid', extractValue(formData['Amount Paid']));
-            if (formData['Amount Due'] !== undefined) safeUpdate(updatedExtractedData, 'amounts.amount_due', extractValue(formData['Amount Due']));
+            // -------- Additional Info --------
+            const additionalFields = [
+                ['Notes / Terms', 'additional_info.notes_terms'],
+                [
+                    'QR Code / IRN / ZATCA ID (region-specific)',
+                    'additional_info.qr_code_irn'
+                ],
+                [
+                    'Company Registration Number',
+                    'additional_info.company_registration_number'
+                ]
+            ];
+            additionalFields.forEach(([label, path]) => {
+                if (formData[label] !== undefined) {
+                    safeUpdate(updatedExtractedData, path, extractValue(formData[label]));
+                }
+            });
 
-            // Additional Info
-            if (formData['Notes / Terms'] !== undefined) safeUpdate(updatedExtractedData, 'additional_info.notes_terms', extractValue(formData['Notes / Terms']));
-            if (formData['QR Code / IRN / ZATCA ID (region-specific)'] !== undefined) safeUpdate(updatedExtractedData, 'additional_info.qr_code_irn', extractValue(formData['QR Code / IRN / ZATCA ID (region-specific)']));
-            if (formData['Company Registration Number'] !== undefined) safeUpdate(updatedExtractedData, 'additional_info.company_registration_number', extractValue(formData['Company Registration Number']));
-
-            // Line Items
-            if (lineItems && Array.isArray(lineItems)) {
+            // -------- Line Items --------
+            if (Array.isArray(lineItems)) {
                 if (!updatedExtractedData.Items) {
                     updatedExtractedData.Items = { value: [] };
                 }
@@ -347,32 +448,148 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
 
                 updatedExtractedData.Items.value = lineItems.map((item, index) => {
                     const originalItem = originalItems[index] || {};
-
                     return {
-                        description: { ...(originalItem.description || {}), value: extractValue(item.Description) },
-                        item_code: { ...(originalItem.item_code || {}), value: extractValue(item.ItemCode) },
-                        quantity: { ...(originalItem.quantity || {}), value: extractValue(item.Quantity) },
-                        unit_of_measure: { ...(originalItem.unit_of_measure || {}), value: extractValue(item.UnitOfMeasure) },
-                        unit_price: { ...(originalItem.unit_price || {}), value: extractValue(item.UnitPrice) },
-                        discount: { ...(originalItem.discount || {}), value: extractValue(item.Discount) },
-                        amount: { ...(originalItem.amount || {}), value: extractValue(item.NetAmount) },
-                        tax_rate: { ...(originalItem.tax_rate || {}), value: extractValue(item.TaxRate) },
-                        tax_amount: { ...(originalItem.tax_amount || {}), value: extractValue(item.TaxAmount) },
-                        gross_amount: { ...(originalItem.gross_amount || {}), value: extractValue(item.GrossAmount) }
+                        description: {
+                            ...(originalItem.description || {}),
+                            value: extractValue(item.Description)
+                        },
+                        item_code: {
+                            ...(originalItem.item_code || {}),
+                            value: extractValue(item.ItemCode)
+                        },
+                        quantity: {
+                            ...(originalItem.quantity || {}),
+                            value: extractValue(item.Quantity)
+                        },
+                        unit_of_measure: {
+                            ...(originalItem.unit_of_measure || {}),
+                            value: extractValue(item.UnitOfMeasure)
+                        },
+                        unit_price: {
+                            ...(originalItem.unit_price || {}),
+                            value: extractValue(item.UnitPrice)
+                        },
+                        discount: {
+                            ...(originalItem.discount || {}),
+                            value: extractValue(item.Discount)
+                        },
+                        amount: {
+                            ...(originalItem.amount || {}),
+                            value: extractValue(item.NetAmount)
+                        },
+                        tax_rate: {
+                            ...(originalItem.tax_rate || {}),
+                            value: extractValue(item.TaxRate)
+                        },
+                        tax_amount: {
+                            ...(originalItem.tax_amount || {}),
+                            value: extractValue(item.TaxAmount)
+                        },
+                        gross_amount: {
+                            ...(originalItem.gross_amount || {}),
+                            value: extractValue(item.GrossAmount)
+                        }
                     };
                 });
             }
 
-            const updatedData = {
+            await invoiceService.updateInvoice(invoiceId, {
                 extracted_data: updatedExtractedData
-            };
+            });
 
-            await invoiceService.updateInvoice(invoiceId, updatedData);
             message.success('Invoice updated successfully!');
-
         } catch (error) {
             console.error('Error saving invoice:', error);
-            message.error(error.response?.data?.detail || 'Failed to save invoice. Please try again.');
+            message.error(
+                error.response?.data?.detail || 'Failed to save invoice. Please try again.'
+            );
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // ---------- status update (approve / reject / rework / send for approval) ----------
+    const updateStatus = async (newStatus) => {
+        if (!invoiceId) {
+            message.error('No invoice ID provided');
+            return;
+        }
+
+        try {
+            setSaving(true);
+
+            const tokenUser = authService.getCurrentUser?.();
+            const approverName =
+                tokenUser?.username || tokenUser?.email || 'Unknown User';
+
+            const updatedValidation = {
+                ...(validationInfo || {}),
+                approver_name: approverName,
+                approval_timestamp: new Date().toISOString(),
+                last_action: newStatus
+            };
+
+            await invoiceService.updateInvoice(invoiceId, {
+                status: newStatus,
+                validation_results: updatedValidation
+            });
+
+            setInvoiceStatus(newStatus);
+            setValidationInfo(updatedValidation);
+            message.success(`Invoice ${newStatus} successfully!`);
+        } catch (error) {
+            console.error('Error updating status:', error);
+            message.error(
+                error.response?.data?.detail ||
+                'Failed to update invoice status. Please try again.'
+            );
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleApprove = () => {
+        updateStatus('approved');
+        navigate("/approvals");
+    };
+    const handleReject = () => {
+        updateStatus('rejected');
+        navigate("/approvals");
+    };
+    const handleRework = () => {
+        updateStatus('reworked');
+        navigate("/approvals");
+    };
+    const handleSendForApproval = async () => {
+        message.success("Invoice sent for approval");
+
+        // Redirect to Approvals Page
+        navigate("/approvals");
+    };
+
+
+    // ---------- coding save ----------
+    const handleSaveCoding = async () => {
+        if (!invoiceId) {
+            message.error('No invoice ID provided');
+            return;
+        }
+
+        try {
+            setSaving(true);
+
+            await codingService.saveCoding(invoiceId, {
+                header_coding: headerCoding,
+                line_items: codingLineItems
+            });
+
+            message.success('Coding data saved successfully!');
+        } catch (error) {
+            console.error('Error saving coding data:', error);
+            message.error(
+                error.response?.data?.detail ||
+                'Failed to save coding data. Please try again.'
+            );
         } finally {
             setSaving(false);
         }
@@ -386,47 +603,21 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
 
         if (activeTab === '3') {
             await handleSaveCoding();
-            await saveInvoiceData();
-        } else {
-            await saveInvoiceData();
         }
+        await saveInvoiceData();
     };
 
-    const handleSaveCoding = async () => {
-        if (!invoiceId) {
-            message.error('No invoice ID provided');
-            return;
-        }
-
-        try {
-            setSaving(true);
-
-            const codingData = {
-                header_coding: headerCoding,
-                line_items: codingLineItems
-            };
-
-            console.log('Saving coding data:', codingData);
-            console.log('Invoice ID:', invoiceId);
-
-            const response = await codingService.saveCoding(invoiceId, codingData);
-            console.log('Save response:', response);
-            message.success('Coding data saved successfully!');
-
-        } catch (error) {
-            console.error('Error saving coding data:', error);
-            console.error('Error response:', error.response);
-            message.error(error.response?.data?.detail || 'Failed to save coding data. Please try again.');
-        } finally {
-            setSaving(false);
-        }
-    };
-
+    // ---------- UI helpers ----------
     const renderFieldInput = (field, value) => {
         const stringValue = extractValue(value);
 
-        if (field.includes('Amount') || field.includes('Price') || field.includes('Total') || field.includes('Tax')) {
-            const cleanValue = stringValue.toString().replace(/[^\d.-]/g, '');
+        if (
+            field.includes('Amount') ||
+            field.includes('Price') ||
+            field.includes('Total') ||
+            field.includes('Tax')
+        ) {
+            const cleanValue = stringValue?.toString().replace(/[^\d.-]/g, '');
             const numValue = parseFloat(cleanValue);
 
             return (
@@ -435,12 +626,18 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     value={isNaN(numValue) ? null : numValue}
                     onChange={(val) => handleInputChange(field, val)}
                     step={0.01}
-                    formatter={value => (value !== null && value !== undefined && value !== '') ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
-                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    formatter={(value) =>
+                        value !== null && value !== undefined && value !== ''
+                            ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                            : ''
+                    }
+                    parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
                     disabled={readOnly}
                 />
             );
-        } else if (field.includes('Date') || field.includes('period')) {
+        }
+
+        if (field.includes('Date') || field.includes('period')) {
             return (
                 <DatePicker
                     style={{ width: '100%', ...disabledStyle }}
@@ -450,7 +647,9 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     disabled={readOnly}
                 />
             );
-        } else if (field.includes('Notes') || field.includes('Terms')) {
+        }
+
+        if (field.includes('Notes') || field.includes('Terms')) {
             return (
                 <TextArea
                     rows={3}
@@ -460,7 +659,9 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     style={disabledStyle}
                 />
             );
-        } else if (field.includes('Approval Required')) {
+        }
+
+        if (field.includes('Approval Required')) {
             return (
                 <Checkbox
                     checked={stringValue === 'true' || stringValue === true}
@@ -470,23 +671,22 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     {field}
                 </Checkbox>
             );
-        } else {
-            return (
-                <Input
-                    value={stringValue}
-                    onChange={(e) => handleInputChange(field, e.target.value)}
-                    disabled={readOnly}
-                    style={disabledStyle}
-                />
-            );
         }
+
+        return (
+            <Input
+                value={stringValue}
+                onChange={(e) => handleInputChange(field, e.target.value)}
+                disabled={readOnly}
+                style={disabledStyle}
+            />
+        );
     };
 
-    // Editable line items table columns
+    // ---------- line item columns ----------
     const lineItemColumns = [
         {
             title: 'S.No',
-            dataIndex: 'item_number',
             key: 'item_number',
             width: 50,
             render: (text, record, index) => index + 1
@@ -500,7 +700,9 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 <Input.TextArea
                     rows={2}
                     value={extractValue(val)}
-                    onChange={(e) => handleLineItemChange(index, 'Description', e.target.value)}
+                    onChange={(e) =>
+                        handleLineItemChange(index, 'Description', e.target.value)
+                    }
                     disabled={readOnly}
                     style={disabledStyle}
                 />
@@ -514,7 +716,9 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
             render: (val, record, index) => (
                 <Input
                     value={extractValue(val)}
-                    onChange={(e) => handleLineItemChange(index, 'ItemCode', e.target.value)}
+                    onChange={(e) =>
+                        handleLineItemChange(index, 'ItemCode', e.target.value)
+                    }
                     disabled={readOnly}
                     style={disabledStyle}
                 />
@@ -529,7 +733,9 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 <InputNumber
                     style={{ width: '100%', ...disabledStyle }}
                     value={extractValue(val)}
-                    onChange={(value) => handleLineItemChange(index, 'Quantity', value)}
+                    onChange={(value) =>
+                        handleLineItemChange(index, 'Quantity', value)
+                    }
                     disabled={readOnly}
                 />
             )
@@ -542,7 +748,9 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
             render: (val, record, index) => (
                 <Input
                     value={extractValue(val)}
-                    onChange={(e) => handleLineItemChange(index, 'UnitOfMeasure', e.target.value)}
+                    onChange={(e) =>
+                        handleLineItemChange(index, 'UnitOfMeasure', e.target.value)
+                    }
                     disabled={readOnly}
                     style={disabledStyle}
                 />
@@ -557,10 +765,14 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 <InputNumber
                     style={{ width: '100%', ...disabledStyle }}
                     value={extractValue(val)}
-                    onChange={(value) => handleLineItemChange(index, 'UnitPrice', value)}
+                    onChange={(value) =>
+                        handleLineItemChange(index, 'UnitPrice', value)
+                    }
                     step={0.01}
-                    formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
-                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    formatter={(value) =>
+                        value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                    }
+                    parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
                     disabled={readOnly}
                 />
             )
@@ -574,10 +786,14 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 <InputNumber
                     style={{ width: '100%', ...disabledStyle }}
                     value={extractValue(val)}
-                    onChange={(value) => handleLineItemChange(index, 'Discount', value)}
+                    onChange={(value) =>
+                        handleLineItemChange(index, 'Discount', value)
+                    }
                     step={0.01}
-                    formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
-                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    formatter={(value) =>
+                        value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                    }
+                    parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
                     disabled={readOnly}
                 />
             )
@@ -591,10 +807,14 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                 <InputNumber
                     style={{ width: '100%', ...disabledStyle }}
                     value={extractValue(val)}
-                    onChange={(value) => handleLineItemChange(index, 'NetAmount', value)}
+                    onChange={(value) =>
+                        handleLineItemChange(index, 'NetAmount', value)
+                    }
                     step={0.01}
-                    formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
-                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    formatter={(value) =>
+                        value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                    }
+                    parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
                     disabled={readOnly}
                 />
             )
@@ -618,44 +838,47 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         }
     ];
 
-    // Tab 1: Quick View
+    // ---------- Quick View ----------
     const quickViewTab = (
         <div style={{ padding: '20px' }}>
-            {/* <div style={{ marginBottom: '16px', textAlign: 'right' }}>
-                <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    onClick={handleSave}
-                    loading={saving}
-                    size="large"
-                >
-                    Save Changes
-                </Button>
-            </div> */}
             <Collapse defaultActiveKey={['header', 'lineitems']}>
                 <Panel header="Header" key="header">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
-                            <div style={{ fontWeight: 500 }}>Vendor Name:</div>
-                            <div>{renderFieldInput('Vendor Name', formData['Vendor Name'])}</div>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
-                            <div style={{ fontWeight: 500 }}>Invoice Number:</div>
-                            <div>{renderFieldInput('Invoice Number', formData['Invoice Number'])}</div>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
-                            <div style={{ fontWeight: 500 }}>Invoice Date:</div>
-                            <div>{renderFieldInput('Invoice Date', formData['Invoice Date'])}</div>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
-                            <div style={{ fontWeight: 500 }}>Due Date:</div>
-                            <div>{renderFieldInput('Due Date', formData['Due Date'])}</div>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
-                            <div style={{ fontWeight: 500 }}>Payment Terms:</div>
-                            <div>{renderFieldInput('Payment Terms', formData['Payment Terms'])}</div>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px'
+                        }}
+                    >
+                        {[
+                            ['Vendor Name', 'Vendor Name'],
+                            ['Invoice Number', 'Invoice Number'],
+                            ['Invoice Date', 'Invoice Date'],
+                            ['Due Date', 'Due Date'],
+                            ['Payment Terms', 'Payment Terms']
+                        ].map(([label, key]) => (
+                            <div
+                                key={key}
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '200px 1fr',
+                                    gap: '16px',
+                                    alignItems: 'center'
+                                }}
+                            >
+                                <div style={{ fontWeight: 500 }}>{label}:</div>
+                                <div>{renderFieldInput(key, formData[key])}</div>
+                            </div>
+                        ))}
+
+                        <div
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns: '200px 1fr',
+                                gap: '16px',
+                                alignItems: 'center'
+                            }}
+                        >
                             <div style={{ fontWeight: 500 }}>Currency:</div>
                             <div>
                                 <Select
@@ -665,20 +888,37 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                         { value: 'USD', label: '$ USD' },
                                         { value: 'INR', label: '₹ INR' }
                                     ]}
+                                    disabled
                                 />
                             </div>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
+
+                        <div
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns: '200px 1fr',
+                                gap: '16px',
+                                alignItems: 'center'
+                            }}
+                        >
                             <div style={{ fontWeight: 500 }}>Total Amount:</div>
-                            <div>{renderFieldInput('Total Invoice Amount', formData['Total Invoice Amount'])}</div>
+                            <div>
+                                {renderFieldInput(
+                                    'Total Invoice Amount',
+                                    formData['Total Invoice Amount']
+                                )}
+                            </div>
                         </div>
                     </div>
                 </Panel>
 
                 <Panel header="Line Items" key="lineitems">
                     <Table
-                        columns={lineItemColumns}                        
-                        dataSource={lineItems.map((item, index) => ({ ...item, key: index }))}
+                        columns={lineItemColumns}
+                        dataSource={lineItems.map((item, index) => ({
+                            ...item,
+                            key: index
+                        }))}
                         pagination={false}
                         scroll={{ x: 'max-content' }}
                         size="small"
@@ -698,65 +938,82 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         </div>
     );
 
-    // Tab 2: All Fields
+    // ---------- All Fields (optimized, still same content) ----------
+    const renderFieldGroup = (title, fields) => (
+        <Panel header={title} key={title}>
+            <div
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                }}
+            >
+                {fields.map((field) => (
+                    <div
+                        key={field}
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: '350px 1fr',
+                            gap: '16px',
+                            alignItems: 'center'
+                        }}
+                    >
+                        <div style={{ fontWeight: 500 }}>{field}:</div>
+                        <div>{renderFieldInput(field, formData[field])}</div>
+                    </div>
+                ))}
+            </div>
+        </Panel>
+    );
+
     const allFieldsTab = (
         <div style={{ padding: '10px 20px' }}>
-            {/* <div style={{ marginBottom: '16px', textAlign: 'right' }}>
-                <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    onClick={handleSave}
-                    loading={saving}
-                    size="large"
-                >
-                    Save Changes
-                </Button>
-            </div> */}
-            <Collapse defaultActiveKey={['Vendor Level', 'Invoice Header', 'Line Items']}>
-                <Panel header="Vendor Level" key="Vendor Level">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {['Vendor Name', 'Vendor Address', 'Vendor Country', 'Vendor Tax ID (VAT/GST/TIN/W9, etc.)',
-                            'Vendor Contact Email', 'Vendor Phone', 'Vendor Bank Name', 'Vendor Bank Account Number',
-                            'Vendor Bank Details (Account/IBAN/SWIFT/Routing No)', 'Vendor Contact Person',
-                            'Vendor Website (if applicable)'].map((field) => (
-                                <div key={field} style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '16px', alignItems: 'center' }}>
-                                    <div style={{ fontWeight: 500 }}>{field}:</div>
-                                    <div>{renderFieldInput(field, formData[field])}</div>
-                                </div>
-                            ))}
-                    </div>
-                </Panel>
+            <Collapse defaultActiveKey={['Vendor', 'Buyer', 'Invoice Header']}>
+                {renderFieldGroup('Vendor Level', [
+                    'Vendor Name',
+                    'Vendor Address',
+                    'Vendor Country',
+                    'Vendor Tax ID (VAT/GST/TIN/W9, etc.)',
+                    'Vendor Contact Email',
+                    'Vendor Phone',
+                    'Vendor Bank Name',
+                    'Vendor Bank Account Number',
+                    'Vendor Bank Details (Account/IBAN/SWIFT/Routing No)',
+                    'Vendor Contact Person',
+                    'Vendor Website (if applicable)'
+                ])}
 
-                <Panel header="Buyer Information" key="Buyer Information">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {['Client Name or Company Name', 'Billing Address', 'Shipping Address (if different)',
-                            'Phone Number', 'Email Address (if applicable)', 'Client Tax ID (if applicable)',
-                            'Contact Person'].map((field) => (
-                                <div key={field} style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '16px', alignItems: 'center' }}>
-                                    <div style={{ fontWeight: 500 }}>{field}:</div>
-                                    <div>{renderFieldInput(field, formData[field])}</div>
-                                </div>
-                            ))}
-                    </div>
-                </Panel>
+                {renderFieldGroup('Buyer Information', [
+                    'Client Name or Company Name',
+                    'Billing Address',
+                    'Shipping Address (if different)',
+                    'Phone Number',
+                    'Email Address (if applicable)',
+                    'Client Tax ID (if applicable)',
+                    'Contact Person'
+                ])}
 
-                <Panel header="Invoice Header" key="Invoice Header">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {['Invoice Number', 'Invoice Date', 'Due Date', 'Invoice Currency', 'Invoice Type',
-                            'PO Number', 'Payment Terms', 'Payment Method', 'Cost Center / Project Code (if printed)',
-                            'Service period start', 'Service period end'].map((field) => (
-                                <div key={field} style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '16px', alignItems: 'center' }}>
-                                    <div style={{ fontWeight: 500 }}>{field}:</div>
-                                    <div>{renderFieldInput(field, formData[field])}</div>
-                                </div>
-                            ))}
-                    </div>
-                </Panel>
+                {renderFieldGroup('Invoice Header', [
+                    'Invoice Number',
+                    'Invoice Date',
+                    'Due Date',
+                    'Invoice Currency',
+                    'Invoice Type',
+                    'PO Number',
+                    'Payment Terms',
+                    'Payment Method',
+                    'Cost Center / Project Code (if printed)',
+                    'Service period start',
+                    'Service period end'
+                ])}
 
                 <Panel header="Line Items" key="Line Items">
                     <Table
                         columns={lineItemColumns}
-                        dataSource={lineItems.map((item, index) => ({ ...item, key: index }))}
+                        dataSource={lineItems.map((item, index) => ({
+                            ...item,
+                            key: index
+                        }))}
                         pagination={false}
                         scroll={{ x: 'max-content' }}
                         size="small"
@@ -773,59 +1030,39 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     )}
                 </Panel>
 
-                <Panel header="Taxes" key="Taxes">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {['Total Tax Amount', 'Tax Type Breakdown (VAT/GST/PST/IGST etc.)',
-                            'Withholding Tax'].map((field) => (
-                                <div key={field} style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '16px', alignItems: 'center' }}>
-                                    <div style={{ fontWeight: 500 }}>{field}:</div>
-                                    <div>{renderFieldInput(field, formData[field])}</div>
-                                </div>
-                            ))}
-                    </div>
-                </Panel>
+                {renderFieldGroup('Taxes', [
+                    'Total Tax Amount',
+                    'Tax Type Breakdown (VAT/GST/PST/IGST etc.)',
+                    'Withholding Tax'
+                ])}
 
-                <Panel header="Totals" key="Totals">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {['Subtotal', 'Shipping / Handling / Fees', 'Surcharges', 'Total Invoice Amount',
-                            'Amount Paid', 'Amount Due'].map((field) => (
-                                <div key={field} style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '16px', alignItems: 'center' }}>
-                                    <div style={{ fontWeight: 500 }}>{field}:</div>
-                                    <div>{renderFieldInput(field, formData[field])}</div>
-                                </div>
-                            ))}
-                    </div>
-                </Panel>
+                {renderFieldGroup('Totals', [
+                    'Subtotal',
+                    'Shipping / Handling / Fees',
+                    'Surcharges',
+                    'Total Invoice Amount',
+                    'Amount Paid',
+                    'Amount Due'
+                ])}
 
-                <Panel header="Compliance" key="Compliance">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {['Notes / Terms', 'QR Code / IRN / ZATCA ID (region-specific)',
-                            'Company Registration Number'].map((field) => (
-                                <div key={field} style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '16px', alignItems: 'center' }}>
-                                    <div style={{ fontWeight: 500 }}>{field}:</div>
-                                    <div>{renderFieldInput(field, formData[field])}</div>
-                                </div>
-                            ))}
-                    </div>
-                </Panel>
+                {renderFieldGroup('Compliance', [
+                    'Notes / Terms',
+                    'QR Code / IRN / ZATCA ID (region-specific)',
+                    'Company Registration Number'
+                ])}
 
-                <Panel header="Approval Workflow" key="Approval Workflow">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {['Approval Workflow ID', 'Approval Required', 'Approver List / Roles:',
-                            'Approval Status:', 'Approval Timestamps'].map((field) => (
-                                <div key={field} style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '16px', alignItems: 'center' }}>
-                                    <div style={{ fontWeight: 500 }}>{field}:</div>
-                                    <div>{renderFieldInput(field, formData[field])}</div>
-                                </div>
-                            ))}
-                    </div>
-                </Panel>
-
+                {renderFieldGroup('Approval Workflow', [
+                    'Approval Workflow ID',
+                    'Approval Required',
+                    'Approver List / Roles:',
+                    'Approval Status:',
+                    'Approval Timestamps'
+                ])}
             </Collapse>
         </div>
     );
 
-    // Tab 3: Coding
+    // ---------- Coding Tab ----------
     const codingTab = (
         <div style={{ padding: '20px' }}>
             <Collapse defaultActiveKey={['header', 'lineitems']}>
@@ -875,10 +1112,18 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                         dataSource={[
                             {
                                 key: '1',
-                                fileName: formData['Vendor Name']?.value || formData['Vendor Name'] || '',
-                                invoiceId: formData['Invoice Number']?.value || formData['Invoice Number'] || '',
-                                totalAmount: formData['Total Invoice Amount']?.value || formData['Total Invoice Amount'] || '',
-                                dueDate: formData['Due Date']?.value || formData['Due Date'] || '',
+                                fileName:
+                                    formData['Vendor Name']?.value || formData['Vendor Name'] || '',
+                                invoiceId:
+                                    formData['Invoice Number']?.value ||
+                                    formData['Invoice Number'] ||
+                                    '',
+                                totalAmount:
+                                    formData['Total Invoice Amount']?.value ||
+                                    formData['Total Invoice Amount'] ||
+                                    '',
+                                dueDate:
+                                    formData['Due Date']?.value || formData['Due Date'] || '',
                                 headerCoding: ''
                             }
                         ]}
@@ -902,7 +1147,7 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 dataIndex: 'description',
                                 key: 'description',
                                 width: '15%',
-                                render: (text, record, index) => (
+                                render: (text) => (
                                     <Input
                                         value={text}
                                         placeholder="Enter description"
@@ -919,9 +1164,9 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 render: (text, record, index) => (
                                     <Select
                                         value={codingLineItems[index]?.line_type || 'Expense'}
-
-                                        onChange={(value) => handleCodingLineItemChange(index, 'line_type', value)}
-                                        defaultValue="Expense"
+                                        onChange={(value) =>
+                                            handleCodingLineItemChange(index, 'line_type', value)
+                                        }
                                         options={[
                                             { value: 'Expense', label: 'Expense' },
                                             { value: 'Asset', label: 'Asset' },
@@ -940,10 +1185,9 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 render: (text, record, index) => (
                                     <InputNumber
                                         value={codingLineItems[index]?.quantity || 0}
-
-
-                                        onChange={(value) => handleCodingLineItemChange(index, 'quantity', value)}
-
+                                        onChange={(value) =>
+                                            handleCodingLineItemChange(index, 'quantity', value)
+                                        }
                                         style={{ width: '100%', ...disabledStyle }}
                                         min={0}
                                         disabled={readOnly}
@@ -958,11 +1202,15 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 render: (text, record, index) => (
                                     <InputNumber
                                         value={codingLineItems[index]?.unit_price || 0}
-
-                                        formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
-                                        parser={value => value.replace(/\$\s?|(,*)/g, '')}
-                                        onChange={(value) => handleCodingLineItemChange(index, 'unit_price', value)}
-                                        // value={text}
+                                        formatter={(value) =>
+                                            value
+                                                ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                                                : ''
+                                        }
+                                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                                        onChange={(value) =>
+                                            handleCodingLineItemChange(index, 'unit_price', value)
+                                        }
                                         style={{ width: '100%', ...disabledStyle }}
                                         min={0}
                                         precision={2}
@@ -978,11 +1226,15 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                 render: (text, record, index) => (
                                     <InputNumber
                                         value={codingLineItems[index]?.net_amount || 0}
-
-                                        formatter={value => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
-                                        parser={value => value.replace(/\$\s?|(,*)/g, '')}
-                                        onChange={(value) => handleCodingLineItemChange(index, 'net_amount', value)}
-
+                                        formatter={(value) =>
+                                            value
+                                                ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                                                : ''
+                                        }
+                                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                                        onChange={(value) =>
+                                            handleCodingLineItemChange(index, 'net_amount', value)
+                                        }
                                         style={{ width: '100%', ...disabledStyle }}
                                         min={0}
                                         precision={2}
@@ -999,7 +1251,9 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                     <Input
                                         value={codingLineItems[index]?.gl_code || ''}
                                         placeholder="GL Code"
-                                        onChange={(e) => handleCodingLineItemChange(index, 'gl_code', e.target.value)}
+                                        onChange={(e) =>
+                                            handleCodingLineItemChange(index, 'gl_code', e.target.value)
+                                        }
                                         disabled={readOnly}
                                         style={disabledStyle}
                                     />
@@ -1014,7 +1268,13 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                     <Input
                                         value={codingLineItems[index]?.cost_center || ''}
                                         placeholder="Cost Center"
-                                        onChange={(e) => handleCodingLineItemChange(index, 'cost_center', e.target.value)}
+                                        onChange={(e) =>
+                                            handleCodingLineItemChange(
+                                                index,
+                                                'cost_center',
+                                                e.target.value
+                                            )
+                                        }
                                         disabled={readOnly}
                                         style={disabledStyle}
                                     />
@@ -1029,7 +1289,13 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                                     <Input
                                         value={codingLineItems[index]?.project_code || ''}
                                         placeholder="Project Code"
-                                        onChange={(e) => handleCodingLineItemChange(index, 'project_code', e.target.value)}
+                                        onChange={(e) =>
+                                            handleCodingLineItemChange(
+                                                index,
+                                                'project_code',
+                                                e.target.value
+                                            )
+                                        }
                                         disabled={readOnly}
                                         style={disabledStyle}
                                     />
@@ -1060,39 +1326,22 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                     />
                 </Panel>
             </Collapse>
+
             {!readOnly && (
                 <div style={{ marginTop: '20px', textAlign: 'right' }}>
                     <Button
                         type="primary"
                         size="large"
-                        onClick={() => navigate('/approvals')}
+                        icon={<SendOutlined />}
+                        onClick={handleSendForApproval}
+                        disabled={invoiceStatus === 'approved' || invoiceStatus === 'rejected'}
                     >
-                        Send to Approval
+                        Send for Approval
                     </Button>
                 </div>
             )}
         </div>
     );
-
-    const tabItems = [
-        {
-            key: '1',
-            label: 'Quick View',
-            children: quickViewTab
-        },
-        {
-            key: '2',
-            label: 'All Fields',
-            children: allFieldsTab
-        },
-        {
-            key: '3',
-            label: 'Coding',
-            children: codingTab
-        }
-    ];
-
-
 
     const renderTabContent = () => {
         switch (activeTab) {
@@ -1107,32 +1356,97 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
         }
     };
 
+    // ---------- status helpers for buttons ----------
+    const isApproved = invoiceStatus === 'approved';
+    const isRejected = invoiceStatus === 'rejected';
+    const isWaitingApproval = invoiceStatus === 'waiting_approval';
+
+    const approveDisabled = !isWaitingApproval;
+    const rejectDisabled = !isWaitingApproval;
+    const reworkDisabled = isApproved || isRejected;
+
+    const renderStatusTag = () => {
+        let color = 'default';
+        let label = invoiceStatus;
+
+        switch (invoiceStatus) {
+            case 'waiting_approval':
+                color = 'warning';
+                label = 'Waiting Approval';
+                break;
+            case 'approved':
+                color = 'success';
+                label = 'Approved';
+                break;
+            case 'rejected':
+                color = 'error';
+                label = 'Rejected';
+                break;
+            case 'reworked':
+                color = 'processing';
+                label = 'Reworked';
+                break;
+            case 'processed':
+                color = 'success';
+                label = 'Processed';
+                break;
+            default:
+                color = 'default';
+        }
+
+        return <Tag color={color}>{label}</Tag>;
+    };
+
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{
-                position: 'sticky',
-                top: 0,
-                zIndex: 10,
-                backgroundColor: '#fff',
-                borderBottom: '1px solid #f0f0f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 20px'
-            }}>
-                <Tabs
-                    activeKey={activeTab}
-                    onChange={setActiveTab}
-                    style={{ margin: 0, flex: 1 }}
-                    items={[
-                        { key: '1', label: 'Quick View' },
-                        { key: '2', label: 'All Fields' },
-                        { key: '3', label: 'Coding' }
-                    ]}
-                />
+            <div
+                style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 10,
+                    backgroundColor: '#fff',
+                    borderBottom: '1px solid #f0f0f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 20px'
+                }}
+            >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1 }}>
+                    <Tabs
+                        activeKey={activeTab}
+                        onChange={setActiveTab}
+                        style={{ margin: 0, flex: 1 }}
+                        items={[
+                            { key: '1', label: 'Quick View' },
+                            { key: '2', label: 'All Fields' },
+                            { key: '3', label: 'Coding' }
+                        ]}
+                    />
+                    <div>
+                        {(invoiceStatus === "approved" || invoiceStatus === "rejected") && (
+                            <>
+                                {renderStatusTag()}
+                                {validationInfo?.approver_name &&
+                                    validationInfo?.approval_timestamp && (
+                                        <div style={{ fontSize: 12, color: '#999' }}>
+                                            {(validationInfo.last_action || 'Action').toUpperCase()} by{' '}
+                                            <strong>{validationInfo.approver_name}</strong>{' '}
+                                            at{' '}
+                                            {new Date(
+                                                validationInfo.approval_timestamp
+                                            ).toLocaleString()}
+                                        </div>
+                                    )}
+                            </>
+                        )}
+                    </div>
+
+                </div>
+
                 {!readOnly && (
                     <Button
-                        type="primary" 
+                        type="primary"
                         icon={<SaveOutlined />}
                         onClick={handleSave}
                         loading={saving}
@@ -1142,13 +1456,15 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                         Save
                     </Button>
                 )}
+
                 {readOnly && (
                     <Space style={{ marginLeft: '24px' }}>
                         <Button
                             type="primary"
                             icon={<CheckCircleOutlined />}
                             style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-                            onClick={() => console.log('Approve')}
+                            onClick={handleApprove}
+                            disabled={approveDisabled}
                         >
                             Approve
                         </Button>
@@ -1156,7 +1472,8 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                             type="primary"
                             icon={<CloseCircleOutlined />}
                             danger
-                            onClick={() => console.log('Reject')}
+                            onClick={handleReject}
+                            disabled={rejectDisabled}
                         >
                             Reject
                         </Button>
@@ -1164,16 +1481,16 @@ const GenericInputFields = ({ data, schema, setHoveredKey, invoiceId, originalDa
                             type="primary"
                             icon={<RollbackOutlined />}
                             style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
-                            onClick={() => console.log('Rework')}
+                            onClick={handleRework}
+                            disabled={reworkDisabled}
                         >
                             Rework
                         </Button>
                     </Space>
                 )}
             </div>
-            <div style={{ flex: 1, overflow: 'auto' }}>
-                {renderTabContent()}
-            </div>
+
+            <div style={{ flex: 1, overflow: 'auto' }}>{renderTabContent()}</div>
         </div>
     );
 };

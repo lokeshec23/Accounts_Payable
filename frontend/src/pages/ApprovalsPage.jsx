@@ -20,22 +20,21 @@ const ApprovalsPage = () => {
         total: 0,
     });
 
-    // Fetch invoices from backend
+    // Fetch invoices
     const fetchInvoices = async (page = 1, pageSize = 10) => {
         try {
             setLoading(true);
 
-            // Fetch all invoices to get total count
             const response = await invoiceService.getInvoices(0, 1000);
             const invoicesArray = Array.isArray(response) ? response : [];
 
-            // Transform backend data to table format
             const transformedData = invoicesArray.map((invoice) => ({
                 key: invoice._id || invoice.id,
                 id: invoice._id || invoice.id,
                 filename: invoice.original_filename || invoice.filename || 'N/A',
                 vendorName: invoice.extracted_data?.vendor_info?.name?.value || 'N/A',
                 invoiceId: invoice.extracted_data?.invoice_details?.invoice_number?.value || 'N/A',
+
                 lastUpdated: new Date(invoice.processed_at || invoice.uploaded_at).toLocaleString('en-US', {
                     year: 'numeric',
                     month: '2-digit',
@@ -44,16 +43,29 @@ const ApprovalsPage = () => {
                     minute: '2-digit',
                     hour12: true
                 }),
+
                 uploadedBy: invoice.uploaded_by || 'Unknown',
+
                 status: invoice.status || 'pending',
-                fileUrl: invoice.file_url || '/sample-invoice.pdf',
+
+                approverName: invoice.validation_results?.approver_name || '—',
+
+                approvalTime: invoice.validation_results?.approval_timestamp
+                    ? new Date(invoice.validation_results.approval_timestamp).toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    })
+                    : '—',
+
                 rawData: invoice
             }));
 
-            // Calculate pagination
             const startIndex = (page - 1) * pageSize;
-            const endIndex = startIndex + pageSize;
-            const paginatedData = transformedData.slice(startIndex, endIndex);
+            const paginatedData = transformedData.slice(startIndex, startIndex + pageSize);
 
             setData(paginatedData);
             setPagination({
@@ -70,22 +82,20 @@ const ApprovalsPage = () => {
         }
     };
 
-    // Load invoices on component mount
     useEffect(() => {
         fetchInvoices();
     }, []);
 
-    // Handle table pagination change
     const handleTableChange = (newPagination) => {
         fetchInvoices(newPagination.current, newPagination.pageSize);
     };
 
-    // Handle view invoice
+    // View invoice
     const handleView = (record) => {
         navigate('/invoice/review', { state: { invoice: record.rawData, readOnly: true } });
     };
 
-    // Handle delete invoice
+    // Delete invoice
     const handleDelete = (record) => {
         confirm({
             title: 'Are you sure you want to delete this invoice?',
@@ -137,47 +147,36 @@ const ApprovalsPage = () => {
             width: 180,
         },
         {
-            title: 'Last Updated',
-            dataIndex: 'lastUpdated',
-            key: 'lastUpdated',
-            width: 200,
-        },
-        {
             title: 'Uploaded By',
             dataIndex: 'uploadedBy',
             key: 'uploadedBy',
-            width: 180,
-            ellipsis: true,
+            width: 160,
         },
         {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
-            width: 130,
+            width: 140,
             render: (status) => {
                 let color = 'default';
                 let text = status;
 
                 switch (status) {
-                    case 'completed':
                     case 'approved':
                         color = 'success';
-                        text = 'Completed';
+                        text = 'Approved';
                         break;
                     case 'waiting_approval':
-                    case 'pending':
                         color = 'warning';
-                        text = 'Pending';
+                        text = 'Waiting for Approval';
                         break;
-                    case 'error':
-                    case 'failed':
                     case 'rejected':
                         color = 'error';
-                        text = 'Error';
+                        text = 'Rejected';
                         break;
-                    case 'processing':
+                    case 'reworked':
                         color = 'processing';
-                        text = 'Processing';
+                        text = 'Reworked';
                         break;
                     default:
                         color = 'default';
@@ -185,6 +184,24 @@ const ApprovalsPage = () => {
 
                 return <Tag color={color}>{text}</Tag>;
             },
+        },
+        {
+            title: 'Approver',
+            dataIndex: 'approverName',
+            key: 'approverName',
+            width: 150,
+        },
+        {
+            title: 'Action Time',
+            dataIndex: 'approvalTime',
+            key: 'approvalTime',
+            width: 200,
+        },
+        {
+            title: 'Last Updated',
+            dataIndex: 'lastUpdated',
+            key: 'lastUpdated',
+            width: 200,
         },
         {
             title: 'Actions',
@@ -199,6 +216,7 @@ const ApprovalsPage = () => {
                     >
                         View
                     </Button>
+
                     <Button
                         type="link"
                         danger
