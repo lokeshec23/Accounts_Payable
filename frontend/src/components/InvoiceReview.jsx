@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import PdfViewer from './Pdfviewer';
 import GenericInputFields from './GenericInputFields';
 import { schemaMap } from '../config/schemaMap';
+import PdfViewerWithHighlight from './PdfViewerWithHighlight';
 
 const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     console.log('InvoiceReview received invoiceData:', invoiceData);
@@ -82,7 +82,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
             }
 
             // ------------------------------
-            // MAP AMOUNTS / TOTALS
+            // MAP TOTAL AMOUNTS
             // ------------------------------
             if (extractedData.amounts) {
                 extraction_json['Subtotal'] = extractNestedValue(extractedData.amounts.subtotal);
@@ -97,7 +97,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
             }
 
             // ------------------------------
-            // MAP ADDITIONAL INFO
+            // ADDITIONAL INFO
             // ------------------------------
             if (extractedData.additional_info) {
                 extraction_json['Notes / Terms'] = extractNestedValue(extractedData.additional_info.notes_terms);
@@ -106,7 +106,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
             }
 
             // ------------------------------
-            // MAP LINE ITEMS
+            // LINE ITEMS
             // ------------------------------
             const items = [];
             if (extractedData.Items?.value && Array.isArray(extractedData.Items.value)) {
@@ -136,41 +136,41 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     }, [invoiceData]);
 
     return (
-        <div style={{
-            display: 'flex',
-            height: 'calc(100vh - 10vh)',
-            width: '100%',
-            background: 'white'
-        }}>
-
+        <div
+            style={{
+                display: 'flex',
+                height: 'calc(100vh - 10vh)',
+                width: '100%',
+                background: 'white'
+            }}
+        >
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-
+                
                 {/* LEFT SIDE PDF VIEWER */}
-                <div style={{
-                    flex: '0 0 35%',
-                    borderRight: '1px solid #e8e8e8',
-                    overflow: 'hidden',
-                    background: '#f5f5f5',
-                    display: 'flex',
-                    flexDirection: 'column'
-                }}>
-                    <PdfViewer
-                        file={file}
-                        numPages={numPages}
-                        setNumPages={setNumPages}
-                        pageNumber={pageNumber}
-                        setPageNumber={setPageNumber}
-                        data={formattedData}
-                        hoveredKey={hoveredKey}
+                <div
+                    style={{
+                        flex: '0 0 35%',
+                        borderRight: '1px solid #e8e8e8',
+                        overflow: 'hidden',
+                        background: '#f5f5f5',
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }}
+                >
+                    <PdfViewerWithHighlight 
+                        file={file}                             // FIXED HERE
+                        extractedData={invoiceData.extracted_data}
                     />
                 </div>
 
-                {/* RIGHT SIDE: INPUT FIELDS */}
-                <div style={{
-                    flex: '0 0 65%',
-                    overflow: 'auto',
-                    background: 'white'
-                }}>
+                {/* RIGHT SIDE FORM */}
+                <div
+                    style={{
+                        flex: '0 0 65%',
+                        overflow: 'auto',
+                        background: 'white'
+                    }}
+                >
                     {formattedData && (
                         <GenericInputFields
                             data={formattedData}
