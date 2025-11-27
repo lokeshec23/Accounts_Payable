@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import GenericInputFields from './GenericInputFields';
 import { schemaMap } from '../config/schemaMap';
 import PdfViewerWithHighlight from './PdfViewerWithHighlight';
+import PdfViewer from './Pdfviewer';
 
 const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     console.log('InvoiceReview received invoiceData:', invoiceData);
@@ -145,7 +146,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
             }}
         >
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-                
+
                 {/* LEFT SIDE PDF VIEWER */}
                 <div
                     style={{
@@ -157,9 +158,14 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                         flexDirection: 'column'
                     }}
                 >
-                    <PdfViewerWithHighlight 
-                        file={file}                             // FIXED HERE
-                        extractedData={invoiceData.extracted_data}
+                    <PdfViewer
+                        file={file}
+                        numPages={numPages}
+                        setNumPages={setNumPages}
+                        pageNumber={pageNumber}
+                        setPageNumber={setPageNumber}
+                        data={formattedData}
+                        hoveredKey={hoveredKey}
                     />
                 </div>
 
