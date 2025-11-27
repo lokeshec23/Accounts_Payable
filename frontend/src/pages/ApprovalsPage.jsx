@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Tag, Space, Modal, message } from 'antd';
+import { Table, Button, Tag, Space, Modal, message, Input } from 'antd';
 import {
     EyeOutlined,
     DeleteOutlined,
@@ -14,14 +14,12 @@ const ApprovalsPage = () => {
     const navigate = useNavigate();
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [pagination, setPagination] = useState({
-        current: 1,
-        pageSize: 10,
-        total: 0,
-    });
 
-    // Fetch invoices
-    const fetchInvoices = async (page = 1, pageSize = 10) => {
+    // Global search term for approvals table
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Fetch invoices (full dataset, no manual slicing)
+    const fetchInvoices = async () => {
         try {
             setLoading(true);
 
@@ -64,15 +62,7 @@ const ApprovalsPage = () => {
                 rawData: invoice
             }));
 
-            const startIndex = (page - 1) * pageSize;
-            const paginatedData = transformedData.slice(startIndex, startIndex + pageSize);
-
-            setData(paginatedData);
-            setPagination({
-                current: page,
-                pageSize: pageSize,
-                total: transformedData.length,
-            });
+            setData(transformedData);
         } catch (error) {
             console.error('Error fetching invoices:', error);
             message.error('Failed to load invoices. Please try again.');
@@ -86,9 +76,26 @@ const ApprovalsPage = () => {
         fetchInvoices();
     }, []);
 
-    const handleTableChange = (newPagination) => {
-        fetchInvoices(newPagination.current, newPagination.pageSize);
-    };
+    // Global search across all approvals
+    const filteredData = useMemo(() => {
+        if (!searchTerm) return data;
+        const q = searchTerm.toLowerCase();
+        return data.filter((row) => {
+            const fieldsToSearch = [
+                row.filename,
+                row.vendorName,
+                row.invoiceId,
+                row.uploadedBy,
+                row.status,
+                row.approverName,
+                row.approvalTime,
+                row.lastUpdated,
+            ];
+            return fieldsToSearch.some((field) =>
+                (field || '').toString().toLowerCase().includes(q)
+            );
+        });
+    }, [data, searchTerm]);
 
     // View invoice
     const handleView = (record) => {
@@ -108,7 +115,7 @@ const ApprovalsPage = () => {
                 try {
                     await invoiceService.deleteInvoice(record.id);
                     message.success('Invoice deleted successfully');
-                    fetchInvoices(pagination.current, pagination.pageSize);
+                    fetchInvoices();
                 } catch (error) {
                     console.error('Error deleting invoice:', error);
                     message.error('Failed to delete invoice. Please try again.');
@@ -122,10 +129,7 @@ const ApprovalsPage = () => {
             title: 'S.No',
             key: 'sno',
             width: 70,
-            render: (_, __, index) => {
-                const { current, pageSize } = pagination;
-                return (current - 1) * pageSize + index + 1;
-            },
+            render: (_, __, index) => index + 1,
         },
         {
             title: 'File Name',
@@ -133,30 +137,47 @@ const ApprovalsPage = () => {
             key: 'filename',
             width: 250,
             ellipsis: true,
+            sorter: (a, b) => (a.filename || '').localeCompare(b.filename || ''),
+            multiple: 1,
         },
         {
             title: 'Vendor Name',
             dataIndex: 'vendorName',
             key: 'vendorName',
             width: 180,
+            sorter: (a, b) => (a.vendorName || '').localeCompare(b.vendorName || ''),
+            multiple: 2,
         },
         {
             title: 'Invoice ID',
             dataIndex: 'invoiceId',
             key: 'invoiceId',
             width: 180,
+            sorter: (a, b) => (a.invoiceId || '').localeCompare(b.invoiceId || ''),
+            multiple: 3,
         },
         {
             title: 'Uploaded By',
             dataIndex: 'uploadedBy',
             key: 'uploadedBy',
             width: 160,
+            sorter: (a, b) => (a.uploadedBy || '').localeCompare(b.uploadedBy || ''),
+            multiple: 4,
         },
         {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
             width: 140,
+            sorter: (a, b) => (a.status || '').localeCompare(b.status || ''),
+            multiple: 5,
+            filters: [
+                { text: 'Approved', value: 'approved' },
+                { text: 'Waiting for Approval', value: 'waiting_approval' },
+                { text: 'Rejected', value: 'rejected' },
+                { text: 'Reworked', value: 'reworked' },
+            ],
+            onFilter: (value, record) => record.status === value,
             render: (status) => {
                 let color = 'default';
                 let text = status;
@@ -190,18 +211,28 @@ const ApprovalsPage = () => {
             dataIndex: 'approverName',
             key: 'approverName',
             width: 150,
+            sorter: (a, b) => (a.approverName || '').localeCompare(b.approverName || ''),
+            multiple: 6,
         },
         {
             title: 'Action Time',
             dataIndex: 'approvalTime',
             key: 'approvalTime',
             width: 200,
+            sorter: (a, b) => {
+                if (!a.approvalTime || a.approvalTime === '—') return 1;
+                if (!b.approvalTime || b.approvalTime === '—') return -1;
+                return new Date(a.approvalTime) - new Date(b.approvalTime);
+            },
+            multiple: 7,
         },
         {
             title: 'Last Updated',
             dataIndex: 'lastUpdated',
             key: 'lastUpdated',
             width: 200,
+            sorter: (a, b) => new Date(a.lastUpdated) - new Date(b.lastUpdated),
+            multiple: 8,
         },
         {
             title: 'Actions',
@@ -232,15 +263,29 @@ const ApprovalsPage = () => {
 
     return (
         <div style={{ padding: '24px' }}>
-            {/* <h1 style={{ marginBottom: '24px' }}>s</h1> */}
-            <Table        
+            {/* Global search above approvals table */}
+            <div className="table-toolbar">
+                <Input
+                    placeholder="Search approvals..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    allowClear
+                    className="table-search-input"
+                />
+            </div>
+
+            <Table
                 columns={columns}
-                dataSource={data}
+                dataSource={filteredData}
                 loading={loading}
-                pagination={pagination}
-                onChange={handleTableChange}
+                pagination={{
+                    defaultPageSize: 10,
+                    showSizeChanger: true,
+                    pageSizeOptions: ['5', '10', '20', '50'],
+                }}
                 scroll={{ x: 'max-content' }}
                 bordered
+                className="invoices-table approvals-table"
             />
         </div>
     );

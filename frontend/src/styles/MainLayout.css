@@ -1,3 +1,4 @@
+
 .main-layout {
     padding: 24px 32px;
     background: #f5f5f5;
@@ -22,6 +23,7 @@
     display: flex;
     gap: 12px;
 }
+
 
 .view-files-btn {
     height: 40px;
@@ -54,41 +56,75 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-/* Table Styling */
-.invoices-table {
-    width: 100%;
+.table-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+}
+
+.table-search-input {
+    width: 250px;
+    background: #fff;
+    border: 1px solid #d9d9d9 !important;
+    height: 38px;
+    padding: 6px 12px !important;
+    border-radius: 6px !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.table-search-input:focus {
+    border-color: #3ba5d8 !important;
+    box-shadow: 0 0 0 2px rgba(59,165,216,0.3) !important;
 }
 
 .invoices-table .ant-table {
     background: white;
 }
 
-.invoices-table .ant-table-thead>tr>th {
-    background: #1e5a7d;
-    color: white;
+.invoices-table .ant-table-thead > tr > th {
+    background: #1e5a7d !important;
+    color: white !important;
     font-weight: 600;
     font-size: 13px;
     padding: 16px 12px;
     border-bottom: none;
 }
 
-.invoices-table .ant-table-thead>tr>th::before {
-    display: none;
+.invoices-table .ant-table-thead > tr > th::before {
+    display: none !important;
 }
 
-.invoices-table .ant-table-tbody>tr>td {
+
+.invoices-table .ant-table-column-sorter,
+.invoices-table .ant-table-filter-trigger {
+    color: white !important;
+}
+
+.invoices-table .ant-table-column-sorter-up.active,
+.invoices-table .ant-table-column-sorter-down.active,
+.invoices-table .ant-table-filter-trigger.active,
+.invoices-table .ant-table-filter-trigger-container-open .ant-table-filter-trigger {
+    color: #ffd666 !important;
+}
+.invoices-table .ant-table-column-sorter:hover,
+.invoices-table .ant-table-filter-trigger:hover {
+    color: #fafafa !important;
+}
+
+.invoices-table .ant-table-tbody > tr > td {
     padding: 14px 12px;
     font-size: 13px;
     color: #333;
 }
 
-.invoices-table .ant-table-tbody>tr:hover>td {
+.invoices-table .ant-table-tbody > tr:hover > td {
     background: #f8f9fa;
 }
 
+/* Action buttons */
 .invoices-table .ant-btn-link {
     padding: 0 8px;
-    height: auto;
     font-size: 13px;
 }
 
@@ -100,54 +136,23 @@
     color: #ff7875;
 }
 
-/* Pagination */
-.invoices-table .ant-pagination {
-    margin-top: 16px;
-}
-
 .invoices-table .ant-pagination-item-active {
-    border-color: #3ba5d8;
+    border-color: #3ba5d8 !important;
 }
 
 .invoices-table .ant-pagination-item-active a {
-    color: #3ba5d8;
+    color: #3ba5d8 !important;
 }
 
+.invoices-table .ant-pagination-item:hover a,
 .invoices-table .ant-pagination-item:hover {
-    border-color: #3ba5d8;
+    color: #3ba5d8 !important;
+    border-color: #3ba5d8 !important;
 }
 
-.invoices-table .ant-pagination-item:hover a {
-    color: #3ba5d8;
-}
-
-/* Status Tags */
-.status-tag {
-    border-radius: 12px;
-    padding: 2px 12px;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.status-completed {
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-.status-pending {
-    background: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeeba;
-}
-
-.status-error {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
-
-/* Responsive Design */
+/* ------------------------------
+   RESPONSIVE
+------------------------------ */
 @media (max-width: 768px) {
     .main-layout {
         padding: 16px;
@@ -171,6 +176,13 @@
 
     .layout-content {
         padding: 16px;
-        overflow-x: auto;
+    }
+
+    .table-toolbar {
+        justify-content: stretch;
+    }
+
+    .table-search-input {
+        width: 100%;
     }
 }

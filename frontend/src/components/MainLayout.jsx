@@ -1,7 +1,7 @@
 // src/components/MainLayout.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Tag, Space, Modal, Spin, message } from 'antd';
+import { Table, Button, Tag, Space, Modal, Spin, message, Input } from 'antd';
 import {
     PlusOutlined,
     EyeOutlined,
@@ -14,22 +14,23 @@ import { invoiceService } from '../services/api';
 import '../styles/MainLayout.css';
 
 const { confirm } = Modal;
+const { Search } = Input;
 
 const MainLayout = () => {
     const navigate = useNavigate();
-    const [data, setData] = useState([]);
+    const [allInvoices, setAllInvoices] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [pagination, setPagination] = useState({
-        current: 1,
-        pageSize: 10,
-        total: 0,
-    });
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isFieldsModalOpen, setIsFieldsModalOpen] = useState(false);
     const [viewFilesData, setViewFilesData] = useState([]);
-    const [allInvoices, setAllInvoices] = useState([]);
 
-    const fetchInvoices = async (page = 1, pageSize = 10) => {
+    // Global search for main table
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Global search for View Files modal table
+    const [fieldsSearchTerm, setFieldsSearchTerm] = useState('');
+
+    const fetchInvoices = async () => {
         try {
             setLoading(true);
 
@@ -80,21 +81,9 @@ const MainLayout = () => {
             });
 
             setAllInvoices(transformedData);
-
-            const startIndex = (page - 1) * pageSize;
-            const endIndex = startIndex + pageSize;
-            const paginatedData = transformedData.slice(startIndex, endIndex);
-
-            setData(paginatedData);
-            setPagination({
-                current: page,
-                pageSize: pageSize,
-                total: transformedData.length,
-            });
         } catch (error) {
             console.error('Error fetching invoices:', error);
             message.error('Failed to load invoices. Please try again.');
-            setData([]);
             setAllInvoices([]);
         } finally {
             setLoading(false);
@@ -105,18 +94,37 @@ const MainLayout = () => {
         fetchInvoices();
     }, []);
 
-    const handleTableChange = (newPagination) => {
-        fetchInvoices(newPagination.current, newPagination.pageSize);
-    };
+    // Global search across full dataset (not just current page)
+    const filteredInvoices = useMemo(() => {
+        if (!searchTerm) return allInvoices;
+        const q = searchTerm.toLowerCase();
+
+        return allInvoices.filter((inv) => {
+            const fieldsToSearch = [
+                inv.filename,
+                inv.vendorName,
+                inv.invoiceId,
+                inv.uploadedBy,
+                inv.status,
+                inv.approverName,
+                inv.approvalTime,
+                inv.lastUpdated,
+            ];
+            return fieldsToSearch.some((field) =>
+                (field || '').toString().toLowerCase().includes(q)
+            );
+        });
+    }, [allInvoices, searchTerm]);
 
     const columns = [
         {
             title: 'S.No',
             key: 'sno',
             width: 70,
-            render: (_, __, index) => {
-                const { current, pageSize } = pagination;
-                return (current - 1) * pageSize + index + 1;
+            render: (_, record, index) => {
+                // Index within filteredInvoices so it stays consistent with pagination
+                const actualIndex = filteredInvoices.findIndex(inv => inv.key === record.key);
+                return actualIndex + 1;
             },
         },
         {
@@ -125,24 +133,32 @@ const MainLayout = () => {
             key: 'filename',
             width: 250,
             ellipsis: true,
+            sorter: (a, b) => (a.filename || '').localeCompare(b.filename || ''),
+            multiple: 1,
         },
         {
             title: 'Vendor Name',
             dataIndex: 'vendorName',
             key: 'vendorName',
             width: 180,
+            sorter: (a, b) => (a.vendorName || '').localeCompare(b.vendorName || ''),
+            multiple: 2,
         },
         {
             title: 'Invoice ID',
             dataIndex: 'invoiceId',
             key: 'invoiceId',
             width: 180,
+            sorter: (a, b) => (a.invoiceId || '').localeCompare(b.invoiceId || ''),
+            multiple: 3,
         },
         {
             title: 'Last Updated',
             dataIndex: 'lastUpdated',
             key: 'lastUpdated',
             width: 200,
+            sorter: (a, b) => new Date(a.lastUpdated) - new Date(b.lastUpdated),
+            multiple: 4,
         },
         {
             title: 'Uploaded By',
@@ -150,12 +166,25 @@ const MainLayout = () => {
             key: 'uploadedBy',
             width: 180,
             ellipsis: true,
+            sorter: (a, b) => (a.uploadedBy || '').localeCompare(b.uploadedBy || ''),
+            multiple: 5,
         },
         {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
             width: 150,
+            sorter: (a, b) => (a.status || '').localeCompare(b.status || ''),
+            multiple: 6,
+            filters: [
+                { text: 'Approved', value: 'approved' },
+                { text: 'Waiting for Approval', value: 'waiting_approval' },
+                { text: 'Rejected', value: 'rejected' },
+                { text: 'Reworked', value: 'reworked' },
+                { text: 'Processed', value: 'processed' },
+                { text: 'Pending', value: 'pending' },
+            ],
+            onFilter: (value, record) => record.status === value,
             render: (status) => {
                 let color = 'default';
                 let text = status;
@@ -198,6 +227,8 @@ const MainLayout = () => {
             dataIndex: 'approverName',
             key: 'approverName',
             width: 180,
+            sorter: (a, b) => (a.approverName || '').localeCompare(b.approverName || ''),
+            multiple: 7,
             render: (val) => val || '-'
         },
         {
@@ -205,6 +236,12 @@ const MainLayout = () => {
             dataIndex: 'approvalTime',
             key: 'approvalTime',
             width: 200,
+            sorter: (a, b) => {
+                if (!a.approvalTime) return 1;
+                if (!b.approvalTime) return -1;
+                return new Date(a.approvalTime) - new Date(b.approvalTime);
+            },
+            multiple: 8,
             render: (val) => val || '-'
         },
         {
@@ -377,7 +414,7 @@ const MainLayout = () => {
                 try {
                     await invoiceService.deleteInvoice(record.id);
                     message.success('Invoice deleted successfully');
-                    fetchInvoices(pagination.current, pagination.pageSize);
+                    fetchInvoices();
                 } catch (error) {
                     console.error('Error deleting invoice:', error);
                     message.error('Failed to delete invoice. Please try again.');
@@ -385,6 +422,33 @@ const MainLayout = () => {
             },
         });
     };
+
+    // Filtered data for View Files modal (global search)
+    const filteredViewFilesData = useMemo(() => {
+        if (!fieldsSearchTerm) return viewFilesData;
+        const q = fieldsSearchTerm.toLowerCase();
+        return viewFilesData.filter((row) => {
+            const fieldsToSearch = [
+                row.filename,
+                row.vendorName,
+                row.vendorAddress,
+                row.vendorCountry,
+                row.vendorTaxId,
+                row.vendorEmail,
+                row.vendorPhone,
+                row.clientName,
+                row.invoiceNumber,
+                row.invoiceDate,
+                row.dueDate,
+                row.approvalStatus,
+                row.approverName,
+                row.approvalTimestamps,
+            ];
+            return fieldsToSearch.some((field) =>
+                (field || '').toString().toLowerCase().includes(q)
+            );
+        });
+    }, [viewFilesData, fieldsSearchTerm]);
 
     return (
         <div className="main-layout">
@@ -411,17 +475,27 @@ const MainLayout = () => {
             </div>
 
             <div className="layout-content">
+                {/* Global search above main table */}
+                <div className="table-toolbar">
+                    <Input
+                        placeholder="Search invoices..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        allowClear
+                        className="table-search-input"
+                    />
+                </div>
+
                 <Spin spinning={loading} tip="Loading invoices...">
                     <Table
                         columns={columns}
-                        dataSource={data}
+                        dataSource={filteredInvoices}
                         pagination={{
-                            ...pagination,
+                            defaultPageSize: 10,
                             showSizeChanger: true,
                             showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-                            pageSizeOptions: ['5', '10', '20', '50']
+                            pageSizeOptions: ['5', '10', '20', '50'],
                         }}
-                        onChange={handleTableChange}
                         className="invoices-table"
                         scroll={{ x: 1600 }}
                     />
@@ -434,7 +508,7 @@ const MainLayout = () => {
                 onCancel={handleCloseModal}
                 footer={null}
                 width={700}
-                destroyOnClose
+                destroyOnHidden
             >
                 <InvoiceUpload onUploadSuccess={handleUploadSuccess} />
             </Modal>
@@ -445,11 +519,23 @@ const MainLayout = () => {
                 onCancel={() => setIsFieldsModalOpen(false)}
                 footer={null}
                 width="95%"
-                destroyOnClose
+                destroyOnHidden
                 centered
             >
+                {/* Global search above View Files modal table */}
+                <div className="table-toolbar modal-toolbar">
+                    <Input
+                        placeholder="Search invoice fields..."
+                        value={fieldsSearchTerm}
+                        onChange={(e) => setFieldsSearchTerm(e.target.value)}
+                        allowClear
+                        className="table-search-input"
+                    />
+                </div>
+
                 <Table
-                    dataSource={viewFilesData}
+                    dataSource={filteredViewFilesData}
+                    className="invoices-table invoice-fields-table"
                     columns={[
                         {
                             title: 'S.No',
@@ -464,17 +550,94 @@ const MainLayout = () => {
                             key: 'filename',
                             width: 200,
                             fixed: 'left',
+                            sorter: (a, b) => (a.filename || '').localeCompare(b.filename || ''),
+                            multiple: 1,
                         },
-                        { title: 'Vendor Name', dataIndex: 'vendorName', key: 'vendorName', width: 150 },
-                        { title: 'Vendor Address', dataIndex: 'vendorAddress', key: 'vendorAddress', width: 200 },
-                        { title: 'Vendor Country', dataIndex: 'vendorCountry', key: 'vendorCountry', width: 120 },
-                        { title: 'Vendor Tax ID', dataIndex: 'vendorTaxId', key: 'vendorTaxId', width: 150 },
-                        { title: 'Vendor Contact Email', dataIndex: 'vendorEmail', key: 'vendorEmail', width: 180 },
-                        { title: 'Vendor Phone', dataIndex: 'vendorPhone', key: 'vendorPhone', width: 130 },
-                        // ... keep the rest of your columns as they were, and optionally add:
-                        { title: 'Approval Status', dataIndex: 'approvalStatus', key: 'approvalStatus', width: 140 },
-                        { title: 'Approver', dataIndex: 'approverName', key: 'approverName', width: 160 },
-                        { title: 'Approval Time', dataIndex: 'approvalTimestamps', key: 'approvalTimestamps', width: 200 },
+                        {
+                            title: 'Vendor Name',
+                            dataIndex: 'vendorName',
+                            key: 'vendorName',
+                            width: 150,
+                            sorter: (a, b) => (a.vendorName || '').localeCompare(b.vendorName || ''),
+                            multiple: 2,
+                        },
+                        {
+                            title: 'Vendor Address',
+                            dataIndex: 'vendorAddress',
+                            key: 'vendorAddress',
+                            width: 200,
+                            sorter: (a, b) => (a.vendorAddress || '').localeCompare(b.vendorAddress || ''),
+                            multiple: 3,
+                        },
+                        {
+                            title: 'Vendor Country',
+                            dataIndex: 'vendorCountry',
+                            key: 'vendorCountry',
+                            width: 120,
+                            sorter: (a, b) => (a.vendorCountry || '').localeCompare(b.vendorCountry || ''),
+                            multiple: 4,
+                        },
+                        {
+                            title: 'Vendor Tax ID',
+                            dataIndex: 'vendorTaxId',
+                            key: 'vendorTaxId',
+                            width: 150,
+                            sorter: (a, b) => (a.vendorTaxId || '').localeCompare(b.vendorTaxId || ''),
+                            multiple: 5,
+                        },
+                        {
+                            title: 'Vendor Contact Email',
+                            dataIndex: 'vendorEmail',
+                            key: 'vendorEmail',
+                            width: 180,
+                            sorter: (a, b) => (a.vendorEmail || '').localeCompare(b.vendorEmail || ''),
+                            multiple: 6,
+                        },
+                        {
+                            title: 'Vendor Phone',
+                            dataIndex: 'vendorPhone',
+                            key: 'vendorPhone',
+                            width: 130,
+                            sorter: (a, b) => (a.vendorPhone || '').localeCompare(b.vendorPhone || ''),
+                            multiple: 7,
+                        },
+                        {
+                            title: 'Approval Status',
+                            dataIndex: 'approvalStatus',
+                            key: 'approvalStatus',
+                            width: 140,
+                            sorter: (a, b) => (a.approvalStatus || '').localeCompare(b.approvalStatus || ''),
+                            multiple: 8,
+                            filters: [
+                                { text: 'Approved', value: 'approved' },
+                                { text: 'Waiting for Approval', value: 'waiting_approval' },
+                                { text: 'Rejected', value: 'rejected' },
+                                { text: 'Reworked', value: 'reworked' },
+                                { text: 'Processed', value: 'processed' },
+                                { text: 'Pending', value: 'pending' },
+                            ],
+                            onFilter: (value, record) => record.approvalStatus === value,
+                        },
+                        {
+                            title: 'Approver',
+                            dataIndex: 'approverName',
+                            key: 'approverName',
+                            width: 160,
+                            sorter: (a, b) => (a.approverName || '').localeCompare(b.approverName || ''),
+                            multiple: 9,
+                        },
+                        {
+                            title: 'Approval Time',
+                            dataIndex: 'approvalTimestamps',
+                            key: 'approvalTimestamps',
+                            width: 200,
+                            sorter: (a, b) => {
+                                if (!a.approvalTimestamps) return 1;
+                                if (!b.approvalTimestamps) return -1;
+                                return new Date(a.approvalTimestamps) - new Date(b.approvalTimestamps);
+                            },
+                            multiple: 10,
+                        },
                     ]}
                     scroll={{ x: 3000 }}
                     size="small"

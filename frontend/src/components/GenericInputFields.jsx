@@ -560,12 +560,12 @@ const GenericInputFields = ({
         updateStatus('reworked');
         navigate("/approvals");
     };
-    const handleSendForApproval = async () => {
-        message.success("Invoice sent for approval");
+    // const handleSendForApproval = async () => {
+    //     message.success("Invoice sent for approval");
 
-        // Redirect to Approvals Page
-        navigate("/approvals");
-    };
+    //     // Redirect to Approvals Page
+    //     navigate("/approvals");
+    // };
 
 
     // ---------- coding save ----------
@@ -584,6 +584,10 @@ const GenericInputFields = ({
             });
 
             message.success('Coding data saved successfully!');
+            message.success("Invoice sent for approval");
+
+        // Redirect to Approvals Page
+        navigate("/approvals");
         } catch (error) {
             console.error('Error saving coding data:', error);
             message.error(
@@ -1333,7 +1337,7 @@ const GenericInputFields = ({
                         type="primary"
                         size="large"
                         icon={<SendOutlined />}
-                        onClick={handleSendForApproval}
+                        onClick={handleSaveCoding}
                         disabled={invoiceStatus === 'approved' || invoiceStatus === 'rejected'}
                     >
                         Send for Approval
