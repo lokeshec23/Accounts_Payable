@@ -1,4 +1,3 @@
-// src/components/PdfViewerWithHighlight.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { GlobalWorkerOptions, getDocument } from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
@@ -17,6 +16,7 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
     const viewerRef = useRef(null);
     const canvasRef = useRef(null);
     const highlightRef = useRef(null);
+    const renderTaskRef = useRef(null);
 
     const [pdf, setPdf] = useState(null);
     const [pageNum, setPageNum] = useState(1);
@@ -52,55 +52,110 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
     useEffect(() => {
         if (!file) return;
 
+        // Reset state for new file
+        setPageNum(1);
+        setInitialAutoFitDone(false);
+
         const loadPdf = async () => {
-            const loadingTask = getDocument(file);
-            const loadedPdf = await loadingTask.promise;
-            setPdf(loadedPdf);
-            renderPage(loadedPdf, pageNum, scale);
+            try {
+                // Cancel any existing render task before loading new PDF
+                if (renderTaskRef.current) {
+                    renderTaskRef.current.cancel();
+                    renderTaskRef.current = null;
+                }
+
+                const loadingTask = getDocument(file);
+                const loadedPdf = await loadingTask.promise;
+                setPdf(loadedPdf);
+
+                // Calculate initial auto-fit scale
+                const page = await loadedPdf.getPage(1);
+                const computedRotation = page.rotation ?? 0;
+                console.log(`PDF Page 1 Rotation: ${computedRotation}`);
+
+                const containerWidth = viewerRef.current?.clientWidth || 800;
+                const baseViewport = page.getViewport({
+                    scale: 1,
+                    rotation: computedRotation,
+                });
+
+                const fitScale = containerWidth / baseViewport.width;
+
+                setScale(fitScale);
+                setInitialAutoFitDone(true);
+
+                // Render first page
+                renderPage(loadedPdf, 1, fitScale);
+            } catch (error) {
+                console.error("Error loading PDF:", error);
+            }
         };
 
         loadPdf();
+
+        return () => {
+            if (renderTaskRef.current) {
+                renderTaskRef.current.cancel();
+            }
+        };
     }, [file]);
 
     // ------------------------------------------------------------
     // Render PDF Page
     // ------------------------------------------------------------
     const renderPage = async (pdfDoc, pageNumber, zoomScale) => {
-        const page = await pdfDoc.getPage(pageNumber);
+        if (!pdfDoc) return;
 
-        let finalScale = zoomScale;
-
-        // Auto-fit width on first load only
-        if (!initialAutoFitDone) {
-            const containerWidth = viewerRef.current.clientWidth;
-
-            const base = page.getViewport({ scale: 1 });
-            const fitWidthScale = containerWidth / base.width;
-
-            finalScale = fitWidthScale;
-            setScale(fitWidthScale);
-            setInitialAutoFitDone(true);
-
-            // Disable horizontal scroll only on first load
-            viewerRef.current.style.overflowX = "hidden";
+        // Cancel previous render if it's still running
+        if (renderTaskRef.current) {
+            renderTaskRef.current.cancel();
+            renderTaskRef.current = null;
         }
 
-        const viewport = page.getViewport({ scale: finalScale });
+        try {
+            const page = await pdfDoc.getPage(pageNumber);
+            const computedRotation = page.rotation ?? 0;
 
-        const canvas = canvasRef.current;
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+            const viewport = page.getViewport({
+                scale: zoomScale,
+                rotation: computedRotation,
+            });
 
-        const ctx = canvas.getContext("2d");
-        await page.render({ canvasContext: ctx, viewport }).promise;
+            const canvas = canvasRef.current;
+            if (!canvas) return;
 
-        // Prepare overlay
-        const overlay = highlightRef.current;
-        overlay.innerHTML = "";
-        overlay.style.width = `${viewport.width}px`;
-        overlay.style.height = `${viewport.height}px`;
+            const ctx = canvas.getContext("2d");
 
-        drawHighlights(viewport, pageNumber);
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport,
+            };
+
+            const renderTask = page.render(renderContext);
+            renderTaskRef.current = renderTask;
+
+            await renderTask.promise;
+            renderTaskRef.current = null; // Clear ref when done
+
+            // Overlay
+            const overlay = highlightRef.current;
+            if (overlay) {
+                overlay.innerHTML = "";
+                overlay.style.width = `${viewport.width}px`;
+                overlay.style.height = `${viewport.height}px`;
+                drawHighlights(viewport, pageNumber);
+            }
+
+        } catch (error) {
+            if (error.name === 'RenderingCancelledException') {
+                // Ignore cancelled renders
+                return;
+            }
+            console.error("Error rendering page:", error);
+        }
     };
 
     // ------------------------------------------------------------
@@ -108,6 +163,7 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
     // ------------------------------------------------------------
     const drawHighlights = (viewport, pageNumber) => {
         const overlay = highlightRef.current;
+        if (!overlay) return;
 
         const PAGE_INCH_WIDTH = 8.5;
         const PAGE_INCH_HEIGHT = 11;
@@ -172,14 +228,14 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
     // Zoom Controls (enable horizontal scroll after zoom)
     // ------------------------------------------------------------
     const zoomIn = () => {
-        viewerRef.current.style.overflowX = "auto";   // 🔥 enable horizontal scroll
+        if (viewerRef.current) viewerRef.current.style.overflowX = "auto";   // 🔥 enable horizontal scroll
         const newScale = scale + 0.2;
         setScale(newScale);
         renderPage(pdf, pageNum, newScale);
     };
 
     const zoomOut = () => {
-        viewerRef.current.style.overflowX = "auto";   // 🔥 enable horizontal scroll
+        if (viewerRef.current) viewerRef.current.style.overflowX = "auto";   // 🔥 enable horizontal scroll
         const newScale = Math.max(0.4, scale - 0.2);
         setScale(newScale);
         renderPage(pdf, pageNum, newScale);
@@ -190,13 +246,13 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
     // ------------------------------------------------------------
     const fitToPage = async () => {
         if (!pdf) return;
-        viewerRef.current.style.overflowX = "hidden"; // page fits entirely
+        if (viewerRef.current) viewerRef.current.style.overflowX = "hidden"; // page fits entirely
 
         const page = await pdf.getPage(pageNum);
         const base = page.getViewport({ scale: 1 });
 
-        const viewerWidth = viewerRef.current.clientWidth;
-        const viewerHeight = viewerRef.current.clientHeight;
+        const viewerWidth = viewerRef.current?.clientWidth || 800;
+        const viewerHeight = viewerRef.current?.clientHeight || 600;
 
         const scaleW = viewerWidth / base.width;
         const scaleH = viewerHeight / base.height;
