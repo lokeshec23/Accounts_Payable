@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { GlobalWorkerOptions, getDocument } from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
+import { Button, Tooltip } from "antd";
 
 import {
     LeftOutlined,
@@ -26,6 +27,7 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
     const [rotation, setRotation] = useState(0); // 0, 90, 180, 270
     const [initialAutoFitDone, setInitialAutoFitDone] = useState(false);
     const [overflowX, setOverflowX] = useState("auto");
+    const [scaleMode, setScaleMode] = useState("auto"); // 'auto' | 'page' | 'custom'
 
     // Track previous width to only trigger resize on width changes
     const prevWidthRef = useRef(0);
@@ -64,6 +66,7 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
         setRotation(0);
         setInitialAutoFitDone(false);
         setOverflowX("auto");
+        setScaleMode("auto");
         prevWidthRef.current = viewerRef.current?.clientWidth || 0;
 
         const loadPdf = async () => {
@@ -134,6 +137,11 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
             // to preserve the initial 0.86 scale
             if (isFirstResize.current) {
                 isFirstResize.current = false;
+                return;
+            }
+
+            // Only auto-fit if we are in 'auto' mode
+            if (scaleMode !== 'auto') {
                 return;
             }
 
@@ -292,6 +300,7 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
     // ------------------------------------------------------------
     const zoomIn = () => {
         setOverflowX("auto");
+        setScaleMode("custom");
         const newScale = scale + 0.2;
         setScale(newScale);
         renderPage(pdf, pageNum, newScale, rotation);
@@ -299,6 +308,7 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
 
     const zoomOut = () => {
         setOverflowX("auto");
+        setScaleMode("custom");
         const newScale = Math.max(0.4, scale - 0.2);
         setScale(newScale);
         renderPage(pdf, pageNum, newScale, rotation);
@@ -325,6 +335,7 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
     const fitToPage = async () => {
         if (!pdf) return;
         setOverflowX("hidden");
+        setScaleMode("page");
 
         const page = await pdf.getPage(pageNum);
         const pageRotation = page.rotation || 0;
@@ -346,6 +357,7 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
     const fitToWidth = async () => {
         if (!pdf) return;
         setOverflowX("hidden");
+        setScaleMode("auto");
 
         const page = await pdf.getPage(pageNum);
         const pageRotation = page.rotation || 0;
@@ -376,49 +388,43 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
                     alignItems: "center"
                 }}
             >
-                <div>
-                    <button onClick={prevPage} disabled={!pdf || pageNum === 1}>
-                        <LeftOutlined />
-                    </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Button
+                        icon={<LeftOutlined />}
+                        onClick={prevPage}
+                        disabled={!pdf || pageNum === 1}
+                        size="small"
+                    />
 
-                    <button
+                    <Button
+                        icon={<RightOutlined />}
                         onClick={nextPage}
                         disabled={!pdf || pageNum === pdf?.numPages}
-                        style={{ marginLeft: 10 }}
-                    >
-                        <RightOutlined />
-                    </button>
+                        size="small"
+                    />
 
-                    <span style={{ marginLeft: 16 }}>
+                    <span style={{ marginLeft: 8, fontSize: 13 }}>
                         Page {pageNum} / {pdf?.numPages || "--"}
                     </span>
                 </div>
 
-                <div>
-                    <button onClick={rotateLeft} title="Rotate Left">
-                        <RotateLeftOutlined />
-                    </button>
-                    <button onClick={rotateRight} style={{ marginLeft: 10 }} title="Rotate Right">
-                        <RotateRightOutlined />
-                    </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Tooltip title="Rotate Left">
+                        <Button icon={<RotateLeftOutlined />} onClick={rotateLeft} size="small" />
+                    </Tooltip>
 
-                    <button onClick={zoomOut} style={{ marginLeft: 16 }}>
-                        <MinusOutlined />
-                    </button>
+                    <Tooltip title="Rotate Right">
+                        <Button icon={<RotateRightOutlined />} onClick={rotateRight} size="small" />
+                    </Tooltip>
 
-                    <button onClick={zoomIn} style={{ marginLeft: 10 }}>
-                        <PlusOutlined />
-                    </button>
+                    <Button icon={<MinusOutlined />} onClick={zoomOut} size="small" />
+                    <Button icon={<PlusOutlined />} onClick={zoomIn} size="small" />
 
-                    <button
-                        onClick={fitToPage}
-                        style={{ marginLeft: 14 }}
-                        title="Fit to Page"
-                    >
-                        <FullscreenOutlined />
-                    </button>
+                    <Tooltip title="Fit to Page">
+                        <Button icon={<FullscreenOutlined />} onClick={fitToPage} size="small" />
+                    </Tooltip>
 
-                    <span style={{ marginLeft: 18 }}>
+                    <span style={{ marginLeft: 8, fontSize: 13, minWidth: 40, textAlign: 'right' }}>
                         {(scale * 100).toFixed(0)}%
                     </span>
                 </div>
