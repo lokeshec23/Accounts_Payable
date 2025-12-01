@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import GenericInputFields from './GenericInputFields';
 import { schemaMap } from '../config/schemaMap';
 import PdfViewerWithHighlight from './PdfViewerWithHighlight';
@@ -14,6 +14,18 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     const [pageNumber, setPageNumber] = useState(1);
     const [hoveredKey, setHoveredKey] = useState(null);
     const [formattedData, setFormattedData] = useState(null);
+
+    // Resizable state
+    const [leftWidth, setLeftWidth] = useState(() => {
+        const saved = localStorage.getItem('invoiceReviewSplitWidth');
+        return saved ? parseFloat(saved) : 45;
+    });
+    const [isDragging, setIsDragging] = useState(false);
+    const leftWidthRef = useRef(leftWidth);
+
+    useEffect(() => {
+        leftWidthRef.current = leftWidth;
+    }, [leftWidth]);
 
     useEffect(() => {
         if (invoiceData && invoiceData.extracted_data) {
@@ -136,6 +148,41 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
         }
     }, [invoiceData]);
 
+    // Handle dragging
+    const handleMouseDown = (e) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (!isDragging) return;
+            const newLeftWidth = (e.clientX / window.innerWidth) * 100;
+            if (newLeftWidth > 10 && newLeftWidth < 90) {
+                setLeftWidth(newLeftWidth);
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsDragging(false);
+            localStorage.setItem('invoiceReviewSplitWidth', leftWidthRef.current);
+        };
+
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        } else {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging]);
+
+
     return (
         <div
             style={{
@@ -150,7 +197,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                 {/* LEFT SIDE PDF VIEWER */}
                 <div
                     style={{
-                        flex: '0 0 35%',
+                        flex: `0 0 ${leftWidth}%`,
                         borderRight: '1px solid #e8e8e8',
                         overflow: 'hidden',
                         background: '#f5f5f5',
@@ -158,21 +205,28 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                         flexDirection: 'column'
                     }}
                 >
-                    <PdfViewer
-                        file={file}
-                        numPages={numPages}
-                        setNumPages={setNumPages}
-                        pageNumber={pageNumber}
-                        setPageNumber={setPageNumber}
-                        data={formattedData}
-                        hoveredKey={hoveredKey}
+                    <PdfViewerWithHighlight
+                        file={file}                             // FIXED HERE
+                        extractedData={invoiceData.extracted_data}
                     />
                 </div>
+
+                {/* RESIZER */}
+                <div
+                    onMouseDown={handleMouseDown}
+                    style={{
+                        width: '5px',
+                        cursor: 'col-resize',
+                        background: isDragging ? '#1890ff' : '#ddd',
+                        transition: 'background 0.2s',
+                        zIndex: 10
+                    }}
+                />
 
                 {/* RIGHT SIDE FORM */}
                 <div
                     style={{
-                        flex: '0 0 65%',
+                        flex: 1, // Take remaining space
                         overflow: 'auto',
                         background: 'white'
                     }}
