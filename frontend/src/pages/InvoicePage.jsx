@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Upload, Button, message } from "antd";
-import { UploadOutlined, InboxOutlined } from "@ant-design/icons";
+import { UploadOutlined, InboxOutlined, FolderOpenOutlined } from "@ant-design/icons";
 import { invoiceService } from "../services/api";
 import Dragger from "antd/es/upload/Dragger";
 import { useNavigate } from "react-router-dom";
@@ -36,7 +36,7 @@ const InvoicePage = () => {
         },
 
         // IMPORTANT: handle click manually so folder upload works
-        customRequest: () => {}
+        customRequest: () => { }
     };
 
     const handleUpload = async () => {
@@ -104,20 +104,28 @@ const InvoicePage = () => {
                         onChange={handleFolderSelect}
                     />
 
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                        <Button
+                            icon={<FolderOpenOutlined />}
+                            onClick={() => folderInputRef.current.click()}
+                            style={{
+                                borderColor: '#1890ff',
+                                color: '#1890ff',
+                                backgroundColor: '#e6f7ff'
+                            }}
+                        >
+                            Upload Folder
+                        </Button>
+                    </div>
+
                     <Dragger {...uploadProps} className="upload-dragger">
                         <p className="ant-upload-drag-icon">
                             <InboxOutlined />
                         </p>
-                        <p className="ant-upload-text">Click or drag PDF files/folder to upload</p>
-                        <p className="ant-upload-hint">Supports single, multiple, and folder upload</p>
-
-                        {/* 🟩 Button to open folder picker */}
-                        <Button
-                            style={{ marginTop: 10 }}
-                            onClick={() => folderInputRef.current.click()}
-                        >
-                            Upload Folder
-                        </Button>
+                        <p className="ant-upload-text">Click or drag PDF files to upload</p>
+                        <p className="ant-upload-hint">
+                            Supports single or multiple PDF files
+                        </p>
                     </Dragger>
 
                     {fileList.length > 0 && (
@@ -133,7 +141,7 @@ const InvoicePage = () => {
                         </Button>
                     )}
                 </div>
-            </div>
+            </div >
         </>
     );
 };
