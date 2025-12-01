@@ -4,6 +4,7 @@ from datetime import datetime
 from enum import Enum
 
 class InvoiceStatus(str, Enum):
+    WAITING_CODING = "waiting_coding"
     WAITING_APPROVAL = "waiting_approval"
     APPROVED = "approved"
     REJECTED = "rejected"

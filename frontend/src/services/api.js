@@ -62,7 +62,7 @@ export const invoiceService = {
   },
 
   async updateInvoiceStatus(invoiceId, status) {
-    const response = await api.put(`/invoices/${invoiceId}/status/`, { status });
+    const response = await api.put(`/invoices/${invoiceId}/status?status=${status}`);
     return response.data;
   },
 
@@ -95,11 +95,8 @@ export const invoiceService = {
 
 // Add coding service methods
 export const codingService = {
-  async saveCoding(invoiceId, codingData) {
-    const response = await api.post('/coding/', {
-      invoice_id: invoiceId,
-      ...codingData
-    });
+  async saveCoding(codingData) {
+    const response = await api.post('/coding/', codingData);
     return response.data;
   },
 
