@@ -3,7 +3,7 @@ from pymongo import MongoClient
 from datetime import datetime
 from app.database.mongodb import get_database
 
-router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+router = APIRouter(tags=["Dashboard"])
 
 
 # ----------------- SAFE FLOAT PARSER -----------------
@@ -129,9 +129,12 @@ def status_breakdown():
     invoices = db.invoices
     data = list(invoices.find({}))
     return {
-        "approved": sum(1 for i in data if i.get("status") == "approved"),
+        "processed": sum(1 for i in data if i.get("status") == "processed"),
+        "waiting_coding": sum(1 for i in data if i.get("status") == "waiting_coding"),
         "waiting_approval": sum(1 for i in data if i.get("status") == "waiting_approval"),
+        "approved": sum(1 for i in data if i.get("status") == "approved"),
         "rejected": sum(1 for i in data if i.get("status") == "rejected"),
+        "reworked": sum(1 for i in data if i.get("status") == "reworked"),
     }
 
 
