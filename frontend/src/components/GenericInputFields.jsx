@@ -859,6 +859,7 @@ const GenericInputFields = ({
                             ['Invoice Number', 'Invoice Number'],
                             ['Invoice Date', 'Invoice Date'],
                             ['Due Date', 'Due Date'],
+                            ['Amount Due', 'Amount Due'],
                             ['Payment Terms', 'Payment Terms']
                         ].map(([label, key]) => (
                             <div
@@ -1063,6 +1064,45 @@ const GenericInputFields = ({
                     'Approval Timestamps'
                 ])}
             </Collapse>
+
+            {/* Send for Coding Button - Only show in non-readOnly mode */}
+            {!readOnly && (
+                <div style={{
+                    marginTop: '24px',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    paddingRight: '20px'
+                }}>
+                    <Button
+                        type="primary"
+                        icon={<SendOutlined />}
+                        onClick={async () => {
+                            try {
+                                console.log('Invoice ID:', invoiceId);
+                                console.log('Data:', data);
+
+                                const idToUse = invoiceId || data?._id || data?.id;
+                                console.log('ID to use:', idToUse);
+
+                                if (idToUse) {
+                                    await invoiceService.updateInvoiceStatus(idToUse, 'waiting_coding');
+                                    message.success('Invoice sent for coding!');
+                                    navigate('/coding');
+                                } else {
+                                    console.error('No invoice ID found');
+                                    message.error('Invoice ID not found');
+                                }
+                            } catch (error) {
+                                console.error('Error sending for coding:', error);
+                                message.error('Failed to send for coding: ' + (error.message || 'Unknown error'));
+                            }
+                        }}
+                        style={{ backgroundColor: '#1890ff' }}
+                    >
+                        Send for Coding
+                    </Button>
+                </div>
+            )}
         </div>
     );
 
@@ -1424,7 +1464,7 @@ const GenericInputFields = ({
                         items={[
                             { key: '1', label: 'Quick View' },
                             { key: '2', label: 'All Fields' },
-                            { key: '3', label: 'Coding' }
+                            ...(readOnly ? [{ key: '3', label: 'Coding' }] : [])
                         ]}
                     />
                     <div>

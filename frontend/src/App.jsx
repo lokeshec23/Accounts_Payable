@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import InvoicePage from './pages/InvoicePage';
 import InvoiceReviewPage from './pages/InvoiceReviewPage';
 import CodingPage from './pages/CodingPage';
+import CodingReviewPage from './pages/CodingReviewPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -46,6 +47,9 @@ const AppContent = () => {
         </ProtectedRoute>} />
         <Route path="/coding" element={<ProtectedRoute>
           <CodingPage />
+        </ProtectedRoute>} />
+        <Route path="/coding/review" element={<ProtectedRoute>
+          <CodingReviewPage />
         </ProtectedRoute>} />
         <Route path="/approvals" element={<ProtectedRoute>
           <ApprovalsPage />

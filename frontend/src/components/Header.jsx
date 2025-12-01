@@ -73,6 +73,12 @@ const Header = () => {
                         Invoice
                     </Link>
                     <Link
+                        to="/coding"
+                        className={`nav-tab ${isActive('/coding') ? 'active' : ''}`}
+                    >
+                        Coding
+                    </Link>
+                    <Link
                         to="/approvals"
                         className={`nav-tab ${isActive('/approvals') ? 'active' : ''}`}
                     >
