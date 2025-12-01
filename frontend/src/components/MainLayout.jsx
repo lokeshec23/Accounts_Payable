@@ -1,20 +1,31 @@
 // src/components/MainLayout.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Tag, Space, Modal, Spin, message, Input } from 'antd';
+import {
+    Table,
+    Button,
+    Tag,
+    Space,
+    Modal,
+    Spin,
+    message,
+    Input,
+    Tabs,
+} from 'antd';
 import {
     PlusOutlined,
     EyeOutlined,
     DeleteOutlined,
     FolderOpenOutlined,
-    ExclamationCircleOutlined
+    ExclamationCircleOutlined,
 } from '@ant-design/icons';
+
 import InvoiceUpload from './InvoiceUpload';
 import { invoiceService } from '../services/api';
+import ApDashboard from '../pages/ApDashboard'; // 📊 Dashboard
 import '../styles/MainLayout.css';
 
 const { confirm } = Modal;
-const { Search } = Input;
 
 const MainLayout = () => {
     const navigate = useNavigate();
@@ -30,6 +41,7 @@ const MainLayout = () => {
     // Global search for View Files modal table
     const [fieldsSearchTerm, setFieldsSearchTerm] = useState('');
 
+    // ------------ FETCH INVOICES --------------
     const fetchInvoices = async () => {
         try {
             setLoading(true);
@@ -54,29 +66,32 @@ const MainLayout = () => {
                     filename: invoice.original_filename || invoice.filename || 'N/A',
                     vendorName: getValue(vendorInfo.name) || 'N/A',
                     invoiceId: getValue(invoiceDetails.invoice_number) || 'N/A',
-                    lastUpdated: new Date(invoice.processed_at || invoice.uploaded_at).toLocaleString('en-US', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                    }),
+                    lastUpdated: new Date(invoice.processed_at || invoice.uploaded_at).toLocaleString(
+                        'en-US',
+                        {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true,
+                        }
+                    ),
                     uploadedBy: invoice.uploaded_by || 'Unknown',
                     status: invoice.status || 'waiting_approval',
                     fileUrl: invoice.file_url || '/sample-invoice.pdf',
                     approverName: validation.approver_name || '',
                     approvalTime: validation.approval_timestamp
                         ? new Date(validation.approval_timestamp).toLocaleString('en-US', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: true
-                        })
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: true,
+                          })
                         : '',
-                    rawData: invoice
+                    rawData: invoice,
                 };
             });
 
@@ -94,7 +109,7 @@ const MainLayout = () => {
         fetchInvoices();
     }, []);
 
-    // Global search across full dataset (not just current page)
+    // ------------ GLOBAL SEARCH (MAIN TABLE) --------------
     const filteredInvoices = useMemo(() => {
         if (!searchTerm) return allInvoices;
         const q = searchTerm.toLowerCase();
@@ -116,14 +131,15 @@ const MainLayout = () => {
         });
     }, [allInvoices, searchTerm]);
 
+    // ------------ MAIN TABLE COLUMNS --------------
     const columns = [
         {
             title: 'S.No',
             key: 'sno',
             width: 70,
-            render: (_, record, index) => {
+            render: (_, record) => {
                 // Index within filteredInvoices so it stays consistent with pagination
-                const actualIndex = filteredInvoices.findIndex(inv => inv.key === record.key);
+                const actualIndex = filteredInvoices.findIndex((inv) => inv.key === record.key);
                 return actualIndex + 1;
             },
         },
@@ -229,7 +245,7 @@ const MainLayout = () => {
             width: 180,
             sorter: (a, b) => (a.approverName || '').localeCompare(b.approverName || ''),
             multiple: 7,
-            render: (val) => val || '-'
+            render: (val) => val || '-',
         },
         {
             title: 'Action Time',
@@ -242,7 +258,7 @@ const MainLayout = () => {
                 return new Date(a.approvalTime) - new Date(b.approvalTime);
             },
             multiple: 8,
-            render: (val) => val || '-'
+            render: (val) => val || '-',
         },
         {
             title: 'Actions',
@@ -270,6 +286,7 @@ const MainLayout = () => {
         },
     ];
 
+    // ------------ HANDLERS --------------
     const handleAddInvoice = () => {
         navigate('/invoice');
     };
@@ -288,9 +305,9 @@ const MainLayout = () => {
                     invoiceId: 'NEW',
                     vendorName: 'To be extracted',
                     uploadedBy: 'Current User',
-                    lastUpdated: new Date().toLocaleString()
-                }
-            }
+                    lastUpdated: new Date().toLocaleString(),
+                },
+            },
         });
     };
 
@@ -383,8 +400,10 @@ const MainLayout = () => {
                     approvalStatus: invoice.status || '',
                     approvalTimestamps: validation.approval_timestamp
                         ? new Date(validation.approval_timestamp).toLocaleString()
-                        : (invoice.processed_at ? new Date(invoice.processed_at).toLocaleString() : ''),
-                    approverName: validation.approver_name || ''
+                        : invoice.processed_at
+                        ? new Date(invoice.processed_at).toLocaleString()
+                        : '',
+                    approverName: validation.approver_name || '',
                 };
             });
 
@@ -423,7 +442,7 @@ const MainLayout = () => {
         });
     };
 
-    // Filtered data for View Files modal (global search)
+    // ------------ FILTERED DATA FOR VIEW FILES MODAL --------------
     const filteredViewFilesData = useMemo(() => {
         if (!fieldsSearchTerm) return viewFilesData;
         const q = fieldsSearchTerm.toLowerCase();
@@ -450,76 +469,106 @@ const MainLayout = () => {
         });
     }, [viewFilesData, fieldsSearchTerm]);
 
+    // =====================================================
+    //            ⭐  TABS INTEGRATION  ⭐
+    // =====================================================
+
+    const tabItems = [
+        {
+            key: 'invoices',
+            label: 'Invoices',
+            children: (
+                <>
+                    <div className="layout-header">
+                        <h1 className="layout-title">Invoices</h1>
+                        <div className="layout-actions">
+                            <Button
+                                type="default"
+                                icon={<FolderOpenOutlined />}
+                                onClick={handleViewFiles}
+                                className="view-files-btn"
+                            >
+                                View Files
+                            </Button>
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={handleAddInvoice}
+                                className="add-invoice-btn"
+                            >
+                                Add Invoice
+                            </Button>
+                        </div>
+                    </div>
+
+                    <div className="layout-content">
+                        {/* Global search above main table */}
+                        <div className="table-toolbar">
+                            <Input
+                                placeholder="Search invoices..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                allowClear
+                                className="table-search-input"
+                            />
+                        </div>
+
+                        <Spin spinning={loading} tip="Loading invoices...">
+                            <Table
+                                columns={columns}
+                                dataSource={filteredInvoices}
+                                pagination={{
+                                    defaultPageSize: 10,
+                                    showSizeChanger: true,
+                                    showTotal: (total, range) =>
+                                        `${range[0]}-${range[1]} of ${total} items`,
+                                    pageSizeOptions: ['5', '10', '20', '50'],
+                                }}
+                                className="invoices-table"
+                                scroll={{ x: 1600 }}
+                            />
+                        </Spin>
+                    </div>
+                </>
+            ),
+        },
+        {
+            key: 'dashboard',
+            label: 'Dashboard',
+            children: (
+                <div className="dashboard-tab">
+                    <ApDashboard />
+                </div>
+            ),
+        },
+    ];
+
+    // =====================================================
+
     return (
         <div className="main-layout">
-            <div className="layout-header">
-                <h1 className="layout-title">Invoices</h1>
-                <div className="layout-actions">
-                    <Button
-                        type="default"
-                        icon={<FolderOpenOutlined />}
-                        onClick={handleViewFiles}
-                        className="view-files-btn"
-                    >
-                        View Files
-                    </Button>
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={handleAddInvoice}
-                        className="add-invoice-btn"
-                    >
-                        Add Invoice
-                    </Button>
-                </div>
-            </div>
+            <Tabs defaultActiveKey="dashboard" items={tabItems} className="main-tabs" />
 
-            <div className="layout-content">
-                {/* Global search above main table */}
-                <div className="table-toolbar">
-                    <Input
-                        placeholder="Search invoices..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        allowClear
-                        className="table-search-input"
-                    />
-                </div>
-
-                <Spin spinning={loading} tip="Loading invoices...">
-                    <Table
-                        columns={columns}
-                        dataSource={filteredInvoices}
-                        pagination={{
-                            defaultPageSize: 10,
-                            showSizeChanger: true,
-                            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-                            pageSizeOptions: ['5', '10', '20', '50'],
-                        }}
-                        className="invoices-table"
-                        scroll={{ x: 1600 }}
-                    />
-                </Spin>
-            </div>
-
+            {/* UPLOAD MODAL */}
             <Modal
                 title="Upload Invoice"
                 open={isModalOpen}
                 onCancel={handleCloseModal}
                 footer={null}
                 width={700}
-                destroyOnHidden
+                destroyOnClose
             >
                 <InvoiceUpload onUploadSuccess={handleUploadSuccess} />
             </Modal>
 
+            {/* VIEW FILES MODAL */}
             <Modal
                 title="Invoice Fields Reference"
                 open={isFieldsModalOpen}
                 onCancel={() => setIsFieldsModalOpen(false)}
                 footer={null}
                 width="95%"
-                destroyOnHidden
+                destroyOnClose
                 centered
             >
                 {/* Global search above View Files modal table */}
@@ -536,6 +585,7 @@ const MainLayout = () => {
                 <Table
                     dataSource={filteredViewFilesData}
                     className="invoices-table invoice-fields-table"
+                    rowKey="key"
                     columns={[
                         {
                             title: 'S.No',
@@ -558,7 +608,8 @@ const MainLayout = () => {
                             dataIndex: 'vendorName',
                             key: 'vendorName',
                             width: 150,
-                            sorter: (a, b) => (a.vendorName || '').localeCompare(b.vendorName || ''),
+                            sorter: (a, b) =>
+                                (a.vendorName || '').localeCompare(b.vendorName || ''),
                             multiple: 2,
                         },
                         {
@@ -566,7 +617,8 @@ const MainLayout = () => {
                             dataIndex: 'vendorAddress',
                             key: 'vendorAddress',
                             width: 200,
-                            sorter: (a, b) => (a.vendorAddress || '').localeCompare(b.vendorAddress || ''),
+                            sorter: (a, b) =>
+                                (a.vendorAddress || '').localeCompare(b.vendorAddress || ''),
                             multiple: 3,
                         },
                         {
@@ -574,7 +626,8 @@ const MainLayout = () => {
                             dataIndex: 'vendorCountry',
                             key: 'vendorCountry',
                             width: 120,
-                            sorter: (a, b) => (a.vendorCountry || '').localeCompare(b.vendorCountry || ''),
+                            sorter: (a, b) =>
+                                (a.vendorCountry || '').localeCompare(b.vendorCountry || ''),
                             multiple: 4,
                         },
                         {
@@ -582,7 +635,8 @@ const MainLayout = () => {
                             dataIndex: 'vendorTaxId',
                             key: 'vendorTaxId',
                             width: 150,
-                            sorter: (a, b) => (a.vendorTaxId || '').localeCompare(b.vendorTaxId || ''),
+                            sorter: (a, b) =>
+                                (a.vendorTaxId || '').localeCompare(b.vendorTaxId || ''),
                             multiple: 5,
                         },
                         {
@@ -590,7 +644,8 @@ const MainLayout = () => {
                             dataIndex: 'vendorEmail',
                             key: 'vendorEmail',
                             width: 180,
-                            sorter: (a, b) => (a.vendorEmail || '').localeCompare(b.vendorEmail || ''),
+                            sorter: (a, b) =>
+                                (a.vendorEmail || '').localeCompare(b.vendorEmail || ''),
                             multiple: 6,
                         },
                         {
@@ -598,7 +653,8 @@ const MainLayout = () => {
                             dataIndex: 'vendorPhone',
                             key: 'vendorPhone',
                             width: 130,
-                            sorter: (a, b) => (a.vendorPhone || '').localeCompare(b.vendorPhone || ''),
+                            sorter: (a, b) =>
+                                (a.vendorPhone || '').localeCompare(b.vendorPhone || ''),
                             multiple: 7,
                         },
                         {
@@ -606,7 +662,8 @@ const MainLayout = () => {
                             dataIndex: 'approvalStatus',
                             key: 'approvalStatus',
                             width: 140,
-                            sorter: (a, b) => (a.approvalStatus || '').localeCompare(b.approvalStatus || ''),
+                            sorter: (a, b) =>
+                                (a.approvalStatus || '').localeCompare(b.approvalStatus || ''),
                             multiple: 8,
                             filters: [
                                 { text: 'Approved', value: 'approved' },
@@ -623,7 +680,8 @@ const MainLayout = () => {
                             dataIndex: 'approverName',
                             key: 'approverName',
                             width: 160,
-                            sorter: (a, b) => (a.approverName || '').localeCompare(b.approverName || ''),
+                            sorter: (a, b) =>
+                                (a.approverName || '').localeCompare(b.approverName || ''),
                             multiple: 9,
                         },
                         {
@@ -634,7 +692,10 @@ const MainLayout = () => {
                             sorter: (a, b) => {
                                 if (!a.approvalTimestamps) return 1;
                                 if (!b.approvalTimestamps) return -1;
-                                return new Date(a.approvalTimestamps) - new Date(b.approvalTimestamps);
+                                return (
+                                    new Date(a.approvalTimestamps) -
+                                    new Date(b.approvalTimestamps)
+                                );
                             },
                             multiple: 10,
                         },

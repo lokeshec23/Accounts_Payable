@@ -44,7 +44,7 @@ async def upload_invoices(
                 original_filename=clean_name,
                 file_path=file_path,
                 uploaded_by=current_user.username,
-                status=InvoiceStatus.WAITING_APPROVAL
+                status=InvoiceStatus.PROCESSED
             )
 
             invoice_dict = invoice_data.dict()

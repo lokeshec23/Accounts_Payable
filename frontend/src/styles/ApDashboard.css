@@ -1,0 +1,470 @@
+/* src/styles/ApDashboard.css */
+
+/* Overall shell - more elegant gradient */
+.ap-dashboard-shell {
+  background: linear-gradient(135deg, #f8faff 0%, #f0f5ff 100%);
+  min-height: 100vh;
+  padding: 32px 0 48px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Main container - refined with subtle shadow */
+.ap-dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 36px 48px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 12px 40px rgba(59, 124, 255, 0.08);
+  border: 1px solid rgba(235, 240, 255, 0.8);
+}
+
+/* Loading state - more elegant */
+.ap-loading {
+  font-family: inherit;
+  text-align: center;
+  padding: 160px 0;
+  color: #667085;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Header - cleaner design */
+.ap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(234, 236, 240, 0.8);
+}
+
+.ap-header-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 28px;
+  color: #1d2939;
+  letter-spacing: -0.01em;
+}
+
+.ap-header-subtitle {
+  font-size: 14px;
+  color: #667085;
+  margin-top: 6px;
+  font-weight: 400;
+}
+
+.ap-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ap-header-pill {
+  padding: 8px 20px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #3b7cff 0%, #2a68e5 100%);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(59, 124, 255, 0.2);
+}
+
+/* Row spacing - FIXED: Ensure consistent row gutters */
+.ap-row {
+  margin-bottom: 32px;
+}
+
+/* KPI Cards - FIXED: Equal height and width */
+.ap-kpi-card {
+  border-radius: 16px !important;
+  border: 1px solid rgba(234, 236, 240, 0.8) !important;
+  background: white !important;
+  padding: 0 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  height: 100% !important; /* FIX: Force equal height */
+  min-height: 140px; /* FIX: Set minimum height */
+}
+
+/* FIX: Ensure card body takes full height */
+.ap-kpi-card .ant-card-body {
+  padding: 0 !important;
+  height: 100%;
+}
+
+.ap-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(59, 124, 255, 0.15);
+  border-color: rgba(59, 124, 255, 0.2) !important;
+}
+
+/* FIX: Ensure inner container takes full card height */
+.ap-kpi-inner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* FIX: Ensure Col components have equal height */
+.ap-row .ant-col {
+  display: flex;
+}
+
+/* FIX: Make sure cards within Col stretch properly */
+.ap-row .ant-col > .ap-kpi-card {
+  width: 100%;
+}
+
+/* Add subtle gradient accents to cards */
+.ap-kpi-inner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+/* Card-specific gradient accents */
+.kpi-invoices .ap-kpi-inner::before {
+  background: linear-gradient(90deg, #3b7cff 0%, #5d9bff 100%);
+}
+
+.kpi-total-due .ap-kpi-inner::before {
+  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+}
+
+.kpi-approved .ap-kpi-inner::before {
+  background: linear-gradient(90deg, #06b6d4 0%, #22d3ee 100%);
+}
+
+.kpi-pending .ap-kpi-inner::before {
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+}
+
+/* KPI icons - more refined */
+.ap-kpi-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(59, 124, 255, 0.1), rgba(235, 240, 255, 0.8));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(59, 124, 255, 0.15);
+}
+
+.ap-kpi-icon {
+  font-size: 24px;
+}
+
+/* Icon colors matching card accents */
+.kpi-invoices .ap-kpi-icon {
+  color: #3b7cff;
+}
+.kpi-total-due .ap-kpi-icon {
+  color: #10b981;
+}
+.kpi-approved .ap-kpi-icon {
+  color: #06b6d4;
+}
+.kpi-pending .ap-kpi-icon {
+  color: #f59e0b;
+}
+
+.ap-kpi-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #667085;
+  margin-bottom: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ap-kpi-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1d2939;
+  line-height: 1.2;
+}
+
+/* Chart & table cards - enhanced */
+.ap-chart-card,
+.ap-table-card {
+  border-radius: 16px !important;
+  border: 1px solid rgba(234, 236, 240, 0.8) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  background: white !important;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* FIX: Ensure chart card body takes full height */
+.ap-chart-card .ant-card-body {
+  height: calc(100% - 57px); /* Subtract header height */
+  display: flex;
+  flex-direction: column;
+}
+
+.ap-chart-card .ant-card-head,
+.ap-table-card .ant-card-head {
+  border-bottom: 1px solid rgba(234, 236, 240, 0.8);
+  padding: 20px 24px;
+  background: linear-gradient(90deg, #f8faff 0%, #ffffff 100%);
+}
+
+.ap-chart-card .ant-card-body,
+.ap-table-card .ant-card-body {
+  padding: 24px;
+}
+
+.ap-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d2939;
+  margin: 0;
+}
+
+/* Chart container - better spacing */
+.ap-chart {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 280px;
+}
+
+/* Controls - more polished */
+.ap-pill-button {
+  border-radius: 24px !important;
+  padding: 0 16px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  border: 1px solid rgba(59, 124, 255, 0.3) !important;
+  color: #3b7cff !important;
+  background: rgba(59, 124, 255, 0.08) !important;
+  height: 32px !important;
+  transition: all 0.2s ease !important;
+}
+
+.ap-pill-button:hover {
+  background: rgba(59, 124, 255, 0.15) !important;
+  border-color: rgba(59, 124, 255, 0.5) !important;
+  transform: translateY(-1px);
+}
+
+.ap-select-inline {
+  padding: 6px 16px;
+  border-radius: 24px;
+  border: 1px solid rgba(234, 236, 240, 0.8);
+  background: white;
+  font-size: 13px;
+  font-weight: 500;
+  color: #344054;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ap-select-inline:hover {
+  border-color: rgba(59, 124, 255, 0.5);
+}
+
+.ap-select-inline:focus {
+  border-color: #3b7cff;
+  box-shadow: 0 0 0 3px rgba(59, 124, 255, 0.1);
+}
+
+/* Table styling - more refined */
+.ap-table-card .ant-table {
+  font-size: 14px;
+}
+
+.ap-table-card .ant-table-thead > tr > th {
+  background: linear-gradient(90deg, #f8faff 0%, #f0f5ff 100%) !important;
+  border-bottom: 1px solid rgba(234, 236, 240, 0.8) !important;
+  font-weight: 600;
+  color: #344054 !important;
+  padding: 16px !important;
+}
+
+.ap-table-card .ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(234, 236, 240, 0.8);
+  padding: 16px !important;
+  color: #475467;
+}
+
+.ap-table-card .ant-table-tbody > tr:hover > td {
+  background: rgba(59, 124, 255, 0.04) !important;
+}
+
+.ap-table-card .ant-table-pagination.ant-pagination {
+  margin-top: 24px;
+  margin-bottom: 0;
+}
+
+/* Status badges for future use */
+.ap-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ap-status-approved {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.ap-status-pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.ap-status-rejected {
+  background: rgba(240, 68, 56, 0.1);
+  color: #f04438;
+}
+
+/* FIX: Make sure chart rows have equal height columns */
+.ap-row .ant-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.ap-row .ant-col > .ap-chart-card {
+  flex: 1;
+}
+
+/* Responsive improvements */
+@media (max-width: 1200px) {
+  .ap-dashboard {
+    margin: 0 24px;
+    padding: 28px 24px 40px;
+  }
+}
+
+@media (max-width: 992px) {
+  .ap-dashboard {
+    margin: 0 16px;
+    padding: 24px 20px 32px;
+    border-radius: 16px;
+  }
+
+  .ap-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding-bottom: 16px;
+  }
+
+  .ap-header-title {
+    font-size: 24px;
+  }
+
+  .ap-kpi-inner {
+    padding: 20px;
+  }
+
+  .ap-kpi-icon-wrap {
+    width: 48px;
+    height: 48px;
+  }
+
+  .ap-kpi-icon {
+    font-size: 22px;
+  }
+
+  .ap-kpi-value {
+    font-size: 22px;
+  }
+  
+  /* FIX: On tablet, ensure 2x2 grid for KPI cards */
+  .ap-row .ant-col {
+    height: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .ap-kpi-card {
+    min-height: 120px;
+  }
+  
+  .ap-kpi-inner {
+    padding: 18px;
+    gap: 16px;
+  }
+  
+  .ap-kpi-icon-wrap {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .ap-kpi-value {
+    font-size: 20px;
+  }
+  
+  .ap-chart {
+    min-height: 240px;
+  }
+}
+
+@media (max-width: 576px) {
+  .ap-dashboard-shell {
+    padding: 24px 0 32px;
+  }
+
+  .ap-dashboard {
+    margin: 0 12px;
+    padding: 20px 16px 28px;
+    border-radius: 12px;
+  }
+
+  .ap-kpi-card {
+    min-height: 110px;
+  }
+  
+  .ap-kpi-inner {
+    flex-direction: row; /* Keep horizontal on mobile for better space */
+    text-align: left;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .ap-kpi-value {
+    font-size: 18px;
+  }
+
+  .ap-chart-card .ant-card-body,
+  .ap-table-card .ant-card-body {
+    padding: 16px;
+  }
+
+  .ap-pill-button,
+  .ap-select-inline {
+    font-size: 12px;
+    height: 28px;
+    padding: 0 12px;
+  }
+  
+  /* FIX: On mobile, ensure full width columns stack properly */
+  .ap-row .ant-col {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+  
+  .ap-row .ant-col:last-child {
+    margin-bottom: 0;
+  }
+}
