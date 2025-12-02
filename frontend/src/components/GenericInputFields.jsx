@@ -50,7 +50,7 @@ const GenericInputFields = ({
     const [lineItems, setLineItems] = useState(lineItemsFromData);
 
     const [saving, setSaving] = useState(false);
-    const [activeTab, setActiveTab] = useState('1');
+    const [activeTab, setActiveTab] = useState(readOnly ? '3' : '1');
 
     // Status & validation info
     const [invoiceStatus, setInvoiceStatus] = useState(
@@ -945,6 +945,45 @@ const GenericInputFields = ({
                     )}
                 </Panel>
             </Collapse>
+
+            {/* Send for Coding Button - Only show in non-readOnly mode */}
+            {!readOnly && (
+                <div style={{
+                    marginTop: '24px',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    paddingRight: '20px'
+                }}>
+                    <Button
+                        type="primary"
+                        icon={<SendOutlined />}
+                        onClick={async () => {
+                            try {
+                                console.log('Invoice ID:', invoiceId);
+                                console.log('Data:', data);
+
+                                const idToUse = invoiceId || data?._id || data?.id;
+                                console.log('ID to use:', idToUse);
+
+                                if (idToUse) {
+                                    await invoiceService.updateInvoiceStatus(idToUse, 'waiting_coding');
+                                    message.success('Invoice sent for coding!');
+                                    navigate('/coding');
+                                } else {
+                                    console.error('No invoice ID found');
+                                    message.error('Invoice ID not found');
+                                }
+                            } catch (error) {
+                                console.error('Error sending for coding:', error);
+                                message.error('Failed to send for coding: ' + (error.message || 'Unknown error'));
+                            }
+                        }}
+                        style={{ backgroundColor: '#1890ff' }}
+                    >
+                        Send for Coding
+                    </Button>
+                </div>
+            )}
         </div>
     );
 

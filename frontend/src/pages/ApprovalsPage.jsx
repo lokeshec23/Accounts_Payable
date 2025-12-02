@@ -64,7 +64,12 @@ const ApprovalsPage = () => {
                 rawData: invoice
             }));
 
-            setData(transformedData);
+            const allowedStatuses = ['waiting_approval', 'approved', 'rejected', 'reworked'];
+            const filteredData = transformedData.filter((item) =>
+                allowedStatuses.includes(item.status)
+            );
+
+            setData(filteredData);
         } catch (error) {
             console.error('Error fetching invoices:', error);
             message.error('Failed to load invoices. Please try again.');
@@ -211,7 +216,7 @@ const ApprovalsPage = () => {
         {
             title: 'Approver',
             dataIndex: 'approverName',
-            key: 'approverName',
+                 key: 'approverName',
             width: 150,
             sorter: (a, b) => (a.approverName || '').localeCompare(b.approverName || ''),
             multiple: 6,

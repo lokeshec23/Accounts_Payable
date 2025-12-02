@@ -84,6 +84,12 @@ const Header = () => {
                     >
                         Approvals
                     </Link>
+                    <Link
+                        to="/master-data"
+                        className={`nav-tab ${isActive('/master-data') ? 'active' : ''}`}
+                    >
+                        Master Data
+                    </Link>
                 </nav>
 
                 {/* Right Section - Icons */}
