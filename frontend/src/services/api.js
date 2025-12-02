@@ -108,4 +108,52 @@ export const codingService = {
   }
 };
 
+// ---------------------------------------------
+// MASTER DATA SERVICE (Vendor Master, Codification)
+// ---------------------------------------------
+export const masterDataService = {
+  
+  // 1️⃣ Get all uploaded master files
+  async getFiles() {
+    const response = await api.get("/master/files");
+    return response.data;
+  },
+
+  // 2️⃣ Get all sheets for a selected file
+  async getSheets(fileId) {
+    const response = await api.get(`/master/${fileId}/sheets`);
+    return response.data;
+  },
+
+  // 3️⃣ Get sheet rows (merged from chunks)
+  async getSheetData(collectionName) {
+    const response = await api.get(`/master/sheet/${collectionName}`);
+    return response.data;
+  },
+
+  // 4️⃣ Add row
+  async addRow(collectionName, newRow) {
+    const response = await api.post(`/master/sheet/${collectionName}/add`, newRow);
+    return response.data;
+  },
+
+  // 5️⃣ Edit row
+  async editRow(collectionName, rowIndex, updatedRow) {
+    const response = await api.patch(
+      `/master/sheet/${collectionName}/edit`,
+      { row_index: rowIndex, updated_row: updatedRow }
+    );
+    return response.data;
+  },
+
+  // 6️⃣ Delete row
+  async deleteRow(collectionName, rowIndex) {
+    const response = await api.delete(
+      `/master/sheet/${collectionName}/delete`,
+      { data: { row_index: rowIndex } }
+    );
+    return response.data;
+  }
+};
+
 export default api;
