@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Table, Input, InputNumber, Select, message, Collapse } from 'antd';
 const { Panel } = Collapse;
 import { ArrowLeftOutlined, SendOutlined, DeleteOutlined } from '@ant-design/icons';
-import PdfViewer from '../components/Pdfviewer';
+import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
 import { invoiceService, codingService } from '../services/api';
 
 const CodingReviewPage = () => {
@@ -11,8 +11,19 @@ const CodingReviewPage = () => {
     const navigate = useNavigate();
     const invoiceData = location.state?.invoice;
 
-    const [numPages, setNumPages] = useState(null);
-    const [pageNumber, setPageNumber] = useState(1);
+    // Resizable state
+    const [leftWidth, setLeftWidth] = useState(() => {
+        const saved = localStorage.getItem('codingReviewSplitWidth');
+        return saved ? parseFloat(saved) : 45;
+    });
+    const [isDragging, setIsDragging] = useState(false);
+    const leftWidthRef = useRef(leftWidth);
+
+    useEffect(() => {
+        leftWidthRef.current = leftWidth;
+    }, [leftWidth]);
+
+
     const [hoveredKey, setHoveredKey] = useState(null);
     const [headerCoding, setHeaderCoding] = useState('');
     const [codingLineItems, setCodingLineItems] = useState([]);
@@ -172,6 +183,40 @@ const CodingReviewPage = () => {
             setSaving(false);
         }
     };
+
+    // Handle dragging
+    const handleMouseDown = (e) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (!isDragging) return;
+            const newLeftWidth = (e.clientX / window.innerWidth) * 100;
+            if (newLeftWidth > 10 && newLeftWidth < 90) {
+                setLeftWidth(newLeftWidth);
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsDragging(false);
+            localStorage.setItem('codingReviewSplitWidth', leftWidthRef.current);
+        };
+
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        } else {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging]);
 
     // Header coding table configuration
     const headerColumns = [
@@ -434,27 +479,34 @@ const CodingReviewPage = () => {
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                 {/* LEFT SIDE PDF VIEWER */}
                 <div style={{
-                    flex: '0 0 35%',
+                    flex: `0 0 ${leftWidth}%`,
                     borderRight: '1px solid #e8e8e8',
                     overflow: 'hidden',
                     background: '#f5f5f5',
                     display: 'flex',
                     flexDirection: 'column'
                 }}>
-                    <PdfViewer
+                    <PdfViewerWithHighlight
                         file={pdfUrl}
-                        numPages={numPages}
-                        setNumPages={setNumPages}
-                        pageNumber={pageNumber}
-                        setPageNumber={setPageNumber}
-                        data={null}
-                        hoveredKey={hoveredKey}
+                        extractedData={invoiceData?.rawData?.extracted_data}
                     />
                 </div>
 
+                {/* RESIZER */}
+                <div
+                    onMouseDown={handleMouseDown}
+                    style={{
+                        width: '5px',
+                        cursor: 'col-resize',
+                        background: isDragging ? '#1890ff' : '#ddd',
+                        transition: 'background 0.2s',
+                        zIndex: 10
+                    }}
+                />
+
                 {/* RIGHT SIDE: CODING CONTENT */}
                 <div style={{
-                    flex: '0 0 65%',
+                    flex: 1,
                     overflow: 'auto',
                     background: 'white',
                     padding: '20px'
