@@ -488,7 +488,7 @@ const CodingReviewPage = () => {
                 }}>
                     <PdfViewerWithHighlight
                         file={pdfUrl}
-                        extractedData={invoiceData?.rawData?.extracted_data}
+                        extractedData={invoiceData?.extracted_data || invoiceData?.rawData?.extracted_data}
                     />
                 </div>
 
