@@ -64,6 +64,9 @@ const GenericInputFields = ({
     const [headerCoding, setHeaderCoding] = useState('');
     const [codingLineItems, setCodingLineItems] = useState([]);
 
+    // Approver comment
+    const [approverComment, setApproverComment] = useState('');
+
     // ---------- helpers ----------
     const parseCurrencyValue = (value) => {
         if (!value) return 0;
@@ -526,7 +529,8 @@ const GenericInputFields = ({
                 ...(validationInfo || {}),
                 approver_name: approverName,
                 approval_timestamp: new Date().toISOString(),
-                last_action: newStatus
+                last_action: newStatus,
+                approver_comment: approverComment || '' // Include the comment
             };
 
             await invoiceService.updateInvoice(invoiceId, {
@@ -536,6 +540,7 @@ const GenericInputFields = ({
 
             setInvoiceStatus(newStatus);
             setValidationInfo(updatedValidation);
+            setApproverComment(''); // Clear comment after submission
             message.success(`Invoice ${newStatus} successfully!`);
         } catch (error) {
             console.error('Error updating status:', error);
@@ -586,8 +591,8 @@ const GenericInputFields = ({
             message.success('Coding data saved successfully!');
             message.success("Invoice sent for approval");
 
-        // Redirect to Approvals Page
-        navigate("/approvals");
+            // Redirect to Approvals Page
+            navigate("/approvals");
         } catch (error) {
             console.error('Error saving coding data:', error);
             message.error(
@@ -1501,37 +1506,56 @@ const GenericInputFields = ({
                     </Button>
                 )}
 
+
                 {readOnly && (
-                    <Space style={{ marginLeft: '24px' }}>
-                        <Button
-                            type="primary"
-                            icon={<CheckCircleOutlined />}
-                            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-                            onClick={handleApprove}
-                            disabled={approveDisabled}
-                        >
-                            Approve
-                        </Button>
-                        <Button
-                            type="primary"
-                            icon={<CloseCircleOutlined />}
-                            danger
-                            onClick={handleReject}
-                            disabled={rejectDisabled}
-                        >
-                            Reject
-                        </Button>
-                        <Button
-                            type="primary"
-                            icon={<RollbackOutlined />}
-                            style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
-                            onClick={handleRework}
-                            disabled={reworkDisabled}
-                        >
-                            Rework
-                        </Button>
+                    <Space direction="vertical" style={{ marginLeft: '24px', width: '400px' }}>
+                        {isWaitingApproval && (
+                            <div style={{ marginBottom: '12px' }}>
+                                <div style={{ marginBottom: '8px', fontWeight: 500 }}>
+                                    Approver Comment (Optional):
+                                </div>
+                                <TextArea
+                                    rows={3}
+                                    placeholder="Add a comment about this approval decision..."
+                                    value={approverComment}
+                                    onChange={(e) => setApproverComment(e.target.value)}
+                                    maxLength={500}
+                                    showCount
+                                />
+                            </div>
+                        )}
+                        <Space>
+                            <Button
+                                type="primary"
+                                icon={<CheckCircleOutlined />}
+                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                                onClick={handleApprove}
+                                disabled={approveDisabled}
+                            >
+                                Approve
+                            </Button>
+                            <Button
+                                type="primary"
+                                icon={<CloseCircleOutlined />}
+                                danger
+                                onClick={handleReject}
+                                disabled={rejectDisabled}
+                            >
+                                Reject
+                            </Button>
+                            <Button
+                                type="primary"
+                                icon={<RollbackOutlined />}
+                                style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
+                                onClick={handleRework}
+                                disabled={reworkDisabled}
+                            >
+                                Rework
+                            </Button>
+                        </Space>
                     </Space>
                 )}
+
             </div>
 
             <div style={{ flex: 1, overflow: 'auto' }}>{renderTabContent()}</div>

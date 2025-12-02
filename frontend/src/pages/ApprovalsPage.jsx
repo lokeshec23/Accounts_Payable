@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Tag, Space, Modal, message, Input } from 'antd';
+import { Table, Button, Tag, Space, Modal, message, Input, Tooltip } from 'antd';
 import {
     EyeOutlined,
     DeleteOutlined,
@@ -58,6 +58,8 @@ const ApprovalsPage = () => {
                         hour12: true
                     })
                     : '—',
+
+                approverComment: invoice.validation_results?.approver_comment || '',
 
                 rawData: invoice
             }));
@@ -225,6 +227,22 @@ const ApprovalsPage = () => {
                 return new Date(a.approvalTime) - new Date(b.approvalTime);
             },
             multiple: 7,
+        },
+        {
+            title: 'Comment',
+            dataIndex: 'approverComment',
+            key: 'approverComment',
+            width: 200,
+            ellipsis: {
+                showTitle: false,
+            },
+            render: (comment) => (
+                comment ? (
+                    <Tooltip title={comment} placement="topLeft">
+                        <span style={{ cursor: 'pointer' }}>{comment}</span>
+                    </Tooltip>
+                ) : '—'
+            ),
         },
         {
             title: 'Last Updated',
