@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Table, Input, InputNumber, Select, message, Collapse } from 'antd';
+import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin } from 'antd';
 const { Panel } = Collapse;
 import { ArrowLeftOutlined, SendOutlined, DeleteOutlined } from '@ant-design/icons';
 import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
-import { invoiceService, codingService } from '../services/api';
+import { invoiceService, codingService, masterDataService } from '../services/api';
 
 const CodingReviewPage = () => {
     const location = useLocation();
@@ -23,13 +23,21 @@ const CodingReviewPage = () => {
         leftWidthRef.current = leftWidth;
     }, [leftWidth]);
 
-
     const [hoveredKey, setHoveredKey] = useState(null);
     const [headerCoding, setHeaderCoding] = useState('');
     const [codingLineItems, setCodingLineItems] = useState([]);
     const [saving, setSaving] = useState(false);
     const [pdfUrl, setPdfUrl] = useState(null);
     const [loadingPdf, setLoadingPdf] = useState(false);
+
+    // Master Data Options
+    const [glOptions, setGlOptions] = useState([]);
+    const [lobOptions, setLobOptions] = useState([]);
+    const [deptOptions, setDeptOptions] = useState([]);
+    const [customerOptions, setCustomerOptions] = useState([]);
+    const [itemOptions, setItemOptions] = useState([]);
+    const [loadingMasterData, setLoadingMasterData] = useState(false);
+    const [applyToAll, setApplyToAll] = useState(false);
 
     const disabledStyle = {
         color: 'black',
@@ -44,12 +52,10 @@ const CodingReviewPage = () => {
 
             try {
                 setLoadingPdf(true);
-                // Use getPdfBlob to handle authentication (Bearer token)
                 const blobUrl = await invoiceService.getPdfBlob(invoiceData.id);
                 setPdfUrl(blobUrl);
             } catch (error) {
                 console.error('Error fetching PDF:', error);
-                // Fallback to direct URL if blob fetch fails
                 const fallbackUrl = invoiceData.fileUrl || invoiceData.rawData?.file_url || invoiceService.getPdfUrl(invoiceData.id);
                 setPdfUrl(fallbackUrl);
             } finally {
@@ -59,7 +65,6 @@ const CodingReviewPage = () => {
 
         fetchPdf();
 
-        // Cleanup blob URL
         return () => {
             if (pdfUrl && pdfUrl.startsWith('blob:')) {
                 URL.revokeObjectURL(pdfUrl);
@@ -67,7 +72,96 @@ const CodingReviewPage = () => {
         };
     }, [invoiceData?.id]);
 
-    // Extract line items from invoice data
+    // ⭐⭐⭐ UPDATED MASTER DATA BLOCK ⭐⭐⭐
+    useEffect(() => {
+        const fetchMasterData = async () => {
+            try {
+                setLoadingMasterData(true);
+
+                const files = await masterDataService.getFiles();
+
+                // Only this file should be used
+                const targetFile = files.find(
+                    f => f.file_name?.trim() === "AP_CA Inc_Invoice_Codification"
+                );
+
+                if (!targetFile) {
+                    message.error("Master file 'AP_CA Inc_Invoice_Codification' not found");
+                    return;
+                }
+
+                const sheets = await masterDataService.getSheets(targetFile._id);
+
+                // Helper to fetch & format
+                const loadSheet = async (sheetName, formatter) => {
+                    const sheet = sheets.find(s => s.sheet_name === sheetName);
+                    if (!sheet) return [];
+                    const rows = await masterDataService.getSheetData(sheet.collection_name);
+
+                    return rows.map((row, i) => ({
+                        value: formatter(row),
+                        label: formatter(row),
+                        key: i
+                    }));
+                };
+
+                // GL → Account Number - Title
+                const gl = await loadSheet("GL", row => {
+                    const acc = row["Account number"] || row["account_number"] || row["Code"];
+                    const title = row["Title"] || row["Name"] || row["Description"];
+                    return `${acc} - ${title}`;
+                });
+                setGlOptions(gl);
+
+                // LOB → LOB Id - Name
+                // LOB → LOB Id - Name
+                const lob = await loadSheet("LOB", row => {
+                    const id = row["LOB ID"];      // your actual field
+                    const name = row["Name"];      // your actual field
+                    return `${id} - ${name}`;
+                });
+                setLobOptions(lob);
+
+
+                // Department → Department Id - Department Name
+                const dept = await loadSheet("Department", row => {
+                    const id = row["Department ID"] || row["ID"];
+                    const name = row["Department name"] || row["Department Name"] || row["Name"];
+                    return `${id} - ${name}`;
+                });
+                setDeptOptions(dept);
+
+                // Customer → customer_id - customer_name
+                const cust = await loadSheet("Customer_Master", row => {
+                    const id = row["CUSTOMER_ID"] || row["Customer ID"];
+                    const name = row["CUSTOMER_NAME"] || row["Customer Name"];
+                    return `${id} - ${name}`;
+                });
+                setCustomerOptions(cust);
+
+                // Item → item_id - name
+                // Item → item_id - name
+                const item = await loadSheet("Item", row => {
+                    const id = row["Item ID"];
+                    const name = row["Name"];
+                    return `${id} - ${name}`;
+                });
+                setItemOptions(item);
+
+
+            } catch (error) {
+                console.error("Error fetching master data:", error);
+                message.error("Failed to load master data options");
+            } finally {
+                setLoadingMasterData(false);
+            }
+        };
+
+        fetchMasterData();
+    }, []);
+    // ⭐⭐⭐ END UPDATED BLOCK ⭐⭐⭐
+
+    // Extract line items
     useEffect(() => {
         if (invoiceData?.rawData?.extracted_data?.Items?.value) {
             const items = invoiceData.rawData.extracted_data.Items.value.map((item, index) => ({
@@ -79,14 +173,16 @@ const CodingReviewPage = () => {
                 unit_price: item.unit_price?.value || 0,
                 net_amount: item.amount?.value || 0,
                 gl_code: '',
-                cost_center: '',
-                project_code: ''
+                lob: '',
+                department: '',
+                customer: '',
+                item: ''
             }));
             setCodingLineItems(items);
         }
     }, [invoiceData]);
 
-    // Load existing coding data if available
+    // Load existing coding data
     useEffect(() => {
         const loadCodingData = async () => {
             if (!invoiceData?.id) return;
@@ -119,6 +215,15 @@ const CodingReviewPage = () => {
     const handleCodingLineItemChange = (index, field, value) => {
         const newItems = [...codingLineItems];
         newItems[index][field] = value;
+
+        // If "Apply to All" is checked and we're editing the first row's coding fields
+        if (applyToAll && index === 0 && ['gl_code', 'lob', 'department', 'customer', 'item'].includes(field)) {
+            // Apply the value to all other rows
+            for (let i = 1; i < newItems.length; i++) {
+                newItems[i][field] = value;
+            }
+        }
+
         setCodingLineItems(newItems);
     };
 
@@ -128,11 +233,11 @@ const CodingReviewPage = () => {
         message.success('Line item deleted');
     };
 
+
+
     const handleSendToApproval = async () => {
         try {
             setSaving(true);
-
-            // Clean line items - remove React-specific fields like 'key' and ensure proper data types
             const cleanedLineItems = codingLineItems.map(({ key, ...item }) => ({
                 s_no: parseInt(item.s_no) || 0,
                 description: String(item.description || ''),
@@ -141,50 +246,31 @@ const CodingReviewPage = () => {
                 unit_price: parseFloat(item.unit_price) || 0,
                 net_amount: parseFloat(item.net_amount) || 0,
                 gl_code: String(item.gl_code || ''),
-                cost_center: String(item.cost_center || ''),
-                project_code: String(item.project_code || '')
+                lob: String(item.lob || ''),
+                department: String(item.department || ''),
+                customer: String(item.customer || ''),
+                item: String(item.item || '')
             }));
 
-            // Save coding data
-            const codingData = {
+            await codingService.saveCoding({
                 invoice_id: invoiceData.id,
                 header_coding: headerCoding,
                 line_items: cleanedLineItems
-            };
+            });
 
-            await codingService.saveCoding(codingData);
-
-            // Update invoice status to waiting_approval
             await invoiceService.updateInvoiceStatus(invoiceData.id, 'waiting_approval');
 
             message.success('Invoice sent to approval successfully!');
             navigate('/approvals');
         } catch (error) {
-            console.error('Error sending to approval:', error);
-            console.error('Error details:', error.response?.data);
-
-            let errorMessage = 'Failed to send to approval';
-            if (error.response?.data?.detail) {
-                if (Array.isArray(error.response.data.detail)) {
-                    // Handle array of validation errors
-                    errorMessage += ': ' + error.response.data.detail.map(err =>
-                        `${err.loc?.join(' -> ')}: ${err.msg}`
-                    ).join(', ');
-                } else {
-                    // Handle single error message
-                    errorMessage += ': ' + error.response.data.detail;
-                }
-            } else {
-                errorMessage += ': ' + (error.message || 'Unknown error');
-            }
-
-            message.error(errorMessage);
+            console.error('Error sending:', error);
+            message.error('Failed to send to approval');
         } finally {
             setSaving(false);
         }
     };
 
-    // Handle dragging
+    // Dragging
     const handleMouseDown = (e) => {
         e.preventDefault();
         setIsDragging(true);
@@ -207,9 +293,6 @@ const CodingReviewPage = () => {
         if (isDragging) {
             window.addEventListener('mousemove', handleMouseMove);
             window.addEventListener('mouseup', handleMouseUp);
-        } else {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
         }
 
         return () => {
@@ -218,7 +301,7 @@ const CodingReviewPage = () => {
         };
     }, [isDragging]);
 
-    // Header coding table configuration
+    // Table definitions
     const headerColumns = [
         {
             title: 'File Name',
@@ -285,34 +368,28 @@ const CodingReviewPage = () => {
         }
     ];
 
-    // Line items coding table columns
     const lineItemColumns = [
         {
             title: 'S.No',
             dataIndex: 's_no',
             key: 's_no',
-            width: '5%',
+            width: '4%',
             render: (text, record, index) => index + 1
         },
         {
             title: 'Description',
             dataIndex: 'description',
             key: 'description',
-            width: '15%',
+            width: '12%',
             render: (text) => (
-                <Input
-                    value={text}
-                    placeholder="Enter description"
-                    disabled
-                    style={disabledStyle}
-                />
+                <Input value={text} disabled placeholder="Description" style={disabledStyle} />
             )
         },
         {
             title: 'Line Type',
             dataIndex: 'line_type',
             key: 'line_type',
-            width: '10%',
+            width: '8%',
             render: (text, record, index) => (
                 <Select
                     value={codingLineItems[index]?.line_type || 'Expense'}
@@ -332,7 +409,7 @@ const CodingReviewPage = () => {
             title: 'Quantity',
             dataIndex: 'quantity',
             key: 'quantity',
-            width: '8%',
+            width: '6%',
             render: (text, record, index) => (
                 <InputNumber
                     value={codingLineItems[index]?.quantity || 0}
@@ -348,14 +425,12 @@ const CodingReviewPage = () => {
             title: 'Unit Price',
             dataIndex: 'unit_price',
             key: 'unit_price',
-            width: '10%',
+            width: '8%',
             render: (text, record, index) => (
                 <InputNumber
                     value={codingLineItems[index]?.unit_price || 0}
                     formatter={(value) =>
-                        value
-                            ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                            : ''
+                        value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                     }
                     parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
                     onChange={(value) =>
@@ -371,14 +446,12 @@ const CodingReviewPage = () => {
             title: 'Net Amount',
             dataIndex: 'net_amount',
             key: 'net_amount',
-            width: '10%',
+            width: '8%',
             render: (text, record, index) => (
                 <InputNumber
                     value={codingLineItems[index]?.net_amount || 0}
                     formatter={(value) =>
-                        value
-                            ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                            : ''
+                        value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                     }
                     parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
                     onChange={(value) =>
@@ -394,68 +467,128 @@ const CodingReviewPage = () => {
             title: 'GL Code',
             dataIndex: 'gl_code',
             key: 'gl_code',
-            width: '10%',
+            width: '12%',
             render: (text, record, index) => (
-                <Input
-                    value={codingLineItems[index]?.gl_code || ''}
-                    placeholder="GL Code"
-                    onChange={(e) =>
-                        handleCodingLineItemChange(index, 'gl_code', e.target.value)
+                <Select
+                    value={codingLineItems[index]?.gl_code || undefined}
+                    placeholder="Select GL Code"
+                    onChange={(value) =>
+                        handleCodingLineItemChange(index, 'gl_code', value)
                     }
+                    options={glOptions}
+                    showSearch
+                    filterOption={(input, option) =>
+                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                    loading={loadingMasterData}
+                    style={{ width: '100%' }}
+                    dropdownMatchSelectWidth={false}
                 />
             )
         },
         {
-            title: 'Cost Center',
-            dataIndex: 'cost_center',
-            key: 'cost_center',
+            title: 'LOB',
+            dataIndex: 'lob',
+            key: 'lob',
             width: '10%',
             render: (text, record, index) => (
-                <Input
-                    value={codingLineItems[index]?.cost_center || ''}
-                    placeholder="Cost Center"
-                    onChange={(e) =>
-                        handleCodingLineItemChange(
-                            index,
-                            'cost_center',
-                            e.target.value
-                        )
+                <Select
+                    value={codingLineItems[index]?.lob || undefined}
+                    placeholder="Select LOB"
+                    onChange={(value) =>
+                        handleCodingLineItemChange(index, 'lob', value)
                     }
+                    options={lobOptions}
+                    showSearch
+                    filterOption={(input, option) =>
+                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                    loading={loadingMasterData}
+                    style={{ width: '100%' }}
+                    dropdownMatchSelectWidth={false}
                 />
             )
         },
         {
-            title: 'Project Code',
-            dataIndex: 'project_code',
-            key: 'project_code',
+            title: 'Department',
+            dataIndex: 'department',
+            key: 'department',
             width: '10%',
             render: (text, record, index) => (
-                <Input
-                    value={codingLineItems[index]?.project_code || ''}
-                    placeholder="Project Code"
-                    onChange={(e) =>
-                        handleCodingLineItemChange(
-                            index,
-                            'project_code',
-                            e.target.value
-                        )
+                <Select
+                    value={codingLineItems[index]?.department || undefined}
+                    placeholder="Select Department"
+                    onChange={(value) =>
+                        handleCodingLineItemChange(index, 'department', value)
                     }
+                    options={deptOptions}
+                    showSearch
+                    filterOption={(input, option) =>
+                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                    loading={loadingMasterData}
+                    style={{ width: '100%' }}
+                    dropdownMatchSelectWidth={false}
+                />
+            )
+        },
+        {
+            title: 'Customer',
+            dataIndex: 'customer',
+            key: 'customer',
+            width: '10%',
+            render: (text, record, index) => (
+                <Select
+                    value={codingLineItems[index]?.customer || undefined}
+                    placeholder="Select Customer"
+                    onChange={(value) =>
+                        handleCodingLineItemChange(index, 'customer', value)
+                    }
+                    options={customerOptions}
+                    showSearch
+                    filterOption={(input, option) =>
+                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                    loading={loadingMasterData}
+                    style={{ width: '100%' }}
+                    dropdownMatchSelectWidth={false}
+                />
+            )
+        },
+        {
+            title: 'Item',
+            dataIndex: 'item',
+            key: 'item',
+            width: '10%',
+            render: (text, record, index) => (
+                <Select
+                    value={codingLineItems[index]?.item || undefined}
+                    placeholder="Select Item"
+                    onChange={(value) =>
+                        handleCodingLineItemChange(index, 'item', value)
+                    }
+                    options={itemOptions}
+                    showSearch
+                    filterOption={(input, option) =>
+                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                    loading={loadingMasterData}
+                    style={{ width: '100%' }}
+                    dropdownMatchSelectWidth={false}
                 />
             )
         },
         {
             title: 'Actions',
             key: 'actions',
-            width: '8%',
+            width: '5%',
             render: (_, record, index) => (
                 <Button
                     type="link"
                     danger
                     icon={<DeleteOutlined />}
                     onClick={() => handleDeleteLineItem(index)}
-                >
-                    Delete
-                </Button>
+                />
             )
         }
     ];
@@ -504,14 +637,13 @@ const CodingReviewPage = () => {
                     }}
                 />
 
-                {/* RIGHT SIDE: CODING CONTENT */}
+                {/* RIGHT SIDE CONTENT */}
                 <div style={{
                     flex: 1,
                     overflow: 'auto',
                     background: 'white',
                     padding: '20px'
                 }}>
-                    {/* Header with Back Button and Send to Approval */}
                     <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -526,6 +658,7 @@ const CodingReviewPage = () => {
                         >
                             Back to Coding
                         </Button>
+
                         <Button
                             type="primary"
                             icon={<SendOutlined />}
@@ -546,7 +679,59 @@ const CodingReviewPage = () => {
                                 bordered
                             />
                         </Panel>
+
                         <Panel header="Line Items" key="lineitems">
+                            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <input
+                                    type="checkbox"
+                                    id="applyToAll"
+                                    checked={applyToAll}
+                                    onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        setApplyToAll(checked);
+
+                                        if (checked) {
+                                            // Apply first row to all rows
+                                            if (codingLineItems.length > 0) {
+                                                const firstItem = codingLineItems[0];
+                                                const { gl_code, lob, department, customer, item } = firstItem;
+
+                                                const newItems = codingLineItems.map((lineItem, index) => {
+                                                    if (index === 0) return lineItem;
+                                                    return {
+                                                        ...lineItem,
+                                                        gl_code: gl_code || lineItem.gl_code,
+                                                        lob: lob || lineItem.lob,
+                                                        department: department || lineItem.department,
+                                                        customer: customer || lineItem.customer,
+                                                        item: item || lineItem.item
+                                                    };
+                                                });
+
+                                                setCodingLineItems(newItems);
+                                                message.success('Applied first row coding to all rows!');
+                                            }
+                                        } else {
+                                            // Clear all coding fields from all rows
+                                            const newItems = codingLineItems.map(lineItem => ({
+                                                ...lineItem,
+                                                gl_code: '',
+                                                lob: '',
+                                                department: '',
+                                                customer: '',
+                                                item: ''
+                                            }));
+
+                                            setCodingLineItems(newItems);
+                                            message.info('Cleared all coding fields from all rows.');
+                                        }
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                />
+                                <label htmlFor="applyToAll" style={{ cursor: 'pointer', marginBottom: 0, userSelect: 'none' }}>
+                                    Apply to All
+                                </label>
+                            </div>
                             <Table
                                 columns={lineItemColumns}
                                 dataSource={codingLineItems.map((item, index) => ({ ...item, key: index }))}

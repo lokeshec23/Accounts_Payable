@@ -133,8 +133,10 @@ const GenericInputFields = ({
                         unit_price: unitPrice,
                         net_amount: netAmount,
                         gl_code: '',
-                        cost_center: '',
-                        project_code: ''
+                        lob: '',
+                        department: '',
+                        customer: '',
+                        item: ''
                     };
                 })
             );
@@ -158,8 +160,10 @@ const GenericInputFields = ({
                                     ...item,
                                     line_type: savedItem.line_type || item.line_type,
                                     gl_code: savedItem.gl_code || item.gl_code,
-                                    cost_center: savedItem.cost_center || item.cost_center,
-                                    project_code: savedItem.project_code || item.project_code,
+                                    lob: savedItem.lob || item.lob,
+                                    department: savedItem.department || item.department,
+                                    customer: savedItem.customer || item.customer,
+                                    item: savedItem.item || item.item,
                                     unit_price: savedItem.unit_price || item.unit_price,
                                     net_amount: savedItem.net_amount || item.net_amount
                                 };
@@ -204,8 +208,10 @@ const GenericInputFields = ({
                     unit_price: unitPrice,
                     net_amount: netAmount,
                     gl_code: existing.gl_code || '',
-                    cost_center: existing.cost_center || '',
-                    project_code: existing.project_code || ''
+                    lob: existing.lob || '',
+                    department: existing.department || '',
+                    customer: existing.customer || '',
+                    item: existing.item || ''
                 };
             })
         );
@@ -1348,42 +1354,60 @@ const GenericInputFields = ({
                                 )
                             },
                             {
-                                title: 'Cost Center',
-                                dataIndex: 'cost_center',
-                                key: 'cost_center',
+                                title: 'LOB',
+                                dataIndex: 'lob',
+                                key: 'lob',
                                 width: '10%',
                                 render: (text, record, index) => (
                                     <Input
-                                        value={codingLineItems[index]?.cost_center || ''}
-                                        placeholder="Cost Center"
-                                        onChange={(e) =>
-                                            handleCodingLineItemChange(
-                                                index,
-                                                'cost_center',
-                                                e.target.value
-                                            )
-                                        }
+                                        value={codingLineItems[index]?.lob || ''}
+                                        placeholder="LOB"
+                                        onChange={(e) => handleCodingLineItemChange(index, 'lob', e.target.value)}
                                         disabled={readOnly}
                                         style={disabledStyle}
                                     />
                                 )
                             },
                             {
-                                title: 'Project Code',
-                                dataIndex: 'project_code',
-                                key: 'project_code',
+                                title: 'Department',
+                                dataIndex: 'department',
+                                key: 'department',
                                 width: '10%',
                                 render: (text, record, index) => (
                                     <Input
-                                        value={codingLineItems[index]?.project_code || ''}
-                                        placeholder="Project Code"
-                                        onChange={(e) =>
-                                            handleCodingLineItemChange(
-                                                index,
-                                                'project_code',
-                                                e.target.value
-                                            )
-                                        }
+                                        value={codingLineItems[index]?.department || ''}
+                                        placeholder="Department"
+                                        onChange={(e) => handleCodingLineItemChange(index, 'department', e.target.value)}
+                                        disabled={readOnly}
+                                        style={disabledStyle}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Customer',
+                                dataIndex: 'customer',
+                                key: 'customer',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <Input
+                                        value={codingLineItems[index]?.customer || ''}
+                                        placeholder="Customer"
+                                        onChange={(e) => handleCodingLineItemChange(index, 'customer', e.target.value)}
+                                        disabled={readOnly}
+                                        style={disabledStyle}
+                                    />
+                                )
+                            },
+                            {
+                                title: 'Item',
+                                dataIndex: 'item',
+                                key: 'item',
+                                width: '10%',
+                                render: (text, record, index) => (
+                                    <Input
+                                        value={codingLineItems[index]?.item || ''}
+                                        placeholder="Item"
+                                        onChange={(e) => handleCodingLineItemChange(index, 'item', e.target.value)}
                                         disabled={readOnly}
                                         style={disabledStyle}
                                     />

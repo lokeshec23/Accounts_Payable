@@ -10,8 +10,11 @@ class LineItemCoding(BaseModel):
     unit_price: float
     net_amount: float
     gl_code: str
-    cost_center: str
-    project_code: str
+    lob: Optional[str] = None
+    department: Optional[str] = None
+    customer: Optional[str] = None
+    item: Optional[str] = None
+    gl_code: str
 
 class CodingBase(BaseModel):
     invoice_id: str
