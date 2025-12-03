@@ -297,7 +297,7 @@ const MasterDataPage = () => {
     return (
         <div style={{ padding: '24px' }}>
             <Card>
-                <Title level={2}>Master Data</Title>
+                <Title level={2}></Title>
                 <Tabs defaultActiveKey="vendor" items={items} />
             </Card>
         </div>
