@@ -1,308 +1,324 @@
-import React, { useState } from 'react';
-import { Card, Typography, Tabs, Table, Button, Space } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from "react";
+import {
+    Card,
+    Typography,
+    Tabs,
+    Table,
+    Button,
+    Space,
+    Spin,
+    message,
+    Input,
+    Modal,
+    Form,
+} from "antd";
+import {
+    PlusOutlined,
+    EditOutlined,
+    DeleteOutlined,
+    ExclamationCircleOutlined,
+} from "@ant-design/icons";
+import { masterDataService } from "../services/api";
 
 const { Title } = Typography;
+const { Search } = Input;
+const { confirm } = Modal;
 
 const MasterDataPage = () => {
-    const [vendorData, setVendorData] = useState([
-        {
-            key: '1',
-            vendorCode: 'V001',
-            vendorName: 'Sample Vendor 1',
-            address: '123 Main St, City',
-            contactPerson: 'John Doe',
-            email: 'john@vendor1.com',
-            phone: '+1234567890',
-            taxId: 'TAX123456',
-        },
-    ]);
+    const [loading, setLoading] = useState(false);
 
-    const vendorColumns = [
-        {
-            title: 'Vendor Code',
-            dataIndex: 'vendorCode',
-            key: 'vendorCode',
-            width: 120,
-        },
-        {
-            title: 'Vendor Name',
-            dataIndex: 'vendorName',
-            key: 'vendorName',
-            width: 200,
-        },
-        {
-            title: 'Address',
-            dataIndex: 'address',
-            key: 'address',
-            width: 250,
-        },
-        {
-            title: 'Contact Person',
-            dataIndex: 'contactPerson',
-            key: 'contactPerson',
-            width: 150,
-        },
-        {
-            title: 'Email',
-            dataIndex: 'email',
-            key: 'email',
-            width: 200,
-        },
-        {
-            title: 'Phone',
-            dataIndex: 'phone',
-            key: 'phone',
-            width: 150,
-        },
-        {
-            title: 'Tax ID',
-            dataIndex: 'taxId',
-            key: 'taxId',
-            width: 150,
-        },
-        {
-            title: 'Actions',
-            key: 'actions',
-            width: 150,
+    const [files, setFiles] = useState([]);
+    const [selectedFile, setSelectedFile] = useState(null);
+
+    const [sheets, setSheets] = useState([]);
+    const [selectedSheet, setSelectedSheet] = useState(null);
+
+    const [tableData, setTableData] = useState([]);
+    const [columns, setColumns] = useState([]);
+
+    const [searchText, setSearchText] = useState("");
+
+    // Modal state
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [editRecord, setEditRecord] = useState(null);
+    const [addMode, setAddMode] = useState(false);
+    const [form] = Form.useForm();
+
+    // -------------------------------------------------------
+    // Load files
+    // -------------------------------------------------------
+    useEffect(() => {
+        loadFiles();
+    }, []);
+
+    const loadFiles = async () => {
+        try {
+            setLoading(true);
+            const data = await masterDataService.getFiles();
+            setFiles(data);
+            if (data.length > 0) setSelectedFile(data[0]);
+        } catch {
+            message.error("Failed to load files");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // -------------------------------------------------------
+    // Load sheets on file change
+    // -------------------------------------------------------
+    useEffect(() => {
+        if (selectedFile) loadSheets(selectedFile._id);
+    }, [selectedFile]);
+
+    const loadSheets = async (fileId) => {
+        try {
+            setLoading(true);
+            const result = await masterDataService.getSheets(fileId);
+            setSheets(result);
+            if (result.length > 0) setSelectedSheet(result[0]);
+        } catch {
+            message.error("Failed to load sheets");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // -------------------------------------------------------
+    // Load sheet data when sheet changes
+    // -------------------------------------------------------
+    useEffect(() => {
+        if (selectedSheet) loadSheetData(selectedSheet.collection_name);
+    }, [selectedSheet]);
+
+    const loadSheetData = async (collectionName) => {
+        try {
+            setLoading(true);
+
+            const result = await masterDataService.getSheetData(collectionName);
+
+            const rows = result.map((r, index) => ({
+                key: index,
+                ...r,
+            }));
+
+            setTableData(rows);
+
+            if (rows.length > 0) {
+                generateColumns(rows[0]);
+            }
+        } catch (error) {
+            console.log(error);
+            message.error("Failed to load sheet data");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // -------------------------------------------------------
+    // Auto-generate table columns with sort + filter
+    // -------------------------------------------------------
+    const generateColumns = (sampleRow) => {
+        const generated = Object.keys(sampleRow).map((key) => ({
+            title: key.toUpperCase(),
+            dataIndex: key,
+            key: key,
+            sorter: (a, b) =>
+                String(a[key] || "").localeCompare(String(b[key] || "")),
+        }));
+
+        generated.push({
+            title: "Actions",
+            key: "actions",
             render: (_, record) => (
-                <Space size="small">
+                <Space>
                     <Button
                         type="link"
                         icon={<EditOutlined />}
-                        onClick={() => console.log('Edit', record)}
+                        onClick={() => openEditModal(record)}
                     >
                         Edit
                     </Button>
+
                     <Button
                         type="link"
                         danger
                         icon={<DeleteOutlined />}
-                        onClick={() => console.log('Delete', record)}
+                        onClick={() => confirmDelete(record.key)}
                     >
                         Delete
                     </Button>
                 </Space>
             ),
-        },
-    ];
+        });
 
-    const items = [
-        {
-            key: 'vendor',
-            label: 'Vendor Master Data',
-            children: (
-                <div style={{ padding: '24px' }}>
-                    <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Title level={3}>Vendor Master Data</Title>
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => console.log('Add new vendor')}
-                        >
-                            Add Vendor
-                        </Button>
-                    </div>
-                    <Table
-                        columns={vendorColumns}
-                        dataSource={vendorData}
-                        pagination={{
-                            pageSize: 10,
-                            showSizeChanger: true,
-                            showTotal: (total) => `Total ${total} vendors`,
-                        }}
-                        scroll={{ x: 'max-content' }}
-                    />
-                </div>
-            ),
-        },
-        {
-            key: 'codification',
-            label: 'Invoice Codification',
-            children: (
-                <div style={{ padding: '24px' }}>
-                    <Title level={3}>Invoice Codification</Title>
-                    <Tabs
-                        defaultActiveKey="ca_invoice"
-                        items={[
-                            {
-                                key: 'ca_invoice',
-                                label: 'CA Invoice Codification',
-                                children: (
-                                    <div style={{ padding: '16px' }}>
-                                        <Table
-                                            columns={[
-                                                { title: 'Code', dataIndex: 'code', key: 'code' },
-                                                { title: 'Description', dataIndex: 'description', key: 'description' },
-                                                { title: 'Category', dataIndex: 'category', key: 'category' },
-                                                { title: 'Status', dataIndex: 'status', key: 'status' },
-                                            ]}
-                                            dataSource={[]}
-                                            pagination={false}
-                                        />
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: 'entity',
-                                label: 'Entity',
-                                children: (
-                                    <div style={{ padding: '16px' }}>
-                                        <Table
-                                            columns={[
-                                                { title: 'Entity Code', dataIndex: 'entityCode', key: 'entityCode' },
-                                                { title: 'Entity Name', dataIndex: 'entityName', key: 'entityName' },
-                                                { title: 'Type', dataIndex: 'type', key: 'type' },
-                                                { title: 'Status', dataIndex: 'status', key: 'status' },
-                                            ]}
-                                            dataSource={[]}
-                                            pagination={false}
-                                        />
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: 'nature_expense',
-                                label: 'Nature of Expense',
-                                children: (
-                                    <div style={{ padding: '16px' }}>
-                                        <Table
-                                            columns={[
-                                                { title: 'Expense Code', dataIndex: 'expenseCode', key: 'expenseCode' },
-                                                { title: 'Expense Name', dataIndex: 'expenseName', key: 'expenseName' },
-                                                { title: 'Category', dataIndex: 'category', key: 'category' },
-                                                { title: 'Status', dataIndex: 'status', key: 'status' },
-                                            ]}
-                                            dataSource={[]}
-                                            pagination={false}
-                                        />
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: 'vendor_master',
-                                label: 'Vendor Master',
-                                children: (
-                                    <div style={{ padding: '16px' }}>
-                                        <Table
-                                            columns={[
-                                                { title: 'Vendor Code', dataIndex: 'vendorCode', key: 'vendorCode' },
-                                                { title: 'Vendor Name', dataIndex: 'vendorName', key: 'vendorName' },
-                                                { title: 'Contact', dataIndex: 'contact', key: 'contact' },
-                                                { title: 'Status', dataIndex: 'status', key: 'status' },
-                                            ]}
-                                            dataSource={[]}
-                                            pagination={false}
-                                        />
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: 'gl',
-                                label: 'GL',
-                                children: (
-                                    <div style={{ padding: '16px' }}>
-                                        <Table
-                                            columns={[
-                                                { title: 'GL Code', dataIndex: 'glCode', key: 'glCode' },
-                                                { title: 'GL Name', dataIndex: 'glName', key: 'glName' },
-                                                { title: 'Account Type', dataIndex: 'accountType', key: 'accountType' },
-                                                { title: 'Status', dataIndex: 'status', key: 'status' },
-                                            ]}
-                                            dataSource={[]}
-                                            pagination={false}
-                                        />
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: 'lob',
-                                label: 'LOB',
-                                children: (
-                                    <div style={{ padding: '16px' }}>
-                                        <Table
-                                            columns={[
-                                                { title: 'LOB Code', dataIndex: 'lobCode', key: 'lobCode' },
-                                                { title: 'LOB Name', dataIndex: 'lobName', key: 'lobName' },
-                                                { title: 'Description', dataIndex: 'description', key: 'description' },
-                                                { title: 'Status', dataIndex: 'status', key: 'status' },
-                                            ]}
-                                            dataSource={[]}
-                                            pagination={false}
-                                        />
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: 'department',
-                                label: 'Department',
-                                children: (
-                                    <div style={{ padding: '16px' }}>
-                                        <Table
-                                            columns={[
-                                                { title: 'Dept Code', dataIndex: 'deptCode', key: 'deptCode' },
-                                                { title: 'Dept Name', dataIndex: 'deptName', key: 'deptName' },
-                                                { title: 'Manager', dataIndex: 'manager', key: 'manager' },
-                                                { title: 'Status', dataIndex: 'status', key: 'status' },
-                                            ]}
-                                            dataSource={[]}
-                                            pagination={false}
-                                        />
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: 'custom_master',
-                                label: 'Custom Master',
-                                children: (
-                                    <div style={{ padding: '16px' }}>
-                                        <Table
-                                            columns={[
-                                                { title: 'Custom Code', dataIndex: 'customCode', key: 'customCode' },
-                                                { title: 'Custom Name', dataIndex: 'customName', key: 'customName' },
-                                                { title: 'Type', dataIndex: 'type', key: 'type' },
-                                                { title: 'Status', dataIndex: 'status', key: 'status' },
-                                            ]}
-                                            dataSource={[]}
-                                            pagination={false}
-                                        />
-                                    </div>
-                                ),
-                            },
-                            {
-                                key: 'item',
-                                label: 'Item',
-                                children: (
-                                    <div style={{ padding: '16px' }}>
-                                        <Table
-                                            columns={[
-                                                { title: 'Item Code', dataIndex: 'itemCode', key: 'itemCode' },
-                                                { title: 'Item Name', dataIndex: 'itemName', key: 'itemName' },
-                                                { title: 'Category', dataIndex: 'category', key: 'category' },
-                                                { title: 'Status', dataIndex: 'status', key: 'status' },
-                                            ]}
-                                            dataSource={[]}
-                                            pagination={false}
-                                        />
-                                    </div>
-                                ),
-                            },
-                        ]}
-                    />
-                </div>
-            ),
-        },
-    ];
+        setColumns(generated);
+    };
+
+    // -------------------------------------------------------
+    // Search functionality
+    // -------------------------------------------------------
+    const onSearch = (value) => {
+        setSearchText(value);
+    };
+
+    // -------------------------------------------------------
+    // Add / Edit Modal
+    // -------------------------------------------------------
+    const openAddModal = () => {
+        setEditRecord(null);
+        setAddMode(true);
+        form.resetFields();
+        setIsModalVisible(true);
+    };
+
+    const openEditModal = (record) => {
+        setEditRecord(record);
+        setAddMode(false);
+        form.setFieldsValue(record);
+        setIsModalVisible(true);
+    };
+
+    const handleSave = async () => {
+        const values = form.getFieldsValue();
+
+        try {
+            if (addMode) {
+                await masterDataService.addRow(
+                    selectedSheet.collection_name,
+                    values
+                );
+                message.success("Row added");
+            } else {
+                await masterDataService.editRow(
+                    selectedSheet.collection_name,
+                    editRecord.key,
+                    values
+                );
+                message.success("Row updated");
+            }
+
+            setIsModalVisible(false);
+            loadSheetData(selectedSheet.collection_name);
+        } catch {
+            message.error("Failed to save row");
+        }
+    };
+
+    // -------------------------------------------------------
+    // Delete row
+    // -------------------------------------------------------
+    const confirmDelete = (index) => {
+        confirm({
+            title: "Delete this row?",
+            icon: <ExclamationCircleOutlined />,
+            okText: "Yes",
+            okType: "danger",
+            onOk: async () => {
+                try {
+                    await masterDataService.deleteRow(
+                        selectedSheet.collection_name,
+                        index
+                    );
+                    message.success("Row deleted");
+                    loadSheetData(selectedSheet.collection_name);
+                } catch {
+                    message.error("Failed to delete row");
+                }
+            },
+        });
+    };
 
     return (
-        <div style={{ padding: '24px' }}>
-            <Card>
+        <div style={{ padding: "24px" }}>
+            <Card style={{ minHeight: "80vh" }}>
                 <Title level={2}>Master Data</Title>
-                <Tabs defaultActiveKey="vendor" items={items} />
+
+                {loading && <Spin size="large" style={{ marginBottom: 20 }} />}
+
+                {/* SEARCH BAR & ADD BUTTON */}
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+                    <Search
+                        placeholder="Search"
+                        allowClear
+                        onSearch={onSearch}
+                        onChange={(e) => onSearch(e.target.value)}
+                        style={{ width: 300 }}
+                    />
+                    <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
+                        Add Row
+                    </Button>
+                </div>
+
+                {/* FILE TABS */}
+                <Tabs
+                    activeKey={selectedFile?._id}
+                    onChange={(fileId) =>
+                        setSelectedFile(files.find((f) => f._id === fileId))
+                    }
+                    items={files.map((file) => ({
+                        key: file._id,
+                        label: file.file_name,
+                    }))}
+                />
+
+                {/* SHEET TABS */}
+                {sheets.length > 0 && (
+                    <Tabs
+                        activeKey={selectedSheet?.sheet_name}
+                        onChange={(name) =>
+                            setSelectedSheet(
+                                sheets.find((s) => s.sheet_name === name)
+                            )
+                        }
+                        items={sheets.map((sheet) => ({
+                            key: sheet.sheet_name,
+                            label: sheet.sheet_name.replace(/_/g, " "),
+                        }))}
+                    />
+                )}
+
+                {/* TABLE */}
+                <Table
+                    columns={columns}
+                    dataSource={tableData.filter((record) => {
+                        if (!searchText) return true;
+                        return Object.keys(record).some((key) =>
+                            String(record[key] || "")
+                                .toLowerCase()
+                                .includes(searchText.toLowerCase())
+                        );
+                    })}
+                    pagination={{ pageSize: 20 }}
+                    scroll={{ x: "max-content" }}
+                />
+
+                {/* EDIT MODAL */}
+                <Modal
+                    title={addMode ? "Add Row" : "Edit Row"}
+                    open={isModalVisible}
+                    onCancel={() => setIsModalVisible(false)}
+                    onOk={handleSave}
+                    okText="Save"
+                >
+                    <Form form={form} layout="vertical">
+                        {/* If editing, show fields based on record. If adding, show fields based on columns */}
+                        {(addMode ? columns : Object.keys(editRecord || {})).map((key) => {
+                            // Handle both column object (add mode) and key string (edit mode)
+                            const fieldKey = addMode ? key.key : key;
+                            if (fieldKey === "key" || fieldKey === "actions") return null;
+
+                            return (
+                                <Form.Item key={fieldKey} label={fieldKey} name={fieldKey}>
+                                    <Input />
+                                </Form.Item>
+                            );
+                        })}
+                    </Form>
+                </Modal>
             </Card>
         </div>
     );
 };
 
 export default MasterDataPage;
-
