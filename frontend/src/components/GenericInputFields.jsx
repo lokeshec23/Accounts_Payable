@@ -1402,7 +1402,8 @@ const GenericInputFields = ({
                                 title: 'Item',
                                 dataIndex: 'item',
                                 key: 'item',
-                                width: '10%',
+                                width: 200,
+                                minWidth: 200,
                                 render: (text, record, index) => (
                                     <Input
                                         value={codingLineItems[index]?.item || ''}
