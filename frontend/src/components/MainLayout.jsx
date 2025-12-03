@@ -53,6 +53,7 @@ const MainLayout = () => {
                 const extracted = invoice.extracted_data || {};
                 const vendorInfo = extracted.vendor_info || {};
                 const invoiceDetails = extracted.invoice_details || {};
+                const amounts = extracted.amounts || {};
                 const validation = invoice.validation_results || {};
 
                 const getValue = (obj) => {
@@ -66,6 +67,8 @@ const MainLayout = () => {
                     filename: invoice.original_filename || invoice.filename || 'N/A',
                     vendorName: getValue(vendorInfo.name) || 'N/A',
                     invoiceId: getValue(invoiceDetails.invoice_number) || 'N/A',
+                    totalAmount: getValue(amounts.total_invoice_amount),
+                    amountDue: getValue(amounts.amount_due),
                     lastUpdated: new Date(invoice.processed_at || invoice.uploaded_at).toLocaleString(
                         'en-US',
                         {
@@ -83,13 +86,13 @@ const MainLayout = () => {
                     approverName: validation.approver_name || '',
                     approvalTime: validation.approval_timestamp
                         ? new Date(validation.approval_timestamp).toLocaleString('en-US', {
-                              year: 'numeric',
-                              month: '2-digit',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: true,
-                          })
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true,
+                        })
                         : '',
                     rawData: invoice,
                 };
@@ -144,15 +147,6 @@ const MainLayout = () => {
             },
         },
         {
-            title: 'File Name',
-            dataIndex: 'filename',
-            key: 'filename',
-            width: 250,
-            ellipsis: true,
-            sorter: (a, b) => (a.filename || '').localeCompare(b.filename || ''),
-            multiple: 1,
-        },
-        {
             title: 'Vendor Name',
             dataIndex: 'vendorName',
             key: 'vendorName',
@@ -167,6 +161,22 @@ const MainLayout = () => {
             width: 180,
             sorter: (a, b) => (a.invoiceId || '').localeCompare(b.invoiceId || ''),
             multiple: 3,
+        },
+        {
+            title: 'Total Amount',
+            dataIndex: 'totalAmount',
+            key: 'totalAmount',
+            width: 150,
+            sorter: (a, b) => (parseFloat(a.totalAmount) || 0) - (parseFloat(b.totalAmount) || 0),
+            render: (val) => val ? `$${val}` : '-',
+        },
+        {
+            title: 'Amount Due',
+            dataIndex: 'amountDue',
+            key: 'amountDue',
+            width: 150,
+            sorter: (a, b) => (parseFloat(a.amountDue) || 0) - (parseFloat(b.amountDue) || 0),
+            render: (val) => val ? `$${val}` : '-',
         },
         {
             title: 'Last Updated',
@@ -401,8 +411,8 @@ const MainLayout = () => {
                     approvalTimestamps: validation.approval_timestamp
                         ? new Date(validation.approval_timestamp).toLocaleString()
                         : invoice.processed_at
-                        ? new Date(invoice.processed_at).toLocaleString()
-                        : '',
+                            ? new Date(invoice.processed_at).toLocaleString()
+                            : '',
                     approverName: validation.approver_name || '',
                 };
             });
@@ -479,9 +489,8 @@ const MainLayout = () => {
             label: 'Invoices',
             children: (
                 <>
-                    <div className="layout-header">
-                        <h1 className="layout-title">Invoices</h1>
-                        <div className="layout-actions">
+                    <div className="layout-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <div className="layout-actions" style={{ display: 'flex', gap: '10px' }}>
                             <Button
                                 type="default"
                                 icon={<FolderOpenOutlined />}
@@ -499,36 +508,33 @@ const MainLayout = () => {
                                 Add Invoice
                             </Button>
                         </div>
-                    </div>
-
-                    <div className="layout-content">
-                        {/* Global search above main table */}
-                        <div className="table-toolbar">
+                        <div className="table-toolbar" style={{ margin: 0 }}>
                             <Input
                                 placeholder="Search invoices..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 allowClear
                                 className="table-search-input"
+                                style={{ width: '300px' }}
                             />
                         </div>
-
-                        <Spin spinning={loading} tip="Loading invoices...">
-                            <Table
-                                columns={columns}
-                                dataSource={filteredInvoices}
-                                pagination={{
-                                    defaultPageSize: 10,
-                                    showSizeChanger: true,
-                                    showTotal: (total, range) =>
-                                        `${range[0]}-${range[1]} of ${total} items`,
-                                    pageSizeOptions: ['5', '10', '20', '50'],
-                                }}
-                                className="invoices-table"
-                                scroll={{ x: 1600 }}
-                            />
-                        </Spin>
                     </div>
+
+                    <Spin spinning={loading} tip="Loading invoices...">
+                        <Table
+                            columns={columns}
+                            dataSource={filteredInvoices}
+                            pagination={{
+                                defaultPageSize: 10,
+                                showSizeChanger: true,
+                                showTotal: (total, range) =>
+                                    `${range[0]}-${range[1]} of ${total} items`,
+                                pageSizeOptions: ['5', '10', '20', '50'],
+                            }}
+                            className="invoices-table"
+                            scroll={{ x: 1600 }}
+                        />
+                    </Spin>
                 </>
             ),
         },
@@ -595,19 +601,11 @@ const MainLayout = () => {
                             render: (_, __, index) => index + 1,
                         },
                         {
-                            title: 'Filename',
-                            dataIndex: 'filename',
-                            key: 'filename',
-                            width: 200,
-                            fixed: 'left',
-                            sorter: (a, b) => (a.filename || '').localeCompare(b.filename || ''),
-                            multiple: 1,
-                        },
-                        {
                             title: 'Vendor Name',
                             dataIndex: 'vendorName',
                             key: 'vendorName',
                             width: 150,
+                            fixed: 'left',
                             sorter: (a, b) =>
                                 (a.vendorName || '').localeCompare(b.vendorName || ''),
                             multiple: 2,
@@ -656,6 +654,20 @@ const MainLayout = () => {
                             sorter: (a, b) =>
                                 (a.vendorPhone || '').localeCompare(b.vendorPhone || ''),
                             multiple: 7,
+                        },
+                        {
+                            title: 'Total Amount',
+                            dataIndex: 'totalInvoiceAmount',
+                            key: 'totalInvoiceAmount',
+                            width: 150,
+                            render: (val) => val ? `$${val}` : '-',
+                        },
+                        {
+                            title: 'Amount Due',
+                            dataIndex: 'amountDue',
+                            key: 'amountDue',
+                            width: 150,
+                            render: (val) => val ? `$${val}` : '-',
                         },
                         {
                             title: 'Approval Status',

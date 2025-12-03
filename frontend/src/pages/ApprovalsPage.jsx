@@ -32,6 +32,8 @@ const ApprovalsPage = () => {
                 filename: invoice.original_filename || invoice.filename || 'N/A',
                 vendorName: invoice.extracted_data?.vendor_info?.name?.value || 'N/A',
                 invoiceId: invoice.extracted_data?.invoice_details?.invoice_number?.value || 'N/A',
+                totalAmount: invoice.extracted_data?.amounts?.total_invoice_amount?.value || '',
+                amountDue: invoice.extracted_data?.amounts?.amount_due?.value || '',
 
                 lastUpdated: new Date(invoice.processed_at || invoice.uploaded_at).toLocaleString('en-US', {
                     year: 'numeric',
@@ -139,15 +141,6 @@ const ApprovalsPage = () => {
             render: (_, __, index) => index + 1,
         },
         {
-            title: 'File Name',
-            dataIndex: 'filename',
-            key: 'filename',
-            width: 250,
-            ellipsis: true,
-            sorter: (a, b) => (a.filename || '').localeCompare(b.filename || ''),
-            multiple: 1,
-        },
-        {
             title: 'Vendor Name',
             dataIndex: 'vendorName',
             key: 'vendorName',
@@ -162,6 +155,22 @@ const ApprovalsPage = () => {
             width: 180,
             sorter: (a, b) => (a.invoiceId || '').localeCompare(b.invoiceId || ''),
             multiple: 3,
+        },
+        {
+            title: 'Total Amount',
+            dataIndex: 'totalAmount',
+            key: 'totalAmount',
+            width: 150,
+            sorter: (a, b) => (parseFloat(a.totalAmount) || 0) - (parseFloat(b.totalAmount) || 0),
+            render: (val) => val ? `$${val}` : '-',
+        },
+        {
+            title: 'Amount Due',
+            dataIndex: 'amountDue',
+            key: 'amountDue',
+            width: 150,
+            sorter: (a, b) => (parseFloat(a.amountDue) || 0) - (parseFloat(b.amountDue) || 0),
+            render: (val) => val ? `$${val}` : '-',
         },
         {
             title: 'Uploaded By',
@@ -216,7 +225,7 @@ const ApprovalsPage = () => {
         {
             title: 'Approver',
             dataIndex: 'approverName',
-                 key: 'approverName',
+            key: 'approverName',
             width: 150,
             sorter: (a, b) => (a.approverName || '').localeCompare(b.approverName || ''),
             multiple: 6,

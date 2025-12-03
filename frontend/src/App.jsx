@@ -10,6 +10,7 @@ import CodingPage from './pages/CodingPage';
 import CodingReviewPage from './pages/CodingReviewPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import MasterDataPage from './pages/MasterDataPage';
+import SettingsPage from './pages/SettingsPage';
 import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/message-override.css';
@@ -57,6 +58,9 @@ const AppContent = () => {
         </ProtectedRoute>} />
         <Route path="/master-data" element={<ProtectedRoute>
           <MasterDataPage />
+        </ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute>
+          <SettingsPage />
         </ProtectedRoute>} />
       </Routes>
     </>

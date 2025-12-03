@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Switch, Badge, Dropdown } from 'antd';
-import { SearchOutlined, BellOutlined, LogoutOutlined } from '@ant-design/icons';
+import { Switch, Badge, Dropdown, Button } from 'antd';
+import { SearchOutlined, BellOutlined, LogoutOutlined, SettingOutlined, DownOutlined, BankOutlined } from '@ant-design/icons';
 import { authService } from '../services/auth';
 import '../styles/Header.css';
 
 const Header = () => {
     const [toggleChecked, setToggleChecked] = useState(false);
     const [username, setUsername] = useState('User');
+    const [selectedEntity, setSelectedEntity] = useState('Consolidated Analytics Inc');
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -44,6 +45,20 @@ const Header = () => {
             icon: <LogoutOutlined />,
             onClick: handleLogout,
             danger: true,
+        },
+    ];
+
+    // Entity dropdown items
+    const entityMenuItems = [
+        {
+            key: 'entity1',
+            label: 'Consolidated Analytics Inc',
+            onClick: () => setSelectedEntity('Consolidated Analytics Inc'),
+        },
+        {
+            key: 'entity2',
+            label: 'Consolidated Analytics Private Limited',
+            onClick: () => setSelectedEntity('Consolidated Analytics Private Limited'),
         },
     ];
 
@@ -90,10 +105,30 @@ const Header = () => {
                     >
                         Master Data
                     </Link>
+                    <Link
+                        to="/settings"
+                        className={`nav-tab ${isActive('/settings') ? 'active' : ''}`}
+                    >
+                        Settings
+                    </Link>
                 </nav>
 
-                {/* Right Section - Icons */}
+                {/* Right Section - Entity, User */}
                 <div className="header-actions">
+                    {/* Entity Dropdown */}
+                    <Dropdown
+                        menu={{ items: entityMenuItems }}
+                        placement="bottomRight"
+                        trigger={['click']}
+                    >
+                        <Button
+                            icon={<BankOutlined />}
+                            style={{ marginRight: '16px' }}
+                        >
+                            {selectedEntity} <DownOutlined />
+                        </Button>
+                    </Dropdown>
+
                     {/* User Account with Dropdown */}
                     <Dropdown
                         menu={{ items: userMenuItems }}

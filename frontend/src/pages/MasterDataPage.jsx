@@ -232,7 +232,7 @@ const MasterDataPage = () => {
     return (
         <div style={{ padding: "24px" }}>
             <Card style={{ minHeight: "80vh" }}>
-                <Title level={2}>Master Data</Title>
+                <Title level={2}></Title>
 
                 {loading && <Spin size="large" style={{ marginBottom: 20 }} />}
 
