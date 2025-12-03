@@ -1,15 +1,13 @@
 from fastapi import APIRouter, HTTPException, Body
 from bson import ObjectId
 from pymongo import ASCENDING
-from app.database.mongodb import db
+from app.database.mongodb import get_database
 
 router = APIRouter(prefix="/master", tags=["Master Data"])
 
-files_meta = db["excel_files"]
-
-
 @router.get("/files")
 def list_files():
+    files_meta = get_database()["excel_files"]
     files = list(files_meta.find({}, {"rows": 0}))
     for f in files:
         f["_id"] = str(f["_id"])
@@ -17,6 +15,7 @@ def list_files():
 
 @router.get("/{file_id}/sheets")
 def get_sheets(file_id: str):
+    files_meta = get_database()["excel_files"]
     doc = files_meta.find_one({"_id": ObjectId(file_id)})
     if not doc:
         raise HTTPException(404, "File not found")
@@ -24,7 +23,7 @@ def get_sheets(file_id: str):
 
 
 def load_full_sheet(collection_name: str):
-    chunks = list(db[collection_name].find().sort("chunk_index", ASCENDING))
+    chunks = list(get_database()[collection_name].find().sort("chunk_index", ASCENDING))
     rows = []
     for chunk in chunks:
         rows.extend(chunk["rows"])
@@ -48,10 +47,10 @@ def add_row(collection_name: str, new_row: dict):
 
     # Re-chunk into 5000 rows each
     chunk_size = 5000
-    db[collection_name].delete_many({})
+    get_database()[collection_name].delete_many({})
 
     for i in range(0, len(rows), chunk_size):
-        db[collection_name].insert_one({
+        get_database()[collection_name].insert_one({
             "chunk_index": i // chunk_size,
             "rows": rows[i:i + chunk_size]
         })
@@ -71,10 +70,10 @@ def edit_row(collection_name: str, row_index: int, updated_row: dict):
 
     # Rewrite chunks
     chunk_size = 5000
-    db[collection_name].delete_many({})
+    get_database()[collection_name].delete_many({})
 
     for i in range(0, len(rows), chunk_size):
-        db[collection_name].insert_one({
+        get_database()[collection_name].insert_one({
             "chunk_index": i // chunk_size,
             "rows": rows[i:i + chunk_size]
         })
@@ -92,10 +91,10 @@ def delete_row(collection_name: str, row_index: int = Body(...)):
     rows.pop(row_index)
 
     chunk_size = 5000
-    db[collection_name].delete_many({})
+    get_database()[collection_name].delete_many({})
 
     for i in range(0, len(rows), chunk_size):
-        db[collection_name].insert_one({
+        get_database()[collection_name].insert_one({
             "chunk_index": i // chunk_size,
             "rows": rows[i:i + chunk_size]
         })
