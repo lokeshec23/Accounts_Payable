@@ -26,18 +26,18 @@ const { confirm } = Modal;
 
 const MasterDataPage = () => {
     const [loading, setLoading] = useState(false);
-    
+
     const [files, setFiles] = useState([]);
     const [selectedFile, setSelectedFile] = useState(null);
-    
+
     const [sheets, setSheets] = useState([]);
     const [selectedSheet, setSelectedSheet] = useState(null);
-    
+
     const [tableData, setTableData] = useState([]);
     const [columns, setColumns] = useState([]);
-    
+
     const [searchText, setSearchText] = useState("");
-    
+
     // Pagination state
     const [pagination, setPagination] = useState({
         current: 1,
@@ -116,7 +116,7 @@ const MasterDataPage = () => {
             if (rows.length > 0) {
                 generateColumns(rows[0]);
             }
-            
+
             // Reset to first page when data changes
             setPagination({
                 ...pagination,
@@ -197,7 +197,7 @@ const MasterDataPage = () => {
     // -------------------------------------------------------
     const getFilteredData = () => {
         if (!searchText) return tableData;
-        
+
         return tableData.filter((record) => {
             return Object.keys(record).some((key) =>
                 String(record[key] || "")
@@ -280,12 +280,47 @@ const MasterDataPage = () => {
     return (
         <div style={{ padding: "24px" }}>
             <Card style={{ minHeight: "80vh" }}>
-                <Title level={2}></Title>
-
                 {loading && <Spin size="large" style={{ marginBottom: 20 }} />}
 
-                {/* SEARCH BAR & ADD BUTTON */}
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+                {/* ROW 1: FILE TABS & ADD BUTTON */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <div style={{ flex: 1, marginRight: 20 }}>
+                        <Tabs
+                            activeKey={selectedFile?._id}
+                            onChange={(fileId) =>
+                                setSelectedFile(files.find((f) => f._id === fileId))
+                            }
+                            items={files.map((file) => ({
+                                key: file._id,
+                                label: file.file_name,
+                            }))}
+                            style={{ marginBottom: 0 }}
+                        />
+                    </div>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
+                        Add Row
+                    </Button>
+                </div>
+
+                {/* ROW 2: SHEET TABS & SEARCH BOX */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                    <div style={{ flex: 1, marginRight: 20 }}>
+                        {sheets.length > 0 && (
+                            <Tabs
+                                activeKey={selectedSheet?.sheet_name}
+                                onChange={(name) =>
+                                    setSelectedSheet(
+                                        sheets.find((s) => s.sheet_name === name)
+                                    )
+                                }
+                                items={sheets.map((sheet) => ({
+                                    key: sheet.sheet_name,
+                                    label: sheet.sheet_name.replace(/_/g, " "),
+                                }))}
+                                style={{ marginBottom: 0 }}
+                            />
+                        )}
+                    </div>
                     <Search
                         placeholder="Search"
                         allowClear
@@ -293,38 +328,7 @@ const MasterDataPage = () => {
                         onChange={(e) => onSearch(e.target.value)}
                         style={{ width: 300 }}
                     />
-                    <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
-                        Add Row
-                    </Button>
                 </div>
-
-                {/* FILE TABS */}
-                <Tabs
-                    activeKey={selectedFile?._id}
-                    onChange={(fileId) =>
-                        setSelectedFile(files.find((f) => f._id === fileId))
-                    }
-                    items={files.map((file) => ({
-                        key: file._id,
-                        label: file.file_name,
-                    }))}
-                />
-
-                {/* SHEET TABS */}
-                {sheets.length > 0 && (
-                    <Tabs
-                        activeKey={selectedSheet?.sheet_name}
-                        onChange={(name) =>
-                            setSelectedSheet(
-                                sheets.find((s) => s.sheet_name === name)
-                            )
-                        }
-                        items={sheets.map((sheet) => ({
-                            key: sheet.sheet_name,
-                            label: sheet.sheet_name.replace(/_/g, " "),
-                        }))}
-                    />
-                )}
 
                 {/* TABLE */}
                 <Table
