@@ -2,8 +2,10 @@
 .ant-table-thead>tr>th {
     background: #1e5a7d !important;
     color: white !important;
-    font-weight: 600 !important;
-    font-size: 13px !important;
+    font-family: 'Jura', sans-serif !important;
+    font-weight: 900 !important;
+    font-size: 15px !important;
+    /* Primary font size */
     padding: 16px 12px !important;
     border-bottom: none !important;
     border-right: none !important;
@@ -17,4 +19,12 @@
 .ant-table-thead>tr>th:hover {
     background: #1e5a7d !important;
     color: white !important;
+}
+
+/* Table Body Rows - Inter font, smaller size */
+.ant-table-tbody>tr>td {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 100 !important;
+    font-size: 13px !important;
+    /* Secondary font size - smaller than header */
 }

@@ -1,0 +1,139 @@
+/* Global Font Settings */
+/* Primary Font: Jura - Used for headings, titles, table headers (larger size) */
+/* Secondary Font: Inter - Used for body text, table rows, inputs (smaller size) */
+
+:root {
+    --font-primary: 'Jura', sans-serif;
+    --font-secondary: 'Inter', sans-serif;
+    --font-size-primary: 15px;
+    --font-size-secondary: 13px;
+}
+
+* {
+    font-family: var(--font-primary);
+}
+
+body {
+    font-family: var(--font-primary);
+    font-size: var(--font-size-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   PRIMARY FONT (Jura) - Larger Size
+   ============================================ */
+
+/* Headings - Primary Font */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.ant-typography h1,
+.ant-typography h2,
+.ant-typography h3,
+.ant-typography h4,
+.ant-typography h5,
+.ant-typography h6 {
+    font-family: var(--font-primary);
+    font-weight: 500;
+}
+
+/* Nav tabs and menu items - Primary Font */
+.nav-tab,
+.ant-menu-item,
+.ant-menu-title-content {
+    font-family: var(--font-primary);
+    font-weight: 500;
+    font-size: var(--font-size-primary);
+}
+
+/* Table Headers - Primary Font (Jura), larger size */
+.ant-table-thead>tr>th,
+.ant-table-thead>tr>th .ant-table-column-title {
+    font-family: var(--font-primary) !important;
+    font-weight: 500 !important;
+    font-size: var(--font-size-primary) !important;
+}
+
+/* Page titles and card titles - Primary Font */
+.layout-title,
+.ap-header-title,
+.ap-card-title,
+.login-title,
+.register-title {
+    font-family: var(--font-primary);
+    font-weight: 500;
+    font-size: var(--font-size-primary);
+}
+
+/* ============================================
+   SECONDARY FONT (Inter) - Smaller Size
+   ============================================ */
+
+/* Body text and inputs - Secondary Font, smaller */
+p,
+span,
+label,
+input,
+textarea,
+select,
+.ant-input,
+.ant-select,
+.ant-form-item-label>label,
+.ant-modal-body,
+.ant-card-body {
+    font-family: var(--font-secondary);
+    font-weight: 400;
+    font-size: var(--font-size-secondary);
+}
+
+/* Buttons - Secondary Font */
+button,
+.ant-btn {
+    font-family: var(--font-secondary);
+    font-weight: 500;
+    font-size: var(--font-size-secondary);
+}
+
+/* Table Body Rows - Secondary Font (Inter), smaller size */
+.ant-table-tbody>tr>td,
+.ant-table-tbody>tr>td * {
+    font-family: var(--font-secondary) !important;
+    font-weight: 400 !important;
+    font-size: var(--font-size-secondary) !important;
+}
+
+/* Table pagination - Secondary Font */
+.ant-table-pagination,
+.ant-pagination,
+.ant-pagination-item {
+    font-family: var(--font-secondary);
+    font-weight: 400;
+    font-size: var(--font-size-secondary);
+}
+
+/* Form elements - Secondary Font */
+.ant-form-item,
+.ant-checkbox-wrapper,
+.ant-radio-wrapper {
+    font-family: var(--font-secondary);
+    font-size: var(--font-size-secondary);
+}
+
+/* Tooltips and dropdowns - Secondary Font */
+.ant-tooltip,
+.ant-dropdown,
+.ant-select-dropdown {
+    font-family: var(--font-secondary);
+    font-size: var(--font-size-secondary);
+}
+
+/* Messages and notifications - Secondary Font */
+.ant-message,
+.ant-notification {
+    font-family: var(--font-secondary);
+    font-size: var(--font-size-secondary);
+}

@@ -212,12 +212,12 @@ const MainLayout = () => {
             sorter: (a, b) => (a.status || '').localeCompare(b.status || ''),
             multiple: 6,
             filters: [
-                { text: 'Approved', value: 'approved' },
+                { text: 'Processed', value: 'processed' },
+                { text: 'Coding', value: 'waiting_coding' },
                 { text: 'Waiting for Approval', value: 'waiting_approval' },
+                { text: 'Approved', value: 'approved' },
                 { text: 'Rejected', value: 'rejected' },
                 { text: 'Reworked', value: 'reworked' },
-                { text: 'Processed', value: 'processed' },
-                { text: 'Pending', value: 'pending' },
             ],
             onFilter: (value, record) => record.status === value,
             render: (status) => {
@@ -225,29 +225,29 @@ const MainLayout = () => {
                 let text = status;
 
                 switch (status) {
-                    case 'approved':
-                        color = 'success';
-                        text = 'Approved';
+                    case 'processed':
+                        color = 'cyan';
+                        text = 'Processed';
+                        break;
+                    case 'waiting_coding':
+                        color = 'orange';
+                        text = 'Coding';
                         break;
                     case 'waiting_approval':
-                        color = 'warning';
+                        color = 'gold';
                         text = 'Waiting for Approval';
                         break;
+                    case 'approved':
+                        color = 'green';
+                        text = 'Approved';
+                        break;
                     case 'rejected':
-                        color = 'error';
+                        color = 'red';
                         text = 'Rejected';
                         break;
                     case 'reworked':
-                        color = 'processing';
+                        color = 'purple';
                         text = 'Reworked';
-                        break;
-                    case 'processed':
-                        color = 'success';
-                        text = 'Processed';
-                        break;
-                    case 'pending':
-                        color = 'warning';
-                        text = 'Pending';
                         break;
                     default:
                         color = 'default';
@@ -690,14 +690,50 @@ const MainLayout = () => {
                                 (a.approvalStatus || '').localeCompare(b.approvalStatus || ''),
                             multiple: 8,
                             filters: [
-                                { text: 'Approved', value: 'approved' },
+                                { text: 'Processed', value: 'processed' },
+                                { text: 'Coding', value: 'waiting_coding' },
                                 { text: 'Waiting for Approval', value: 'waiting_approval' },
+                                { text: 'Approved', value: 'approved' },
                                 { text: 'Rejected', value: 'rejected' },
                                 { text: 'Reworked', value: 'reworked' },
-                                { text: 'Processed', value: 'processed' },
-                                { text: 'Pending', value: 'pending' },
                             ],
                             onFilter: (value, record) => record.approvalStatus === value,
+                            render: (status) => {
+                                let color = 'default';
+                                let text = status;
+
+                                switch (status) {
+                                    case 'processed':
+                                        color = 'cyan';
+                                        text = 'Processed';
+                                        break;
+                                    case 'waiting_coding':
+                                        color = 'orange';
+                                        text = 'Coding';
+                                        break;
+                                    case 'waiting_approval':
+                                        color = 'gold';
+                                        text = 'Waiting for Approval';
+                                        break;
+                                    case 'approved':
+                                        color = 'green';
+                                        text = 'Approved';
+                                        break;
+                                    case 'rejected':
+                                        color = 'red';
+                                        text = 'Rejected';
+                                        break;
+                                    case 'reworked':
+                                        color = 'purple';
+                                        text = 'Reworked';
+                                        break;
+                                    default:
+                                        color = 'default';
+                                        text = status || 'Unknown';
+                                }
+
+                                return <Tag color={color}>{text}</Tag>;
+                            },
                         },
                         {
                             title: 'Approver',

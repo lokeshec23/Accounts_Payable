@@ -1574,25 +1574,29 @@ const GenericInputFields = ({
         let label = invoiceStatus;
 
         switch (invoiceStatus) {
+            case 'processed':
+                color = 'cyan';
+                label = 'Processed';
+                break;
+            case 'waiting_coding':
+                color = 'orange';
+                label = 'Coding';
+                break;
             case 'waiting_approval':
-                color = 'warning';
-                label = 'Waiting Approval';
+                color = 'gold';
+                label = 'Waiting for Approval';
                 break;
             case 'approved':
-                color = 'success';
+                color = 'green';
                 label = 'Approved';
                 break;
             case 'rejected':
-                color = 'error';
+                color = 'red';
                 label = 'Rejected';
                 break;
             case 'reworked':
-                color = 'processing';
+                color = 'purple';
                 label = 'Reworked';
-                break;
-            case 'processed':
-                color = 'success';
-                label = 'Processed';
                 break;
             default:
                 color = 'default';

@@ -199,8 +199,10 @@ const ApprovalsPage = () => {
             sorter: (a, b) => (a.status || '').localeCompare(b.status || ''),
             multiple: 5,
             filters: [
-                { text: 'Approved', value: 'approved' },
+                { text: 'Processed', value: 'processed' },
+                { text: 'Coding', value: 'waiting_coding' },
                 { text: 'Waiting for Approval', value: 'waiting_approval' },
+                { text: 'Approved', value: 'approved' },
                 { text: 'Rejected', value: 'rejected' },
                 { text: 'Reworked', value: 'reworked' },
             ],
@@ -210,20 +212,28 @@ const ApprovalsPage = () => {
                 let text = status;
 
                 switch (status) {
-                    case 'approved':
-                        color = 'success';
-                        text = 'Approved';
+                    case 'processed':
+                        color = 'cyan';
+                        text = 'Processed';
+                        break;
+                    case 'waiting_coding':
+                        color = 'orange';
+                        text = 'Coding';
                         break;
                     case 'waiting_approval':
-                        color = 'warning';
+                        color = 'gold';
                         text = 'Waiting for Approval';
                         break;
+                    case 'approved':
+                        color = 'green';
+                        text = 'Approved';
+                        break;
                     case 'rejected':
-                        color = 'error';
+                        color = 'red';
                         text = 'Rejected';
                         break;
                     case 'reworked':
-                        color = 'processing';
+                        color = 'purple';
                         text = 'Reworked';
                         break;
                     default:

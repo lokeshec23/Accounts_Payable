@@ -158,16 +158,16 @@ const CodingPage = () => {
             sorter: (a, b) => (a.status || '').localeCompare(b.status || ''),
             filters: [
                 { text: 'Coding', value: 'coding' },
-                { text: 'Waiting Coding', value: 'waiting_coding' },
+                { text: 'Coding', value: 'waiting_coding' },
             ],
             onFilter: (value, record) => record.status === value,
             render: (status) => {
-                let color = 'processing';
+                let color = 'orange';
                 let text = 'Coding';
 
                 if (status === 'waiting_coding') {
-                    color = 'warning';
-                    text = 'Waiting Coding';
+                    color = 'orange';
+                    text = 'Coding';
                 }
 
                 return <Tag color={color}>{text}</Tag>;
