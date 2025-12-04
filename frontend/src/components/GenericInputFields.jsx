@@ -1614,13 +1614,11 @@ const GenericInputFields = ({
                     zIndex: 10,
                     backgroundColor: '#fff',
                     borderBottom: '1px solid #f0f0f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
                     padding: '8px 20px'
                 }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1 }}>
+                {/* First Row: Tabs and Action Buttons in same row */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <Tabs
                         activeKey={activeTab}
                         onChange={setActiveTab}
@@ -1631,69 +1629,15 @@ const GenericInputFields = ({
                             ...(readOnly ? [{ key: '3', label: 'Coding' }] : [])
                         ]}
                     />
-                    <div>
-                        {(invoiceStatus === "approved" || invoiceStatus === "rejected") && (
-                            <>
-                                {renderStatusTag()}
-                                {validationInfo?.approver_name &&
-                                    validationInfo?.approval_timestamp && (
-                                        <div style={{ fontSize: 12, color: '#999' }}>
-                                            {(validationInfo.last_action || 'Action').toUpperCase()} by{' '}
-                                            <strong>{validationInfo.approver_name}</strong>{' '}
-                                            at{' '}
-                                            {new Date(
-                                                validationInfo.approval_timestamp
-                                            ).toLocaleString()}
-                                        </div>
-                                    )}
-                            </>
-                        )}
-                    </div>
 
-                </div>
+                    {/* Status Tag for approved/rejected */}
+                    {(invoiceStatus === "approved" || invoiceStatus === "rejected") && (
+                        <div style={{ marginLeft: '24px' }}>{renderStatusTag()}</div>
+                    )}
 
-                {!readOnly && (
-                    <div style={{ display: 'flex', gap: '10px', marginLeft: '24px' }}>
-                        <Button
-                            type="primary"
-                            icon={<SaveOutlined />}
-                            onClick={handleSave}
-                            loading={saving}
-                            size="default"
-                        >
-                            Save
-                        </Button>
-                        <Button
-                            type="primary"
-                            icon={<SendOutlined />}
-                            onClick={handleSendForCoding}
-                            loading={saving}
-                            size="default"
-                        >
-                            Send for Coding
-                        </Button>
-                    </div>
-                )}
-
-
-                {readOnly && (
-                    <Space direction="vertical" style={{ marginLeft: '24px', width: '400px' }}>
-                        {isWaitingApproval && (
-                            <div style={{ marginBottom: '12px' }}>
-                                <div style={{ marginBottom: '8px', fontWeight: 500 }}>
-                                    Approver Comment (Optional):
-                                </div>
-                                <TextArea
-                                    rows={3}
-                                    placeholder="Add a comment about this approval decision..."
-                                    value={approverComment}
-                                    onChange={(e) => setApproverComment(e.target.value)}
-                                    maxLength={500}
-                                    showCount
-                                />
-                            </div>
-                        )}
-                        <Space>
+                    {/* Action Buttons in same row */}
+                    {readOnly && (
+                        <Space style={{ marginLeft: '24px' }}>
                             <Button
                                 type="primary"
                                 icon={<CheckCircleOutlined />}
@@ -1722,8 +1666,84 @@ const GenericInputFields = ({
                                 Rework
                             </Button>
                         </Space>
-                    </Space>
+                    )}
+                </div>
+
+                {/* Second Row: Comment Input for Approver */}
+                {readOnly && isWaitingApproval && (
+                    <div style={{ marginBottom: '8px' }}>
+                        <TextArea
+                            rows={2}
+                            placeholder="Add a comment about this approval decision (optional)..."
+                            value={approverComment}
+                            onChange={(e) => setApproverComment(e.target.value)}
+                            maxLength={500}
+                            showCount
+                            style={{ width: '100%' }}
+                        />
+                    </div>
                 )}
+
+                {/* Display Comment for approved/rejected */}
+                {(invoiceStatus === "approved" || invoiceStatus === "rejected") && validationInfo?.approver_comment && (
+                    <div style={{
+                        padding: '10px 16px',
+                        backgroundColor: '#f6f8fa',
+                        borderLeft: '3px solid #1890ff',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '16px',
+                        marginBottom: '8px'
+                    }}>
+                        <div style={{
+                            fontSize: '13px',
+                            color: '#595959',
+                            fontStyle: 'italic',
+                            flex: 1
+                        }}>
+                            "{validationInfo.approver_comment}"
+                        </div>
+                        {validationInfo?.approver_name && validationInfo?.approval_timestamp && (
+                            <div style={{
+                                fontSize: '11px',
+                                color: '#8c8c8c',
+                                whiteSpace: 'nowrap'
+                            }}>
+                                <strong>{validationInfo.approver_name}</strong> • {new Date(
+                                    validationInfo.approval_timestamp
+                                ).toLocaleString()}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {!readOnly && (
+                    <div style={{ display: 'flex', gap: '10px', marginLeft: '24px' }}>
+                        <Button
+                            type="primary"
+                            icon={<SaveOutlined />}
+                            onClick={handleSave}
+                            loading={saving}
+                            size="default"
+                        >
+                            Save
+                        </Button>
+                        <Button
+                            type="primary"
+                            icon={<SendOutlined />}
+                            onClick={handleSendForCoding}
+                            loading={saving}
+                            size="default"
+                        >
+                            Send for Coding
+                        </Button>
+                    </div>
+                )}
+
+
+
 
             </div>
 
