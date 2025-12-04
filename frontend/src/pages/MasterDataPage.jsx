@@ -26,17 +26,26 @@ const { confirm } = Modal;
 
 const MasterDataPage = () => {
     const [loading, setLoading] = useState(false);
-
+    
     const [files, setFiles] = useState([]);
     const [selectedFile, setSelectedFile] = useState(null);
-
+    
     const [sheets, setSheets] = useState([]);
     const [selectedSheet, setSelectedSheet] = useState(null);
-
+    
     const [tableData, setTableData] = useState([]);
     const [columns, setColumns] = useState([]);
-
+    
     const [searchText, setSearchText] = useState("");
+    
+    // Pagination state
+    const [pagination, setPagination] = useState({
+        current: 1,
+        pageSize: 20,
+        showSizeChanger: true,
+        pageSizeOptions: ["10", "20", "30", "40", "50", "100"],
+        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+    });
 
     // Modal state
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -98,7 +107,7 @@ const MasterDataPage = () => {
             const result = await masterDataService.getSheetData(collectionName);
 
             const rows = result.map((r, index) => ({
-                key: index,
+                key: index + 1,
                 ...r,
             }));
 
@@ -107,6 +116,12 @@ const MasterDataPage = () => {
             if (rows.length > 0) {
                 generateColumns(rows[0]);
             }
+            
+            // Reset to first page when data changes
+            setPagination({
+                ...pagination,
+                current: 1,
+            });
         } catch (error) {
             console.log(error);
             message.error("Failed to load sheet data");
@@ -160,6 +175,36 @@ const MasterDataPage = () => {
     // -------------------------------------------------------
     const onSearch = (value) => {
         setSearchText(value);
+        // Reset to first page when searching
+        setPagination({
+            ...pagination,
+            current: 1,
+        });
+    };
+
+    // -------------------------------------------------------
+    // Handle table pagination change
+    // -------------------------------------------------------
+    const handleTableChange = (newPagination) => {
+        setPagination({
+            ...pagination,
+            ...newPagination,
+        });
+    };
+
+    // -------------------------------------------------------
+    // Filter data based on search
+    // -------------------------------------------------------
+    const getFilteredData = () => {
+        if (!searchText) return tableData;
+        
+        return tableData.filter((record) => {
+            return Object.keys(record).some((key) =>
+                String(record[key] || "")
+                    .toLowerCase()
+                    .includes(searchText.toLowerCase())
+            );
+        });
     };
 
     // -------------------------------------------------------
@@ -229,6 +274,9 @@ const MasterDataPage = () => {
         });
     };
 
+    // Get filtered data
+    const filteredData = getFilteredData();
+
     return (
         <div style={{ padding: "24px" }}>
             <Card style={{ minHeight: "80vh" }}>
@@ -281,15 +329,12 @@ const MasterDataPage = () => {
                 {/* TABLE */}
                 <Table
                     columns={columns}
-                    dataSource={tableData.filter((record) => {
-                        if (!searchText) return true;
-                        return Object.keys(record).some((key) =>
-                            String(record[key] || "")
-                                .toLowerCase()
-                                .includes(searchText.toLowerCase())
-                        );
-                    })}
-                    pagination={{ pageSize: 20 }}
+                    dataSource={filteredData}
+                    pagination={{
+                        ...pagination,
+                        total: filteredData.length,
+                    }}
+                    onChange={handleTableChange}
                     scroll={{ x: "max-content" }}
                 />
 

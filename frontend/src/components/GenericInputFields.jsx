@@ -636,43 +636,61 @@ const GenericInputFields = ({
             const numValue = parseFloat(cleanValue);
 
             return (
-                <InputNumber
-                    style={{ width: '100%', ...disabledStyle }}
-                    value={isNaN(numValue) ? null : numValue}
-                    onChange={(val) => handleInputChange(field, val)}
-                    step={0.01}
-                    formatter={(value) =>
-                        value !== null && value !== undefined && value !== ''
-                            ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                            : ''
-                    }
-                    parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                    disabled={readOnly}
-                />
+                <div
+                    onMouseEnter={() => setHoveredKey && setHoveredKey(field)}
+                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+                    style={{ width: '100%' }}
+                >
+                    <InputNumber
+                        style={{ width: '100%', ...disabledStyle }}
+                        value={isNaN(numValue) ? null : numValue}
+                        onChange={(val) => handleInputChange(field, val)}
+                        step={0.01}
+                        formatter={(value) =>
+                            value !== null && value !== undefined && value !== ''
+                                ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                                : ''
+                        }
+                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                        disabled={readOnly}
+                    />
+                </div>
             );
         }
 
         if (field.includes('Date') || field.includes('period')) {
             return (
-                <DatePicker
-                    style={{ width: '100%', ...disabledStyle }}
-                    value={stringValue ? dayjs(stringValue) : null}
-                    onChange={(date, dateString) => handleInputChange(field, dateString)}
-                    format="YYYY-MM-DD"
-                    disabled={readOnly}
-                />
+                <div
+                    onMouseEnter={() => setHoveredKey && setHoveredKey(field)}
+                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+                    style={{ width: '100%' }}
+                >
+                    <DatePicker
+                        style={{ width: '100%', ...disabledStyle }}
+                        value={stringValue ? dayjs(stringValue) : null}
+                        onChange={(date, dateString) => handleInputChange(field, dateString)}
+                        format="YYYY-MM-DD"
+                        disabled={readOnly}
+                    />
+                </div>
             );
         }
 
         if (field.includes('Notes') || field.includes('Terms')) {
             return (
-                <TextArea
-                    rows={3}
-                    value={stringValue}
-                    onChange={(e) => handleInputChange(field, e.target.value)}
-                    disabled={readOnly}
-                    style={disabledStyle}
-                />
+                <div
+                    onMouseEnter={() => setHoveredKey && setHoveredKey(field)}
+                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+                    style={{ width: '100%' }}
+                >
+                    <TextArea
+                        rows={3}
+                        value={stringValue}
+                        onChange={(e) => handleInputChange(field, e.target.value)}
+                        disabled={readOnly}
+                        style={disabledStyle}
+                    />
+                </div>
             );
         }
 
@@ -689,12 +707,18 @@ const GenericInputFields = ({
         }
 
         return (
-            <Input
-                value={stringValue}
-                onChange={(e) => handleInputChange(field, e.target.value)}
-                disabled={readOnly}
-                style={disabledStyle}
-            />
+            <div
+                onMouseEnter={() => setHoveredKey && setHoveredKey(field)}
+                onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+                style={{ width: '100%' }}
+            >
+                <Input
+                    value={stringValue}
+                    onChange={(e) => handleInputChange(field, e.target.value)}
+                    disabled={readOnly}
+                    style={disabledStyle}
+                />
+            </div>
         );
     };
 
@@ -712,15 +736,20 @@ const GenericInputFields = ({
             key: 'Description',
             width: 200,
             render: (val, record, index) => (
-                <Input.TextArea
-                    rows={2}
-                    value={extractValue(val)}
-                    onChange={(e) =>
-                        handleLineItemChange(index, 'Description', e.target.value)
-                    }
-                    disabled={readOnly}
-                    style={disabledStyle}
-                />
+                <div
+                    onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_Description`)}
+                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+                >
+                    <Input.TextArea
+                        rows={2}
+                        value={extractValue(val)}
+                        onChange={(e) =>
+                            handleLineItemChange(index, 'Description', e.target.value)
+                        }
+                        disabled={readOnly}
+                        style={disabledStyle}
+                    />
+                </div>
             )
         },
         {
@@ -729,14 +758,19 @@ const GenericInputFields = ({
             key: 'ItemCode',
             width: 120,
             render: (val, record, index) => (
-                <Input
-                    value={extractValue(val)}
-                    onChange={(e) =>
-                        handleLineItemChange(index, 'ItemCode', e.target.value)
-                    }
-                    disabled={readOnly}
-                    style={disabledStyle}
-                />
+                <div
+                    onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_ItemCode`)}
+                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+                >
+                    <Input
+                        value={extractValue(val)}
+                        onChange={(e) =>
+                            handleLineItemChange(index, 'ItemCode', e.target.value)
+                        }
+                        disabled={readOnly}
+                        style={disabledStyle}
+                    />
+                </div>
             )
         },
         {
@@ -745,14 +779,19 @@ const GenericInputFields = ({
             key: 'Quantity',
             width: 80,
             render: (val, record, index) => (
-                <InputNumber
-                    style={{ width: '100%', ...disabledStyle }}
-                    value={extractValue(val)}
-                    onChange={(value) =>
-                        handleLineItemChange(index, 'Quantity', value)
-                    }
-                    disabled={readOnly}
-                />
+                <div
+                    onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_Quantity`)}
+                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+                >
+                    <InputNumber
+                        style={{ width: '100%', ...disabledStyle }}
+                        value={extractValue(val)}
+                        onChange={(value) =>
+                            handleLineItemChange(index, 'Quantity', value)
+                        }
+                        disabled={readOnly}
+                    />
+                </div>
             )
         },
         {
@@ -761,14 +800,19 @@ const GenericInputFields = ({
             key: 'UnitOfMeasure',
             width: 80,
             render: (val, record, index) => (
-                <Input
-                    value={extractValue(val)}
-                    onChange={(e) =>
-                        handleLineItemChange(index, 'UnitOfMeasure', e.target.value)
-                    }
-                    disabled={readOnly}
-                    style={disabledStyle}
-                />
+                <div
+                    onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_UnitOfMeasure`)}
+                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+                >
+                    <Input
+                        value={extractValue(val)}
+                        onChange={(e) =>
+                            handleLineItemChange(index, 'UnitOfMeasure', e.target.value)
+                        }
+                        disabled={readOnly}
+                        style={disabledStyle}
+                    />
+                </div>
             )
         },
         {
@@ -777,19 +821,24 @@ const GenericInputFields = ({
             key: 'UnitPrice',
             width: 120,
             render: (val, record, index) => (
-                <InputNumber
-                    style={{ width: '100%', ...disabledStyle }}
-                    value={extractValue(val)}
-                    onChange={(value) =>
-                        handleLineItemChange(index, 'UnitPrice', value)
-                    }
-                    step={0.01}
-                    formatter={(value) =>
-                        value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
-                    }
-                    parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                    disabled={readOnly}
-                />
+                <div
+                    onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_UnitPrice`)}
+                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+                >
+                    <InputNumber
+                        style={{ width: '100%', ...disabledStyle }}
+                        value={extractValue(val)}
+                        onChange={(value) =>
+                            handleLineItemChange(index, 'UnitPrice', value)
+                        }
+                        step={0.01}
+                        formatter={(value) =>
+                            value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                        }
+                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                        disabled={readOnly}
+                    />
+                </div>
             )
         },
         {
@@ -798,19 +847,24 @@ const GenericInputFields = ({
             key: 'Discount',
             width: 120,
             render: (val, record, index) => (
-                <InputNumber
-                    style={{ width: '100%', ...disabledStyle }}
-                    value={extractValue(val)}
-                    onChange={(value) =>
-                        handleLineItemChange(index, 'Discount', value)
-                    }
-                    step={0.01}
-                    formatter={(value) =>
-                        value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
-                    }
-                    parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                    disabled={readOnly}
-                />
+                <div
+                    onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_Discount`)}
+                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+                >
+                    <InputNumber
+                        style={{ width: '100%', ...disabledStyle }}
+                        value={extractValue(val)}
+                        onChange={(value) =>
+                            handleLineItemChange(index, 'Discount', value)
+                        }
+                        step={0.01}
+                        formatter={(value) =>
+                            value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                        }
+                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                        disabled={readOnly}
+                    />
+                </div>
             )
         },
         {
@@ -819,19 +873,24 @@ const GenericInputFields = ({
             key: 'NetAmount',
             width: 120,
             render: (val, record, index) => (
-                <InputNumber
-                    style={{ width: '100%', ...disabledStyle }}
-                    value={extractValue(val)}
-                    onChange={(value) =>
-                        handleLineItemChange(index, 'NetAmount', value)
-                    }
-                    step={0.01}
-                    formatter={(value) =>
-                        value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
-                    }
-                    parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                    disabled={readOnly}
-                />
+                <div
+                    onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_NetAmount`)}
+                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+                >
+                    <InputNumber
+                        style={{ width: '100%', ...disabledStyle }}
+                        value={extractValue(val)}
+                        onChange={(value) =>
+                            handleLineItemChange(index, 'NetAmount', value)
+                        }
+                        step={0.01}
+                        formatter={(value) =>
+                            value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                        }
+                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                        disabled={readOnly}
+                    />
+                </div>
             )
         },
         {

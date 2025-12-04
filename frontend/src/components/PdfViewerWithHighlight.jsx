@@ -15,168 +15,167 @@ import { Button, Tooltip } from "antd";
 pdfjs.GlobalWorkerOptions.workerSrc =
     "https://unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.mjs";
 
-const PdfViewerWithHighlight = ({ file, extractedData }) => {
-    const viewerRef = useRef(null);
-    const canvasRef = useRef(null);
-    const highlightRef = useRef(null);
+// 🔥 Ensures PDF.js does NOT rotate pages unexpectedly
+pdfjs.disableAutoRotate = true;
+
+const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
+    const viewerRef = useRef(null);            // scroll + resizing container
+    const canvasContainerRef = useRef(null);   // actual canvas wrapper
+    const canvasRef = useRef(null);            // main canvas
+    const highlightRef = useRef(null);         // highlight overlay
 
     const [pdfObj, setPdfObj] = useState(null);
     const [page, setPage] = useState(1);
     const [scale, setScale] = useState(1);
-    const [rotation, setRotation] = useState(0);
+    const [rotation, setRotation] = useState(0); // user rotation only
     const [autoFit, setAutoFit] = useState(false);
-
     const [containerWidth, setContainerWidth] = useState(0);
-    const [containerReady, setContainerReady] = useState(false);
 
     const initialRenderDoneRef = useRef(false);
+    const pdfLoadedRef = useRef(false);
 
-    /** ----------------------------------------
-     * Extract bounding regions
-     * ---------------------------------------- */
-    const extractRegions = () => {
-        const list = [];
-        const scan = (obj) => {
-            if (!obj || typeof obj !== "object") return;
-            if (Array.isArray(obj.bounding_regions)) {
-                obj.bounding_regions.forEach((r) => {
-                    if (r.page_number && r.polygon?.length >= 8) list.push(r);
-                });
-            }
-            Object.values(obj).forEach(scan);
-        };
-        scan(extractedData);
-        return list;
-    };
-
-    const regions = extractRegions();
-
-    /** ----------------------------------------
-     * Track container width
-     * ---------------------------------------- */
+    /* -----------------------------------------
+     * Measure viewer width (supports resizable panel)
+     * ----------------------------------------- */
     useEffect(() => {
         if (!viewerRef.current) return;
 
         const measure = () => {
             const width = viewerRef.current.clientWidth;
-            if (width > 0) {
-                setContainerWidth(width);
-                setContainerReady(true);
-            }
+            if (width > 0) setContainerWidth(width);
         };
 
         measure();
+
         const ro = new ResizeObserver(measure);
         ro.observe(viewerRef.current);
 
         return () => ro.disconnect();
     }, []);
 
-    /** ----------------------------------------
-     * Load PDF after container ready
-     * ---------------------------------------- */
+    /* -----------------------------------------
+     * Load PDF after viewer width becomes available
+     * ----------------------------------------- */
     useEffect(() => {
-        if (!file || !containerReady) return;
+        if (!file || !containerWidth || pdfLoadedRef.current) return;
 
         const loadPDF = async () => {
             try {
-                const loadingTask = pdfjs.getDocument(file);
-                const loaded = await loadingTask.promise;
+                pdfLoadedRef.current = true;
+
+                const task = pdfjs.getDocument(file);
+                const loaded = await task.promise;
 
                 setPdfObj(loaded);
-
-                // FORCE UPRIGHT INITIAL RENDER (previous behavior)
-                setScale(0.86);
+                setPage(1);
                 setRotation(0);
+                setAutoFit(true);
 
-                await new Promise((res) => setTimeout(res, 50));
+                // First render at scale 1 (stabilizes canvas size)
+                await renderPage(loaded, 1, 1, 0);
 
-                await renderPage(loaded, 1, 0.86, 0);
+                // Wait for DOM stabilization
+                await new Promise(res => requestAnimationFrame(res));
+
+                // Now apply auto-fit
+                await autoFitWidth(loaded, 1, 0);
+
                 initialRenderDoneRef.current = true;
-
-                // Enable auto-fit AFTER initial render completes
-                setTimeout(() => {
-                    setAutoFit(true);
-                }, 150);
-
             } catch (err) {
                 console.error("PDF load error:", err);
             }
         };
 
         loadPDF();
-    }, [file, containerReady]);
+    }, [file, containerWidth]);
 
-    /** ----------------------------------------
-     * Auto-fit when width changes
-     * ---------------------------------------- */
+    /* -----------------------------------------
+     * Auto-fit when viewer width changes (e.g., divider drag)
+     * ----------------------------------------- */
     useEffect(() => {
-        if (!initialRenderDoneRef.current) return; // BLOCK premature auto-fit
-        if (!pdfObj || !autoFit || containerWidth === 0) return;
+        if (!initialRenderDoneRef.current || !autoFit || !pdfObj) return;
 
-        const timer = setTimeout(() => {
+        const t = setTimeout(() => {
             autoFitWidth(pdfObj, page, rotation);
-        }, 80);
+        }, 50);
 
-        return () => clearTimeout(timer);
+        return () => clearTimeout(t);
     }, [containerWidth]);
 
-    /** ----------------------------------------
-     * Render PDF page correctly
-     * ---------------------------------------- */
+    /* -----------------------------------------
+     * Update highlights only
+     * ----------------------------------------- */
+    useEffect(() => {
+        if (!pdfObj || !initialRenderDoneRef.current) return;
+
+        (async () => {
+            const pageObj = await pdfObj.getPage(page);
+            const viewport = pageObj.getViewport({
+                scale,
+                rotation
+            });
+            drawHighlights(pageObj, viewport, page);
+        })();
+    }, [highlightedRegions, scale, rotation, page]);
+
+    /* -----------------------------------------
+     * Render page (PDF always upright → ignore PDF rotation)
+     * ----------------------------------------- */
     const renderPage = async (pdf, pageNum, scaleVal, rotationVal) => {
         try {
             const pageObj = await pdf.getPage(pageNum);
 
-            const internalRotation = 0; // IGNORE PDF internal rotation (fix)
+            const finalRotation = rotationVal; // upright always
 
             const viewport = pageObj.getViewport({
                 scale: scaleVal,
-                rotation: (internalRotation + rotationVal) % 360,
+                rotation: finalRotation,
             });
 
             const canvas = canvasRef.current;
-            if (!canvas) return;
-
             const ctx = canvas.getContext("2d");
+
             canvas.width = viewport.width;
             canvas.height = viewport.height;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             await pageObj.render({ canvasContext: ctx, viewport }).promise;
 
             drawHighlights(pageObj, viewport, pageNum);
 
         } catch (err) {
-            console.error("Render Error:", err);
+            console.error("Render error:", err);
         }
     };
 
-    /** ----------------------------------------
-     * Draw Region Highlights
-     * ---------------------------------------- */
+    /* -----------------------------------------
+     * Draw highlights (APPLY PDF ROTATION HERE ONLY)
+     * ----------------------------------------- */
     const drawHighlights = (pageObj, viewport, pageNum) => {
-        const overlay = highlightRef.current;
-        if (!overlay) return;
+        if (!highlightRef.current) return;
 
+        const overlay = highlightRef.current;
         overlay.innerHTML = "";
-        overlay.style.width = `${viewport.width}px`;
-        overlay.style.height = `${viewport.height}px`;
+
+        const pdfRotation = pageObj.rotate || 0; // apply internal rotation only for highlight mapping
+
+        const rotatedViewport = pageObj.getViewport({
+            scale: viewport.scale,
+            rotation: pdfRotation,
+        });
 
         const pageHeightPts = pageObj.view[3] || 792;
-        const filtered = regions.filter((r) => r.page_number === pageNum);
+        const regions = highlightedRegions.filter(r => r.page_number === pageNum);
 
-        filtered.forEach((r) => {
-            const xs = [];
-            const ys = [];
+        regions.forEach(region => {
+            let xs = [], ys = [];
 
-            for (let i = 0; i < r.polygon.length; i += 2) {
-                const xInch = r.polygon[i];
-                const yInch = r.polygon[i + 1];
+            for (let i = 0; i < region.polygon.length; i += 2) {
+                const xPt = region.polygon[i] * 72;
+                const yPt = pageHeightPts - region.polygon[i + 1] * 72;
 
-                const xPt = xInch * 72;
-                const yPt = pageHeightPts - yInch * 72;
-
-                const [vx, vy] = viewport.convertToViewportPoint(xPt, yPt);
+                const [vx, vy] = rotatedViewport.convertToViewportPoint(xPt, yPt);
                 xs.push(vx);
                 ys.push(vy);
             }
@@ -187,71 +186,69 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
             box.style.top = `${Math.min(...ys)}px`;
             box.style.width = `${Math.max(...xs) - Math.min(...xs)}px`;
             box.style.height = `${Math.max(...ys) - Math.min(...ys)}px`;
-            box.style.background = "rgba(144, 238, 144, 0.35)";
-            box.style.border = "2px solid rgba(60, 179, 113, 0.9)";
+            box.style.backgroundColor = "rgba(144, 238, 144, 0.35)";
+            box.style.border = "1px solid rgba(50,205,50,0.9)";
             box.style.pointerEvents = "none";
 
             overlay.appendChild(box);
         });
     };
 
-    /** ----------------------------------------
-     * AUTO-FIT WIDTH
-     * ---------------------------------------- */
+    /* -----------------------------------------
+     * Auto-fit to viewer width
+     * ----------------------------------------- */
     const autoFitWidth = async (pdf, pageNum, rotationVal) => {
         if (!viewerRef.current) return;
 
         const width = viewerRef.current.clientWidth;
         if (width <= 0) return;
 
-        try {
-            const pageObj = await pdf.getPage(pageNum);
+        const pageObj = await pdf.getPage(pageNum);
+        const viewportTest = pageObj.getViewport({
+            scale: 1,
+            rotation: rotationVal,
+        });
 
-            const viewportTest = pageObj.getViewport({
-                scale: 1,
-                rotation: rotationVal,
-            });
+        const newScale = (width - 20) / viewportTest.width;
 
-            const newScale = width / viewportTest.width;
-
-            setScale(newScale);
-
-            renderPage(pdf, pageNum, newScale, rotationVal);
-
-        } catch (err) {
-            console.error("Auto-fit error:", err);
-        }
+        setScale(newScale);
+        await renderPage(pdf, pageNum, newScale, rotationVal);
     };
 
-    /** ----------------------------------------
-     * Page Navigation
-     * ---------------------------------------- */
-    const changePage = (delta) => {
+    /* -----------------------------------------
+     * Navigation
+     * ----------------------------------------- */
+    const changePage = delta => {
         if (!pdfObj) return;
 
-        const target = page + delta;
-        if (target < 1 || target > pdfObj.numPages) return;
+        const next = page + delta;
+        if (next < 1 || next > pdfObj.numPages) return;
 
-        setPage(target);
+        setPage(next);
 
-        if (autoFit) autoFitWidth(pdfObj, target, rotation);
-        else renderPage(pdfObj, target, scale, rotation);
+        if (autoFit) autoFitWidth(pdfObj, next, rotation);
+        else renderPage(pdfObj, next, scale, rotation);
     };
 
-    /** ----------------------------------------
+    /* -----------------------------------------
      * Zoom
-     * ---------------------------------------- */
-    const zoom = (amount) => {
+     * ----------------------------------------- */
+    const zoom = amount => {
+        if (!pdfObj) return;
+
         setAutoFit(false);
         const newScale = Math.max(0.3, scale + amount);
+
         setScale(newScale);
         renderPage(pdfObj, page, newScale, rotation);
     };
 
-    /** ----------------------------------------
+    /* -----------------------------------------
      * Rotation
-     * ---------------------------------------- */
-    const rotate = (deg) => {
+     * ----------------------------------------- */
+    const rotate = deg => {
+        if (!pdfObj) return;
+
         const newRotation = (rotation + deg + 360) % 360;
         setRotation(newRotation);
 
@@ -259,13 +256,14 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
         else renderPage(pdfObj, page, scale, newRotation);
     };
 
-    /** ----------------------------------------
-     * FIT TO PAGE HEIGHT
-     * ---------------------------------------- */
+    /* -----------------------------------------
+     * Fit page height
+     * ----------------------------------------- */
     const fitToPage = async () => {
         if (!pdfObj || !viewerRef.current) return;
 
         const height = viewerRef.current.clientHeight;
+
         const pageObj = await pdfObj.getPage(page);
 
         const viewportTest = pageObj.getViewport({
@@ -273,7 +271,7 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
             rotation,
         });
 
-        const newScale = height / viewportTest.height;
+        const newScale = (height - 20) / viewportTest.height;
 
         setScale(newScale);
         setAutoFit(false);
@@ -281,31 +279,32 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
         renderPage(pdfObj, page, newScale, rotation);
     };
 
-    /** ----------------------------------------
-     * UI Layout
-     * ---------------------------------------- */
+    /* -----------------------------------------
+     * UI
+     * ----------------------------------------- */
     return (
         <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
 
             {/* Toolbar */}
-            <div style={{
-                padding: "6px 10px",
-                background: "#fff",
-                borderBottom: "1px solid #ddd",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-            }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div
+                style={{
+                    padding: "6px 10px",
+                    background: "#fff",
+                    borderBottom: "1px solid #ddd",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                }}
+            >
+                <div style={{ display: "flex", gap: 8 }}>
                     <Button size="small" icon={<LeftOutlined />} onClick={() => changePage(-1)} />
                     <Button size="small" icon={<RightOutlined />} onClick={() => changePage(1)} />
                     <span>Page {page} / {pdfObj?.numPages || "--"}</span>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8 }}>
                     <Button size="small" icon={<RotateLeftOutlined />} onClick={() => rotate(-90)} />
                     <Button size="small" icon={<RotateRightOutlined />} onClick={() => rotate(90)} />
-
                     <Button size="small" icon={<MinusOutlined />} onClick={() => zoom(-0.2)} />
                     <Button size="small" icon={<PlusOutlined />} onClick={() => zoom(0.2)} />
 
@@ -313,8 +312,11 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
                         <Button
                             size="small"
                             icon={<ColumnWidthOutlined />}
-                            onClick={() => { setAutoFit(true); autoFitWidth(pdfObj, page, rotation); }}
                             type={autoFit ? "primary" : "default"}
+                            onClick={() => {
+                                setAutoFit(true);
+                                if (pdfObj) autoFitWidth(pdfObj, page, rotation);
+                            }}
                         />
                     </Tooltip>
 
@@ -322,9 +324,7 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
                         <Button size="small" icon={<FullscreenOutlined />} onClick={fitToPage} />
                     </Tooltip>
 
-                    <span style={{ minWidth: 50, textAlign: "center" }}>
-                        {Math.round(scale * 100)}%
-                    </span>
+                    <span style={{ minWidth: 50, textAlign: "center" }}>{Math.round(scale * 100)}%</span>
                 </div>
             </div>
 
@@ -336,19 +336,23 @@ const PdfViewerWithHighlight = ({ file, extractedData }) => {
                     overflow: "auto",
                     position: "relative",
                     background: "#f5f5f5",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "flex-start",
+                    display: "block",      // critical for zoom scrolling
                 }}
             >
-                <div style={{ position: "relative" }}>
-                    <canvas ref={canvasRef} style={{ display: "block" }} />
-                    <div ref={highlightRef} style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        pointerEvents: "none",
-                    }} />
+                <div
+                    ref={canvasContainerRef}
+                    style={{ display: "inline-block", position: "relative" }}
+                >
+                    <canvas ref={canvasRef} />
+                    <div
+                        ref={highlightRef}
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            pointerEvents: "none",
+                        }}
+                    />
                 </div>
             </div>
         </div>
