@@ -15,6 +15,7 @@ import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/message-override.css';
 import './styles/table-headers.css';
+import './styles/global-table-styles.css';
 
 const AppContent = () => {
   const location = useLocation();

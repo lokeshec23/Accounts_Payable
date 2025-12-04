@@ -1,0 +1,81 @@
+/* Global Table Styles - Force ALL Sort and Filter Icons to be White */
+
+/* Apply dark blue header background to all tables */
+.ant-table-thead>tr>th {
+    background: #1e5a7d !important;
+    color: white !important;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+/* Remove the border line before table headers */
+.ant-table-thead>tr>th::before {
+    display: none !important;
+}
+
+/* COMPREHENSIVE WHITE ICON SELECTORS - Cover all variations */
+.ant-table-column-sorter,
+.ant-table-filter-trigger,
+.ant-table-column-sorter-inner,
+.ant-table-column-sorter .anticon,
+.ant-table-filter-trigger .anticon,
+.ant-table-thead .ant-table-column-sorter,
+.ant-table-thead .ant-table-filter-trigger,
+.ant-table .ant-table-column-sorter,
+.ant-table .ant-table-filter-trigger {
+    color: white !important;
+}
+
+/* Target SVG elements directly */
+.ant-table-thead th .anticon,
+.ant-table-thead th .anticon svg,
+.ant-table-column-sorter .anticon svg,
+.ant-table-filter-trigger .anticon svg {
+    color: white !important;
+    fill: white !important;
+}
+
+/* Filter and sort icons in specific states */
+.ant-table-filter-trigger .anticon-filter,
+.ant-table-filter-trigger .anticon-filter svg,
+.ant-table-column-sorter-up .anticon,
+.ant-table-column-sorter-down .anticon,
+.ant-table-column-sorter-up .anticon svg,
+.ant-table-column-sorter-down .anticon svg {
+    color: white !important;
+    fill: white !important;
+}
+
+/* Active state - yellow color when sorting/filtering is active */
+.ant-table-column-sorter-up.active,
+.ant-table-column-sorter-down.active,
+.ant-table-filter-trigger.active,
+.ant-table-filter-trigger-container-open .ant-table-filter-trigger,
+.ant-table-column-sorter-up.active .anticon,
+.ant-table-column-sorter-down.active .anticon,
+.ant-table-filter-trigger.active .anticon {
+    color: #ffd666 !important;
+}
+
+/* Hover state - slightly lighter white */
+.ant-table-column-sorter:hover,
+.ant-table-filter-trigger:hover,
+.ant-table-column-sorter:hover .anticon,
+.ant-table-filter-trigger:hover .anticon,
+.ant-table-column-has-sorters:hover .ant-table-column-sorter,
+.ant-table-thead th:hover .ant-table-column-sorter,
+.ant-table-thead th:hover .ant-table-filter-trigger {
+    color: #fafafa !important;
+}
+
+/* Override any remaining black icons with maximum specificity */
+.ant-table-thead>tr>th .ant-table-column-sorter,
+.ant-table-thead>tr>th .ant-table-filter-trigger,
+.ant-table-thead>tr>th .anticon {
+    color: white !important;
+}
+
+/* Additional styling for filter dropdown trigger */
+.ant-table-filter-trigger-container {
+    background: transparent !important;
+}

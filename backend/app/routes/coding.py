@@ -36,11 +36,8 @@ async def create_or_update_coding(
                 {"$set": update_data}
             )
             
-            # Update invoice status to waiting_approval
-            db.invoices.update_one(
-                {"_id": ObjectId(coding_data.invoice_id)},
-                {"$set": {"status": "waiting_approval"}}
-            )
+            # DO NOT update invoice status here - let frontend control status changes
+            # Status should only change when user clicks "Send to Approval"
             
             # Fetch updated document
             updated_coding = db.coding.find_one({"invoice_id": coding_data.invoice_id})
@@ -55,11 +52,8 @@ async def create_or_update_coding(
             result = db.coding.insert_one(coding_dict)
             coding_id = str(result.inserted_id)
             
-            # Update invoice status to waiting_approval
-            db.invoices.update_one(
-                {"_id": ObjectId(coding_data.invoice_id)},
-                {"$set": {"status": "waiting_approval"}}
-            )
+            # DO NOT update invoice status here - let frontend control status changes
+            # Status should only change when user clicks "Send to Approval"
             
             # Fetch created document
             created_coding = db.coding.find_one({"_id": result.inserted_id})
