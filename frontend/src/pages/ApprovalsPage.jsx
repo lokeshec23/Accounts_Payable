@@ -336,7 +336,7 @@ const ApprovalsPage = () => {
                     showSizeChanger: true,
                     pageSizeOptions: ['5', '10', '20', '50'],
                 }}
-                scroll={{ x: 'max-content' }}
+                scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
                 bordered
                 className="invoices-table approvals-table"
             />

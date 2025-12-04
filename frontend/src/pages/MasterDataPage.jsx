@@ -19,6 +19,7 @@ import {
     ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import { masterDataService } from "../services/api";
+import "../styles/MainLayout.css";
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -339,7 +340,8 @@ const MasterDataPage = () => {
                         total: filteredData.length,
                     }}
                     onChange={handleTableChange}
-                    scroll={{ x: "max-content" }}
+                    scroll={{ x: "max-content", y: "calc(100vh - 380px)" }}
+                    className="master-data-table invoices-table"
                 />
 
                 {/* EDIT MODAL */}

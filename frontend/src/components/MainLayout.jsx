@@ -544,7 +544,7 @@ const MainLayout = () => {
                                 pageSizeOptions: ['5', '10', '20', '50'],
                             }}
                             className="invoices-table"
-                            scroll={{ x: 1600 }}
+                            scroll={{ x: 1600, y: 'calc(100vh - 320px)' }}
                         />
                     </Spin>
                 </>
@@ -760,7 +760,7 @@ const MainLayout = () => {
                             multiple: 10,
                         },
                     ]}
-                    scroll={{ x: 3000 }}
+                    scroll={{ x: 3000, y: 'calc(70vh - 100px)' }}
                     size="small"
                 />
             </Modal>

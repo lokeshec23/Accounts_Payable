@@ -1,4 +1,3 @@
-
 .main-layout {
     padding: 24px 32px;
     background: #f5f5f5;
@@ -75,14 +74,14 @@
 
 .table-search-input:focus {
     border-color: #3ba5d8 !important;
-    box-shadow: 0 0 0 2px rgba(59,165,216,0.3) !important;
+    box-shadow: 0 0 0 2px rgba(59, 165, 216, 0.3) !important;
 }
 
 .invoices-table .ant-table {
     background: white;
 }
 
-.invoices-table .ant-table-thead > tr > th {
+.invoices-table .ant-table-thead>tr>th {
     background: #1e5a7d !important;
     color: white !important;
     font-weight: 600;
@@ -91,7 +90,7 @@
     border-bottom: none;
 }
 
-.invoices-table .ant-table-thead > tr > th::before {
+.invoices-table .ant-table-thead>tr>th::before {
     display: none !important;
 }
 
@@ -107,18 +106,19 @@
 .invoices-table .ant-table-filter-trigger-container-open .ant-table-filter-trigger {
     color: #ffd666 !important;
 }
+
 .invoices-table .ant-table-column-sorter:hover,
 .invoices-table .ant-table-filter-trigger:hover {
     color: #fafafa !important;
 }
 
-.invoices-table .ant-table-tbody > tr > td {
+.invoices-table .ant-table-tbody>tr>td {
     padding: 14px 12px;
     font-size: 13px;
     color: #333;
 }
 
-.invoices-table .ant-table-tbody > tr:hover > td {
+.invoices-table .ant-table-tbody>tr:hover>td {
     background: #f8f9fa;
 }
 
@@ -148,6 +148,85 @@
 .invoices-table .ant-pagination-item:hover {
     color: #3ba5d8 !important;
     border-color: #3ba5d8 !important;
+}
+
+/* ============================================================
+   STICKY TABLE HEADERS, PAGINATION & SCROLLABLE TABLE BODY
+   ============================================================ */
+
+/* Sticky table header styling */
+.invoices-table .ant-table-thead>tr>th,
+.approvals-table .ant-table-thead>tr>th,
+.master-data-table .ant-table-thead>tr>th {
+    z-index: 10 !important;
+    background: #1e5a7d !important;
+}
+
+/* Table body scroll container - Dynamic height to fill page */
+.invoices-table .ant-table-body,
+.approvals-table .ant-table-body,
+.master-data-table .ant-table-body {
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+    max-height: calc(100vh - 280px) !important;
+}
+
+/* Sticky pagination styling */
+.invoices-table .ant-pagination,
+.approvals-table .ant-pagination,
+.master-data-table .ant-pagination {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 10 !important;
+    background: #fff !important;
+    padding: 16px 0 !important;
+    margin: 0 !important;
+    border-top: 1px solid #f0f0f0 !important;
+}
+
+/* Ensure table container allows scrolling */
+.invoices-table .ant-table,
+.approvals-table .ant-table,
+.master-data-table .ant-table {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+}
+
+.invoices-table .ant-table-container,
+.approvals-table .ant-table-container,
+.master-data-table .ant-table-container {
+    flex: 1 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* View Files Modal specific styling */
+.invoice-fields-table .ant-table-body {
+    max-height: calc(70vh - 100px) !important;
+}
+
+/* Fix fixed columns z-index to stay above regular cells */
+.invoices-table .ant-table-cell-fix-left,
+.invoices-table .ant-table-cell-fix-right,
+.approvals-table .ant-table-cell-fix-left,
+.approvals-table .ant-table-cell-fix-right,
+.master-data-table .ant-table-cell-fix-left,
+.master-data-table .ant-table-cell-fix-right {
+    z-index: 5 !important;
+    background: #fff !important;
+}
+
+/* Fixed column header cells need higher z-index */
+.invoices-table .ant-table-thead .ant-table-cell-fix-left,
+.invoices-table .ant-table-thead .ant-table-cell-fix-right,
+.approvals-table .ant-table-thead .ant-table-cell-fix-left,
+.approvals-table .ant-table-thead .ant-table-cell-fix-right,
+.master-data-table .ant-table-thead .ant-table-cell-fix-left,
+.master-data-table .ant-table-thead .ant-table-cell-fix-right {
+    z-index: 11 !important;
+    background: #1e5a7d !important;
 }
 
 /* ------------------------------
@@ -186,4 +265,3 @@
         width: 100%;
     }
 }
-
