@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin } from 'antd';
 const { Panel } = Collapse;
-import { ArrowLeftOutlined, SendOutlined, DeleteOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
 import { invoiceService, codingService, masterDataService } from '../services/api';
 
@@ -235,6 +235,38 @@ const CodingReviewPage = () => {
 
 
 
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+            const cleanedLineItems = codingLineItems.map(({ key, ...item }) => ({
+                s_no: parseInt(item.s_no) || 0,
+                description: String(item.description || ''),
+                line_type: String(item.line_type || 'Expense'),
+                quantity: parseFloat(item.quantity) || 0,
+                unit_price: parseFloat(item.unit_price) || 0,
+                net_amount: parseFloat(item.net_amount) || 0,
+                gl_code: String(item.gl_code || ''),
+                lob: String(item.lob || ''),
+                department: String(item.department || ''),
+                customer: String(item.customer || ''),
+                item: String(item.item || '')
+            }));
+
+            await codingService.saveCoding({
+                invoice_id: invoiceData.id,
+                header_coding: headerCoding,
+                line_items: cleanedLineItems
+            });
+
+            message.success('Coding saved successfully!');
+        } catch (error) {
+            console.error('Error saving:', error);
+            message.error('Failed to save coding');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const handleSendToApproval = async () => {
         try {
             setSaving(true);
@@ -304,9 +336,9 @@ const CodingReviewPage = () => {
     // Table definitions
     const headerColumns = [
         {
-            title: 'File Name',
-            dataIndex: 'filename',
-            key: 'filename',
+            title: 'Vendor Name',
+            dataIndex: 'vendor_name',
+            key: 'vendor_name',
             width: '20%',
             render: (text) => <Input value={text} disabled style={disabledStyle} />
         },
@@ -359,7 +391,7 @@ const CodingReviewPage = () => {
     const headerDataSource = [
         {
             key: '1',
-            filename: invoiceData?.filename || invoiceData?.vendorName || '',
+            vendor_name: invoiceData?.vendorName || '',
             invoice_id: invoiceData?.invoiceId || '',
             total_amount: invoiceData?.rawData?.extracted_data?.amounts?.total_invoice_amount?.value || '',
             amount_due: invoiceData?.rawData?.extracted_data?.amounts?.amount_due?.value || '',
@@ -381,6 +413,7 @@ const CodingReviewPage = () => {
             dataIndex: 'description',
             key: 'description',
             width: '12%',
+            sorter: (a, b) => (a.description || '').localeCompare(b.description || ''),
             render: (text) => (
                 <Input value={text} disabled placeholder="Description" style={disabledStyle} />
             )
@@ -390,6 +423,13 @@ const CodingReviewPage = () => {
             dataIndex: 'line_type',
             key: 'line_type',
             width: '8%',
+            sorter: (a, b) => (a.line_type || '').localeCompare(b.line_type || ''),
+            filters: [
+                { text: 'Expense', value: 'Expense' },
+                { text: 'Asset', value: 'Asset' },
+                { text: 'Liability', value: 'Liability' },
+            ],
+            onFilter: (value, record) => record.line_type === value,
             render: (text, record, index) => (
                 <Select
                     value={codingLineItems[index]?.line_type || 'Expense'}
@@ -410,6 +450,7 @@ const CodingReviewPage = () => {
             dataIndex: 'quantity',
             key: 'quantity',
             width: '6%',
+            sorter: (a, b) => (parseFloat(a.quantity) || 0) - (parseFloat(b.quantity) || 0),
             render: (text, record, index) => (
                 <InputNumber
                     value={codingLineItems[index]?.quantity || 0}
@@ -426,6 +467,7 @@ const CodingReviewPage = () => {
             dataIndex: 'unit_price',
             key: 'unit_price',
             width: '8%',
+            sorter: (a, b) => (parseFloat(a.unit_price) || 0) - (parseFloat(b.unit_price) || 0),
             render: (text, record, index) => (
                 <InputNumber
                     value={codingLineItems[index]?.unit_price || 0}
@@ -447,6 +489,7 @@ const CodingReviewPage = () => {
             dataIndex: 'net_amount',
             key: 'net_amount',
             width: '8%',
+            sorter: (a, b) => (parseFloat(a.net_amount) || 0) - (parseFloat(b.net_amount) || 0),
             render: (text, record, index) => (
                 <InputNumber
                     value={codingLineItems[index]?.net_amount || 0}
@@ -468,6 +511,10 @@ const CodingReviewPage = () => {
             dataIndex: 'gl_code',
             key: 'gl_code',
             width: '12%',
+            sorter: (a, b) => (a.gl_code || '').localeCompare(b.gl_code || ''),
+            filterSearch: true,
+            filters: [...new Set(codingLineItems.map(item => item.gl_code).filter(Boolean))].map(code => ({ text: code, value: code })),
+            onFilter: (value, record) => record.gl_code === value,
             render: (text, record, index) => (
                 <Select
                     value={codingLineItems[index]?.gl_code || undefined}
@@ -491,6 +538,10 @@ const CodingReviewPage = () => {
             dataIndex: 'lob',
             key: 'lob',
             width: '10%',
+            sorter: (a, b) => (a.lob || '').localeCompare(b.lob || ''),
+            filterSearch: true,
+            filters: [...new Set(codingLineItems.map(item => item.lob).filter(Boolean))].map(lob => ({ text: lob, value: lob })),
+            onFilter: (value, record) => record.lob === value,
             render: (text, record, index) => (
                 <Select
                     value={codingLineItems[index]?.lob || undefined}
@@ -514,6 +565,10 @@ const CodingReviewPage = () => {
             dataIndex: 'department',
             key: 'department',
             width: '10%',
+            sorter: (a, b) => (a.department || '').localeCompare(b.department || ''),
+            filterSearch: true,
+            filters: [...new Set(codingLineItems.map(item => item.department).filter(Boolean))].map(dept => ({ text: dept, value: dept })),
+            onFilter: (value, record) => record.department === value,
             render: (text, record, index) => (
                 <Select
                     value={codingLineItems[index]?.department || undefined}
@@ -537,6 +592,10 @@ const CodingReviewPage = () => {
             dataIndex: 'customer',
             key: 'customer',
             width: '10%',
+            sorter: (a, b) => (a.customer || '').localeCompare(b.customer || ''),
+            filterSearch: true,
+            filters: [...new Set(codingLineItems.map(item => item.customer).filter(Boolean))].map(cust => ({ text: cust, value: cust })),
+            onFilter: (value, record) => record.customer === value,
             render: (text, record, index) => (
                 <Select
                     value={codingLineItems[index]?.customer || undefined}
@@ -560,6 +619,10 @@ const CodingReviewPage = () => {
             dataIndex: 'item',
             key: 'item',
             width: '10%',
+            sorter: (a, b) => (a.item || '').localeCompare(b.item || ''),
+            filterSearch: true,
+            filters: [...new Set(codingLineItems.map(item => item.item).filter(Boolean))].map(itm => ({ text: itm, value: itm })),
+            onFilter: (value, record) => record.item === value,
             render: (text, record, index) => (
                 <Select
                     value={codingLineItems[index]?.item || undefined}
@@ -659,14 +722,24 @@ const CodingReviewPage = () => {
                             Back to Coding
                         </Button>
 
-                        <Button
-                            type="primary"
-                            icon={<SendOutlined />}
-                            onClick={handleSendToApproval}
-                            loading={saving}
-                        >
-                            Send to Approval
-                        </Button>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <Button
+                                type="primary"
+                                icon={<SaveOutlined />}
+                                onClick={handleSave}
+                                loading={saving}
+                            >
+                                Save
+                            </Button>
+                            <Button
+                                type="primary"
+                                icon={<SendOutlined />}
+                                onClick={handleSendToApproval}
+                                loading={saving}
+                            >
+                                Send to Approval
+                            </Button>
+                        </div>
                     </div>
 
                     <Collapse defaultActiveKey={['header', 'lineitems']}>

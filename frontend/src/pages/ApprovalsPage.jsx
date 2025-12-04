@@ -14,6 +14,7 @@ const ApprovalsPage = () => {
     const navigate = useNavigate();
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [allApprovalInvoices, setAllApprovalInvoices] = useState([]);
 
     // Global search term for approvals table
     const [searchTerm, setSearchTerm] = useState('');
@@ -71,6 +72,7 @@ const ApprovalsPage = () => {
                 allowedStatuses.includes(item.status)
             );
 
+            setAllApprovalInvoices(filteredData);
             setData(filteredData);
         } catch (error) {
             console.error('Error fetching invoices:', error);
@@ -147,6 +149,9 @@ const ApprovalsPage = () => {
             width: 180,
             sorter: (a, b) => (a.vendorName || '').localeCompare(b.vendorName || ''),
             multiple: 2,
+            filterSearch: true,
+            filters: [...new Set(allApprovalInvoices.map(inv => inv.vendorName).filter(Boolean))].map(name => ({ text: name, value: name })),
+            onFilter: (value, record) => record.vendorName === value,
         },
         {
             title: 'Invoice ID',
@@ -155,6 +160,9 @@ const ApprovalsPage = () => {
             width: 180,
             sorter: (a, b) => (a.invoiceId || '').localeCompare(b.invoiceId || ''),
             multiple: 3,
+            filterSearch: true,
+            filters: [...new Set(allApprovalInvoices.map(inv => inv.invoiceId).filter(Boolean))].map(id => ({ text: id, value: id })),
+            onFilter: (value, record) => record.invoiceId === value,
         },
         {
             title: 'Total Amount',
@@ -179,6 +187,9 @@ const ApprovalsPage = () => {
             width: 160,
             sorter: (a, b) => (a.uploadedBy || '').localeCompare(b.uploadedBy || ''),
             multiple: 4,
+            filterSearch: true,
+            filters: [...new Set(allApprovalInvoices.map(inv => inv.uploadedBy).filter(Boolean))].map(user => ({ text: user, value: user })),
+            onFilter: (value, record) => record.uploadedBy === value,
         },
         {
             title: 'Status',

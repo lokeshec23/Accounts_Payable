@@ -153,6 +153,9 @@ const MainLayout = () => {
             width: 180,
             sorter: (a, b) => (a.vendorName || '').localeCompare(b.vendorName || ''),
             multiple: 2,
+            filterSearch: true,
+            filters: [...new Set(allInvoices.map(inv => inv.vendorName).filter(Boolean))].map(name => ({ text: name, value: name })),
+            onFilter: (value, record) => record.vendorName === value,
         },
         {
             title: 'Invoice ID',
@@ -161,6 +164,9 @@ const MainLayout = () => {
             width: 180,
             sorter: (a, b) => (a.invoiceId || '').localeCompare(b.invoiceId || ''),
             multiple: 3,
+            filterSearch: true,
+            filters: [...new Set(allInvoices.map(inv => inv.invoiceId).filter(Boolean))].map(id => ({ text: id, value: id })),
+            onFilter: (value, record) => record.invoiceId === value,
         },
         {
             title: 'Total Amount',
@@ -194,6 +200,9 @@ const MainLayout = () => {
             ellipsis: true,
             sorter: (a, b) => (a.uploadedBy || '').localeCompare(b.uploadedBy || ''),
             multiple: 5,
+            filterSearch: true,
+            filters: [...new Set(allInvoices.map(inv => inv.uploadedBy).filter(Boolean))].map(user => ({ text: user, value: user })),
+            onFilter: (value, record) => record.uploadedBy === value,
         },
         {
             title: 'Status',
@@ -255,6 +264,9 @@ const MainLayout = () => {
             width: 180,
             sorter: (a, b) => (a.approverName || '').localeCompare(b.approverName || ''),
             multiple: 7,
+            filterSearch: true,
+            filters: [...new Set(allInvoices.map(inv => inv.approverName).filter(Boolean))].map(approver => ({ text: approver, value: approver })),
+            onFilter: (value, record) => record.approverName === value,
             render: (val) => val || '-',
         },
         {

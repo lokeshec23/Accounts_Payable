@@ -15,6 +15,8 @@ const CodingPage = () => {
         total: 0,
     });
 
+    const [allCodingInvoices, setAllCodingInvoices] = useState([]);
+
     // Fetch invoices from backend
     const fetchInvoices = async (page = 1, pageSize = 10) => {
         try {
@@ -28,6 +30,8 @@ const CodingPage = () => {
             const codingInvoices = invoicesArray.filter(inv =>
                 inv.status === 'coding' || inv.status === 'waiting_coding'
             );
+
+            setAllCodingInvoices(codingInvoices);
 
             // Transform backend data to table format
             const transformedData = codingInvoices.map((invoice) => ({
@@ -97,18 +101,27 @@ const CodingPage = () => {
             dataIndex: 'vendorName',
             key: 'vendorName',
             width: 180,
+            sorter: (a, b) => (a.vendorName || '').localeCompare(b.vendorName || ''),
+            filterSearch: true,
+            filters: [...new Set(allCodingInvoices.map(inv => inv.vendorName).filter(Boolean))].map(name => ({ text: name, value: name })),
+            onFilter: (value, record) => record.vendorName === value,
         },
         {
             title: 'Invoice ID',
             dataIndex: 'invoiceId',
             key: 'invoiceId',
             width: 180,
+            sorter: (a, b) => (a.invoiceId || '').localeCompare(b.invoiceId || ''),
+            filterSearch: true,
+            filters: [...new Set(allCodingInvoices.map(inv => inv.invoiceId).filter(Boolean))].map(id => ({ text: id, value: id })),
+            onFilter: (value, record) => record.invoiceId === value,
         },
         {
             title: 'Total Amount',
             dataIndex: 'totalAmount',
             key: 'totalAmount',
             width: 150,
+            sorter: (a, b) => (parseFloat(a.totalAmount) || 0) - (parseFloat(b.totalAmount) || 0),
             render: (val) => val ? `$${val}` : '-',
         },
         {
@@ -116,6 +129,7 @@ const CodingPage = () => {
             dataIndex: 'amountDue',
             key: 'amountDue',
             width: 150,
+            sorter: (a, b) => (parseFloat(a.amountDue) || 0) - (parseFloat(b.amountDue) || 0),
             render: (val) => val ? `$${val}` : '-',
         },
         {
@@ -123,6 +137,7 @@ const CodingPage = () => {
             dataIndex: 'lastUpdated',
             key: 'lastUpdated',
             width: 200,
+            sorter: (a, b) => new Date(a.lastUpdated) - new Date(b.lastUpdated),
         },
         {
             title: 'Uploaded By',
@@ -130,12 +145,22 @@ const CodingPage = () => {
             key: 'uploadedBy',
             width: 180,
             ellipsis: true,
+            sorter: (a, b) => (a.uploadedBy || '').localeCompare(b.uploadedBy || ''),
+            filterSearch: true,
+            filters: [...new Set(allCodingInvoices.map(inv => inv.uploadedBy).filter(Boolean))].map(user => ({ text: user, value: user })),
+            onFilter: (value, record) => record.uploadedBy === value,
         },
         {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
             width: 130,
+            sorter: (a, b) => (a.status || '').localeCompare(b.status || ''),
+            filters: [
+                { text: 'Coding', value: 'coding' },
+                { text: 'Waiting Coding', value: 'waiting_coding' },
+            ],
+            onFilter: (value, record) => record.status === value,
             render: (status) => {
                 let color = 'processing';
                 let text = 'Coding';

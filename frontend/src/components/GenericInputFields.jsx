@@ -622,6 +622,34 @@ const GenericInputFields = ({
         await saveInvoiceData();
     };
 
+    const handleSendForCoding = async () => {
+        if (!invoiceId) {
+            message.error('No invoice ID provided');
+            return;
+        }
+
+        try {
+            setSaving(true);
+            // First save the data
+            await saveInvoiceData();
+
+            // Then update status
+            await invoiceService.updateInvoice(invoiceId, {
+                status: 'waiting_coding'
+            });
+
+            message.success('Invoice sent for coding successfully!');
+            navigate('/coding');
+        } catch (error) {
+            console.error('Error sending for coding:', error);
+            message.error('Failed to send for coding');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+
+
     // ---------- UI helpers ----------
     const renderFieldInput = (field, value) => {
         const stringValue = extractValue(value);
@@ -659,6 +687,22 @@ const GenericInputFields = ({
                     value={stringValue ? dayjs(stringValue) : null}
                     onChange={(date, dateString) => handleInputChange(field, dateString)}
                     format="YYYY-MM-DD"
+                    disabled={readOnly}
+                />
+            );
+        }
+
+        if (field.includes('Currency')) {
+            return (
+                <Select
+                    style={{ width: '100%', ...disabledStyle }}
+                    value={stringValue}
+                    onChange={(val) => handleInputChange(field, val)}
+                    options={[
+                        { value: 'USD', label: '$ USD' },
+                        { value: 'INR', label: '₹ INR' },
+                        { value: 'EUR', label: '€ EUR' }
+                    ]}
                     disabled={readOnly}
                 />
             );
@@ -904,7 +948,7 @@ const GenericInputFields = ({
                                         { value: 'USD', label: '$ USD' },
                                         { value: 'INR', label: '₹ INR' }
                                     ]}
-                                    disabled
+
                                 />
                             </div>
                         </div>
@@ -960,7 +1004,7 @@ const GenericInputFields = ({
                     justifyContent: 'flex-end',
                     paddingRight: '20px'
                 }}>
-                    <Button
+                    {/* <Button
                         type="primary"
                         icon={<SendOutlined />}
                         onClick={async () => {
@@ -987,7 +1031,7 @@ const GenericInputFields = ({
                         style={{ backgroundColor: '#1890ff' }}
                     >
                         Send for Coding
-                    </Button>
+                    </Button> */}
                 </div>
             )}
         </div>
@@ -1123,7 +1167,7 @@ const GenericInputFields = ({
                     justifyContent: 'flex-end',
                     paddingRight: '20px'
                 }}>
-                    <Button
+                    {/* <Button
                         type="primary"
                         icon={<SendOutlined />}
                         onClick={async () => {
@@ -1150,7 +1194,7 @@ const GenericInputFields = ({
                         style={{ backgroundColor: '#1890ff' }}
                     >
                         Send for Coding
-                    </Button>
+                    </Button> */}
                 </div>
             )}
         </div>
@@ -1164,9 +1208,9 @@ const GenericInputFields = ({
                     <Table
                         columns={[
                             {
-                                title: 'File Name',
-                                dataIndex: 'fileName',
-                                key: 'fileName',
+                                title: 'Vendor Name',
+                                dataIndex: 'vendorName',
+                                key: 'vendorName',
                                 width: '20%'
                             },
                             {
@@ -1206,7 +1250,7 @@ const GenericInputFields = ({
                         dataSource={[
                             {
                                 key: '1',
-                                fileName:
+                                vendorName:
                                     formData['Vendor Name']?.value || formData['Vendor Name'] || '',
                                 invoiceId:
                                     formData['Invoice Number']?.value ||
@@ -1440,19 +1484,7 @@ const GenericInputFields = ({
                 </Panel>
             </Collapse>
 
-            {!readOnly && (
-                <div style={{ marginTop: '20px', textAlign: 'right' }}>
-                    <Button
-                        type="primary"
-                        size="large"
-                        icon={<SendOutlined />}
-                        onClick={handleSaveCoding}
-                        disabled={invoiceStatus === 'approved' || invoiceStatus === 'rejected'}
-                    >
-                        Send for Approval
-                    </Button>
-                </div>
-            )}
+
         </div>
     );
 
@@ -1558,16 +1590,26 @@ const GenericInputFields = ({
                 </div>
 
                 {!readOnly && (
-                    <Button
-                        type="primary"
-                        icon={<SaveOutlined />}
-                        onClick={handleSave}
-                        loading={saving}
-                        size="default"
-                        style={{ marginLeft: '24px' }}
-                    >
-                        Save
-                    </Button>
+                    <div style={{ display: 'flex', gap: '10px', marginLeft: '24px' }}>
+                        <Button
+                            type="primary"
+                            icon={<SaveOutlined />}
+                            onClick={handleSave}
+                            loading={saving}
+                            size="default"
+                        >
+                            Save
+                        </Button>
+                        <Button
+                            type="primary"
+                            icon={<SendOutlined />}
+                            onClick={handleSendForCoding}
+                            loading={saving}
+                            size="default"
+                        >
+                            Send for Coding
+                        </Button>
+                    </div>
                 )}
 
 

@@ -198,9 +198,8 @@ const SettingsPage = () => {
                             label="Value"
                             rules={[{ required: true, message: 'Please enter a value' }]}
                         >
-                            <InputNumber
-                                formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                            <Input
+                                placeholder="Enter value"
                                 style={{ width: '100%' }}
                             />
                         </Form.Item>
