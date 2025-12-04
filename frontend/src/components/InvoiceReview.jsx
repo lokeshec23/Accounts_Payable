@@ -5,10 +5,6 @@ import PdfViewerWithHighlight from './PdfViewerWithHighlight';
 import PdfViewer from './Pdfviewer';
 
 const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
-    console.log('InvoiceReview received invoiceData:', invoiceData);
-    console.log('Extracted ID attempt 1 (_id.$oid):', invoiceData?._id?.$oid);
-    console.log('Extracted ID attempt 2 (_id):', invoiceData?._id);
-    console.log('Extracted ID attempt 3 (id):', invoiceData?.id);
 
     const [numPages, setNumPages] = useState(null);
     const [pageNumber, setPageNumber] = useState(1);
@@ -148,6 +144,116 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
         }
     }, [invoiceData]);
 
+    const [highlightedRegions, setHighlightedRegions] = useState([]);
+
+    useEffect(() => {
+        if (!hoveredKey || !invoiceData?.extracted_data) {
+            setHighlightedRegions([]);
+            return;
+        }
+
+        const data = invoiceData.extracted_data;
+        let targetObj = null;
+
+        // Handle Line Items
+        if (hoveredKey.startsWith('LineItem_')) {
+            const parts = hoveredKey.split('_');
+            const index = parseInt(parts[1], 10);
+            const field = parts[2]; // Description, ItemCode, etc.
+
+            if (data.Items?.value && data.Items.value[index]) {
+                const item = data.Items.value[index];
+                // Map UI field names to API field names
+                const fieldMap = {
+                    'Description': 'description',
+                    'ItemCode': 'item_code',
+                    'Quantity': 'quantity',
+                    'UnitOfMeasure': 'unit_of_measure',
+                    'UnitPrice': 'unit_price',
+                    'Discount': 'discount',
+                    'NetAmount': 'amount',
+                    'TaxRate': 'tax_rate',
+                    'TaxAmount': 'tax_amount',
+                    'GrossAmount': 'gross_amount'
+                };
+                const apiField = fieldMap[field] || field.toLowerCase();
+                targetObj = item[apiField];
+            }
+        } else {
+            // Handle Top Level Fields
+            // We need to search for the object that corresponds to the label (hoveredKey)
+            // Since we don't have a direct map, we can reconstruct the lookup or search.
+            // For simplicity/robustness, let's define the map here matching the extraction logic.
+
+            const findField = (label) => {
+                const map = {
+                    // Vendor
+                    'Vendor Name': data.vendor_info?.name,
+                    'Vendor Address': data.vendor_info?.address,
+                    'Vendor Country': data.vendor_info?.country,
+                    'Vendor Tax ID (VAT/GST/TIN/W9, etc.)': data.vendor_info?.tax_id,
+                    'Vendor Contact Email': data.vendor_info?.contact_email,
+                    'Vendor Phone': data.vendor_info?.phone,
+                    'Vendor Bank Name': data.vendor_info?.bank_name,
+                    'Vendor Bank Account Number': data.vendor_info?.bank_account_number,
+                    'Vendor Bank Details (Account/IBAN/SWIFT/Routing No)': data.vendor_info?.bank_details,
+                    'Vendor Contact Person': data.vendor_info?.contact_person,
+                    'Vendor Website (if applicable)': data.vendor_info?.website,
+
+                    // Client
+                    'Client Name or Company Name': data.client_info?.name,
+                    'Billing Address': data.client_info?.billing_address,
+                    'Shipping Address (if different)': data.client_info?.shipping_address,
+                    'Phone Number': data.client_info?.phone,
+                    'Email Address (if applicable)': data.client_info?.email,
+                    'Client Tax ID (if applicable)': data.client_info?.tax_id,
+                    'Contact Person': data.client_info?.contact_person,
+
+                    // Invoice Details
+                    'Invoice Number': data.invoice_details?.invoice_number,
+                    'Invoice Date': data.invoice_details?.invoice_date,
+                    'Due Date': data.invoice_details?.due_date,
+                    'Invoice Currency': data.invoice_details?.currency,
+                    'Invoice Type': data.invoice_details?.type,
+                    'PO Number': data.invoice_details?.po_number,
+                    'Payment Terms': data.invoice_details?.payment_terms,
+                    'Payment Method': data.invoice_details?.payment_method,
+                    'Cost Center / Project Code (if printed)': data.invoice_details?.cost_center,
+
+                    // Service Period
+                    'Service period start': data.service_period?.start_date,
+                    'Service period end': data.service_period?.end_date,
+
+                    // Amounts
+                    'Subtotal': data.amounts?.subtotal,
+                    'Shipping / Handling / Fees': data.amounts?.shipping_handling_fees,
+                    'Surcharges': data.amounts?.surcharges,
+                    'Total Tax Amount': data.amounts?.total_tax_amount,
+                    'Tax Type Breakdown (VAT/GST/PST/IGST etc.)': data.amounts?.tax_type_breakdown,
+                    'Withholding Tax': data.amounts?.withholding_tax,
+                    'Total Invoice Amount': data.amounts?.total_invoice_amount,
+                    'Amount Paid': data.amounts?.amount_paid,
+                    'Amount Due': data.amounts?.amount_due,
+
+                    // Additional Info
+                    'Notes / Terms': data.additional_info?.notes_terms,
+                    'QR Code / IRN / ZATCA ID (region-specific)': data.additional_info?.qr_code_irn,
+                    'Company Registration Number': data.additional_info?.company_registration_number
+                };
+                return map[label];
+            };
+
+            targetObj = findField(hoveredKey);
+        }
+
+        if (targetObj && targetObj.bounding_regions) {
+            setHighlightedRegions(targetObj.bounding_regions);
+        } else {
+            setHighlightedRegions([]);
+        }
+
+    }, [hoveredKey, invoiceData]);
+
     // Handle dragging
     const handleMouseDown = (e) => {
         e.preventDefault();
@@ -206,8 +312,8 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                     }}
                 >
                     <PdfViewerWithHighlight
-                        file={file}                             // FIXED HERE
-                        extractedData={invoiceData.extracted_data}
+                        file={file}
+                        highlightedRegions={highlightedRegions}
                     />
                 </div>
 

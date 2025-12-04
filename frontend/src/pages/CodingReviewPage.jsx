@@ -208,6 +208,56 @@ const CodingReviewPage = () => {
         loadCodingData();
     }, [invoiceData?.id]);
 
+    const [highlightedRegions, setHighlightedRegions] = useState([]);
+
+    useEffect(() => {
+        if (!hoveredKey || !invoiceData) {
+            setHighlightedRegions([]);
+            return;
+        }
+
+        const data = invoiceData.extracted_data || invoiceData.rawData?.extracted_data;
+        if (!data) return;
+
+        let targetObj = null;
+
+        if (hoveredKey.startsWith('LineItem_')) {
+            const parts = hoveredKey.split('_');
+            const index = parseInt(parts[1], 10);
+            const field = parts[2]; // description, quantity, etc.
+
+            if (data.Items?.value && data.Items.value[index]) {
+                const item = data.Items.value[index];
+                // Map UI field to API field
+                const fieldMap = {
+                    'description': 'description',
+                    'quantity': 'quantity',
+                    'unit_price': 'unit_price',
+                    'net_amount': 'amount'
+                };
+                const apiField = fieldMap[field];
+                if (apiField) {
+                    targetObj = item[apiField];
+                }
+            }
+        } else {
+            // Header fields
+            const map = {
+                'invoice_id': data.invoice_details?.invoice_number,
+                'total_amount': data.amounts?.total_invoice_amount,
+                'amount_due': data.amounts?.amount_due,
+                'due_date': data.invoice_details?.due_date
+            };
+            targetObj = map[hoveredKey];
+        }
+
+        if (targetObj && targetObj.bounding_regions) {
+            setHighlightedRegions(targetObj.bounding_regions);
+        } else {
+            setHighlightedRegions([]);
+        }
+    }, [hoveredKey, invoiceData]);
+
     const handleHeaderCodingChange = (value) => {
         setHeaderCoding(value);
     };
@@ -340,35 +390,75 @@ const CodingReviewPage = () => {
             dataIndex: 'vendor_name',
             key: 'vendor_name',
             width: '20%',
-            render: (text) => <Input value={text} disabled style={disabledStyle} />
+            render: (text) => (
+                <div
+                    onMouseEnter={() => setHoveredKey('filename')}
+                    onMouseLeave={() => setHoveredKey(null)}
+                    style={{ width: '100%' }}
+                >
+                    <Input value={text} disabled style={disabledStyle} />
+                </div>
+            )
         },
         {
             title: 'Invoice ID',
             dataIndex: 'invoice_id',
             key: 'invoice_id',
             width: '15%',
-            render: (text) => <Input value={text} disabled style={disabledStyle} />
+            render: (text) => (
+                <div
+                    onMouseEnter={() => setHoveredKey('invoice_id')}
+                    onMouseLeave={() => setHoveredKey(null)}
+                    style={{ width: '100%' }}
+                >
+                    <Input value={text} disabled style={disabledStyle} />
+                </div>
+            )
         },
         {
             title: 'Total Amount',
             dataIndex: 'total_amount',
             key: 'total_amount',
             width: '15%',
-            render: (text) => <Input value={text} disabled style={disabledStyle} />
+            render: (text) => (
+                <div
+                    onMouseEnter={() => setHoveredKey('total_amount')}
+                    onMouseLeave={() => setHoveredKey(null)}
+                    style={{ width: '100%' }}
+                >
+                    <Input value={text} disabled style={disabledStyle} />
+                </div>
+            )
         },
         {
             title: 'Amount Due',
             dataIndex: 'amount_due',
             key: 'amount_due',
             width: '15%',
-            render: (text) => <Input value={text} disabled style={disabledStyle} />
+            render: (text) => (
+                <div
+                    onMouseEnter={() => setHoveredKey('amount_due')}
+                    onMouseLeave={() => setHoveredKey(null)}
+                    style={{ width: '100%' }}
+                >
+                    <Input value={text} disabled style={disabledStyle} />
+                </div>
+            )
         },
         {
             title: 'Due Date',
             dataIndex: 'due_date',
             key: 'due_date',
             width: '10%',
-            render: (text) => <Input value={text} disabled style={disabledStyle} />
+            render: (text) => (
+                <div
+                    onMouseEnter={() => setHoveredKey('due_date')}
+                    onMouseLeave={() => setHoveredKey(null)}
+                    style={{ width: '100%' }}
+                >
+                    <Input value={text} disabled style={disabledStyle} />
+                </div>
+            )
         },
         {
             title: 'Header Coding',
@@ -414,8 +504,14 @@ const CodingReviewPage = () => {
             key: 'description',
             width: '12%',
             sorter: (a, b) => (a.description || '').localeCompare(b.description || ''),
-            render: (text) => (
-                <Input value={text} disabled placeholder="Description" style={disabledStyle} />
+            render: (text, record, index) => (
+                <div
+                    onMouseEnter={() => setHoveredKey(`LineItem_${index}_description`)}
+                    onMouseLeave={() => setHoveredKey(null)}
+                    style={{ width: '100%' }}
+                >
+                    <Input value={text} disabled placeholder="Description" style={disabledStyle} />
+                </div>
             )
         },
         {
@@ -452,14 +548,20 @@ const CodingReviewPage = () => {
             width: '6%',
             sorter: (a, b) => (parseFloat(a.quantity) || 0) - (parseFloat(b.quantity) || 0),
             render: (text, record, index) => (
-                <InputNumber
-                    value={codingLineItems[index]?.quantity || 0}
-                    onChange={(value) =>
-                        handleCodingLineItemChange(index, 'quantity', value)
-                    }
+                <div
+                    onMouseEnter={() => setHoveredKey(`LineItem_${index}_quantity`)}
+                    onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
-                    min={0}
-                />
+                >
+                    <InputNumber
+                        value={codingLineItems[index]?.quantity || 0}
+                        onChange={(value) =>
+                            handleCodingLineItemChange(index, 'quantity', value)
+                        }
+                        style={{ width: '100%' }}
+                        min={0}
+                    />
+                </div>
             )
         },
         {
@@ -469,19 +571,25 @@ const CodingReviewPage = () => {
             width: '8%',
             sorter: (a, b) => (parseFloat(a.unit_price) || 0) - (parseFloat(b.unit_price) || 0),
             render: (text, record, index) => (
-                <InputNumber
-                    value={codingLineItems[index]?.unit_price || 0}
-                    formatter={(value) =>
-                        value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
-                    }
-                    parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                    onChange={(value) =>
-                        handleCodingLineItemChange(index, 'unit_price', value)
-                    }
+                <div
+                    onMouseEnter={() => setHoveredKey(`LineItem_${index}_unit_price`)}
+                    onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
-                    min={0}
-                    precision={2}
-                />
+                >
+                    <InputNumber
+                        value={codingLineItems[index]?.unit_price || 0}
+                        formatter={(value) =>
+                            value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                        }
+                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                        onChange={(value) =>
+                            handleCodingLineItemChange(index, 'unit_price', value)
+                        }
+                        style={{ width: '100%' }}
+                        min={0}
+                        precision={2}
+                    />
+                </div>
             )
         },
         {
@@ -491,19 +599,25 @@ const CodingReviewPage = () => {
             width: '8%',
             sorter: (a, b) => (parseFloat(a.net_amount) || 0) - (parseFloat(b.net_amount) || 0),
             render: (text, record, index) => (
-                <InputNumber
-                    value={codingLineItems[index]?.net_amount || 0}
-                    formatter={(value) =>
-                        value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
-                    }
-                    parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                    onChange={(value) =>
-                        handleCodingLineItemChange(index, 'net_amount', value)
-                    }
+                <div
+                    onMouseEnter={() => setHoveredKey(`LineItem_${index}_net_amount`)}
+                    onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
-                    min={0}
-                    precision={2}
-                />
+                >
+                    <InputNumber
+                        value={codingLineItems[index]?.net_amount || 0}
+                        formatter={(value) =>
+                            value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                        }
+                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                        onChange={(value) =>
+                            handleCodingLineItemChange(index, 'net_amount', value)
+                        }
+                        style={{ width: '100%' }}
+                        min={0}
+                        precision={2}
+                    />
+                </div>
             )
         },
         {
@@ -684,7 +798,7 @@ const CodingReviewPage = () => {
                 }}>
                     <PdfViewerWithHighlight
                         file={pdfUrl}
-                        extractedData={invoiceData?.extracted_data || invoiceData?.rawData?.extracted_data}
+                        highlightedRegions={highlightedRegions}
                     />
                 </div>
 
