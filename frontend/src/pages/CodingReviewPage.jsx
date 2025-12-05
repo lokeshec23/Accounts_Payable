@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin } from 'antd';
+import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin, Checkbox } from 'antd';
 const { Panel } = Collapse;
 import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
@@ -37,7 +37,9 @@ const CodingReviewPage = () => {
     const [customerOptions, setCustomerOptions] = useState([]);
     const [itemOptions, setItemOptions] = useState([]);
     const [loadingMasterData, setLoadingMasterData] = useState(false);
-    const [applyToAll, setApplyToAll] = useState(false);
+
+    // Track selected rows for "apply to all" feature
+    const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
     const disabledStyle = {
         color: 'black',
@@ -114,7 +116,6 @@ const CodingReviewPage = () => {
                 setGlOptions(gl);
 
                 // LOB → LOB Id - Name
-                // LOB → LOB Id - Name
                 const lob = await loadSheet("LOB", row => {
                     const id = row["LOB ID"];      // your actual field
                     const name = row["Name"];      // your actual field
@@ -139,7 +140,6 @@ const CodingReviewPage = () => {
                 });
                 setCustomerOptions(cust);
 
-                // Item → item_id - name
                 // Item → item_id - name
                 const item = await loadSheet("Item", row => {
                     const id = row["Item ID"];
@@ -179,6 +179,9 @@ const CodingReviewPage = () => {
                 item: ''
             }));
             setCodingLineItems(items);
+            
+            // Initialize all rows as selected by default
+            setSelectedRowKeys(items.map((_, index) => index));
         }
     }, [invoiceData]);
 
@@ -266,12 +269,14 @@ const CodingReviewPage = () => {
         const newItems = [...codingLineItems];
         newItems[index][field] = value;
 
-        // If "Apply to All" is checked and we're editing the first row's coding fields
-        if (applyToAll && index === 0 && ['gl_code', 'lob', 'department', 'customer', 'item'].includes(field)) {
-            // Apply the value to all other rows
-            for (let i = 1; i < newItems.length; i++) {
-                newItems[i][field] = value;
-            }
+        // If the row is selected (checked), apply the value to all other selected rows
+        if (selectedRowKeys.includes(index) && ['gl_code', 'lob', 'department', 'customer', 'item'].includes(field)) {
+            // Apply to all other selected rows (excluding the current one)
+            selectedRowKeys.forEach(selectedIndex => {
+                if (selectedIndex !== index && selectedIndex < newItems.length) {
+                    newItems[selectedIndex][field] = value;
+                }
+            });
         }
 
         setCodingLineItems(newItems);
@@ -280,10 +285,37 @@ const CodingReviewPage = () => {
     const handleDeleteLineItem = (index) => {
         const newItems = codingLineItems.filter((_, i) => i !== index);
         setCodingLineItems(newItems);
+
+        // Update selectedRowKeys to remove the deleted index
+        setSelectedRowKeys(prev => prev
+            .filter(key => key !== index)
+            .map(key => key > index ? key - 1 : key)
+        );
+
         message.success('Line item deleted');
     };
 
+    const handleRowSelection = (index) => {
+        setSelectedRowKeys(prev => {
+            if (prev.includes(index)) {
+                // When DESELECTING a row: just remove from selection, DON'T clear values
+                return prev.filter(key => key !== index);
+            } else {
+                // When SELECTING a row: add it to selection
+                return [...prev, index];
+            }
+        });
+    };
 
+    const handleSelectAllRows = (checked) => {
+        if (checked) {
+            // Select all rows
+            setSelectedRowKeys(codingLineItems.map((_, index) => index));
+        } else {
+            // Deselect all rows (but keep the values)
+            setSelectedRowKeys([]);
+        }
+    };
 
     const handleSave = async () => {
         try {
@@ -491,6 +523,23 @@ const CodingReviewPage = () => {
     ];
 
     const lineItemColumns = [
+        {
+            title: (
+                <Checkbox
+                    checked={selectedRowKeys.length === codingLineItems.length && codingLineItems.length > 0}
+                    indeterminate={selectedRowKeys.length > 0 && selectedRowKeys.length < codingLineItems.length}
+                    onChange={(e) => handleSelectAllRows(e.target.checked)}
+                />
+            ),
+            key: 'selection',
+            width: '3%',
+            render: (text, record, index) => (
+                <Checkbox
+                    checked={selectedRowKeys.includes(index)}
+                    onChange={() => handleRowSelection(index)}
+                />
+            )
+        },
         {
             title: 'S.No',
             dataIndex: 's_no',
@@ -868,57 +917,6 @@ const CodingReviewPage = () => {
                         </Panel>
 
                         <Panel header="Line Items" key="lineitems">
-                            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <input
-                                    type="checkbox"
-                                    id="applyToAll"
-                                    checked={applyToAll}
-                                    onChange={(e) => {
-                                        const checked = e.target.checked;
-                                        setApplyToAll(checked);
-
-                                        if (checked) {
-                                            // Apply first row to all rows
-                                            if (codingLineItems.length > 0) {
-                                                const firstItem = codingLineItems[0];
-                                                const { gl_code, lob, department, customer, item } = firstItem;
-
-                                                const newItems = codingLineItems.map((lineItem, index) => {
-                                                    if (index === 0) return lineItem;
-                                                    return {
-                                                        ...lineItem,
-                                                        gl_code: gl_code || lineItem.gl_code,
-                                                        lob: lob || lineItem.lob,
-                                                        department: department || lineItem.department,
-                                                        customer: customer || lineItem.customer,
-                                                        item: item || lineItem.item
-                                                    };
-                                                });
-
-                                                setCodingLineItems(newItems);
-                                                message.success('Applied first row coding to all rows!');
-                                            }
-                                        } else {
-                                            // Clear all coding fields from all rows
-                                            const newItems = codingLineItems.map(lineItem => ({
-                                                ...lineItem,
-                                                gl_code: '',
-                                                lob: '',
-                                                department: '',
-                                                customer: '',
-                                                item: ''
-                                            }));
-
-                                            setCodingLineItems(newItems);
-                                            message.info('Cleared all coding fields from all rows.');
-                                        }
-                                    }}
-                                    style={{ cursor: 'pointer' }}
-                                />
-                                <label htmlFor="applyToAll" style={{ cursor: 'pointer', marginBottom: 0, userSelect: 'none' }}>
-                                    Apply to All
-                                </label>
-                            </div>
                             <Table
                                 columns={lineItemColumns}
                                 dataSource={codingLineItems.map((item, index) => ({ ...item, key: index }))}
