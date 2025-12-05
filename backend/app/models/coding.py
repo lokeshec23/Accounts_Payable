@@ -22,7 +22,7 @@ class CodingBase(BaseModel):
     line_items: Optional[List[LineItemCoding]] = []
 
 class CodingCreate(CodingBase):
-    pass
+    vendor_name: Optional[str] = None
 
 class CodingUpdate(BaseModel):
     header_coding: Optional[str] = None

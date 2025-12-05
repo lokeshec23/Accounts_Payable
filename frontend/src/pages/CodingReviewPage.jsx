@@ -179,7 +179,7 @@ const CodingReviewPage = () => {
                 item: ''
             }));
             setCodingLineItems(items);
-            
+
             // Initialize all rows as selected by default
             setSelectedRowKeys(items.map((_, index) => index));
         }
@@ -337,7 +337,8 @@ const CodingReviewPage = () => {
             await codingService.saveCoding({
                 invoice_id: invoiceData.id,
                 header_coding: headerCoding,
-                line_items: cleanedLineItems
+                line_items: cleanedLineItems,
+                vendor_name: invoiceData?.vendorName || ''
             });
 
             message.success('Coding saved successfully!');
@@ -369,7 +370,8 @@ const CodingReviewPage = () => {
             await codingService.saveCoding({
                 invoice_id: invoiceData.id,
                 header_coding: headerCoding,
-                line_items: cleanedLineItems
+                line_items: cleanedLineItems,
+                vendor_name: invoiceData?.vendorName || ''
             });
 
             await invoiceService.updateInvoiceStatus(invoiceData.id, 'waiting_approval');
