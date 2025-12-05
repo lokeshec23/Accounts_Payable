@@ -3,10 +3,48 @@
 /* Secondary Font: Inter - Used for body text, table rows, inputs (smaller size) */
 
 :root {
-    --font-primary: 'Jura', sans-serif;
+    /* Fonts */
+    --font-heading: 'Jura', sans-serif;
+    --font-primary: 'Creato Display', sans-serif;
     --font-secondary: 'Inter', sans-serif;
-    --font-size-primary: 15px;
-    --font-size-secondary: 13px;
+
+    /* Colors - Primary */
+    --color-primary: #24A1DD;
+    --color-primary-hover: #1A729D;
+
+    /* Colors - Secondary/Backgrounds */
+    --color-white: #FFFFFF;
+    --color-bg-hover: #E9F6FC;
+    --color-bg-icon: #F7F7F7;
+
+    /* Colors - Text */
+    --color-text-primary: #303030;
+    --color-text-secondary: #222222;
+    --color-text-placeholder: #969696;
+    --color-text-disabled: #727272;
+
+    /* Colors - Status/Error */
+    --color-error: #CA1C1F;
+
+    /* Colors - Borders & Disabled */
+    --color-border: #E0E0E0;
+    --color-border-active: #9AD4EF;
+    --color-disabled-bg: #E0E0E0;
+
+    /* Colors - Specific Components */
+    --color-card-blue: #11699E;
+
+    /* Font Sizes - General */
+    --font-size-base: 16px;
+    --font-size-secondary: 14px;
+    /* Restored for compatibility */
+}
+
+/* Enforce 14px for actions in tables */
+.ant-table-tbody .ant-btn,
+.ant-table-tbody a,
+.ant-table-tbody button {
+    font-size: 14px !important;
 }
 
 * {
@@ -15,7 +53,8 @@
 
 body {
     font-family: var(--font-primary);
-    font-size: var(--font-size-primary);
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -50,12 +89,13 @@ h6,
     font-size: var(--font-size-primary);
 }
 
-/* Table Headers - Primary Font (Jura), larger size */
+/* Table Headers - Primary Font (Inter), larger size */
 .ant-table-thead>tr>th,
-.ant-table-thead>tr>th .ant-table-column-title {
-    font-family: var(--font-primary) !important;
+.ant-table-thead>tr>th .ant-table-column-title,
+.ant-table-thead>tr>th.ant-table-cell {
+    font-family: var(--font-secondary) !important;
     font-weight: 500 !important;
-    font-size: var(--font-size-primary) !important;
+    font-size: 14px !important;
 }
 
 /* Page titles and card titles - Primary Font */

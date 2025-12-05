@@ -45,7 +45,10 @@
 .nav-tab {
     position: relative;
     padding: 20px 20px;
-    font-size: 14px;
+    font-size: 16px;
+    /* Updated to 16px */
+    font-family: 'Jura', sans-serif;
+    /* Updated to Jura */
     font-weight: 500;
     color: #666;
     text-decoration: none;
@@ -54,12 +57,14 @@
 }
 
 .nav-tab:hover {
-    color: #3ba5d8;
+    color: #11699E;
+    /* Tab hover text color #11699E */
 }
 
 .nav-tab.active {
-    color: #3ba5d8;
-    border-bottom-color: #3ba5d8;
+    color: #11699E;
+    /* Active color to match hover */
+    border-bottom-color: #11699E;
 }
 
 /* Right Actions Section - Positioned at far right */

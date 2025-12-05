@@ -11,6 +11,7 @@ import CodingReviewPage from './pages/CodingReviewPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import MasterDataPage from './pages/MasterDataPage';
 import SettingsPage from './pages/SettingsPage';
+import DesignSystemPage from './pages/DesignSystemPage';
 import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/message-override.css';
@@ -63,6 +64,7 @@ const AppContent = () => {
         <Route path="/settings" element={<ProtectedRoute>
           <SettingsPage />
         </ProtectedRoute>} />
+        <Route path="/design-system" element={<DesignSystemPage />} />
       </Routes>
     </>
   );

@@ -85,9 +85,12 @@
     background: #1e5a7d !important;
     color: white !important;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 14px;
+    /* Updated to 14px */
     padding: 16px 12px;
     border-bottom: none;
+    font-family: 'Inter', sans-serif !important;
+    /* Enforce Inter */
 }
 
 .invoices-table .ant-table-thead>tr>th::before {
@@ -107,25 +110,13 @@
     color: #ffd666 !important;
 }
 
-.invoices-table .ant-table-column-sorter:hover,
-.invoices-table .ant-table-filter-trigger:hover {
-    color: #fafafa !important;
-}
 
-.invoices-table .ant-table-tbody>tr>td {
-    padding: 14px 12px;
-    font-size: 13px;
-    color: #333;
-}
-
-.invoices-table .ant-table-tbody>tr:hover>td {
-    background: #f8f9fa;
-}
 
 /* Action buttons */
 .invoices-table .ant-btn-link {
     padding: 0 8px;
-    font-size: 13px;
+    font-size: 14px;
+    /* Updated to 14px */
 }
 
 .invoices-table .ant-btn-link.ant-btn-dangerous {
@@ -230,7 +221,7 @@
 }
 
 /* Sticky header for only sticky columns */
-.invoice-fields-table .ant-table-thead > tr > th.sticky-col {
+.invoice-fields-table .ant-table-thead>tr>th.sticky-col {
     position: sticky !important;
     left: 0 !important;
     z-index: 50 !important;
@@ -238,8 +229,9 @@
 }
 
 /* Second sticky column header (Vendor Name) */
-.invoice-fields-table .ant-table-thead > tr > th.sticky-col:nth-child(2) {
-    left: 70px !important; /* S.No width */
+.invoice-fields-table .ant-table-thead>tr>th.sticky-col:nth-child(2) {
+    left: 70px !important;
+    /* S.No width */
 }
 
 /* Sticky body cells - S.No */
@@ -290,4 +282,26 @@
     .table-search-input {
         width: 100%;
     }
+}
+
+
+/* Main Layout Tabs Styling */
+.main-tabs .ant-tabs-tab {
+    font-family: 'Jura', sans-serif !important;
+    font-size: 16px !important;
+    font-weight: 500 !important;
+    color: #666;
+    padding: 12px 0 !important;
+    /* Adjust padding if needed */
+}
+
+.main-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: #11699E !important;
+    /* Active Color */
+    text-shadow: none !important;
+}
+
+.main-tabs .ant-tabs-ink-bar {
+    background: #11699E !important;
+    /* Active Bar Color */
 }

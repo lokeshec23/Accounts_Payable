@@ -1,0 +1,32 @@
+/* Table Styles */
+.ui-table .ant-table-thead>tr>th {
+    background-color: #11699E !important;
+    /* Table header background color: #11699E */
+    color: #FFFFFF !important;
+    /* Table Header text color: #FFFFFF */
+    font-family: 'Inter', sans-serif !important;
+    /* Updated to Inter */
+    font-size: 14px !important;
+    /* Table Header Text size: 14 px */
+    font-weight: 500 !important;
+    border-bottom: none !important;
+}
+
+.ui-table .ant-table-tbody>tr>td {
+    font-family: 'Creato Display', sans-serif !important;
+    font-size: 14px !important;
+    /* Table Cells Font Text Size: 14px */
+    color: #303030 !important;
+    /* Table Cells Font color : #303030 */
+}
+
+.ui-table .ant-table-column-sorter {
+    color: #FFFFFF !important;
+    /* To make sort icon visible on dark header */
+}
+
+/* Sort Icon size: 16px */
+.ui-table .anticon svg {
+    width: 16px;
+    height: 16px;
+}
