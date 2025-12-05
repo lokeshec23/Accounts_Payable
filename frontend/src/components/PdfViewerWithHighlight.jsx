@@ -159,49 +159,49 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
      * Draw highlights (APPLY PDF ROTATION HERE ONLY)
      * ----------------------------------------- */
     const drawHighlights = (pageObj, viewport, pageNum) => {
-    if (!highlightRef.current) return;
+        if (!highlightRef.current) return;
 
-    const overlay = highlightRef.current;
-    overlay.innerHTML = "";
+        const overlay = highlightRef.current;
+        overlay.innerHTML = "";
 
-    const internalRotation = pageObj.rotate || 0;
+        const internalRotation = pageObj.rotate || 0;
 
-    // 🔥 FIX: use user rotation + pdf internal rotation
-    const totalRotation = (rotation + internalRotation) % 360;
+        // 🔥 FIX: use user rotation + pdf internal rotation
+        const totalRotation = (rotation + internalRotation) % 360;
 
-    const rotatedViewport = pageObj.getViewport({
-        scale: viewport.scale,
-        rotation: totalRotation,
-    });
+        const rotatedViewport = pageObj.getViewport({
+            scale: viewport.scale,
+            rotation: totalRotation,
+        });
 
-    const pageHeightPts = pageObj.view[3] || 792;
-    const regions = highlightedRegions.filter(r => r.page_number === pageNum);
+        const pageHeightPts = pageObj.view[3] || 792;
+        const regions = highlightedRegions.filter(r => r.page_number === pageNum);
 
-    regions.forEach(region => {
-        let xs = [], ys = [];
+        regions.forEach(region => {
+            let xs = [], ys = [];
 
-        for (let i = 0; i < region.polygon.length; i += 2) {
-            const xPt = region.polygon[i] * 72;
-            const yPt = pageHeightPts - region.polygon[i + 1] * 72;
+            for (let i = 0; i < region.polygon.length; i += 2) {
+                const xPt = region.polygon[i] * 72;
+                const yPt = pageHeightPts - region.polygon[i + 1] * 72;
 
-            const [vx, vy] = rotatedViewport.convertToViewportPoint(xPt, yPt);
-            xs.push(vx);
-            ys.push(vy);
-        }
+                const [vx, vy] = rotatedViewport.convertToViewportPoint(xPt, yPt);
+                xs.push(vx);
+                ys.push(vy);
+            }
 
-        const box = document.createElement("div");
-        box.style.position = "absolute";
-        box.style.left = `${Math.min(...xs)}px`;
-        box.style.top = `${Math.min(...ys)}px`;
-        box.style.width = `${Math.max(...xs) - Math.min(...xs)}px`;
-        box.style.height = `${Math.max(...ys) - Math.min(...ys)}px`;
-        box.style.backgroundColor = "rgba(144, 238, 144, 0.35)";
-        box.style.border = "1px solid rgba(50,205,50,0.9)";
-        box.style.pointerEvents = "none";
+            const box = document.createElement("div");
+            box.style.position = "absolute";
+            box.style.left = `${Math.min(...xs)}px`;
+            box.style.top = `${Math.min(...ys)}px`;
+            box.style.width = `${Math.max(...xs) - Math.min(...xs)}px`;
+            box.style.height = `${Math.max(...ys) - Math.min(...ys)}px`;
+            box.style.backgroundColor = "rgba(144, 238, 144, 0.35)";
+            box.style.border = "1px solid rgba(50,205,50,0.9)";
+            box.style.pointerEvents = "none";
 
-        overlay.appendChild(box);
-    });
-};
+            overlay.appendChild(box);
+        });
+    };
 
 
     /* -----------------------------------------
@@ -345,7 +345,7 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
                     flex: 1,
                     overflow: "auto",
                     position: "relative",
-                    background: "#f5f5f5",
+                    background: "#ffffff",
                     display: "block",      // critical for zoom scrolling
                 }}
             >
