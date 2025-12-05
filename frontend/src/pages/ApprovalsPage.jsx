@@ -170,7 +170,11 @@ const ApprovalsPage = () => {
             key: 'totalAmount',
             width: 150,
             sorter: (a, b) => (parseFloat(a.totalAmount) || 0) - (parseFloat(b.totalAmount) || 0),
-            render: (val) => val ? `$${val}` : '-',
+            render: (val) => {
+                if (!val) return '-';
+                const strVal = val.toString();
+                return strVal.startsWith('$') ? strVal : `$${strVal}`;
+            },
         },
         {
             title: 'Amount Due',
@@ -178,7 +182,11 @@ const ApprovalsPage = () => {
             key: 'amountDue',
             width: 150,
             sorter: (a, b) => (parseFloat(a.amountDue) || 0) - (parseFloat(b.amountDue) || 0),
-            render: (val) => val ? `$${val}` : '-',
+            render: (val) => {
+                if (!val) return '-';
+                const strVal = val.toString();
+                return strVal.startsWith('$') ? strVal : `$${strVal}`;
+            },
         },
         {
             title: 'Uploaded By',

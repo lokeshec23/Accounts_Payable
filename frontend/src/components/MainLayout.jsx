@@ -174,7 +174,11 @@ const MainLayout = () => {
             key: 'totalAmount',
             width: 150,
             sorter: (a, b) => (parseFloat(a.totalAmount) || 0) - (parseFloat(b.totalAmount) || 0),
-            render: (val) => val ? `$${val}` : '-',
+            render: (val) => {
+                if (!val) return '-';
+                const strVal = val.toString();
+                return strVal.startsWith('$') ? strVal : `${strVal}`;
+            },
         },
         {
             title: 'Amount Due',
@@ -182,7 +186,11 @@ const MainLayout = () => {
             key: 'amountDue',
             width: 150,
             sorter: (a, b) => (parseFloat(a.amountDue) || 0) - (parseFloat(b.amountDue) || 0),
-            render: (val) => val ? `$${val}` : '-',
+            render: (val) => {
+                if (!val) return '-';
+                const strVal = val.toString();
+                return strVal.startsWith('$') ? strVal : `$${strVal}`;
+            },
         },
         {
             title: 'Last Updated',
@@ -580,190 +588,205 @@ const MainLayout = () => {
             </Modal>
 
             {/* VIEW FILES MODAL */}
-            <Modal
-                title="Invoice Fields Reference"
-                open={isFieldsModalOpen}
-                onCancel={() => setIsFieldsModalOpen(false)}
-                footer={null}
-                width="95%"
-                destroyOnClose
-                centered
-            >
-                {/* Global search above View Files modal table */}
-                <div className="table-toolbar modal-toolbar">
-                    <Input
-                        placeholder="Search invoice fields..."
-                        value={fieldsSearchTerm}
-                        onChange={(e) => setFieldsSearchTerm(e.target.value)}
-                        allowClear
-                        className="table-search-input"
-                    />
-                </div>
+<Modal
+    title="Invoice Fields Reference"
+    open={isFieldsModalOpen}
+    onCancel={() => setIsFieldsModalOpen(false)}
+    footer={null}
+    width="95%"
+    destroyOnClose
+    centered
+>
+    {/* Global search above View Files modal table */}
+    <div className="table-toolbar modal-toolbar">
+        <Input
+            placeholder="Search invoice fields..."
+            value={fieldsSearchTerm}
+            onChange={(e) => setFieldsSearchTerm(e.target.value)}
+            allowClear
+            className="table-search-input"
+        />
+    </div>
 
-                <Table
-                    dataSource={filteredViewFilesData}
-                    className="invoices-table invoice-fields-table"
-                    rowKey="key"
-                    columns={[
-                        {
-                            title: 'S.No',
-                            key: 'sno',
-                            width: 70,
-                            fixed: 'left',
-                            render: (_, __, index) => index + 1,
-                        },
-                        {
-                            title: 'Vendor Name',
-                            dataIndex: 'vendorName',
-                            key: 'vendorName',
-                            width: 150,
-                            fixed: 'left',
-                            sorter: (a, b) =>
-                                (a.vendorName || '').localeCompare(b.vendorName || ''),
-                            multiple: 2,
-                        },
-                        {
-                            title: 'Vendor Address',
-                            dataIndex: 'vendorAddress',
-                            key: 'vendorAddress',
-                            width: 200,
-                            sorter: (a, b) =>
-                                (a.vendorAddress || '').localeCompare(b.vendorAddress || ''),
-                            multiple: 3,
-                        },
-                        {
-                            title: 'Vendor Country',
-                            dataIndex: 'vendorCountry',
-                            key: 'vendorCountry',
-                            width: 120,
-                            sorter: (a, b) =>
-                                (a.vendorCountry || '').localeCompare(b.vendorCountry || ''),
-                            multiple: 4,
-                        },
-                        {
-                            title: 'Vendor Tax ID',
-                            dataIndex: 'vendorTaxId',
-                            key: 'vendorTaxId',
-                            width: 150,
-                            sorter: (a, b) =>
-                                (a.vendorTaxId || '').localeCompare(b.vendorTaxId || ''),
-                            multiple: 5,
-                        },
-                        {
-                            title: 'Vendor Contact Email',
-                            dataIndex: 'vendorEmail',
-                            key: 'vendorEmail',
-                            width: 180,
-                            sorter: (a, b) =>
-                                (a.vendorEmail || '').localeCompare(b.vendorEmail || ''),
-                            multiple: 6,
-                        },
-                        {
-                            title: 'Vendor Phone',
-                            dataIndex: 'vendorPhone',
-                            key: 'vendorPhone',
-                            width: 130,
-                            sorter: (a, b) =>
-                                (a.vendorPhone || '').localeCompare(b.vendorPhone || ''),
-                            multiple: 7,
-                        },
-                        {
-                            title: 'Total Amount',
-                            dataIndex: 'totalInvoiceAmount',
-                            key: 'totalInvoiceAmount',
-                            width: 150,
-                            render: (val) => val ? `$${val}` : '-',
-                        },
-                        {
-                            title: 'Amount Due',
-                            dataIndex: 'amountDue',
-                            key: 'amountDue',
-                            width: 150,
-                            render: (val) => val ? `$${val}` : '-',
-                        },
-                        {
-                            title: 'Approval Status',
-                            dataIndex: 'approvalStatus',
-                            key: 'approvalStatus',
-                            width: 140,
-                            sorter: (a, b) =>
-                                (a.approvalStatus || '').localeCompare(b.approvalStatus || ''),
-                            multiple: 8,
-                            filters: [
-                                { text: 'Processed', value: 'processed' },
-                                { text: 'Coding', value: 'waiting_coding' },
-                                { text: 'Waiting for Approval', value: 'waiting_approval' },
-                                { text: 'Approved', value: 'approved' },
-                                { text: 'Rejected', value: 'rejected' },
-                                { text: 'Reworked', value: 'reworked' },
-                            ],
-                            onFilter: (value, record) => record.approvalStatus === value,
-                            render: (status) => {
-                                let color = 'default';
-                                let text = status;
+    {/* ⭐ WRAPPER REQUIRED FOR STICKY HEADER */}
+    <div style={{ maxHeight: "70vh", overflow: "auto" }}>
+        <Table
+            dataSource={filteredViewFilesData}
+            className="invoice-fields-table"
+            rowKey="key"
+            sticky={{ offsetHeader: 0 }}
+            pagination={false}
+            size="small"
+            scroll={{ x: 3000 }}   // ⭐ DO NOT use scroll.y here
+            columns={[
+                {
+                    title: "S.No",
+                    key: "sno",
+                    width: 70,
+                    // fixed: "left",
+                    className: "sticky-col",
+                    render: (_, __, index) => index + 1,
+                },
+                {
+                    title: "Vendor Name",
+                    dataIndex: "vendorName",
+                    key: "vendorName",
+                    width: 150,
+                    className: "sticky-col",
+                    // fixed: "left",
+                    sorter: (a, b) =>
+                        (a.vendorName || "").localeCompare(b.vendorName || ""),
+                    multiple: 2,
+                },
+                {
+                    title: "Vendor Address",
+                    dataIndex: "vendorAddress",
+                    key: "vendorAddress",
+                    width: 200,
+                    sorter: (a, b) =>
+                        (a.vendorAddress || "").localeCompare(b.vendorAddress || ""),
+                    multiple: 3,
+                },
+                {
+                    title: "Vendor Country",
+                    dataIndex: "vendorCountry",
+                    key: "vendorCountry",
+                    width: 120,
+                    sorter: (a, b) =>
+                        (a.vendorCountry || "").localeCompare(b.vendorCountry || ""),
+                    multiple: 4,
+                },
+                {
+                    title: "Vendor Tax ID",
+                    dataIndex: "vendorTaxId",
+                    key: "vendorTaxId",
+                    width: 150,
+                    sorter: (a, b) =>
+                        (a.vendorTaxId || "").localeCompare(b.vendorTaxId || ""),
+                    multiple: 5,
+                },
+                {
+                    title: "Vendor Contact Email",
+                    dataIndex: "vendorEmail",
+                    key: "vendorEmail",
+                    width: 180,
+                    sorter: (a, b) =>
+                        (a.vendorEmail || "").localeCompare(b.vendorEmail || ""),
+                    multiple: 6,
+                },
+                {
+                    title: "Vendor Phone",
+                    dataIndex: "vendorPhone",
+                    key: "vendorPhone",
+                    width: 130,
+                    sorter: (a, b) =>
+                        (a.vendorPhone || "").localeCompare(b.vendorPhone || ""),
+                    multiple: 7,
+                },
+                {
+                    title: "Total Amount",
+                    dataIndex: "totalInvoiceAmount",
+                    key: "totalInvoiceAmount",
+                    width: 150,
+                    render: (val) => {
+                        if (!val) return "-";
+                        const strVal = val.toString();
+                        return strVal.startsWith("$") ? strVal : `$${strVal}`;
+                    },
+                },
+                {
+                    title: "Amount Due",
+                    dataIndex: "amountDue",
+                    key: "amountDue",
+                    width: 150,
+                    render: (val) => {
+                        if (!val) return "-";
+                        const strVal = val.toString();
+                        return strVal.startsWith("$") ? strVal : `$${strVal}`;
+                    },
+                },
+                {
+                    title: "Approval Status",
+                    dataIndex: "approvalStatus",
+                    key: "approvalStatus",
+                    width: 140,
+                    sorter: (a, b) =>
+                        (a.approvalStatus || "").localeCompare(b.approvalStatus || ""),
+                    multiple: 8,
+                    filters: [
+                        { text: "Processed", value: "processed" },
+                        { text: "Coding", value: "waiting_coding" },
+                        { text: "Waiting for Approval", value: "waiting_approval" },
+                        { text: "Approved", value: "approved" },
+                        { text: "Rejected", value: "rejected" },
+                        { text: "Reworked", value: "reworked" },
+                    ],
+                    onFilter: (value, record) => record.approvalStatus === value,
+                    render: (status) => {
+                        let color = "default";
+                        let text = status;
 
-                                switch (status) {
-                                    case 'processed':
-                                        color = 'cyan';
-                                        text = 'Processed';
-                                        break;
-                                    case 'waiting_coding':
-                                        color = 'orange';
-                                        text = 'Coding';
-                                        break;
-                                    case 'waiting_approval':
-                                        color = 'gold';
-                                        text = 'Waiting for Approval';
-                                        break;
-                                    case 'approved':
-                                        color = 'green';
-                                        text = 'Approved';
-                                        break;
-                                    case 'rejected':
-                                        color = 'red';
-                                        text = 'Rejected';
-                                        break;
-                                    case 'reworked':
-                                        color = 'purple';
-                                        text = 'Reworked';
-                                        break;
-                                    default:
-                                        color = 'default';
-                                        text = status || 'Unknown';
-                                }
+                        switch (status) {
+                            case "processed":
+                                color = "cyan";
+                                text = "Processed";
+                                break;
+                            case "waiting_coding":
+                                color = "orange";
+                                text = "Coding";
+                                break;
+                            case "waiting_approval":
+                                color = "gold";
+                                text = "Waiting for Approval";
+                                break;
+                            case "approved":
+                                color = "green";
+                                text = "Approved";
+                                break;
+                            case "rejected":
+                                color = "red";
+                                text = "Rejected";
+                                break;
+                            case "reworked":
+                                color = "purple";
+                                text = "Reworked";
+                                break;
+                            default:
+                                text = status || "Unknown";
+                        }
 
-                                return <Tag color={color}>{text}</Tag>;
-                            },
-                        },
-                        {
-                            title: 'Approver',
-                            dataIndex: 'approverName',
-                            key: 'approverName',
-                            width: 160,
-                            sorter: (a, b) =>
-                                (a.approverName || '').localeCompare(b.approverName || ''),
-                            multiple: 9,
-                        },
-                        {
-                            title: 'Approval Time',
-                            dataIndex: 'approvalTimestamps',
-                            key: 'approvalTimestamps',
-                            width: 200,
-                            sorter: (a, b) => {
-                                if (!a.approvalTimestamps) return 1;
-                                if (!b.approvalTimestamps) return -1;
-                                return (
-                                    new Date(a.approvalTimestamps) -
-                                    new Date(b.approvalTimestamps)
-                                );
-                            },
-                            multiple: 10,
-                        },
-                    ]}
-                    scroll={{ x: 3000, y: 'calc(70vh - 100px)' }}
-                    size="small"
-                />
-            </Modal>
+                        return <Tag color={color}>{text}</Tag>;
+                    },
+                },
+                {
+                    title: "Approver",
+                    dataIndex: "approverName",
+                    key: "approverName",
+                    width: 160,
+                    sorter: (a, b) =>
+                        (a.approverName || "").localeCompare(b.approverName || ""),
+                    multiple: 9,
+                },
+                {
+                    title: "Approval Time",
+                    dataIndex: "approvalTimestamps",
+                    key: "approvalTimestamps",
+                    width: 200,
+                    sorter: (a, b) => {
+                        if (!a.approvalTimestamps) return 1;
+                        if (!b.approvalTimestamps) return -1;
+                        return (
+                            new Date(a.approvalTimestamps) -
+                            new Date(b.approvalTimestamps)
+                        );
+                    },
+                    multiple: 10,
+                },
+            ]}
+        />
+    </div>
+</Modal>
+
         </div>
     );
 };
