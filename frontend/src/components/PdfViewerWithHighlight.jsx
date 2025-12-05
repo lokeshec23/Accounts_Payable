@@ -16,7 +16,7 @@ pdfjs.GlobalWorkerOptions.workerSrc =
     "https://unpkg.com/pdfjs-dist@5.4.296/build/pdf.worker.mjs";
 
 // 🔥 Ensures PDF.js does NOT rotate pages unexpectedly
-pdfjs.disableAutoRotate = true;
+// pdfjs.disableAutoRotate = true;
 
 const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
     const viewerRef = useRef(null);            // scroll + resizing container

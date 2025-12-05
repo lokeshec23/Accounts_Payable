@@ -30,7 +30,7 @@ const Card = ({
             color: '#303030', // Default text
         },
         'sub': {
-            backgroundColor: '#F7F7F7', // Assuming light bg for sub card? Or White? "Sub Card Padding 12px". Let's assume white or context dependent. 
+            // Assuming light bg for sub card? Or White? "Sub Card Padding 12px". Let's assume white or context dependent. 
             // Spec doesn't explicitly say sub card BG, but usually inside Main Card.
             // Let's use transparent or white with border? 
             // Re-reading: "Sub Card Value Color #24A1DD".
