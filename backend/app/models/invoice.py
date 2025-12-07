@@ -11,12 +11,19 @@ class InvoiceStatus(str, Enum):
     PROCESSED = "processed"
     REWORKED = "reworked"
 
+class StatusHistoryItem(BaseModel):
+    status: InvoiceStatus
+    user: str
+    timestamp: datetime
+    comment: Optional[str] = None
+
 class InvoiceBase(BaseModel):
     filename: str
     original_filename: str
     file_path: str
     uploaded_by: str
     status: InvoiceStatus = InvoiceStatus.WAITING_APPROVAL
+    status_history: Optional[List[StatusHistoryItem]] = []
 
 class InvoiceCreate(InvoiceBase):
     pass
@@ -24,6 +31,7 @@ class InvoiceCreate(InvoiceBase):
 class InvoiceUpdate(BaseModel):
     extracted_data: Optional[Dict[str, Any]] = None
     status: Optional[InvoiceStatus] = None
+    status_history: Optional[List[Dict[str, Any]]] = None
     validation_results: Optional[Dict[str, Any]] = None
 
 class Invoice(InvoiceBase):

@@ -1,0 +1,113 @@
+.workflow-tab-container {
+    padding: 20px;
+    background: #f5f5f5;
+    min-height: 400px;
+}
+
+.workflow-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.workflow-card .ant-card-head {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px 8px 0 0;
+}
+
+.workflow-card .ant-card-head-title {
+    color: white;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.workflow-info {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.workflow-step-content {
+    padding: 8px 0;
+}
+
+.workflow-step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.workflow-step-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #262626;
+}
+
+.workflow-step-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-left: 4px;
+}
+
+.workflow-step-user {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #595959;
+}
+
+.workflow-step-user strong {
+    color: #1890ff;
+}
+
+.workflow-step-time {
+    font-size: 13px;
+    color: #8c8c8c;
+}
+
+.workflow-step-comment {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #f0f2f5;
+    border-left: 3px solid #1890ff;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #595959;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.workflow-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+}
+
+.workflow-empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+}
+
+/* Timeline customization */
+.workflow-tab-container .ant-timeline-item-content {
+    margin-left: 28px;
+}
+
+.workflow-tab-container .ant-timeline-item-tail {
+    border-left: 2px solid #e8e8e8;
+}
+
+.workflow-tab-container .ant-timeline-item-head {
+    background: white;
+    border: 2px solid #e8e8e8;
+    width: 24px;
+    height: 24px;
+}

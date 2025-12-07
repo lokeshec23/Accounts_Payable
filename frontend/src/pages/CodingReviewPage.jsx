@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin, Checkbox } from 'antd';
+import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin, Checkbox, Tabs } from 'antd';
 const { Panel } = Collapse;
 import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
-import { invoiceService, codingService, masterDataService } from '../services/api';
+import WorkflowTab from '../components/WorkflowTab';
+import { invoiceService, codingService, masterDataService, approvalService } from '../services/api';
 
 const CodingReviewPage = () => {
     const location = useLocation();
@@ -367,6 +368,7 @@ const CodingReviewPage = () => {
                 item: String(item.item || '')
             }));
 
+            // Save coding first
             await codingService.saveCoding({
                 invoice_id: invoiceData.id,
                 header_coding: headerCoding,
@@ -374,7 +376,8 @@ const CodingReviewPage = () => {
                 vendor_name: invoiceData?.vendorName || ''
             });
 
-            await invoiceService.updateInvoiceStatus(invoiceData.id, 'waiting_approval');
+            // Send to approval using new approval service
+            await approvalService.sendToApproval(invoiceData.id);
 
             message.success('Invoice sent to approval successfully!');
             navigate('/approvals');
@@ -907,27 +910,43 @@ const CodingReviewPage = () => {
                         </div>
                     </div>
 
-                    <Collapse defaultActiveKey={['header', 'lineitems']}>
-                        <Panel header="Header Coding" key="header">
-                            <Table
-                                columns={headerColumns}
-                                dataSource={headerDataSource}
-                                pagination={false}
-                                size="small"
-                                bordered
-                            />
-                        </Panel>
+                    <Tabs
+                        defaultActiveKey="coding"
+                        items={[
+                            {
+                                key: 'coding',
+                                label: 'Coding Fields',
+                                children: (
+                                    <Collapse defaultActiveKey={['header', 'lineitems']}>
+                                        <Panel header="Header Coding" key="header">
+                                            <Table
+                                                columns={headerColumns}
+                                                dataSource={headerDataSource}
+                                                pagination={false}
+                                                size="small"
+                                                bordered
+                                            />
+                                        </Panel>
 
-                        <Panel header="Line Items" key="lineitems">
-                            <Table
-                                columns={lineItemColumns}
-                                dataSource={codingLineItems.map((item, index) => ({ ...item, key: index }))}
-                                pagination={false}
-                                scroll={{ x: 'max-content' }}
-                                size="small"
-                            />
-                        </Panel>
-                    </Collapse>
+                                        <Panel header="Line Items" key="lineitems">
+                                            <Table
+                                                columns={lineItemColumns}
+                                                dataSource={codingLineItems.map((item, index) => ({ ...item, key: index }))}
+                                                pagination={false}
+                                                scroll={{ x: 'max-content' }}
+                                                size="small"
+                                            />
+                                        </Panel>
+                                    </Collapse>
+                                )
+                            },
+                            {
+                                key: 'workflow',
+                                label: 'Workflow',
+                                children: <WorkflowTab invoiceId={invoiceData?.id} />
+                            }
+                        ]}
+                    />
                 </div>
             </div>
         </div>

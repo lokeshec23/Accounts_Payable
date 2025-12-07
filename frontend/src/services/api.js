@@ -58,8 +58,12 @@ export const invoiceService = {
     return response.data;
   },
 
-  async updateInvoiceStatus(invoiceId, status) {
-    const response = await api.put(`/invoices/${invoiceId}/status?status=${status}`);
+  async updateInvoiceStatus(invoiceId, status, comment = null) {
+    const params = new URLSearchParams({ status });
+    if (comment) {
+      params.append('comment', comment);
+    }
+    const response = await api.put(`/invoices/${invoiceId}/status?${params.toString()}`);
     return response.data;
   },
 
@@ -152,6 +156,60 @@ export const masterDataService = {
       `/master/sheet/${collectionName}/delete`,
       { data: { row_index: rowIndex } }
     );
+    return response.data;
+  }
+};
+
+// Workflow service methods
+export const workflowService = {
+  async getWorkflowHistory(invoiceId) {
+    const response = await api.get(`/workflow/${invoiceId}`);
+    return response.data;
+  },
+
+  async createWorkflowStep(stepData) {
+    const response = await api.post('/workflow/step', stepData);
+    return response.data;
+  },
+
+  async getApproverStatus(invoiceId) {
+    const response = await api.get(`/workflow/approvers/${invoiceId}`);
+    return response.data;
+  }
+};
+
+// Approver configuration service methods
+export const approverConfigService = {
+  async getAllConfigs() {
+    const response = await api.get('/approver-config/');
+    return response.data;
+  },
+
+  async getConfig(vendorName) {
+    const response = await api.get(`/approver-config/${vendorName}`);
+    return response.data;
+  },
+
+  async getApproverCount(vendorName) {
+    const response = await api.get(`/approver-config/count/${vendorName}`);
+    return response.data;
+  },
+
+  async createOrUpdateConfig(configData) {
+    const response = await api.post('/approver-config/', configData);
+    return response.data;
+  },
+
+  async deleteConfig(vendorName) {
+    const response = await api.delete(`/approver-config/${vendorName}`);
+    return response.data;
+  }
+};
+
+// Approval service methods
+export const approvalService = {
+  async sendToApproval(invoiceId) {
+    const response = await api.post(`/approval/send-to-approval/${invoiceId}`);
     return response.data;
   }
 };

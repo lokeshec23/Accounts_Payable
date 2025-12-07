@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional, List, Dict, Any
 from app.models.coding import CodingCreate, CodingResponse, CodingUpdate, LineItemCoding
+from app.models.workflow import WorkflowStepType, WorkflowStepStatus
 from app.database.mongodb import get_database
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
@@ -169,6 +170,27 @@ async def create_or_update_coding(
             # DO NOT update invoice status here - let frontend control status changes
             # Status should only change when user clicks "Send to Approval"
             
+            # ---- CREATE/UPDATE WORKFLOW STEP: CODING ----
+            # Check if coding workflow step already exists
+            existing_coding_step = db.workflow_steps.find_one({
+                "invoice_id": coding_data.invoice_id,
+                "step_type": WorkflowStepType.CODING
+            })
+            
+            if not existing_coding_step:
+                # Create coding workflow step only on first save
+                workflow_step = {
+                    "invoice_id": coding_data.invoice_id,
+                    "step_name": "Coding",
+                    "step_type": WorkflowStepType.CODING,
+                    "user": current_user.username,
+                    "status": WorkflowStepStatus.COMPLETED,
+                    "timestamp": datetime.utcnow(),
+                    "approver_number": None,
+                    "comment": None
+                }
+                db.workflow_steps.insert_one(workflow_step)
+            
             # Fetch updated document
             updated_coding = db.coding.find_one({"invoice_id": coding_data.invoice_id})
             updated_coding["id"] = str(updated_coding["_id"])
@@ -196,6 +218,19 @@ async def create_or_update_coding(
             
             # DO NOT update invoice status here - let frontend control status changes
             # Status should only change when user clicks "Send to Approval"
+            
+            # ---- CREATE WORKFLOW STEP: CODING ----
+            workflow_step = {
+                "invoice_id": coding_data.invoice_id,
+                "step_name": "Coding",
+                "step_type": WorkflowStepType.CODING,
+                "user": current_user.username,
+                "status": WorkflowStepStatus.COMPLETED,
+                "timestamp": datetime.utcnow(),
+                "approver_number": None,
+                "comment": None
+            }
+            db.workflow_steps.insert_one(workflow_step)
             
             # Fetch created document
             created_coding = db.coding.find_one({"_id": result.inserted_id})

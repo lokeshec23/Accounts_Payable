@@ -27,6 +27,7 @@ import {
 import dayjs from 'dayjs';
 import { invoiceService, codingService } from '../services/api';
 import { authService } from '../services/auth';
+import WorkflowTab from './WorkflowTab';
 
 const { Panel } = Collapse;
 const { TextArea } = Input;
@@ -527,32 +528,15 @@ const GenericInputFields = ({
         try {
             setSaving(true);
 
-            const tokenUser = authService.getCurrentUser?.();
-            const approverName =
-                tokenUser?.username || tokenUser?.email || 'Unknown User';
+            // Call the backend API with status and comment
+            await invoiceService.updateInvoiceStatus(invoiceId, newStatus, approverComment);
 
-            const updatedValidation = {
-                ...(validationInfo || {}),
-                approver_name: approverName,
-                approval_timestamp: new Date().toISOString(),
-                last_action: newStatus,
-                approver_comment: approverComment || '' // Include the comment
-            };
-
-            await invoiceService.updateInvoice(invoiceId, {
-                status: newStatus,
-                validation_results: updatedValidation
-            });
-
-            setInvoiceStatus(newStatus);
-            setValidationInfo(updatedValidation);
-            setApproverComment(''); // Clear comment after submission
             message.success(`Invoice ${newStatus} successfully!`);
         } catch (error) {
             console.error('Error updating status:', error);
             message.error(
                 error.response?.data?.detail ||
-                'Failed to update invoice status. Please try again.'
+                `Failed to ${newStatus} invoice. Please try again.`
             );
         } finally {
             setSaving(false);
@@ -571,6 +555,7 @@ const GenericInputFields = ({
         updateStatus('reworked');
         navigate("/approvals");
     };
+
     // const handleSendForApproval = async () => {
     //     message.success("Invoice sent for approval");
 
@@ -1555,19 +1540,41 @@ const GenericInputFields = ({
                 return allFieldsTab;
             case '3':
                 return codingTab;
+            case '4':
+                return <WorkflowTab invoiceId={invoiceId} />;
             default:
                 return quickViewTab;
         }
     };
 
     // ---------- status helpers for buttons ----------
+    const currentUser = authService.getCurrentUser?.();
+    const currentUsername = currentUser?.username || currentUser?.email || '';
+
+    // Check status_history
+    const statusHistory = originalData?.status_history || [];
+
+    // Check if current user has already acted
+    const currentUserHasActed = statusHistory.some(
+        entry => entry.user === currentUsername &&
+            (entry.status === 'approved' || entry.status === 'rejected' || entry.status === 'reworked')
+    );
+
+    // Check if anyone has rejected or reworked
+    const hasRejectionOrRework = statusHistory.some(
+        entry => entry.status === 'rejected' || entry.status === 'reworked'
+    );
+
     const isApproved = invoiceStatus === 'approved';
     const isRejected = invoiceStatus === 'rejected';
     const isWaitingApproval = invoiceStatus === 'waiting_approval';
 
-    const approveDisabled = !isWaitingApproval;
-    const rejectDisabled = !isWaitingApproval;
-    const reworkDisabled = isApproved || isRejected;
+    // Disable buttons ONLY based on status_history, NOT main status:
+    // 1. Current user has already acted, OR
+    // 2. Someone has rejected/reworked (stops the process)
+    const approveDisabled = currentUserHasActed || hasRejectionOrRework;
+    const rejectDisabled = currentUserHasActed || hasRejectionOrRework;
+    const reworkDisabled = currentUserHasActed || hasRejectionOrRework;
 
     const renderStatusTag = () => {
         let color = 'default';
@@ -1605,6 +1612,7 @@ const GenericInputFields = ({
         return <Tag color={color}>{label}</Tag>;
     };
 
+
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div
@@ -1626,7 +1634,8 @@ const GenericInputFields = ({
                         items={[
                             { key: '1', label: 'Quick View' },
                             { key: '2', label: 'All Fields' },
-                            ...(readOnly ? [{ key: '3', label: 'Coding' }] : [])
+                            ...(readOnly ? [{ key: '3', label: 'Coding' }] : []),
+                            { key: '4', label: 'Workflow' }
                         ]}
                     />
 
