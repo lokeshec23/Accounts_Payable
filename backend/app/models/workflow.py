@@ -17,6 +17,7 @@ class WorkflowStepStatus(str, Enum):
     APPROVED = "approved"
     REJECTED = "rejected"
     PENDING = "pending"
+    REWORKED = "reworked"
 
 class WorkflowStepBase(BaseModel):
     invoice_id: str

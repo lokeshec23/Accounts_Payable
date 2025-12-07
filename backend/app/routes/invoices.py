@@ -261,7 +261,7 @@ async def update_invoice_status(
         if status == InvoiceStatus.REJECTED:
             workflow_status = WorkflowStepStatus.REJECTED
         elif status == InvoiceStatus.REWORKED:
-            workflow_status = WorkflowStepStatus.COMPLETED
+            workflow_status = WorkflowStepStatus.REWORKED
         
         workflow_step = {
             "invoice_id": invoice_id,
