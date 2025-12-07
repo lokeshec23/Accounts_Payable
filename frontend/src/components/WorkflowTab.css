@@ -11,8 +11,7 @@
 }
 
 .workflow-card .ant-card-head {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background-color: #1E5A7D;
     border-radius: 8px 8px 0 0;
 }
 

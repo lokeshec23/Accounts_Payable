@@ -47,9 +47,20 @@ def get_required_approver_count(db, vendor_name: str):
     if not vendor_name:
         return 4
     
-    config = db.approver_number.find_one({"vendor_name": vendor_name})
+    # Try finding by vendor_name (snake_case)
+    config = db.approver_number.find_one({"vendor_name": vendor_name.strip()})
+    
+    # If not found, try vendorName (camelCase)
+    if not config:
+        config = db.approver_number.find_one({"vendorName": vendor_name.strip()})
+        
     if config:
-        return config["approver_count"]
+        # Check for approver_count or approverCount
+        if "approver_count" in config:
+            return config["approver_count"]
+        elif "approverCount" in config:
+            return config["approverCount"]
+            
     return 4
 
 @router.get("/{invoice_id}", response_model=WorkflowHistoryResponse)
