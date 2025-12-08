@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin, Checkbox, Tabs } from 'antd';
 const { Panel } = Collapse;
-import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined, RollbackOutlined } from '@ant-design/icons';
 import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
 import WorkflowTab from '../components/WorkflowTab';
 import { invoiceService, codingService, masterDataService, approvalService } from '../services/api';
@@ -388,6 +388,28 @@ const CodingReviewPage = () => {
             setSaving(false);
         }
     };
+
+    const handleRecall = async () => {
+        try {
+            console.log('Recall invoked for invoice:', invoiceData);
+            setSaving(true);
+            if (!invoiceData?.id) {
+                throw new Error('Invoice ID missing');
+            }
+            // Backend now handles clearing validation_results automatically
+            console.log('Updating status to waiting_coding...');
+            const response = await invoiceService.updateInvoiceStatus(invoiceData.id, 'waiting_coding', 'Recalled by user');
+            console.log('Recall response:', response);
+            message.success('Invoice recalled successfully!');
+            navigate('/coding');
+        } catch (error) {
+            console.error('Error recalling invoice:', error);
+            message.error('Failed to recall invoice');
+        } finally {
+            setSaving(false);
+        }
+    };
+
 
     // Dragging
     const handleMouseDown = (e) => {
@@ -899,6 +921,16 @@ const CodingReviewPage = () => {
                             >
                                 Save
                             </Button>
+                            {invoiceData?.status === 'waiting_approval' && (
+                                <Button
+                                    type="primary"
+                                    icon={<RollbackOutlined />}
+                                    onClick={handleRecall}
+                                    loading={saving}
+                                >
+                                    Recall
+                                </Button>
+                            )}
                             <Button
                                 type="primary"
                                 icon={<SendOutlined />}
@@ -954,3 +986,5 @@ const CodingReviewPage = () => {
 };
 
 export default CodingReviewPage;
+
+

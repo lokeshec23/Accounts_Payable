@@ -27,10 +27,15 @@ const CodingPage = () => {
             const response = await invoiceService.getInvoices(0, 1000);
             const invoicesArray = Array.isArray(response) ? response : [];
 
-            // Filter only coding status invoices
-            const codingInvoices = invoicesArray.filter(inv =>
-                inv.status === 'coding' || inv.status === 'waiting_coding'
-            );
+            // Filter invoices:
+            // 1. Status is 'coding' or 'waiting_coding'
+            // 2. Status is 'waiting_approval' AND no approval yet (approver_name is missing)
+            const codingInvoices = invoicesArray.filter(inv => {
+                const isCoding = inv.status === 'coding' || inv.status === 'waiting_coding';
+                const isWaitingApprovalNoApprover = inv.status === 'waiting_approval' && !inv.validation_results?.approver_name;
+
+                return isCoding || isWaitingApprovalNoApprover;
+            });
 
             setAllCodingInvoices(codingInvoices);
 
@@ -160,7 +165,8 @@ const CodingPage = () => {
             sorter: (a, b) => (a.status || '').localeCompare(b.status || ''),
             filters: [
                 { text: 'Coding', value: 'coding' },
-                { text: 'Coding', value: 'waiting_coding' },
+                { text: 'Waiting Coding', value: 'waiting_coding' },
+                { text: 'Waiting Approval', value: 'waiting_approval' },
             ],
             onFilter: (value, record) => record.status === value,
             render: (status) => {
@@ -169,7 +175,10 @@ const CodingPage = () => {
 
                 if (status === 'waiting_coding') {
                     color = 'orange';
-                    text = 'Coding';
+                    text = 'Waiting Coding';
+                } else if (status === 'waiting_approval') {
+                    color = 'gold';
+                    text = 'Waiting Approval';
                 }
 
                 return <Tag color={color}>{text}</Tag>;
