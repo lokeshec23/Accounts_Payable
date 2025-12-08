@@ -1,5 +1,5 @@
 // src/components/MainLayout.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Table,
@@ -11,6 +11,7 @@ import {
     message,
     Input,
     Tabs,
+    Upload,
 } from 'antd';
 import {
     PlusOutlined,
@@ -18,6 +19,8 @@ import {
     DeleteOutlined,
     FolderOpenOutlined,
     ExclamationCircleOutlined,
+    UploadOutlined,
+    InboxOutlined,
 } from '@ant-design/icons';
 
 import InvoiceUpload from './InvoiceUpload';
@@ -25,6 +28,8 @@ import { invoiceService } from '../services/api';
 import ApDashboard from '../pages/ApDashboard'; // 📊 Dashboard
 import { formatDateTimeIST } from '../utils/dateUtils';
 import '../styles/MainLayout.css';
+
+const { Dragger } = Upload;
 
 const { confirm } = Modal;
 
@@ -35,6 +40,12 @@ const MainLayout = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isFieldsModalOpen, setIsFieldsModalOpen] = useState(false);
     const [viewFilesData, setViewFilesData] = useState([]);
+
+    // Upload modal state
+    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [fileList, setFileList] = useState([]);
+    const [uploading, setUploading] = useState(false);
+    const folderInputRef = useRef(null);
 
     // Global search for main table
     const [searchTerm, setSearchTerm] = useState('');
@@ -302,7 +313,58 @@ const MainLayout = () => {
 
     // ------------ HANDLERS --------------
     const handleAddInvoice = () => {
-        navigate('/invoice');
+        setIsUploadModalOpen(true);
+    };
+
+    const handleFolderSelect = (event) => {
+        const files = Array.from(event.target.files);
+        setFileList((prev) => [...prev, ...files]);
+    };
+
+    const handleUpload = async () => {
+        if (fileList.length === 0) {
+            message.warning('Please select at least one file');
+            return;
+        }
+
+        try {
+            setUploading(true);
+
+            message.open({
+                type: 'loading',
+                content: 'Processing invoices...',
+                key: 'uploading',
+                duration: 0
+            });
+
+            const response = await invoiceService.uploadInvoices(fileList);
+
+            message.open({
+                type: 'success',
+                content: `${response.count} invoice(s) processed successfully!`,
+                key: 'uploading'
+            });
+
+            setIsUploadModalOpen(false);
+            setFileList([]);
+            fetchInvoices(); // Refresh the invoice list
+
+            if (response.count === 1) {
+                navigate('/invoice/review', { state: { invoice: response.invoices[0] } });
+            } else {
+                navigate('/dashboard');
+            }
+
+        } catch (error) {
+            console.error('Upload failed:', error);
+            message.open({
+                type: 'error',
+                content: 'Upload failed',
+                key: 'uploading'
+            });
+        } finally {
+            setUploading(false);
+        }
     };
 
     const handleCloseModal = () => {
@@ -768,6 +830,82 @@ const MainLayout = () => {
                             },
                         ]}
                     />
+                </div>
+            </Modal>
+
+            {/* UPLOAD INVOICE MODAL */}
+            <Modal
+                title="Upload Invoice Files"
+                open={isUploadModalOpen}
+                onCancel={() => {
+                    setIsUploadModalOpen(false);
+                    setFileList([]);
+                }}
+                footer={null}
+                width={700}
+                destroyOnClose
+            >
+                <div style={{ padding: '20px 0' }}>
+                    <p style={{ marginBottom: '16px', color: '#666' }}>
+                        Drag a PDF, multiple PDFs, or upload a folder.
+                    </p>
+
+                    {/* Hidden folder picker */}
+                    <input
+                        type="file"
+                        ref={folderInputRef}
+                        style={{ display: 'none' }}
+                        webkitdirectory="true"
+                        onChange={handleFolderSelect}
+                    />
+
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                        <Button
+                            icon={<FolderOpenOutlined />}
+                            onClick={() => folderInputRef.current.click()}
+                            style={{
+                                borderColor: '#1890ff',
+                                color: '#1890ff',
+                                backgroundColor: '#e6f7ff'
+                            }}
+                        >
+                            Upload Folder
+                        </Button>
+                    </div>
+
+                    <Dragger
+                        multiple
+                        fileList={fileList}
+                        accept=".pdf"
+                        beforeUpload={(file) => {
+                            setFileList((prev) => [...prev, file]);
+                            return false;
+                        }}
+                        onRemove={(file) => {
+                            setFileList((prev) => prev.filter((f) => f.uid !== file.uid));
+                        }}
+                        customRequest={() => { }}
+                    >
+                        <p className="ant-upload-drag-icon">
+                            <InboxOutlined style={{ fontSize: '48px', color: '#1890ff' }} />
+                        </p>
+                        <p className="ant-upload-text">Click or drag PDF files to upload</p>
+                        <p className="ant-upload-hint">
+                            Supports single or multiple PDF files
+                        </p>
+                    </Dragger>
+
+                    {fileList.length > 0 && (
+                        <Button
+                            type="primary"
+                            onClick={handleUpload}
+                            icon={<UploadOutlined />}
+                            loading={uploading}
+                            style={{ marginTop: 16, width: '100%' }}
+                        >
+                            Upload {fileList.length} File{fileList.length > 1 ? 's' : ''}
+                        </Button>
+                    )}
                 </div>
             </Modal>
 
