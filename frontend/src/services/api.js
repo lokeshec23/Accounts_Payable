@@ -59,6 +59,7 @@ export const invoiceService = {
   },
 
   async updateInvoiceStatus(invoiceId, status, comment = null) {
+    console.log(`[api.js] updateInvoiceStatus called for ${invoiceId} with status ${status}`);
     const params = new URLSearchParams({ status });
     if (comment) {
       params.append('comment', comment);

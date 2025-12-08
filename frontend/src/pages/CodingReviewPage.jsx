@@ -389,6 +389,28 @@ const CodingReviewPage = () => {
         }
     };
 
+    const handleRecall = async () => {
+        try {
+            console.log('Recall invoked for invoice:', invoiceData);
+            setSaving(true);
+            if (!invoiceData?.id) {
+                throw new Error('Invoice ID missing');
+            }
+            // Backend now handles clearing validation_results automatically
+            console.log('Updating status to waiting_coding...');
+            const response = await invoiceService.updateInvoiceStatus(invoiceData.id, 'waiting_coding', 'Recalled by user');
+            console.log('Recall response:', response);
+            message.success('Invoice recalled successfully!');
+            navigate('/coding');
+        } catch (error) {
+            console.error('Error recalling invoice:', error);
+            message.error('Failed to recall invoice');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+
     // Dragging
     const handleMouseDown = (e) => {
         e.preventDefault();
@@ -899,6 +921,15 @@ const CodingReviewPage = () => {
                             >
                                 Save
                             </Button>
+                            {invoiceData?.status === 'waiting_approval' && (
+                                <Button
+                                    type="default"
+                                    onClick={handleRecall}
+                                    loading={saving}
+                                >
+                                    Recall
+                                </Button>
+                            )}
                             <Button
                                 type="primary"
                                 icon={<SendOutlined />}
@@ -954,3 +985,5 @@ const CodingReviewPage = () => {
 };
 
 export default CodingReviewPage;
+
+

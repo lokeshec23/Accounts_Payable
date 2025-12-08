@@ -213,7 +213,7 @@ const ApprovalsPage = () => {
                         break;
                     case 'waiting_coding':
                         color = 'orange';
-                        text = 'Coding';
+                        text = 'Waiting Coding';
                         break;
                     case 'waiting_approval':
                         color = 'gold';

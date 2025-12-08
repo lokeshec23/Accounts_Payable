@@ -204,6 +204,23 @@ async def update_invoice_status(
     # Determine the main status field based on action and approver count
     main_status = InvoiceStatus.WAITING_APPROVAL  # Default: keep waiting
     
+    # Handle recall to waiting_coding
+    if status == InvoiceStatus.WAITING_CODING:
+        # Allow recall from waiting_approval to waiting_coding
+        main_status = InvoiceStatus.WAITING_CODING
+        # Clear validation results when recalling
+        db.invoices.update_one(
+            {"_id": ObjectId(invoice_id)},
+            {
+                "$set": {
+                    "status": main_status,
+                    "validation_results": {}
+                },
+                "$push": {"status_history": new_status_entry}
+            }
+        )
+        return {"message": "Status updated", "main_status": main_status}
+    
     if status in [InvoiceStatus.REJECTED, InvoiceStatus.REWORKED]:
         # Rejection or rework immediately changes status
         main_status = status
