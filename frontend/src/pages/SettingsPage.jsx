@@ -227,21 +227,31 @@ const SettingsPage = () => {
                             <Form.Item name="max_amount" label="Max Amount" rules={[{ required: true }]}>
                                 <InputNumber style={{ width: '100%' }} formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={value => value.replace(/\$\s?|(,*)/g, '')} />
                             </Form.Item>
+                            <Form.Item name="approver_count" label="Approvers Required" rules={[{ required: true }]}>
+                                <InputNumber min={1} max={4} style={{ width: '100%' }} />
+                            </Form.Item>
                         </>
                     )}
                     {modalType === 'vendor' && (
-                        <Form.Item name="vendor_name" label="Vendor Name" rules={[{ required: true }]}>
-                            <Input disabled={!!editingRecord} />
-                        </Form.Item>
+                        <>
+                            <Form.Item name="vendorName" label="Vendor Name" rules={[{ required: true }]}>
+                                <Input disabled={!!editingRecord} />
+                            </Form.Item>
+                            <Form.Item name="approverCount" label="Approvers Required" rules={[{ required: true }]}>
+                                <InputNumber min={1} max={4} style={{ width: '100%' }} />
+                            </Form.Item>
+                        </>
                     )}
                     {modalType === 'gl' && (
-                        <Form.Item name="gl_code" label="GL Code" rules={[{ required: true }]}>
-                            <Input disabled={!!editingRecord} />
-                        </Form.Item>
+                        <>
+                            <Form.Item name="glTitle" label="GL Code" rules={[{ required: true }]}>
+                                <Input disabled={!!editingRecord} />
+                            </Form.Item>
+                            <Form.Item name="approverCount" label="Approvers Required" rules={[{ required: true }]}>
+                                <InputNumber min={1} max={4} style={{ width: '100%' }} />
+                            </Form.Item>
+                        </>
                     )}
-                    <Form.Item name="approver_count" label="Approvers Required" rules={[{ required: true }]}>
-                        <InputNumber min={1} max={4} style={{ width: '100%' }} />
-                    </Form.Item>
                 </Form>
             </Modal>
         </div>
