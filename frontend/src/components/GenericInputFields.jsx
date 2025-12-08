@@ -25,7 +25,7 @@ import {
     SendOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { invoiceService, codingService } from '../services/api';
+import { invoiceService, codingService, workflowService } from '../services/api';
 import { authService } from '../services/auth';
 import WorkflowTab from './WorkflowTab';
 
@@ -64,6 +64,7 @@ const GenericInputFields = ({
     // Coding tab
     const [headerCoding, setHeaderCoding] = useState('');
     const [codingLineItems, setCodingLineItems] = useState([]);
+    const [workflowData, setWorkflowData] = useState(null);
 
     // Approver comment
     const [approverComment, setApproverComment] = useState('');
@@ -146,9 +147,10 @@ const GenericInputFields = ({
 
     // ---------- load saved coding ----------
     useEffect(() => {
-        const loadCodingData = async () => {
+        const loadData = async () => {
             if (!invoiceId) return;
             try {
+                // Load coding data
                 const codingData = await codingService.getCoding(invoiceId);
                 if (codingData) {
                     setHeaderCoding(codingData.header_coding || '');
@@ -179,7 +181,18 @@ const GenericInputFields = ({
             }
         };
 
-        loadCodingData();
+        const loadWorkflow = async () => {
+            if (!invoiceId) return;
+            try {
+                const history = await workflowService.getWorkflowHistory(invoiceId);
+                setWorkflowData(history);
+            } catch (err) {
+                console.error("Failed to fetch workflow history", err);
+            }
+        };
+
+        loadData();
+        loadWorkflow();
     }, [invoiceId]);
 
     // ---------- keep coding items in sync with invoice line items ----------
@@ -1569,12 +1582,32 @@ const GenericInputFields = ({
     const isRejected = invoiceStatus === 'rejected';
     const isWaitingApproval = invoiceStatus === 'waiting_approval';
 
+    // Identify users restricted from approving (Processed or Coding)
+    const restrictedUsers = new Set();
+    if (workflowData?.steps) {
+        workflowData.steps.forEach(step => {
+            if (step.step_type === 'processed' || step.step_type === 'coding') {
+                restrictedUsers.add(step.user);
+            }
+        });
+    }
+
+    // Fallback: Check status_history for 'processed' status
+    statusHistory.forEach(entry => {
+        if (entry.status === 'processed') {
+            restrictedUsers.add(entry.user);
+        }
+    });
+
+    const isRestrictedUser = restrictedUsers.has(currentUsername);
+
     // Disable buttons ONLY based on status_history, NOT main status:
     // 1. Current user has already acted, OR
     // 2. Someone has rejected/reworked (stops the process)
-    const approveDisabled = currentUserHasActed || hasRejectionOrRework;
-    const rejectDisabled = currentUserHasActed || hasRejectionOrRework;
-    const reworkDisabled = currentUserHasActed || hasRejectionOrRework;
+    // 3. User is restricted (Performed Processed or Coding)
+    const approveDisabled = currentUserHasActed || hasRejectionOrRework || isRestrictedUser;
+    const rejectDisabled = currentUserHasActed || hasRejectionOrRework || isRestrictedUser;
+    const reworkDisabled = currentUserHasActed || hasRejectionOrRework || isRestrictedUser;
 
     const renderStatusTag = () => {
         let color = 'default';

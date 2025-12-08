@@ -209,9 +209,11 @@ async def update_invoice_status(
         main_status = status
     elif status == InvoiceStatus.APPROVED:
         # Check if all required approvers have approved
-        from app.routes.workflow import get_vendor_name_from_invoice, get_required_approver_count
+        # Check if all required approvers have approved
+        from app.routes.workflow import get_vendor_name_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
         vendor_name = get_vendor_name_from_invoice(db, invoice_id)
-        required_approvers = get_required_approver_count(db, vendor_name)
+        total_amount = get_invoice_total_from_invoice(db, invoice_id)
+        required_approvers = get_required_approver_count(db, vendor_name, total_amount)
         
         # Count approvals in status_history (including this one)
         approvals = sum(1 for entry in status_history if entry.get("status") == "approved")

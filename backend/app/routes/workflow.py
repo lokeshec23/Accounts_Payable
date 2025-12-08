@@ -42,26 +42,87 @@ def get_vendor_name_from_invoice(db, invoice_id: str):
     
     return None
 
-def get_required_approver_count(db, vendor_name: str):
-    """Get the required approver count for a vendor (default 2)"""
-    if not vendor_name:
-        return 2
-    
-    # Try finding by vendor_name (snake_case)
-    config = db.approver_number.find_one({"vendor_name": vendor_name.strip()})
-    
-    # If not found, try vendorName (camelCase)
-    if not config:
-        config = db.approver_number.find_one({"vendorName": vendor_name.strip()})
+def get_invoice_total_from_invoice(db, invoice_id: str):
+    """Helper to extract total amount from invoice"""
+    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    if not invoice:
+        return None
         
-    if config:
-        # Check for approver_count or approverCount
-        if "approver_count" in config:
-            return config["approver_count"]
-        elif "approverCount" in config:
-            return config["approverCount"]
+    extracted = invoice.get("extracted_data", {})
+    
+    # helper to clean and parse float
+    def parse_amount(val):
+        if not val:
+            return None
+        try:
+            # Remove currency symbols and commas
+            clean = str(val).replace("$", "").replace("₹", "").replace(",", "").strip()
+            return float(clean)
+        except:
+            return None
+
+    # Check new nested structure first
+    if "amounts" in extracted:
+        amounts = extracted["amounts"]
+        if isinstance(amounts, dict):
+            # Try total_invoice_amount
+            total_obj = amounts.get("total_invoice_amount", {})
+            if isinstance(total_obj, dict):
+                return parse_amount(total_obj.get("value"))
+                
+    # Try common fields for total amount
+    for field in ["Total Invoice Amount", "TotalAmount", "InvoiceTotal", "Total", "total_amount"]:
+        if field in extracted and isinstance(extracted[field], dict):
+            return parse_amount(extracted[field].get("value"))
             
-    return 4
+    return None
+
+def get_required_approver_count(db, vendor_name: str, amount: float = None):
+    """
+    Get the required approver count.
+    Logic: MAX(Vendor_Rule_Count, Amount_Rule_Count)
+    
+    If no vendor rule exists: Default to 4 (High risk default).
+    If no amount rule exists: 0 (No requirement from amount).
+    """
+    
+    # 1. Vendor Based Count
+    vendor_count = 4 # Default to 4 if not configured
+    
+    if vendor_name:
+        # Try finding by vendor_name (snake_case)
+        config = db.approver_number.find_one({"vendor_name": vendor_name.strip()})
+        
+        # If not found, try vendorName (camelCase)
+        if not config:
+            config = db.approver_number.find_one({"vendorName": vendor_name.strip()})
+            
+        if config:
+            if "approver_count" in config:
+                vendor_count = config["approver_count"]
+            elif "approverCount" in config:
+                vendor_count = config["approverCount"]
+    
+    # 2. Amount Based Count
+    amount_count = 0
+    if amount is not None:
+        # Find all rules that might apply (where start of range is <= amount)
+        candidates = list(db.approver_amount.find({
+            "min_amount": {"$lte": amount}
+        }))
+        
+        for rule in candidates:
+            max_amt = rule.get("max_amount")
+            # Match if no upper limit (max_amt is None) OR amount is within limit
+            if max_amt is None or max_amt >= amount:
+                rule_count = rule.get("approver_count", 0)
+                # If multiple rules match, take the one requiring MOST approvers (safest bet) 
+                # or just the first one found. Let's take the max of matches.
+                if rule_count > amount_count:
+                    amount_count = rule_count
+            
+    # 3. Return Maximum Requirement
+    return max(vendor_count, amount_count)
 
 @router.get("/{invoice_id}", response_model=WorkflowHistoryResponse)
 async def get_workflow_history(
@@ -77,8 +138,10 @@ async def get_workflow_history(
         raise HTTPException(status_code=404, detail="Invoice not found")
     
     # Get vendor name and required approver count
+    # Get vendor name and required approver count
     vendor_name = get_vendor_name_from_invoice(db, invoice_id)
-    required_approvers = get_required_approver_count(db, vendor_name)
+    total_amount = get_invoice_total_from_invoice(db, invoice_id)
+    required_approvers = get_required_approver_count(db, vendor_name, total_amount)
     
     # Get all workflow steps for this invoice
     steps = db.workflow_steps.find({"invoice_id": invoice_id}).sort("timestamp", 1)
@@ -145,8 +208,10 @@ async def get_approver_status(
     db = get_database()
     
     # Get vendor name and required approver count
+    # Get vendor name and required approver count
     vendor_name = get_vendor_name_from_invoice(db, invoice_id)
-    required_approvers = get_required_approver_count(db, vendor_name)
+    total_amount = get_invoice_total_from_invoice(db, invoice_id)
+    required_approvers = get_required_approver_count(db, vendor_name, total_amount)
     
     # Get all approver steps
     approver_steps = db.workflow_steps.find({
