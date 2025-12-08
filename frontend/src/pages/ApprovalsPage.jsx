@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatDateTimeIST } from '../utils/dateUtils';
 import { Table, Button, Tag, Space, Modal, message, Input, Tooltip } from 'antd';
 import {
     EyeOutlined,
@@ -36,14 +37,7 @@ const ApprovalsPage = () => {
                 totalAmount: invoice.extracted_data?.amounts?.total_invoice_amount?.value || '',
                 amountDue: invoice.extracted_data?.amounts?.amount_due?.value || '',
 
-                lastUpdated: new Date(invoice.processed_at || invoice.uploaded_at).toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                }),
+                lastUpdated: formatDateTimeIST(invoice.processed_at || invoice.uploaded_at),
 
                 uploadedBy: invoice.uploaded_by || 'Unknown',
 
@@ -52,14 +46,7 @@ const ApprovalsPage = () => {
                 approverName: invoice.validation_results?.approver_name || '—',
 
                 approvalTime: invoice.validation_results?.approval_timestamp
-                    ? new Date(invoice.validation_results.approval_timestamp).toLocaleString('en-US', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                    })
+                    ? formatDateTimeIST(invoice.validation_results.approval_timestamp)
                     : '—',
 
                 approverComment: invoice.validation_results?.approver_comment || '',

@@ -10,6 +10,7 @@ import {
     HourglassOutlined
 } from '@ant-design/icons';
 import { workflowService } from '../services/api';
+import { formatDateTimeIST } from '../utils/dateUtils';
 import './WorkflowTab.css';
 
 const WorkflowTab = ({ invoiceId }) => {
@@ -63,16 +64,7 @@ const WorkflowTab = ({ invoiceId }) => {
     };
 
     const formatTimestamp = (timestamp) => {
-        if (!timestamp) return '—';
-        const date = new Date(timestamp);
-        return date.toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
+        return formatDateTimeIST(timestamp);
     };
 
     const getPendingStepName = (index) => {

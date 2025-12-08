@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Table, Button, Tag, Space, Spin, message } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import { invoiceService } from '../services/api';
+import { formatDateTimeIST } from '../utils/dateUtils';
 import '../styles/MainLayout.css';
 
 const CodingPage = () => {
@@ -42,14 +43,7 @@ const CodingPage = () => {
                 invoiceId: invoice.extracted_data?.invoice_details?.invoice_number?.value || 'N/A',
                 totalAmount: invoice.extracted_data?.amounts?.total_invoice_amount?.value || '',
                 amountDue: invoice.extracted_data?.amounts?.amount_due?.value || '',
-                lastUpdated: new Date(invoice.processed_at || invoice.uploaded_at).toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                }),
+                lastUpdated: formatDateTimeIST(invoice.processed_at || invoice.uploaded_at),
                 uploadedBy: invoice.uploaded_by || 'Unknown',
                 status: invoice.status || 'coding',
                 fileUrl: invoice.file_url || '/sample-invoice.pdf',
