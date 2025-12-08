@@ -2,25 +2,26 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
-class ApproverNumberBase(BaseModel):
-    vendorName: str = Field(..., alias="vendor_name")
+class ApproverGLBase(BaseModel):
+    glTitle: str = Field(..., description="General Ledger Code", alias="gl_code")
     approverCount: int = Field(ge=1, le=4, description="Number of approvers required (1-4)", alias="approver_count")
 
     class Config:
         populate_by_name = True
         by_alias = False
 
-class ApproverNumberCreate(ApproverNumberBase):
+class ApproverGLCreate(ApproverGLBase):
     pass
 
-class ApproverNumberUpdate(BaseModel):
+class ApproverGLUpdate(BaseModel):
+    glTitle: Optional[str] = Field(None, alias="gl_code")
     approverCount: Optional[int] = Field(None, ge=1, le=4, alias="approver_count")
     
     class Config:
         populate_by_name = True
         by_alias = False
 
-class ApproverNumber(ApproverNumberBase):
+class ApproverGL(ApproverGLBase):
     id: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -30,5 +31,5 @@ class ApproverNumber(ApproverNumberBase):
         populate_by_name = True
         by_alias = False
 
-class ApproverNumberResponse(ApproverNumber):
+class ApproverGLResponse(ApproverGL):
     pass

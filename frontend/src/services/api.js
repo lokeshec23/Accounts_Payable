@@ -186,7 +186,7 @@ export const approverConfigService = {
   },
 
   async getConfig(vendorName) {
-    const response = await api.get(`/approver-config/${vendorName}`);
+    const response = await api.get(`/approver-config/vendor/${vendorName}`);
     return response.data;
   },
 
@@ -202,6 +202,38 @@ export const approverConfigService = {
 
   async deleteConfig(vendorName) {
     const response = await api.delete(`/approver-config/${vendorName}`);
+    return response.data;
+  },
+
+  // Amount Rules
+  async getAmountRules() {
+    const response = await api.get('/approver-config/rules/amount');
+    return response.data;
+  },
+
+  async createAmountRule(ruleData) {
+    const response = await api.post('/approver-config/rules/amount', ruleData);
+    return response.data;
+  },
+
+  async deleteAmountRule(ruleId) {
+    const response = await api.delete(`/approver-config/rules/amount/${ruleId}`);
+    return response.data;
+  },
+
+  // GL Rules
+  async getGLRules() {
+    const response = await api.get('/approver-config/rules/gl');
+    return response.data;
+  },
+
+  async createGLRule(ruleData) {
+    const response = await api.post('/approver-config/rules/gl', ruleData);
+    return response.data;
+  },
+
+  async deleteGLRule(glCode) {
+    const response = await api.delete(`/approver-config/rules/gl/${glCode}`);
     return response.data;
   }
 };
