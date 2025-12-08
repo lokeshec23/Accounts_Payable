@@ -43,9 +43,9 @@ def get_vendor_name_from_invoice(db, invoice_id: str):
     return None
 
 def get_required_approver_count(db, vendor_name: str):
-    """Get the required approver count for a vendor (default 4)"""
+    """Get the required approver count for a vendor (default 2)"""
     if not vendor_name:
-        return 4
+        return 2
     
     # Try finding by vendor_name (snake_case)
     config = db.approver_number.find_one({"vendor_name": vendor_name.strip()})
