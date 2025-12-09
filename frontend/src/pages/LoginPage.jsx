@@ -22,7 +22,7 @@ const LoginPage = () => {
     try {
       await authService.login(values);
       message.success('Login successful!');
-      navigate('/dashboard');
+      navigate('/select-entity');
     } catch (error) {
       message.error(error.detail || 'Login failed. Please check your credentials.');
     } finally {

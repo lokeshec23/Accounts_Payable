@@ -15,13 +15,14 @@ import DesignSystemPage from './pages/DesignSystemPage';
 import Header from './components/Header';
 import { EntityProvider } from './context/EntityContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import SelectEntity from './pages/SelectEntity';
 import './styles/message-override.css';
 import './styles/table-headers.css';
 import './styles/global-table-styles.css';
 
 const AppContent = () => {
   const location = useLocation();
-  const hideHeader = location.pathname === '/' || location.pathname === '/register';
+  const hideHeader = location.pathname === '/' || location.pathname === '/register' || location.pathname === '/select-entity';
 
   // Configure message to appear in bottom right
   useEffect(() => {
@@ -66,6 +67,15 @@ const AppContent = () => {
           <SettingsPage />
         </ProtectedRoute>} />
         <Route path="/design-system" element={<DesignSystemPage />} />
+        <Route
+        path="/select-entity"
+        element={
+          <ProtectedRoute>
+            <SelectEntity />
+          </ProtectedRoute>
+        }
+        />
+
       </Routes>
     </>
   );

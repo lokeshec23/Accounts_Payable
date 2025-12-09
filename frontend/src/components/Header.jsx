@@ -116,34 +116,37 @@ const Header = () => {
                 </nav>
 
                 {/* Right Section - Entity, User */}
-                <div className="header-actions">
-                    {/* Entity Dropdown */}
-                    <Dropdown
-                        menu={{ items: entityMenuItems }}
-                        placement="bottomRight"
-                        trigger={['click']}
-                    >
-                        <Button
-                            icon={<BankOutlined />}
-                            style={{ marginRight: '16px' }}
-                        >
-                            {entity} <DownOutlined />
-                        </Button>
-                    </Dropdown>
+                {/* Right Section - Entity, User */}
+<div className="header-actions">
 
-                    {/* User Account with Dropdown */}
-                    <Dropdown
-                        menu={{ items: userMenuItems }}
-                        placement="bottomRight"
-                        trigger={['click']}
-                    >
-                        <div className="header-user" style={{ cursor: 'pointer' }}>
-                            <div className="user-avatar">
-                                {userInitial}
-                            </div>
-                        </div>
-                    </Dropdown>
-                </div>
+    {/* Selected Entity Display - NOT clickable */}
+    <div className="header-entity" style={{
+        padding: "6px 12px",
+        background: "#f1f5f9",
+        borderRadius: "6px",
+        marginRight: "16px",
+        display: "flex",
+        alignItems: "center",
+        fontWeight: 500
+    }}>
+        <BankOutlined style={{ marginRight: 6, color: "#1677ff" }} />
+        <span>{entity}</span>
+    </div>
+
+    {/* User Account with Dropdown */}
+    <Dropdown
+        menu={{ items: userMenuItems }}
+        placement="bottomRight"
+        trigger={['click']}
+    >
+        <div className="header-user" style={{ cursor: 'pointer' }}>
+            <div className="user-avatar">
+                {userInitial}
+            </div>
+        </div>
+    </Dropdown>
+</div>
+
             </div>
         </header>
     );
