@@ -236,6 +236,17 @@ export const approverConfigService = {
   async deleteGLRule(glCode) {
     const response = await api.delete(`/approver-config/rules/gl/${glCode}`);
     return response.data;
+  },
+
+  // Default Config
+  async getDefaultConfig() {
+    const response = await api.get('/approver-config/default');
+    return response.data;
+  },
+
+  async createOrUpdateDefaultConfig(configData) {
+    const response = await api.post('/approver-config/default', configData);
+    return response.data;
   }
 };
 
