@@ -24,6 +24,8 @@ class InvoiceBase(BaseModel):
     uploaded_by: str
     status: InvoiceStatus = InvoiceStatus.WAITING_APPROVAL
     status_history: Optional[List[StatusHistoryItem]] = []
+    required_approvers: Optional[int] = None
+    approver_breakdown: Optional[Dict[str, Any]] = None
 
 class InvoiceCreate(InvoiceBase):
     pass

@@ -38,11 +38,37 @@ async def send_to_approval(
         "comment": None
     }
     
+    
+    # Calculate approver count (Strict Persistence Logic)
+    extra_fields = {}
+    
+    # 1. Check if we already have a locked value (Strict Persistence)
+    if invoice.get("required_approvers") is not None:
+        print(f"DEBUG: [approval.py] Keeping persisted approver count: {invoice['required_approvers']}")
+        # Ensure these are preserved (implicitly done by not adding them to set if not needed, 
+        # but for clarity/completeness and in case of any weird mongo behavior, we can set them again or just skip)
+        # Actually, if we just don't touch them, they persist.
+        pass
+    else:
+        # 2. Calculate fresh if not set
+        print("DEBUG: [approval.py] Calculating FRESH approver count")
+        from app.routes.workflow import get_vendor_name_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
+        
+        vendor_name = get_vendor_name_from_invoice(db, invoice_id)
+        total_amount = get_invoice_total_from_invoice(db, invoice_id)
+        requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id)
+        
+        extra_fields["required_approvers"] = requirement_data["required"]
+        extra_fields["approver_breakdown"] = requirement_data["breakdown"]
+
     # Update invoice status
     db.invoices.update_one(
         {"_id": ObjectId(invoice_id)},
         {
-            "$set": {"status": InvoiceStatus.WAITING_APPROVAL},
+            "$set": {
+                "status": InvoiceStatus.WAITING_APPROVAL,
+                **extra_fields
+            },
             "$push": {"status_history": new_status_entry}
         }
     )
