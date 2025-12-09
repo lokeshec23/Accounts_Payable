@@ -8,7 +8,8 @@ import '../styles/Header.css';
 const Header = () => {
     const [toggleChecked, setToggleChecked] = useState(false);
     const [username, setUsername] = useState('User');
-    const [selectedEntity, setSelectedEntity] = useState('Consolidated Analytics Inc');
+    const [role, setRole] = useState('');
+    const [selectedEntity, setSelectedEntity] = useState('Consolidated Analytics Inc'); // Fixed: Added missing state
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -19,6 +20,7 @@ const Header = () => {
             try {
                 const user = JSON.parse(storedUser);
                 setUsername(user.username || user.email || 'User');
+                setRole(user.role || '');
             } catch (e) {
                 setUsername('User');
             }
@@ -111,6 +113,14 @@ const Header = () => {
                     >
                         Settings
                     </Link>
+                    {role === 'admin' && (
+                        <Link
+                            to="/admin"
+                            className={`nav-tab ${isActive('/admin') ? 'active' : ''}`}
+                        >
+                            Admin
+                        </Link>
+                    )}
                 </nav>
 
                 {/* Right Section - Entity, User */}

@@ -11,6 +11,7 @@ import CodingReviewPage from './pages/CodingReviewPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import MasterDataPage from './pages/MasterDataPage';
 import SettingsPage from './pages/SettingsPage';
+import AdminPage from './pages/AdminPage';
 import DesignSystemPage from './pages/DesignSystemPage';
 import Header from './components/Header';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -63,6 +64,9 @@ const AppContent = () => {
         </ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute>
           <SettingsPage />
+        </ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute>
+          <AdminPage />
         </ProtectedRoute>} />
         <Route path="/design-system" element={<DesignSystemPage />} />
       </Routes>

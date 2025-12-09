@@ -29,6 +29,11 @@ async def register(user: User):
     hashed_password = get_password_hash(user.password)
     user_dict = user.dict()
     user_dict["password"] = hashed_password
+    
+    # Set defaults
+    user_dict["status"] = "pending"
+    user_dict["role"] = "user"
+    
     # Set created_at to current UTC time if not present
     user_dict["created_at"] = datetime.utcnow()
     
@@ -49,6 +54,13 @@ async def login(login_data: LoginRequest):
             detail="Invalid email or password"
         )
     
+    # Check status
+    if user.get("status", "active") != "active": # Backward compatibility: assume active if missing
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account pending approval"
+        )
+    
     access_token = create_access_token(
         data={"sub": user["email"]},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -57,5 +69,6 @@ async def login(login_data: LoginRequest):
     return {
         "access_token": access_token, 
         "token_type": "bearer",
-        "username": user.get("username", user["email"].split("@")[0])
+        "username": user.get("username", user["email"].split("@")[0]),
+        "role": user.get("role", "user")
     }
