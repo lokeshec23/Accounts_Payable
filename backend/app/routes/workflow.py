@@ -77,17 +77,28 @@ def get_invoice_total_from_invoice(db, invoice_id: str):
             
     return None
 
-def get_required_approver_count(db, vendor_name: str, amount: float = None):
+def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None):
     """
-    Get the required approver count.
-    Logic: MAX(Vendor_Rule_Count, Amount_Rule_Count)
+    Get the required approver count with detailed breakdown.
+    Logic: MAX(Vendor_Rule_Count, Amount_Rule_Count, GL_Rule_Count)
     
     If no vendor rule exists: Default to 4 (High risk default).
     If no amount rule exists: 0 (No requirement from amount).
+    If no GL rule exists: 0.
+    
+    Returns:
+    {
+        "required": int,
+        "breakdown": {
+            "vendor": {"count": int, "name": str},
+            "amount": {"count": int, "value": float},
+            "gl": {"count": int, "codes": List[str]}
+        }
+    }
     """
     
     # 1. Vendor Based Count
-    vendor_count = 4 # Default to 4 if not configured
+    vendor_count = 2 # Default to 4 if not configured
     
     if vendor_name:
         # Try finding by vendor_name (snake_case)
@@ -116,13 +127,61 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None):
             # Match if no upper limit (max_amt is None) OR amount is within limit
             if max_amt is None or max_amt >= amount:
                 rule_count = rule.get("approver_count", 0)
-                # If multiple rules match, take the one requiring MOST approvers (safest bet) 
-                # or just the first one found. Let's take the max of matches.
+                # If multiple rules match, take the one requiring MOST approvers
                 if rule_count > amount_count:
                     amount_count = rule_count
             
-    # 3. Return Maximum Requirement
-    return max(vendor_count, amount_count)
+    # 3. GL Based Count
+    gl_count = 0
+    matched_gls = []
+    
+    if invoice_id:
+        # Fetch coding data for this invoice to get GL codes
+        coding = db.coding.find_one({"invoice_id": invoice_id})
+        if coding and "line_items" in coding:
+            # Extract unique GL codes from line items
+            gl_codes = set()
+            for item in coding["line_items"]:
+                code = item.get("gl_code")
+                if code:
+                    gl_codes.add(code)
+            
+            # Check rules for each GL code
+            for code in gl_codes:
+                code_clean = str(code).strip()
+                # GL rules are stored with "glTitle" (e.g. "12345 - Expense")
+                # We need to match exact strings from coding
+                rule = db.approver_gl.find_one({"glTitle": code_clean})
+                
+                # If not found, try matching just the code part (assuming "Code - Description" format)
+                if not rule and " - " in code_clean:
+                    parts = code_clean.split(" - ", 1)
+                    # Try matching code (prefix)
+                    short_code = parts[0].strip()
+                    rule = db.approver_gl.find_one({"glTitle": short_code})
+                    
+                    # If still not found, try matching description (suffix)
+                    if not rule and len(parts) > 1:
+                        description = parts[1].strip()
+                        rule = db.approver_gl.find_one({"glTitle": description})
+                
+                if rule:
+                    count = rule.get("approverCount", rule.get("approver_count", 0))
+                    if count > gl_count:
+                        gl_count = count
+                    matched_gls.append(code)
+
+    # 4. Return Maximum Requirement with Breakdown
+    max_count = max(vendor_count, amount_count, gl_count)
+    
+    return {
+        "required": max_count,
+        "breakdown": {
+            "vendor": {"count": vendor_count, "name": vendor_name},
+            "amount": {"count": amount_count, "value": amount},
+            "gl": {"count": gl_count, "codes": matched_gls}
+        }
+    }
 
 @router.get("/{invoice_id}", response_model=WorkflowHistoryResponse)
 async def get_workflow_history(
@@ -138,10 +197,13 @@ async def get_workflow_history(
         raise HTTPException(status_code=404, detail="Invoice not found")
     
     # Get vendor name and required approver count
-    # Get vendor name and required approver count
     vendor_name = get_vendor_name_from_invoice(db, invoice_id)
     total_amount = get_invoice_total_from_invoice(db, invoice_id)
-    required_approvers = get_required_approver_count(db, vendor_name, total_amount)
+    
+    # Result is now a dict with breakdown
+    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id)
+    required_approvers = requirement_data["required"]
+    approver_breakdown = requirement_data["breakdown"]
     
     # Get all workflow steps for this invoice
     steps = db.workflow_steps.find({"invoice_id": invoice_id}).sort("timestamp", 1)
@@ -155,6 +217,8 @@ async def get_workflow_history(
         invoice_id=invoice_id,
         vendor_name=vendor_name,
         required_approvers=required_approvers,
+        current_status=invoice.get("status"),
+        approver_breakdown=approver_breakdown,
         steps=step_list
     )
 
@@ -211,7 +275,8 @@ async def get_approver_status(
     # Get vendor name and required approver count
     vendor_name = get_vendor_name_from_invoice(db, invoice_id)
     total_amount = get_invoice_total_from_invoice(db, invoice_id)
-    required_approvers = get_required_approver_count(db, vendor_name, total_amount)
+    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id)
+    required_approvers = requirement_data["required"]
     
     # Get all approver steps
     approver_steps = db.workflow_steps.find({

@@ -14,7 +14,6 @@ class LineItemCoding(BaseModel):
     department: Optional[str] = None
     customer: Optional[str] = None
     item: Optional[str] = None
-    gl_code: str
 
 class CodingBase(BaseModel):
     invoice_id: str

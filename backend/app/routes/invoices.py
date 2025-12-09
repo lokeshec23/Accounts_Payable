@@ -208,6 +208,13 @@ async def update_invoice_status(
     if status == InvoiceStatus.WAITING_CODING:
         # Allow recall from waiting_approval to waiting_coding
         main_status = InvoiceStatus.WAITING_CODING
+        
+        # Delete the "Coding" workflow step so it shows as pending again
+        db.workflow_steps.delete_one({
+            "invoice_id": invoice_id,
+            "step_type": WorkflowStepType.CODING
+        })
+
         # Clear validation results when recalling
         db.invoices.update_one(
             {"_id": ObjectId(invoice_id)},
@@ -230,7 +237,8 @@ async def update_invoice_status(
         from app.routes.workflow import get_vendor_name_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
         vendor_name = get_vendor_name_from_invoice(db, invoice_id)
         total_amount = get_invoice_total_from_invoice(db, invoice_id)
-        required_approvers = get_required_approver_count(db, vendor_name, total_amount)
+        requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id)
+        required_approvers = requirement_data["required"]
         
         # Count approvals in status_history (including this one)
         approvals = sum(1 for entry in status_history if entry.get("status") == "approved")

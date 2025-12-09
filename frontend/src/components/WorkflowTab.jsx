@@ -13,13 +13,13 @@ import { workflowService } from '../services/api';
 import { formatDateTimeIST } from '../utils/dateUtils';
 import './WorkflowTab.css';
 
-const WorkflowTab = ({ invoiceId }) => {
+const WorkflowTab = ({ invoiceId, refreshTrigger }) => {
     const [workflowData, setWorkflowData] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchWorkflowHistory();
-    }, [invoiceId]);
+    }, [invoiceId, refreshTrigger]);
 
     const fetchWorkflowHistory = async () => {
         if (!invoiceId) return;
@@ -85,6 +85,32 @@ const WorkflowTab = ({ invoiceId }) => {
         // Filter out "waiting_approval" steps as they are just intermediate status logs
         steps = steps.filter(step => step.step_type !== 'waiting_approval');
 
+        // Check if "Coding" step exists
+        const codingStepIndex = steps.findIndex(step => step.step_type === 'coding');
+
+        // If "Coding" step doesn't exist, we might need to inject it as "Pending"
+        // Show "Coding Pending" if status is 'processed' or 'waiting_coding'
+        if (codingStepIndex === -1) {
+            const currentStatus = workflowData.current_status;
+            // Inject pending coding step if we are in early stages
+            // or even if we are later but for some reason the step wasn't recorded (fallback)
+            // But mainly we want to show it BEFORE it's done.
+
+            // Insert after "Processed" (which is usually the first step)
+            // Find "Processed" step index
+            const processedIndex = steps.findIndex(s => s.step_type === 'processed');
+            let insertIndex = processedIndex !== -1 ? processedIndex + 1 : 0;
+
+            steps.splice(insertIndex, 0, {
+                id: 'pending_coding',
+                step_type: 'coding',
+                status: 'pending',
+                step_name: 'Coding',
+                user: 'Pending',
+                timestamp: null
+            });
+        }
+
         // Count how many approver steps have been completed/rejected/etc
         const approverSteps = steps.filter(step =>
             step.step_type && step.step_type.startsWith('approver_')
@@ -137,7 +163,7 @@ const WorkflowTab = ({ invoiceId }) => {
                             </>
                         ) : (
                             <div className="workflow-step-user" style={{ fontStyle: 'italic', color: '#bfbfbf' }}>
-                                Waiting for approval
+                                {step.step_type === 'coding' ? 'Waiting for coding' : 'Waiting for approval'}
                             </div>
                         )}
                     </div>
@@ -176,11 +202,32 @@ const WorkflowTab = ({ invoiceId }) => {
                 title="Workflow History"
                 className="workflow-card"
                 extra={
-                    <div className="workflow-info">
-                        {workflowData.vendor_name && (
-                            <Tag color="purple">Vendor: {workflowData.vendor_name}</Tag>
+                    <div className="workflow-info" style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '13px' }}>
+                        {workflowData.approver_breakdown ? (
+                            <>
+                                {workflowData.approver_breakdown.vendor && (
+                                    <Tag color="cyan">
+                                        Vendor ({workflowData.approver_breakdown.vendor.name || 'N/A'}): {workflowData.approver_breakdown.vendor.count}
+                                    </Tag>
+                                )}
+                                {workflowData.approver_breakdown.amount && (
+                                    <Tag color="orange">
+                                        Amount ({workflowData.approver_breakdown.amount.value ? `$${workflowData.approver_breakdown.amount.value}` : 'N/A'}): {workflowData.approver_breakdown.amount.count}
+                                    </Tag>
+                                )}
+                                {workflowData.approver_breakdown.gl && (
+                                    <Tag color="purple">
+                                        GL: {workflowData.approver_breakdown.gl.count}
+                                    </Tag>
+                                )}
+                            </>
+                        ) : (
+                            // Fallback for older data or errors
+                            workflowData.vendor_name && (
+                                <Tag color="purple">Vendor: {workflowData.vendor_name}</Tag>
+                            )
                         )}
-                        <Tag color="cyan">
+                        <Tag color="red" style={{ fontWeight: 'bold' }}>
                             Required Approvers: {workflowData.required_approvers}
                         </Tag>
                     </div>

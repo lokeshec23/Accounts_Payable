@@ -42,6 +42,9 @@ const CodingReviewPage = () => {
     // Track selected rows for "apply to all" feature
     const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
+    // Trigger workflow refresh
+    const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
+
     const disabledStyle = {
         color: 'black',
         backgroundColor: 'white',
@@ -343,6 +346,7 @@ const CodingReviewPage = () => {
             });
 
             message.success('Coding saved successfully!');
+            setWorkflowRefreshTrigger(prev => prev + 1);
         } catch (error) {
             console.error('Error saving:', error);
             message.error('Failed to save coding');
@@ -975,7 +979,7 @@ const CodingReviewPage = () => {
                             {
                                 key: 'workflow',
                                 label: 'Workflow',
-                                children: <WorkflowTab invoiceId={invoiceData?.id} />
+                                children: <WorkflowTab invoiceId={invoiceData?.id} refreshTrigger={workflowRefreshTrigger} />
                             }
                         ]}
                     />
