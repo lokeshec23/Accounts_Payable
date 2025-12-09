@@ -34,7 +34,6 @@
 /* Dragger Styles */
 .upload-dragger {
     background: #f9f9f9 !important;
-    border: 2px dashed #d0d0d0 !important;
     border-radius: 8px !important;
     padding: 0 !important;
     /* Remove padding from container to prevent double spacing */
