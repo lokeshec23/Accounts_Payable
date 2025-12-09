@@ -140,7 +140,17 @@ async def get_invoice(
         raise HTTPException(status_code=404, detail="Invoice not found")
 
     invoice["id"] = str(invoice["_id"])
+    invoice["id"] = str(invoice["_id"])
     return InvoiceResponse(**invoice)
+
+@router.get("/debug/raw/{invoice_id}")
+async def get_raw_invoice(invoice_id: str):
+    db = get_database()
+    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    if not invoice:
+        return {"error": "Not found"}
+    invoice["_id"] = str(invoice["_id"])
+    return invoice
 
 
 @router.get("/{invoice_id}/pdf")
@@ -215,7 +225,9 @@ async def update_invoice_status(
             "step_type": WorkflowStepType.CODING
         })
 
+    
         # Clear validation results when recalling
+        # note: we do NOT clear required_approvers here, so it persists if it exists
         db.invoices.update_one(
             {"_id": ObjectId(invoice_id)},
             {
@@ -223,21 +235,58 @@ async def update_invoice_status(
                     "status": main_status,
                     "validation_results": {}
                 },
+                "$unset": {
+                    "required_approvers": "",
+                    "approver_breakdown": ""
+                },
                 "$push": {"status_history": new_status_entry}
             }
         )
         return {"message": "Status updated", "main_status": main_status}
     
+    
+    # Handle transition to waiting_approval (Persist Rules)
+    extra_fields = {}
+    
+    # Handle transition to waiting_approval (Persist Rules)
+    extra_fields = {}
+    if status == InvoiceStatus.WAITING_APPROVAL:
+        print(f"DEBUG: Status update to WAITING_APPROVAL for {invoice_id}")
+        existing_req = invoice.get("required_approvers")
+        print(f"DEBUG: Existing required_approvers: {existing_req}")
+        
+        # 1. Check if we already have a locked value (Strict Persistence)
+        if existing_req is not None:
+            # FORCE KEEP EXISTING VALUE
+            print(f"DEBUG: Using persisted approver count: {existing_req}")
+            extra_fields["required_approvers"] = existing_req
+            # checking if key exists before accessing
+            extra_fields["approver_breakdown"] = invoice.get("approver_breakdown")
+        else:
+            # 2. Calculate fresh if not set
+            print("DEBUG: Calculating FRESH approver count")
+            from app.routes.workflow import get_vendor_name_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
+            
+            vendor_name = get_vendor_name_from_invoice(db, invoice_id)
+            total_amount = get_invoice_total_from_invoice(db, invoice_id)
+            requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id)
+            
+            print(f"DEBUG: Fresh calculation result: {requirement_data['required']}")
+            extra_fields["required_approvers"] = requirement_data["required"]
+            extra_fields["approver_breakdown"] = requirement_data["breakdown"]
+
     if status in [InvoiceStatus.REJECTED, InvoiceStatus.REWORKED]:
         # Rejection or rework immediately changes status
         main_status = status
     elif status == InvoiceStatus.APPROVED:
         # Check if all required approvers have approved
         # Check if all required approvers have approved
+        # Check if all required approvers have approved
         from app.routes.workflow import get_vendor_name_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
         vendor_name = get_vendor_name_from_invoice(db, invoice_id)
         total_amount = get_invoice_total_from_invoice(db, invoice_id)
-        requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id)
+        # Use persisted values!
+        requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice)
         required_approvers = requirement_data["required"]
         
         # Count approvals in status_history (including this one)
@@ -259,7 +308,8 @@ async def update_invoice_status(
                 "validation_results.approver_name": approver_name,
                 "validation_results.approval_timestamp": timestamp.isoformat(),
                 "validation_results.last_action": status,
-                "validation_results.approver_comment": comment
+                "validation_results.approver_comment": comment,
+                **extra_fields
             },
             "$push": {"status_history": new_status_entry}
         }
@@ -328,6 +378,32 @@ async def update_invoice(
             **existing_validation,
             **update_data["validation_results"]
         }
+
+    
+    # Check if status is being updated to WAITING_APPROVAL in generic update
+    if "status" in update_data and update_data["status"] == InvoiceStatus.WAITING_APPROVAL:
+        print(f"DEBUG: Generic update setting status to WAITING_APPROVAL for {invoice_id}")
+        existing_req = invoice.get("required_approvers")
+        
+        if existing_req is not None:
+             print(f"DEBUG: Using persisted approver count (Generic Update): {existing_req}")
+             # Ensure these are preserved/set if passed, implicitly they might be missing from update_data
+             # If update_data doesn't have them, we don't need to add them if they are already in DB?
+             # No, update_data overwrites. If we don't include them, update_one only sets what is in update_data.
+             # but we want to ensure they are NOT cleared? No, update_data only keys are updated.
+             # We want to Ensure they are PRESENT if we are "transitioning" effectively.
+             # Actually, if the DB has them, we don't need to do anything.
+             pass
+        else:
+             print("DEBUG: Calculating FRESH approver count (Generic Update)")
+             from app.routes.workflow import get_vendor_name_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
+             
+             vendor_name = get_vendor_name_from_invoice(db, invoice_id)
+             total_amount = get_invoice_total_from_invoice(db, invoice_id)
+             requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id)
+             
+             update_data["required_approvers"] = requirement_data["required"]
+             update_data["approver_breakdown"] = requirement_data["breakdown"]
 
     db.invoices.update_one(
         {"_id": ObjectId(invoice_id)},

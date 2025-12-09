@@ -592,6 +592,9 @@ const GenericInputFields = ({
                 line_items: codingLineItems
             });
 
+            // Trigger actual status update to lock approver count
+            await invoiceService.updateInvoiceStatus(invoiceId, 'waiting_approval');
+
             message.success('Coding data saved successfully!');
             message.success("Invoice sent for approval");
 

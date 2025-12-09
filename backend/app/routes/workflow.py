@@ -77,7 +77,7 @@ def get_invoice_total_from_invoice(db, invoice_id: str):
             
     return None
 
-def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None):
+def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None, invoice_data: dict = None):
     """
     Get the required approver count with detailed breakdown.
     Logic: MAX(Vendor_Rule_Count, Amount_Rule_Count, GL_Rule_Count)
@@ -97,6 +97,19 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
     }
     """
     
+    # 0. Check for persisted values on the invoice
+    if invoice_data and "required_approvers" in invoice_data and invoice_data["required_approvers"] is not None:
+        print(f"DEBUG: returning PERSISTED approver count: {invoice_data['required_approvers']}")
+        return {
+            "required": invoice_data["required_approvers"],
+            "breakdown": invoice_data.get("approver_breakdown", {
+                "vendor": {"count": 0, "name": vendor_name},
+                "amount": {"count": 0, "value": amount},
+                "gl": {"count": 0, "codes": []},
+                "note": "Loaded from persisted invoice data"
+            })
+        }
+
     # 1. Vendor Based Count
     vendor_count = 0 # Will verify below
     
@@ -209,7 +222,7 @@ async def get_workflow_history(
     total_amount = get_invoice_total_from_invoice(db, invoice_id)
     
     # Result is now a dict with breakdown
-    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id)
+    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice)
     required_approvers = requirement_data["required"]
     approver_breakdown = requirement_data["breakdown"]
     
@@ -279,11 +292,13 @@ async def get_approver_status(
     """Get the status of all approvers for an invoice"""
     db = get_database()
     
-    # Get vendor name and required approver count
+    # Get invoice to check for persisted rules
+    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    
     # Get vendor name and required approver count
     vendor_name = get_vendor_name_from_invoice(db, invoice_id)
     total_amount = get_invoice_total_from_invoice(db, invoice_id)
-    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id)
+    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice)
     required_approvers = requirement_data["required"]
     
     # Get all approver steps
