@@ -55,10 +55,34 @@ def get_invoice_total_from_invoice(db, invoice_id: str):
         if not val:
             return None
         try:
-            # Remove currency symbols and commas
-            clean = str(val).replace("$", "").replace("₹", "").replace(",", "").strip()
-            return float(clean)
-        except:
+            # Handle float/int directly
+            if isinstance(val, (int, float)):
+                return float(val)
+                
+            val_str = str(val).strip()
+            # Use regex to find the number part. 
+            # Matches: optional negative sign, digits with optional commas, optional decimal part
+            import re
+            # Remove all non-numeric chars except . and -
+            # This handles "3,222.09 USD" -> "3222.09"
+            # It also handles "$3,222.09" -> "3222.09"
+            
+            # First, try to extract a clear number pattern
+            # Look for digits, commas, dots. 
+            # But "USD 300" -> "300"
+            
+            # Simple approach: Remove all chars that are NOT digits, dots, or minus signs
+            # But remove commas first to avoid confusion with decimals in some locales (assuming standard US/UK format based on example)
+            clean = val_str.replace(",", "")
+            
+            # Now extract the first valid float-like sequence
+            match = re.search(r'-?\d+(\.\d+)?', clean)
+            if match:
+                return float(match.group())
+                
+            return None
+        except Exception as e:
+            print(f"DEBUG: Error parsing amount '{val}': {e}")
             return None
 
     # Check new nested structure first
