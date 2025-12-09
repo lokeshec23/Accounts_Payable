@@ -98,7 +98,11 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
     """
     
     # 1. Vendor Based Count
-    vendor_count = 2 # Default to 4 if not configured
+    vendor_count = 0 # Will verify below
+    
+    # Check default config first
+    default_config = db.approver_default.find_one({})
+    default_count = default_config.get("default_approver_count", 4) if default_config else 4
     
     if vendor_name:
         # Try finding by vendor_name (snake_case)
@@ -113,6 +117,10 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
                 vendor_count = config["approver_count"]
             elif "approverCount" in config:
                 vendor_count = config["approverCount"]
+    
+    # If no vendor specific rule found, use default
+    if vendor_count == 0:
+        vendor_count = default_count
     
     # 2. Amount Based Count
     amount_count = 0

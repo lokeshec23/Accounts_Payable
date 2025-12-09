@@ -22,6 +22,7 @@ const SettingsPage = () => {
     const [amountRules, setAmountRules] = useState([]);
     const [vendorRules, setVendorRules] = useState([]);
     const [glRules, setGlRules] = useState([]);
+    const [defaultConfig, setDefaultConfig] = useState(null);
     const [loading, setLoading] = useState(false);
 
     // Modal State
@@ -33,17 +34,20 @@ const SettingsPage = () => {
     const fetchRules = async () => {
         setLoading(true);
         try {
-            const [amountData, vendorData, glData] = await Promise.all([
+            const [amountData, vendorData, glData, defaultData] = await Promise.all([
                 approverConfigService.getAmountRules(),
                 approverConfigService.getAllConfigs(),
-                approverConfigService.getGLRules()
+                approverConfigService.getGLRules(),
+                approverConfigService.getDefaultConfig()
             ]);
             console.log('Amount Rules:', amountData);
             console.log('Vendor Rules:', vendorData);
             console.log('GL Rules:', glData);
+            console.log('Default Config:', defaultData);
             setAmountRules(amountData);
             setVendorRules(vendorData);
             setGlRules(glData);
+            setDefaultConfig(defaultData);
         } catch (error) {
             console.error("Error fetching rules:", error);
             message.error("Failed to fetch rules");
@@ -170,6 +174,50 @@ const SettingsPage = () => {
         }
     ];
 
+    const paginationConfig = {
+        defaultPageSize: 10,
+        showSizeChanger: true,
+        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+        pageSizeOptions: ['10', '20', '50'],
+    };
+
+    const renderDefaultSettings = () => (
+        <div style={{ padding: '20px 0' }}>
+            {/* <Title level={4}></Title> */}
+            <Text type="secondary" style={{ display: 'block', marginBottom: '20px' }}>
+                This setting defines the default number of approvers required when no specific Vendor or Amount rule matches.
+            </Text>
+
+            <Form
+                layout="inline"
+                onFinish={async (values) => {
+                    try {
+                        await approverConfigService.createOrUpdateDefaultConfig(values);
+                        message.success("Default settings updated successfully");
+                        fetchRules();
+                    } catch (err) {
+                        message.error("Failed to update default settings");
+                    }
+                }}
+                initialValues={defaultConfig}
+                key={defaultConfig?.updated_at || 'loading'} // Force re-render when data loads
+            >
+                <Form.Item
+                    name="default_approver_count"
+                    label="Default Approvers Required"
+                    rules={[{ required: true }]}
+                >
+                    <InputNumber min={1} max={4} />
+                </Form.Item>
+                <Form.Item>
+                    <Button type="primary" htmlType="submit">
+                        Save
+                    </Button>
+                </Form.Item>
+            </Form>
+        </div>
+    );
+
     const renderTabContent = (type, columns, data) => (
         <div>
             <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
@@ -179,15 +227,20 @@ const SettingsPage = () => {
             </div>
             <Table
                 columns={columns}
-                dataSource={data}
+                dataSource={data || []}
                 rowKey={(record) => record.id || record.vendorName || record.glTitle}
                 loading={loading}
-                pagination={false}
+                pagination={paginationConfig}
             />
         </div>
     );
 
     const items = [
+        {
+            key: '0',
+            label: 'Default',
+            children: renderDefaultSettings(),
+        },
         {
             key: '1',
             label: 'By Amount',

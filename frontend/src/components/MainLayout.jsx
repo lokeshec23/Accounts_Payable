@@ -551,6 +551,15 @@ const MainLayout = () => {
 
     const tabItems = [
         {
+            key: 'dashboard',
+            label: 'Dashboard',
+            children: (
+                <div className="dashboard-tab">
+                    <ApDashboard />
+                </div>
+            ),
+        },
+        {
             key: 'invoices',
             label: 'Invoices',
             children: (
@@ -604,15 +613,7 @@ const MainLayout = () => {
                 </>
             ),
         },
-        {
-            key: 'dashboard',
-            label: 'Dashboard',
-            children: (
-                <div className="dashboard-tab">
-                    <ApDashboard />
-                </div>
-            ),
-        },
+        
     ];
 
     // =====================================================
