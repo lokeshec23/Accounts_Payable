@@ -4,12 +4,17 @@ from pymongo import ASCENDING
 from app.database.mongodb import get_database
 import pandas as pd
 import numpy as np
+from fastapi import Depends
+from app.auth.jwt import get_current_user
+from app.models.user import UserResponse
 
 router = APIRouter(tags=["Master Data"])
 
 
 @router.get("/files")
-def list_files():
+def list_files(
+    current_user: UserResponse = Depends(get_current_user)
+):
     db = get_database()
     files_meta = db["excel_files"]
 
@@ -20,7 +25,10 @@ def list_files():
 
 
 @router.get("/{file_id}/sheets")
-def get_sheets(file_id: str):
+def get_sheets(
+    file_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
     db = get_database()
     files_meta = db["excel_files"]
 
@@ -43,7 +51,10 @@ def load_full_sheet(collection_name: str):
 
 
 @router.get("/sheet/{collection_name}")
-async def get_sheet_data(collection_name: str):
+async def get_sheet_data(
+    collection_name: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
     try:
         db = get_database()
         docs = list(db[collection_name].find())
@@ -86,7 +97,11 @@ class DeleteRowRequest(BaseModel):
     row_index: int
 
 @router.post("/sheet/{collection_name}/add")
-def add_row(collection_name: str, request: AddRowRequest):
+def add_row(
+    collection_name: str, 
+    request: AddRowRequest,
+    current_user: UserResponse = Depends(get_current_user)
+):
     db = get_database()
     rows, chunks = load_full_sheet(collection_name)
 
@@ -106,7 +121,11 @@ def add_row(collection_name: str, request: AddRowRequest):
 
 
 @router.patch("/sheet/{collection_name}/edit")
-def edit_row(collection_name: str, request: EditRowRequest):
+def edit_row(
+    collection_name: str, 
+    request: EditRowRequest,
+    current_user: UserResponse = Depends(get_current_user)
+):
     db = get_database()
     rows, chunks = load_full_sheet(collection_name)
 
@@ -129,7 +148,11 @@ def edit_row(collection_name: str, request: EditRowRequest):
 
 
 @router.delete("/sheet/{collection_name}/delete")
-def delete_row(collection_name: str, request: DeleteRowRequest):
+def delete_row(
+    collection_name: str, 
+    request: DeleteRowRequest,
+    current_user: UserResponse = Depends(get_current_user)
+):
     db = get_database()
     rows, chunks = load_full_sheet(collection_name)
 

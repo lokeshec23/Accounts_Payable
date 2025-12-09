@@ -5,10 +5,12 @@ import { SearchOutlined, BellOutlined, LogoutOutlined, SettingOutlined, DownOutl
 import { authService } from '../services/auth';
 import '../styles/Header.css';
 
+import { useEntity } from '../context/EntityContext';
+
 const Header = () => {
     const [toggleChecked, setToggleChecked] = useState(false);
     const [username, setUsername] = useState('User');
-    const [selectedEntity, setSelectedEntity] = useState('Consolidated Analytics Inc');
+    const { entity, setEntity } = useEntity();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -53,12 +55,12 @@ const Header = () => {
         {
             key: 'entity1',
             label: 'Consolidated Analytics Inc',
-            onClick: () => setSelectedEntity('Consolidated Analytics Inc'),
+            onClick: () => setEntity('Consolidated Analytics Inc'),
         },
         {
             key: 'entity2',
             label: 'Consolidated Analytics Private Limited',
-            onClick: () => setSelectedEntity('Consolidated Analytics Private Limited'),
+            onClick: () => setEntity('Consolidated Analytics Private Limited'),
         },
     ];
 
@@ -125,7 +127,7 @@ const Header = () => {
                             icon={<BankOutlined />}
                             style={{ marginRight: '16px' }}
                         >
-                            {selectedEntity} <DownOutlined />
+                            {entity} <DownOutlined />
                         </Button>
                     </Dropdown>
 

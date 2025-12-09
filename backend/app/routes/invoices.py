@@ -6,6 +6,7 @@ from app.models.invoice import InvoiceCreate, InvoiceResponse, InvoiceStatus, In
 from app.models.workflow import WorkflowStepType, WorkflowStepStatus
 from app.database.mongodb import get_database
 from app.auth.jwt import get_current_user
+from app.dependencies import get_current_entity
 from app.models.user import UserResponse
 from datetime import datetime
 import os
@@ -19,7 +20,8 @@ invoice_processor = InvoiceProcessor()
 @router.post("/upload")
 async def upload_invoices(
     files: List[UploadFile] = File(...),
-    current_user: UserResponse = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
 ):
     db = get_database()
     saved_invoices = []
@@ -45,7 +47,8 @@ async def upload_invoices(
                 original_filename=clean_name,
                 file_path=file_path,
                 uploaded_by=current_user.username,
-                status=InvoiceStatus.PROCESSED
+                status=InvoiceStatus.PROCESSED,
+                entity=entity
             )
 
             invoice_dict = invoice_data.dict()
@@ -84,7 +87,8 @@ async def upload_invoices(
                 "status": WorkflowStepStatus.COMPLETED,
                 "timestamp": datetime.utcnow(),
                 "approver_number": None,
-                "comment": None
+                "comment": None,
+                "entity": entity  # Store entity in workflow step too?
             }
             db.workflow_steps.insert_one(workflow_step)
 
@@ -107,18 +111,18 @@ async def upload_invoices(
 @router.get("/", response_model=List[InvoiceResponse])
 async def get_invoices(
     current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity),
     skip: int = 0,
     limit: int = 10,
     show_all: bool = True
 ):
     db = get_database()
 
-    if show_all:
-        invoices = db.invoices.find().sort("uploaded_at", -1).skip(skip).limit(limit)
-    else:
-        invoices = db.invoices.find(
-            {"uploaded_by": current_user.username}
-        ).sort("uploaded_at", -1).skip(skip).limit(limit)
+    query = {"entity": entity}
+    if not show_all:
+        query["uploaded_by"] = current_user.username
+
+    invoices = db.invoices.find(query).sort("uploaded_at", -1).skip(skip).limit(limit)
 
     invoice_list = []
     for invoice in invoices:
@@ -131,15 +135,15 @@ async def get_invoices(
 @router.get("/{invoice_id}", response_model=InvoiceResponse)
 async def get_invoice(
     invoice_id: str,
-    current_user: UserResponse = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
 ):
     db = get_database()
 
-    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id), "entity": entity})
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
 
-    invoice["id"] = str(invoice["_id"])
     invoice["id"] = str(invoice["_id"])
     return InvoiceResponse(**invoice)
 

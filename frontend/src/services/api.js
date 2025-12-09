@@ -16,6 +16,13 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Add Entity header
+    const entity = localStorage.getItem('selected_entity');
+    if (entity) {
+      config.headers['X-Entity'] = entity;
+    }
+
     return config;
   },
   (error) => {

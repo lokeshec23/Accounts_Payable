@@ -1,7 +1,7 @@
 // src/pages/ApDashboard.jsx
 import React, { useEffect, useState } from "react";
 import Plot from "react-plotly.js";
-import axios from "axios";
+import api from "../services/api";   // ✅ FIX: Use our axios instance
 import {
     Row,
     Col,
@@ -36,11 +36,9 @@ const ApDashboard = () => {
     const [sortVendorAmtAsc, setSortVendorAmtAsc] = useState(false);
     const [sortTopVendorAsc, setSortTopVendorAsc] = useState(false);
 
-    // Top N states for charts
+    // Top N states
     const [vendorCountLimit, setVendorCountLimit] = useState(5);
     const [vendorAmountLimit, setVendorAmountLimit] = useState(5);
-
-    // Top N for table
     const [topLimit, setTopLimit] = useState(5);
 
     useEffect(() => {
@@ -54,12 +52,12 @@ const ApDashboard = () => {
                     topRes,
                     paymentsRes,
                 ] = await Promise.all([
-                    axios.get(API_CONFIG.ENDPOINTS.DASHBOARD.SUMMARY),
-                    axios.get(API_CONFIG.ENDPOINTS.DASHBOARD.AGING),
-                    axios.get(API_CONFIG.ENDPOINTS.DASHBOARD.STATUS_BREAKDOWN),
-                    axios.get(API_CONFIG.ENDPOINTS.DASHBOARD.VENDORS),
-                    axios.get(API_CONFIG.ENDPOINTS.DASHBOARD.TOP_VENDORS),
-                    axios.get(API_CONFIG.ENDPOINTS.DASHBOARD.PAYMENTS),
+                    api.get(API_CONFIG.ENDPOINTS.DASHBOARD.SUMMARY),        // ✅ FIXED
+                    api.get(API_CONFIG.ENDPOINTS.DASHBOARD.AGING),          // ✅ FIXED
+                    api.get(API_CONFIG.ENDPOINTS.DASHBOARD.STATUS_BREAKDOWN), // FIXED
+                    api.get(API_CONFIG.ENDPOINTS.DASHBOARD.VENDORS),        // FIXED
+                    api.get(API_CONFIG.ENDPOINTS.DASHBOARD.TOP_VENDORS),    // FIXED
+                    api.get(API_CONFIG.ENDPOINTS.DASHBOARD.PAYMENTS),       // FIXED
                 ]);
 
                 setSummary(summaryRes.data);
@@ -90,7 +88,6 @@ const ApDashboard = () => {
         aging["120_plus"],
     ];
 
-    // Professional gradient for aging bars
     const agingBarColors = [
         'rgba(59, 124, 255, 0.9)',
         'rgba(59, 124, 255, 0.8)',
@@ -99,8 +96,7 @@ const ApDashboard = () => {
         'rgba(59, 124, 255, 0.5)'
     ];
 
-    // ---------- Status chart data ----------
-    // ---------- Status chart data ----------
+    // ---------- Status chart ----------
     const statusLabels = [
         "Approved",
         "Waiting Approval",
@@ -121,19 +117,17 @@ const ApDashboard = () => {
         statusBreakdown.processed || 0
     ];
 
-
-    // Professional pie chart colors
     const statusPieColors = [
-        "#10b981", // Approved - Green
-        "#3b82f6", // Waiting Approval - Blue
-        "#f59e0b", // Pending - Amber
-        "#8b5cf6", // Waiting Coding - Purple
-        "#ef4444", // Rejected - Red
-        "#ec4899", // Reworked - Pink
-        "#14b8a6" // Processed - Teal
+        "#10b981",
+        "#3b82f6",
+        "#f59e0b",
+        "#8b5cf6",
+        "#ef4444",
+        "#ec4899",
+        "#14b8a6"
     ];
 
-    // ---------- Vendor bar charts (sorted + limited) ----------
+    // ---------- Vendor charts ----------
     const vendorCount = [...vendorData.by_count]
         .sort((a, b) => (sortVendorCountAsc ? a.count - b.count : b.count - a.count))
         .slice(0, vendorCountLimit);
@@ -144,16 +138,15 @@ const ApDashboard = () => {
         )
         .slice(0, vendorAmountLimit);
 
-    // Professional colors for vendor charts
     const vendorCountColors = Array.from({ length: vendorCount.length }, (_, i) =>
-        `rgba(139, 92, 246, ${0.7 + (i * 0.05)})` // Purple gradient
+        `rgba(139, 92, 246, ${0.7 + (i * 0.05)})`
     );
 
     const vendorAmountColors = Array.from({ length: vendorAmount.length }, (_, i) =>
-        `rgba(16, 185, 129, ${0.7 + (i * 0.05)})` // Green gradient
+        `rgba(16, 185, 129, ${0.7 + (i * 0.05)})`
     );
 
-    // ---------- Top vendors table (sorted + limited) ----------
+    // ---------- Top vendors table ----------
     const sortedTopVendors = [...topVendors]
         .sort((a, b) => (sortTopVendorAsc ? a.total - b.total : b.total - a.total))
         .slice(0, topLimit);
@@ -253,6 +246,7 @@ const ApDashboard = () => {
 
                 {/* AGING + STATUS CHARTS */}
                 <Row gutter={20} className="ap-row">
+                    {/* Aging */}
                     <Col xs={24} md={14}>
                         <Card
                             className="ap-chart-card"
@@ -305,20 +299,16 @@ const ApDashboard = () => {
                                     displayModeBar: false,
                                     displaylogo: false,
                                     scrollZoom: false,
-                                    editable: false,
-                                    staticPlot: false,
-                                    responsive: true,
                                 }}
                             />
                         </Card>
                     </Col>
 
+                    {/* Status */}
                     <Col xs={24} md={10}>
                         <Card
                             className="ap-chart-card"
-                            title={
-                                <span className="ap-card-title">Invoice Status Breakdown</span>
-                            }
+                            title={<span className="ap-card-title">Invoice Status Breakdown</span>}
                         >
                             <Plot
                                 data={[
@@ -329,16 +319,13 @@ const ApDashboard = () => {
                                         hole: 0.5,
                                         marker: {
                                             colors: statusPieColors,
-                                            line: {
-                                                width: 1.5,
-                                                color: "white",
-                                            },
+                                            line: { width: 1.5, color: "white" },
                                         },
                                         textinfo: "percent",
                                         textposition: "outside",
                                         hovertemplate:
                                             "<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>",
-                                        pull: statusLabels.map(() => 0.02), // pull all slices slightly
+                                        pull: statusLabels.map(() => 0.02),
                                     },
                                 ]}
                                 layout={{
@@ -350,10 +337,6 @@ const ApDashboard = () => {
                                         x: 1.05,
                                         xanchor: "left",
                                         y: 0.5,
-                                        font: { size: 12 },
-                                        bordercolor: "rgba(234, 236, 240, 0.8)",
-                                        borderwidth: 1,
-                                        bgcolor: "rgba(248, 250, 255, 0.8)",
                                     },
                                     plot_bgcolor: "rgba(0,0,0,0)",
                                     paper_bgcolor: "rgba(0,0,0,0)",
@@ -369,13 +352,8 @@ const ApDashboard = () => {
                                 config={{
                                     displayModeBar: false,
                                     displaylogo: false,
-                                    scrollZoom: false,
-                                    editable: false,
-                                    staticPlot: false,
-                                    responsive: true,
                                 }}
                             />
-
                         </Card>
                     </Col>
                 </Row>
@@ -453,17 +431,12 @@ const ApDashboard = () => {
                                         font: { color: 'white', size: 12 }
                                     },
                                     dragmode: false,
-                                    hovermode: 'closest',
                                 }}
                                 className="ap-chart"
                                 useResizeHandler
                                 config={{
                                     displayModeBar: false,
                                     displaylogo: false,
-                                    scrollZoom: false,
-                                    editable: false,
-                                    staticPlot: false,
-                                    responsive: true,
                                 }}
                             />
                         </Card>
@@ -541,17 +514,12 @@ const ApDashboard = () => {
                                         font: { color: 'white', size: 12 }
                                     },
                                     dragmode: false,
-                                    hovermode: 'closest',
                                 }}
                                 className="ap-chart"
                                 useResizeHandler
                                 config={{
                                     displayModeBar: false,
                                     displaylogo: false,
-                                    scrollZoom: false,
-                                    editable: false,
-                                    staticPlot: false,
-                                    responsive: true,
                                 }}
                             />
                         </Card>

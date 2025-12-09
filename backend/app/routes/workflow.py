@@ -9,6 +9,7 @@ from app.models.workflow import (
 )
 from app.database.mongodb import get_database
 from app.auth.jwt import get_current_user
+from app.dependencies import get_current_entity
 from app.models.user import UserResponse
 from datetime import datetime
 from bson.objectid import ObjectId
@@ -231,15 +232,20 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
 @router.get("/{invoice_id}", response_model=WorkflowHistoryResponse)
 async def get_workflow_history(
     invoice_id: str,
-    current_user: UserResponse = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
 ):
     """Get complete workflow history for an invoice"""
     db = get_database()
     
-    # Verify invoice exists
+    # Verify invoice exists AND belongs to entity
     invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+        
+    # Entity Check
+    if invoice.get("entity") != entity:
+        raise HTTPException(status_code=403, detail="Access denied to this entity's data")
     
     # Get vendor name and required approver count
     vendor_name = get_vendor_name_from_invoice(db, invoice_id)
@@ -270,15 +276,20 @@ async def get_workflow_history(
 @router.post("/step", response_model=WorkflowStepResponse)
 async def create_workflow_step(
     step_data: WorkflowStepCreate,
-    current_user: UserResponse = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
 ):
     """Create a new workflow step"""
     db = get_database()
     
-    # Verify invoice exists
+    # Verify invoice exists AND belongs to entity
     invoice = db.invoices.find_one({"_id": ObjectId(step_data.invoice_id)})
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # Entity Check
+    if invoice.get("entity") != entity:
+        raise HTTPException(status_code=403, detail="Access denied to this entity's data")
     
     # Validation: Check for duplicate approvers
     if step_data.step_type in [WorkflowStepType.APPROVER_1, WorkflowStepType.APPROVER_2, 
@@ -300,6 +311,7 @@ async def create_workflow_step(
     # Create the workflow step
     step_dict = step_data.dict()
     step_dict["timestamp"] = datetime.utcnow()
+    step_dict["entity"] = entity # Store entity on step too
     
     result = db.workflow_steps.insert_one(step_dict)
     
@@ -311,13 +323,20 @@ async def create_workflow_step(
 @router.get("/approvers/{invoice_id}")
 async def get_approver_status(
     invoice_id: str,
-    current_user: UserResponse = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
 ):
     """Get the status of all approvers for an invoice"""
     db = get_database()
     
     # Get invoice to check for persisted rules
     invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # Entity Check
+    if invoice.get("entity") != entity:
+        raise HTTPException(status_code=403, detail="Access denied to this entity's data")
     
     # Get vendor name and required approver count
     vendor_name = get_vendor_name_from_invoice(db, invoice_id)

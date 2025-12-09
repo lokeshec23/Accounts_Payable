@@ -3,6 +3,7 @@ from app.models.invoice import InvoiceStatus
 from app.models.workflow import WorkflowStepType, WorkflowStepStatus
 from app.database.mongodb import get_database
 from app.auth.jwt import get_current_user
+from app.dependencies import get_current_entity
 from app.models.user import UserResponse
 from datetime import datetime
 from bson.objectid import ObjectId
@@ -12,7 +13,8 @@ router = APIRouter()
 @router.post("/send-to-approval/{invoice_id}")
 async def send_to_approval(
     invoice_id: str,
-    current_user: UserResponse = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
 ):
     """
     Send invoice to approval workflow.
@@ -20,10 +22,14 @@ async def send_to_approval(
     """
     db = get_database()
     
-    # Verify invoice exists
+    # Verify invoice exists AND belongs to entity
     invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # Entity Check
+    if invoice.get("entity") != entity:
+        raise HTTPException(status_code=403, detail="Access denied to this entity's data")
     
     # Verify coding exists
     coding = db.coding.find_one({"invoice_id": invoice_id})
@@ -82,7 +88,8 @@ async def send_to_approval(
         "status": WorkflowStepStatus.PENDING,
         "timestamp": datetime.utcnow(),
         "approver_number": None,
-        "comment": None
+        "comment": None,
+        "entity": entity
     }
     db.workflow_steps.insert_one(workflow_step)
     

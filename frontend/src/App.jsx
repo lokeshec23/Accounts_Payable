@@ -13,6 +13,7 @@ import MasterDataPage from './pages/MasterDataPage';
 import SettingsPage from './pages/SettingsPage';
 import DesignSystemPage from './pages/DesignSystemPage';
 import Header from './components/Header';
+import { EntityProvider } from './context/EntityContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/message-override.css';
 import './styles/table-headers.css';
@@ -79,9 +80,11 @@ const App = () => {
         },
       }}
     >
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
+      <EntityProvider>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </EntityProvider>
     </ConfigProvider>
   );
 };
