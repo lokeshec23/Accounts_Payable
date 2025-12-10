@@ -34,7 +34,7 @@ from app.database.migration import migrate_users_role_status
 async def startup_event():
     await connect_to_mongo()
     await bootstrap_admin()
-    await migrate_users_role_status()
+    # await migrate_users_role_status()
 
 @app.on_event("shutdown")
 async def shutdown_event():
