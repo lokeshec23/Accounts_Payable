@@ -4,6 +4,7 @@ from app.models.coding import CodingCreate, CodingResponse, CodingUpdate, LineIt
 from app.models.workflow import WorkflowStepType, WorkflowStepStatus
 from app.database.mongodb import get_database
 from app.auth.jwt import get_current_user
+from app.dependencies import get_current_entity
 from app.models.user import UserResponse
 from datetime import datetime
 from bson.objectid import ObjectId
@@ -135,16 +136,21 @@ def get_coding_suggestions(db, vendor_name: str, extracted_items: List[Dict[str,
 @router.post("/", response_model=CodingResponse)
 async def create_or_update_coding(
     coding_data: CodingCreate,
-    current_user: UserResponse = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
 ):
     """Create or update coding data for an invoice"""
     db = get_database()
     
     try:
-        # Verify invoice exists
+        # Verify invoice exists AND belongs to entity
         invoice = db.invoices.find_one({"_id": ObjectId(coding_data.invoice_id)})
         if not invoice:
             raise HTTPException(status_code=404, detail="Invoice not found")
+        
+        # Entity Check
+        if invoice.get("entity") != entity:
+            raise HTTPException(status_code=403, detail="Access denied to this entity's data")
         
         # Check if coding already exists for this invoice
         existing_coding = db.coding.find_one({"invoice_id": coding_data.invoice_id})
@@ -187,7 +193,8 @@ async def create_or_update_coding(
                     "status": WorkflowStepStatus.COMPLETED,
                     "timestamp": datetime.utcnow(),
                     "approver_number": None,
-                    "comment": None
+                    "comment": None,
+                    "entity": entity
                 }
                 db.workflow_steps.insert_one(workflow_step)
             
@@ -228,7 +235,8 @@ async def create_or_update_coding(
                 "status": WorkflowStepStatus.COMPLETED,
                 "timestamp": datetime.utcnow(),
                 "approver_number": None,
-                "comment": None
+                "comment": None,
+                "entity": entity
             }
             db.workflow_steps.insert_one(workflow_step)
             
@@ -243,10 +251,20 @@ async def create_or_update_coding(
 @router.get("/{invoice_id}", response_model=CodingResponse)
 async def get_coding(
     invoice_id: str,
-    current_user: UserResponse = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
 ):
     """Get coding data by invoice ID"""
     db = get_database()
+    
+    # Verify invoice ownership first
+    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # Entity Check
+    if invoice.get("entity") != entity:
+        raise HTTPException(status_code=403, detail="Access denied to this entity's data")
     
     print(f"DEBUG: get_coding called for invoice_id: {invoice_id}")
     coding = db.coding.find_one({"invoice_id": invoice_id})
@@ -254,32 +272,30 @@ async def get_coding(
     if not coding:
         print("DEBUG: No existing coding found, checking for suggestions...")
         # Check for auto-coding suggestions
-        invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
-        if invoice:
-            vendor_name = get_vendor_name(invoice)
-            print(f"DEBUG: Extracted vendor_name: {vendor_name}")
-            extracted_data = invoice.get("extracted_data", {})
-            items_data = extracted_data.get("Items", {}).get("value", [])
-            print(f"DEBUG: Found {len(items_data)} items in invoice")
+        vendor_name = get_vendor_name(invoice)
+        print(f"DEBUG: Extracted vendor_name: {vendor_name}")
+        extracted_data = invoice.get("extracted_data", {})
+        items_data = extracted_data.get("Items", {}).get("value", [])
+        print(f"DEBUG: Found {len(items_data)} items in invoice")
+        
+        if vendor_name and items_data:
+            suggestions = get_coding_suggestions(db, vendor_name, items_data)
+            print(f"DEBUG: Generated {len(suggestions)} suggestions")
             
-            if vendor_name and items_data:
-                suggestions = get_coding_suggestions(db, vendor_name, items_data)
-                print(f"DEBUG: Generated {len(suggestions)} suggestions")
-                
-                # If we have suggestions (even if partially filled), return them as a "preview"
-                # We return a transient CodingResponse that isn't saved yet
-                if suggestions:
-                    print("DEBUG: Returning suggestions to frontend")
-                    return CodingResponse(
-                        id="suggested", # Dummy ID
-                        invoice_id=invoice_id,
-                        created_at=datetime.utcnow(),
-                        line_items=suggestions
-                    )
-                else:
-                    print("DEBUG: No suggestions generated")
+            # If we have suggestions (even if partially filled), return them as a "preview"
+            # We return a transient CodingResponse that isn't saved yet
+            if suggestions:
+                print("DEBUG: Returning suggestions to frontend")
+                return CodingResponse(
+                    id="suggested", # Dummy ID
+                    invoice_id=invoice_id,
+                    created_at=datetime.utcnow(),
+                    line_items=suggestions
+                )
             else:
-                print(f"DEBUG: Missing vendor_name or items_data (vendor: {vendor_name}, items: {len(items_data)})")
+                print("DEBUG: No suggestions generated")
+        else:
+            print(f"DEBUG: Missing vendor_name or items_data (vendor: {vendor_name}, items: {len(items_data)})")
 
         raise HTTPException(status_code=404, detail="Coding data not found for this invoice")
     
@@ -290,10 +306,20 @@ async def get_coding(
 @router.delete("/{invoice_id}")
 async def delete_coding(
     invoice_id: str,
-    current_user: UserResponse = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
 ):
     """Delete coding data by invoice ID"""
     db = get_database()
+    
+    # Verify invoice ownership first
+    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # Entity Check
+    if invoice.get("entity") != entity:
+        raise HTTPException(status_code=403, detail="Access denied to this entity's data")
     
     result = db.coding.delete_one({"invoice_id": invoice_id})
     

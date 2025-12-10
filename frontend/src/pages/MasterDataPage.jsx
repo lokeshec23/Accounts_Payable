@@ -44,7 +44,7 @@ const MasterDataPage = () => {
         current: 1,
         pageSize: 20,
         showSizeChanger: true,
-        pageSizeOptions: ["10", "20", "30", "40", "50", "100"],
+        pageSizeOptions: ["5","10", "20", "50"],
         showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
     });
 
@@ -115,7 +115,7 @@ const MasterDataPage = () => {
             setTableData(rows);
 
             if (rows.length > 0) {
-                generateColumns(rows[0]);
+                generateColumns(rows[0], rows);
             }
 
             // Reset to first page when data changes
@@ -134,36 +134,42 @@ const MasterDataPage = () => {
     // -------------------------------------------------------
     // Auto-generate table columns with sort + filter
     // -------------------------------------------------------
-    const generateColumns = (sampleRow) => {
-        const generated = Object.keys(sampleRow).map((key) => ({
-            title: key.toUpperCase(),
-            dataIndex: key,
-            key: key,
-            sorter: (a, b) =>
-                String(a[key] || "").localeCompare(String(b[key] || "")),
-        }));
+   
+    const generateColumns = (sampleRow, rows) => {
+        const colKeys = Object.keys(sampleRow).filter(k => k !== "key");
+
+        const generated = colKeys.map((colKey) => {
+            const values = rows.map(r => r[colKey]);
+
+            const uniqueValues = [...new Set(
+                values.filter(v => v !== null && v !== undefined && v !== "")
+            )];
+
+            return {
+                title: colKey.toUpperCase(),
+                dataIndex: colKey,
+                key: colKey,
+
+                sorter: (a, b) =>
+                    String(a[colKey] || "").localeCompare(String(b[colKey] || "")),
+
+                filters: uniqueValues.map(val => ({
+                    text: String(val),
+                    value: val,
+                })),
+
+                filterSearch: true,
+                onFilter: (value, record) => record[colKey] === value,
+            };
+        });
 
         generated.push({
-            title: "Actions",
+            title: "ACTIONS",
             key: "actions",
             render: (_, record) => (
                 <Space>
-                    <Button
-                        type="link"
-                        icon={<EditOutlined />}
-                        onClick={() => openEditModal(record)}
-                    >
-                        Edit
-                    </Button>
-
-                    <Button
-                        type="link"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => confirmDelete(record.key)}
-                    >
-                        Delete
-                    </Button>
+                    <Button type="link" onClick={() => openEditModal(record)}>Edit</Button>
+                    <Button danger type="link" onClick={() => confirmDelete(record.key)}>Delete</Button>
                 </Space>
             ),
         });
@@ -281,7 +287,25 @@ const MasterDataPage = () => {
     return (
         <div style={{ padding: "24px" }}>
             <Card style={{ minHeight: "80vh" }}>
-                {loading && <Spin size="large" style={{ marginBottom: 20 }} />}
+                {loading && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            background: "rgba(255, 255, 255, 0.6)",
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            zIndex: 9999
+                        }}
+                    >
+                        <Spin size="large" />
+                    </div>
+                )}
+
 
                 {/* ROW 1: FILE TABS & ADD BUTTON */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>

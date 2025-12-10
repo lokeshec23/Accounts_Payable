@@ -16,6 +16,13 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Add Entity header
+    const entity = localStorage.getItem('selected_entity');
+    if (entity) {
+      config.headers['X-Entity'] = entity;
+    }
+
     return config;
   },
   (error) => {
@@ -209,6 +216,11 @@ export const approverConfigService = {
   // Amount Rules
   async getAmountRules() {
     const response = await api.get('/approver-config/rules/amount');
+    return response.data;
+  },
+
+  async updateAmountRule(ruleId, ruleData) {
+    const response = await api.put(`/approver-config/rules/amount/${ruleId}`, ruleData);
     return response.data;
   },
 

@@ -5,10 +5,12 @@ import { SearchOutlined, BellOutlined, LogoutOutlined, SettingOutlined, DownOutl
 import { authService } from '../services/auth';
 import '../styles/Header.css';
 
+import { useEntity } from '../context/EntityContext';
+
 const Header = () => {
     const [toggleChecked, setToggleChecked] = useState(false);
     const [username, setUsername] = useState('User');
-    const [selectedEntity, setSelectedEntity] = useState('Consolidated Analytics Inc');
+    const { entity, setEntity } = useEntity();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -53,12 +55,12 @@ const Header = () => {
         {
             key: 'entity1',
             label: 'Consolidated Analytics Inc',
-            onClick: () => setSelectedEntity('Consolidated Analytics Inc'),
+            onClick: () => setEntity('Consolidated Analytics Inc'),
         },
         {
             key: 'entity2',
             label: 'Consolidated Analytics Private Limited',
-            onClick: () => setSelectedEntity('Consolidated Analytics Private Limited'),
+            onClick: () => setEntity('Consolidated Analytics Private Limited'),
         },
     ];
 
@@ -114,34 +116,37 @@ const Header = () => {
                 </nav>
 
                 {/* Right Section - Entity, User */}
-                <div className="header-actions">
-                    {/* Entity Dropdown */}
-                    <Dropdown
-                        menu={{ items: entityMenuItems }}
-                        placement="bottomRight"
-                        trigger={['click']}
-                    >
-                        <Button
-                            icon={<BankOutlined />}
-                            style={{ marginRight: '16px' }}
-                        >
-                            {selectedEntity} <DownOutlined />
-                        </Button>
-                    </Dropdown>
+                {/* Right Section - Entity, User */}
+<div className="header-actions">
 
-                    {/* User Account with Dropdown */}
-                    <Dropdown
-                        menu={{ items: userMenuItems }}
-                        placement="bottomRight"
-                        trigger={['click']}
-                    >
-                        <div className="header-user" style={{ cursor: 'pointer' }}>
-                            <div className="user-avatar">
-                                {userInitial}
-                            </div>
-                        </div>
-                    </Dropdown>
-                </div>
+    {/* Selected Entity Display - NOT clickable */}
+    <div className="header-entity" style={{
+        padding: "6px 12px",
+        background: "#f1f5f9",
+        borderRadius: "6px",
+        marginRight: "16px",
+        display: "flex",
+        alignItems: "center",
+        fontWeight: 500
+    }}>
+        <BankOutlined style={{ marginRight: 6, color: "#1677ff" }} />
+        <span>{entity}</span>
+    </div>
+
+    {/* User Account with Dropdown */}
+    <Dropdown
+        menu={{ items: userMenuItems }}
+        placement="bottomRight"
+        trigger={['click']}
+    >
+        <div className="header-user" style={{ cursor: 'pointer' }}>
+            <div className="user-avatar">
+                {userInitial}
+            </div>
+        </div>
+    </Dropdown>
+</div>
+
             </div>
         </header>
     );

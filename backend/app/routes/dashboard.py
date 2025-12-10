@@ -1,6 +1,10 @@
 from fastapi import APIRouter
 from datetime import datetime
 from app.database.mongodb import get_database
+from fastapi import Depends
+from app.auth.jwt import get_current_user
+from app.dependencies import get_current_entity
+from app.models.user import UserResponse
 
 router = APIRouter(tags=["Dashboard"])
 
@@ -58,9 +62,12 @@ def safe_get(inv, *keys, default=None):
 
 
 @router.get("/summary")
-def summary():
+def summary(
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
+):
     db = get_database()
-    data = list(db.invoices.find({}))
+    data = list(db.invoices.find({"entity": entity}))
     
     total_due = sum(to_float(safe_get(inv, "extracted_data", "amounts", "total_invoice_amount")) for inv in data)
     approved = sum(1 for i in data if i.get("status") == "approved")
@@ -77,9 +84,12 @@ def summary():
 
 
 @router.get("/aging")
-def aging():
+def aging(
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
+):
     db = get_database()
-    data = list(db.invoices.find({}))
+    data = list(db.invoices.find({"entity": entity}))
     
     buckets = {"0_30": 0, "31_60": 0, "61_90": 0, "91_120": 0, "120_plus": 0}
     
@@ -105,9 +115,12 @@ def aging():
 
 
 @router.get("/status_breakdown")
-def status_breakdown():
+def status_breakdown(
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
+):
     db = get_database()
-    data = list(db.invoices.find({}))
+    data = list(db.invoices.find({"entity": entity}))
     return {
         "processed": sum(1 for i in data if i.get("status") == "processed"),
         "waiting_coding": sum(1 for i in data if i.get("status") == "waiting_coding"),
@@ -119,9 +132,12 @@ def status_breakdown():
 
 
 @router.get("/vendors")
-def vendors():
+def vendors(
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
+):
     db = get_database()
-    data = list(db.invoices.find({}))
+    data = list(db.invoices.find({"entity": entity}))
     
     vendor_count = {}
     vendor_amount = {}
@@ -140,9 +156,12 @@ def vendors():
 
 
 @router.get("/top_vendors")
-def top_vendors():
+def top_vendors(
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
+):
     db = get_database()
-    data = list(db.invoices.find({}))
+    data = list(db.invoices.find({"entity": entity}))
     
     totals = {}
     counts = {}
@@ -163,9 +182,12 @@ def top_vendors():
 
 
 @router.get("/payments")
-def payments():
+def payments(
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
+):
     db = get_database()
-    data = list(db.invoices.find({}))
+    data = list(db.invoices.find({"entity": entity}))
     
     total = sum(to_float(safe_get(i, "extracted_data", "amounts", "total_invoice_amount")) for i in data)
     paid = sum(to_float(safe_get(i, "extracted_data", "amounts", "amount_paid")) for i in data)

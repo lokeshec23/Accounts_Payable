@@ -1,0 +1,154 @@
+/* ============================================
+   HEADER SECTION
+   ============================================ */
+.entity-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;
+    background: #ffffff;
+    border-bottom: 1px solid #e8e8e8;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    padding: 0 30px;
+
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+
+    z-index: 2000;
+}
+
+/* Fix avatar shifting left */
+.header-user {
+    margin-left: auto !important;
+    cursor: pointer;
+}
+
+/* Fix image shrinking */
+.header-logo {
+    height: 45px;
+    width: auto;
+    flex-shrink: 0;
+}
+
+.user-avatar {
+    background: #1e9bd8;
+    color: white;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 17px;
+    font-weight: 600;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+
+
+/* ============================================
+   PAGE BACKGROUND
+   ============================================ */
+.entity-container {
+    min-height: 100vh;
+    padding-top: 100px;  /* space below header */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    background: url('../../public/Background (2).png') no-repeat center center fixed;
+    background-size: cover;
+
+    position: relative;
+    overflow: hidden;
+    font-family: 'Jura', 'Inter', sans-serif;
+}
+
+/* ============================================
+   ENTITY CARD
+   ============================================ */
+.entity-card {
+    background: white;
+    border-radius: 12px;
+    padding: 30px 40px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    width: 100%;
+    max-width: 480px;
+    text-align: center;
+    z-index: 10;
+}
+
+.entity-title {
+    font-size: 24px;
+    margin-bottom: 10px;
+    color: #333;
+    font-family: 'Jura', 'Inter', sans-serif;
+}
+
+.entity-subtitle {
+    font-size: 14px;
+    color: #666;
+    font-family: 'Inter', sans-serif;
+}
+
+.entity-buttons {
+    margin-top: 25px;
+}
+
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+.entity-btn {
+    height: 40px;
+    border-radius: 6px;
+    font-size: 15px;
+    margin-bottom: 16px;
+    font-family: 'Inter', sans-serif;
+}
+
+.entity-btn.ant-btn-primary {
+    background: #1e9bd8;
+    border: none;
+}
+
+.entity-btn.ant-btn-primary:hover {
+    background: white !important;
+    color: #1e9bd8 !important;
+    border-color: #1e9bd8 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.secondary-btn {
+    border: 1px solid #d9d9d9;
+    background: #1e9bd8;
+    color: white;
+    font-weight: 500;
+}
+
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+    .entity-card {
+        padding: 25px 30px;
+        max-width: 340px;
+    }
+
+    .entity-title {
+        font-size: 22px;
+    }
+
+    .header-logo {
+        height: 35px;
+    }
+
+    .user-avatar {
+        width: 34px;
+        height: 34px;
+        font-size: 15px;
+    }
+}

@@ -26,6 +26,7 @@ class InvoiceBase(BaseModel):
     status_history: Optional[List[StatusHistoryItem]] = []
     required_approvers: Optional[int] = None
     approver_breakdown: Optional[Dict[str, Any]] = None
+    entity: Optional[str] = None
 
 class InvoiceCreate(InvoiceBase):
     pass

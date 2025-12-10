@@ -13,10 +13,12 @@ import {
     message,
     Spin
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, EditOutlined, ExclamationCircleOutlined, } from '@ant-design/icons';
 import { approverConfigService } from '../services/api';
 
 const { Title, Text } = Typography;
+
+const { confirm } = Modal;
 
 const SettingsPage = () => {
     const [amountRules, setAmountRules] = useState([]);
@@ -40,10 +42,6 @@ const SettingsPage = () => {
                 approverConfigService.getGLRules(),
                 approverConfigService.getDefaultConfig()
             ]);
-            console.log('Amount Rules:', amountData);
-            console.log('Vendor Rules:', vendorData);
-            console.log('GL Rules:', glData);
-            console.log('Default Config:', defaultData);
             setAmountRules(amountData);
             setVendorRules(vendorData);
             setGlRules(glData);
@@ -75,22 +73,68 @@ const SettingsPage = () => {
         setIsModalVisible(true);
     };
 
-    const handleDelete = async (record, type) => {
-        try {
-            if (type === 'amount') {
-                await approverConfigService.deleteAmountRule(record.id);
-            } else if (type === 'vendor') {
-                await approverConfigService.deleteConfig(record.vendorName);
-            } else if (type === 'gl') {
-                await approverConfigService.deleteGLRule(record.glTitle);
-            }
-            message.success('Rule deleted successfully');
-            fetchRules();
-        } catch (error) {
-            console.error("Error deleting rule:", error);
-            message.error("Failed to delete rule");
+
+    // const handleDelete = (record) => {
+    //     confirm({
+    //         title: 'Are you sure you want to delete this invoice?',
+    //         icon: <ExclamationCircleOutlined />,
+    //         content: `Invoice: ${record.invoiceId} (${record.filename})`,
+    //         okText: 'Yes, Delete',
+    //         okType: 'danger',
+    //         cancelText: 'Cancel',
+    //         async onOk() {
+    //             try {
+    //                 await invoiceService.deleteInvoice(record.id);
+    //                 message.success('Invoice deleted successfully');
+    //                 fetchInvoices();
+    //             } catch (error) {
+    //                 console.error('Error deleting invoice:', error);
+    //                 message.error('Failed to delete invoice. Please try again.');
+    //             }
+    //         },
+    //     });
+    // };
+
+   const handleDelete = async (record, type) => {
+        let deleteLabel = "";
+
+        if (type === "amount") {
+            deleteLabel = `Amount Range: $${record.min_amount} - $${record.max_amount}`;
+        } else if (type === "vendor") {
+            deleteLabel = `Vendor: ${record.vendorName}`;
+        } else if (type === "gl") {
+            deleteLabel = `GL Code: ${record.glTitle}`;
         }
+
+        confirm({
+            title: "Are you sure you want to delete this rule?",
+            icon: <ExclamationCircleOutlined />,
+            content: deleteLabel,
+            okText: "Yes, Delete",
+            okType: "danger",
+            cancelText: "Cancel",
+
+            async onOk() {
+                try {
+                    if (type === "amount") {
+                        await approverConfigService.deleteAmountRule(record.id);
+                    } else if (type === "vendor") {
+                        await approverConfigService.deleteConfig(record.vendorName);
+                    } else if (type === "gl") {
+                        await approverConfigService.deleteGLRule(record.glTitle);
+                    }
+
+                    message.success("Rule deleted successfully");
+                    fetchRules();
+                } catch (error) {
+                    console.error("Error deleting rule:", error);
+                    message.error("Failed to delete rule");
+                }
+            },
+        });
     };
+
+
 
     const handleSave = async () => {
         try {
@@ -107,10 +151,10 @@ const SettingsPage = () => {
                 // But actually, for Amount, since it's range based, 'editing' usually means changing the range.
 
                 if (editingRecord) {
-                    // For Amount, since I didn't make a PUT endpoint, I'll delete old and create new
-                    await approverConfigService.deleteAmountRule(editingRecord.id);
+                    await approverConfigService.updateAmountRule(editingRecord.id, values);
+                } else {
+                    await approverConfigService.createAmountRule(values);
                 }
-                await approverConfigService.createAmountRule(values);
 
             } else if (modalType === 'vendor') {
                 await approverConfigService.createOrUpdateConfig(values);
@@ -178,7 +222,7 @@ const SettingsPage = () => {
         defaultPageSize: 10,
         showSizeChanger: true,
         showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-        pageSizeOptions: ['10', '20', '50'],
+        pageSizeOptions: ['5','10', '20', '50'],
     };
 
     const renderDefaultSettings = () => (
@@ -218,22 +262,79 @@ const SettingsPage = () => {
         </div>
     );
 
-    const renderTabContent = (type, columns, data) => (
+    const generateFilters = (data, key) => {
+    const vals = [...new Set(data.map(item => item[key]).filter(Boolean))];
+    return vals.map(v => ({ text: v, value: v }));
+    };
+
+
+   const renderTabContent = (type, columns, data) => {
+    const [searchText, setSearchText] = useState("");
+
+    // GLOBAL SEARCH FILTER
+    const filteredData = data.filter(row =>
+        Object.values(row || {})
+            .join(" ")
+            .toLowerCase()
+            .includes(searchText.toLowerCase())
+    );
+
+    // Inject sorting + filtering into columns
+    const enhancedColumns = columns.map(col => {
+        if (!col.dataIndex) return col;
+
+        return {
+            ...col,
+            sorter: (a, b) =>
+                (a[col.dataIndex] || "").toString().localeCompare((b[col.dataIndex] || "").toString()),
+
+            filters: generateFilters(data, col.dataIndex),
+            onFilter: (value, record) =>
+                String(record[col.dataIndex] ?? "") === String(value),
+        };
+    });
+
+    return (
         <div>
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => handleAdd(type)}>
+            {/* 🔍 SEARCH + ADD RULE (RIGHT ALIGNED) */}
+            <div
+                style={{
+                    marginBottom: 16,
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "10px"
+                }}
+            >
+                <Input
+                    placeholder="Search..."
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    allowClear
+                    style={{ width: 250 }}
+                />
+
+                <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => handleAdd(type)}
+                >
                     Add Rule
                 </Button>
             </div>
+
+            {/* TABLE */}
             <Table
-                columns={columns}
-                dataSource={data || []}
+                columns={enhancedColumns}
+                dataSource={filteredData}
                 rowKey={(record) => record.id || record.vendorName || record.glTitle}
                 loading={loading}
                 pagination={paginationConfig}
+                scroll={{ x: true }}
             />
         </div>
     );
+};
+
 
     const items = [
         {
