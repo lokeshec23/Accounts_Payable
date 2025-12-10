@@ -1,54 +1,82 @@
 import React from "react";
-import { Card, Button, Typography } from "antd";
-import { BankOutlined } from "@ant-design/icons";
+import { Card, Button, Typography, Dropdown } from "antd";
+import { LogoutOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useEntity } from "../context/EntityContext";
+import { authService } from "../services/auth";
+import "../styles/SelectEntity.css";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const SelectEntity = () => {
   const navigate = useNavigate();
   const { setEntity } = useEntity();
 
-  const handleSelect = (value) => {
-    localStorage.setItem("selected_entity", value);
-    setEntity(value);
-    navigate("/dashboard"); // Go to dashboard after selection
+  // Get username
+  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const username = storedUser.username || storedUser.email || "User";
+  const userInitial = username.charAt(0).toUpperCase();
+
+  const handleLogout = () => {
+    authService.logout();
+    navigate("/");
+  };
+
+  const userMenuItems = [
+    {
+      key: "logout",
+      label: "Logout",
+      icon: <LogoutOutlined />,
+      danger: true,
+      onClick: handleLogout,
+    },
+  ];
+
+  const handleSelect = (entity) => {
+    localStorage.setItem("selected_entity", entity);
+    setEntity(entity);
+    navigate("/dashboard");
   };
 
   return (
-    <div
-      style={{
-        height: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#f5f7fa",
-      }}
-    >
-      <Card style={{ width: 400, textAlign: "center", padding: "20px" }}>
-        <BankOutlined style={{ fontSize: 40, color: "#1677ff" }} />
+    <div className="entity-container">
 
-        <Title level={3} style={{ marginTop: 15 }}>
-          Select an Entity
-        </Title>
+      {/* HEADER */}
+      <header className="entity-header">
+        <img src="/loandna-logo.png" alt="LoanDNA Logo" className="header-logo" />
 
-        <Text>Please choose which entity you want to work with.</Text>
+        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+          <div className="header-user">
+            <div className="user-avatar">{userInitial}</div>
+          </div>
+        </Dropdown>
+      </header>
 
-        <div style={{ marginTop: 30 }}>
+      {/* CURVE BACKGROUND */}
+      <div className="entity-bottom-curve"></div>
+
+      {/* CARD */}
+      <div className="entity-card">
+
+        <h2 className="entity-title">Select Entity</h2>
+
+        <Text type="secondary" className="entity-subtitle">
+          Choose which entity you want to work with.
+        </Text>
+
+        <div className="entity-buttons">
           <Button
             type="primary"
+            className="entity-btn"
             block
-            style={{ marginBottom: 15, height: 45 }}
             onClick={() => handleSelect("Consolidated Analytics Inc")}
           >
             Consolidated Analytics Inc
           </Button>
 
           <Button
-            type="primary"
+            className="entity-btn secondary-btn"
             block
-            style={{ height: 45 }}
             onClick={() =>
               handleSelect("Consolidated Analytics Private Limited")
             }
@@ -56,7 +84,7 @@ const SelectEntity = () => {
             Consolidated Analytics Private Limited
           </Button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };
