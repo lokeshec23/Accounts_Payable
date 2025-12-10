@@ -21,6 +21,8 @@ const LoginPage = () => {
     setLoading(true);
     try {
       const response = await authService.login(values);
+      console.log('Login response:', response); // Add this for debugging
+      
       message.success('Login successful!');
 
       if (response.role === 'admin') {

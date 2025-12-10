@@ -52,10 +52,18 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     user = db.users.find_one({"email": email})
     if user is None:
         raise credentials_exception
+    
+    print(f"[DEBUG] User from DB: {user.get('username')}, Role: {user.get('role')}, Status: {user.get('status')}")
         
-    return UserResponse(
+    user_response = UserResponse(
         id=str(user["_id"]),
         username=user["username"],
         email=user["email"],
-        created_at=user["created_at"]
+        created_at=user["created_at"],
+        role=user.get("role", "user"),
+        status=user.get("status", "active")
     )
+    
+    print(f"[DEBUG] UserResponse created: role={user_response.role}, status={user_response.status}")
+    
+    return user_response

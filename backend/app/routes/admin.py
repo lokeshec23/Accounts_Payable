@@ -17,6 +17,7 @@ def get_current_admin(current_user: UserResponse = Depends(get_current_user)):
     # Assuming role is stored in UserResponse (which it is now)
     # Check both "admin" role and specific usernames as fallback for bootstrapping
     # Check admin role
+    print(f"[DEBUG] Admin check - User: {current_user.username}, Role: {current_user.role}")
     if current_user.role != "admin": 
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
