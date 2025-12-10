@@ -178,6 +178,36 @@ async def create_amount_rule(
     created_rule["id"] = str(created_rule["_id"])
     return ApproverAmountResponse(**created_rule)
 
+@router.put("/rules/amount/{rule_id}", response_model=ApproverAmountResponse)
+async def update_amount_rule(
+    rule_id: str,
+    rule_data: ApproverAmountUpdate,
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
+):
+    """Update an existing amount rule"""
+    db = get_database()
+
+    existing = db.approver_amount.find_one({"_id": ObjectId(rule_id), "entity": entity})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Amount rule not found")
+
+    update_fields = {
+        "min_amount": rule_data.min_amount,
+        "max_amount": rule_data.max_amount,
+        "approver_count": rule_data.approver_count,
+        "updated_at": datetime.utcnow()
+    }
+
+    db.approver_amount.update_one(
+        {"_id": ObjectId(rule_id)},
+        {"$set": update_fields}
+    )
+
+    updated = db.approver_amount.find_one({"_id": ObjectId(rule_id)})
+    updated["id"] = str(updated["_id"])
+    return ApproverAmountResponse(**updated)
+
 @router.delete("/rules/amount/{rule_id}")
 async def delete_amount_rule(
     rule_id: str,

@@ -107,10 +107,10 @@ const SettingsPage = () => {
                 // But actually, for Amount, since it's range based, 'editing' usually means changing the range.
 
                 if (editingRecord) {
-                    // For Amount, since I didn't make a PUT endpoint, I'll delete old and create new
-                    await approverConfigService.deleteAmountRule(editingRecord.id);
+                    await approverConfigService.updateAmountRule(editingRecord.id, values);
+                } else {
+                    await approverConfigService.createAmountRule(values);
                 }
-                await approverConfigService.createAmountRule(values);
 
             } else if (modalType === 'vendor') {
                 await approverConfigService.createOrUpdateConfig(values);

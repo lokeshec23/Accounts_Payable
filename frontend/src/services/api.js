@@ -219,6 +219,11 @@ export const approverConfigService = {
     return response.data;
   },
 
+  async updateAmountRule(ruleId, ruleData) {
+    const response = await api.put(`/approver-config/rules/amount/${ruleId}`, ruleData);
+    return response.data;
+  },
+
   async createAmountRule(ruleData) {
     const response = await api.post('/approver-config/rules/amount', ruleData);
     return response.data;
