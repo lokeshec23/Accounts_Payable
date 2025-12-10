@@ -42,10 +42,6 @@ const SettingsPage = () => {
                 approverConfigService.getGLRules(),
                 approverConfigService.getDefaultConfig()
             ]);
-            console.log('Amount Rules:', amountData);
-            console.log('Vendor Rules:', vendorData);
-            console.log('GL Rules:', glData);
-            console.log('Default Config:', defaultData);
             setAmountRules(amountData);
             setVendorRules(vendorData);
             setGlRules(glData);
