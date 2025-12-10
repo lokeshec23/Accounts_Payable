@@ -494,8 +494,19 @@ const MainLayout = () => {
     };
 
     const handleView = (record) => {
-        navigate('/invoice/review', { state: { invoice: record } });
+        const status = record.status?.toLowerCase();
+
+        if (status === "processed") {
+            navigate("/invoice/review", { state: { invoice: record } });
+        }
+        else if (status === "waiting_coding" || status === "coding") {
+            navigate("/coding/review", { state: { invoice: record } });
+        }
+        else {
+            navigate("/invoice/review", { state: { invoice: record } });
+        }
     };
+
 
     const handleDelete = (record) => {
         confirm({

@@ -17,8 +17,8 @@ class UserResponse(BaseModel):
     id: str
     username: str
     email: EmailStr
-    role: str = "user"
-    status: str = "pending"
+    role: str
+    status: str 
     created_at: datetime
 
     class Config:
