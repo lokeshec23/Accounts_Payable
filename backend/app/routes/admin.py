@@ -37,7 +37,7 @@ async def get_all_users(
     for user in users:
         user["id"] = str(user["_id"])
         # Ensure role/status exist for older records
-        if "role" not in user: user["role"] = "user"
+        if "role" not in user: user["role"] = "coder"
         if "status" not in user: user["status"] = "active"
         
         user_list.append(UserResponse(**user))
@@ -54,7 +54,7 @@ async def update_user_role(
     db = get_database()
     
     # Verify update data
-    if update_data.role not in ["admin", "coder", "approver", "user"]:
+    if update_data.role not in ["admin", "coder", "approver"]:
         raise HTTPException(status_code=400, detail="Invalid role")
     if update_data.status not in ["pending", "active", "rejected"]:
         raise HTTPException(status_code=400, detail="Invalid status")

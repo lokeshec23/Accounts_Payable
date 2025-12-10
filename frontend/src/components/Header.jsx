@@ -77,42 +77,61 @@ const Header = () => {
 
                 {/* Navigation Tabs */}
                 <nav className="header-nav">
+                    {/* Dashboard - visible to all roles */}
                     <Link
                         to="/dashboard"
                         className={`nav-tab ${isActive('/dashboard') ? 'active' : ''}`}
                     >
                         Dashboard
                     </Link>
-                    <Link
-                        to="/invoice"
-                        className={`nav-tab ${isActive('/invoice') ? 'active' : ''}`}
-                    >
-                        Invoice
-                    </Link>
-                    <Link
-                        to="/coding"
-                        className={`nav-tab ${isActive('/coding') ? 'active' : ''}`}
-                    >
-                        Coding
-                    </Link>
-                    <Link
-                        to="/approvals"
-                        className={`nav-tab ${isActive('/approvals') ? 'active' : ''}`}
-                    >
-                        Approvals
-                    </Link>
+
+                    {/* Invoice - visible to coder and admin */}
+                    {(role === 'coder' || role === 'admin') && (
+                        <Link
+                            to="/invoice"
+                            className={`nav-tab ${isActive('/invoice') ? 'active' : ''}`}
+                        >
+                            Invoice
+                        </Link>
+                    )}
+
+                    {/* Coding - visible to coder and admin */}
+                    {(role === 'coder' || role === 'admin') && (
+                        <Link
+                            to="/coding"
+                            className={`nav-tab ${isActive('/coding') ? 'active' : ''}`}
+                        >
+                            Coding
+                        </Link>
+                    )}
+
+                    {/* Approvals - visible to approver and admin */}
+                    {(role === 'approver' || role === 'admin') && (
+                        <Link
+                            to="/approvals"
+                            className={`nav-tab ${isActive('/approvals') ? 'active' : ''}`}
+                        >
+                            Approvals
+                        </Link>
+                    )}
+
+                    {/* Master Data - visible to all roles */}
                     <Link
                         to="/master-data"
                         className={`nav-tab ${isActive('/master-data') ? 'active' : ''}`}
                     >
                         Master Data
                     </Link>
+
+                    {/* Settings - visible to all roles */}
                     <Link
                         to="/settings"
                         className={`nav-tab ${isActive('/settings') ? 'active' : ''}`}
                     >
                         Settings
                     </Link>
+
+                    {/* Admin - visible to admin only */}
                     {role === 'admin' && (
                         <Link
                             to="/admin"

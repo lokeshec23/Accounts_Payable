@@ -32,7 +32,7 @@ async def register(user: User):
     
     # Set defaults
     user_dict["status"] = "pending"
-    user_dict["role"] = "user"
+    user_dict["role"] = "coder"
     
     # Set created_at to current UTC time if not present
     user_dict["created_at"] = datetime.utcnow()
@@ -70,5 +70,5 @@ async def login(login_data: LoginRequest):
         "access_token": access_token, 
         "token_type": "bearer",
         "username": user.get("username", user["email"].split("@")[0]),
-        "role": user.get("role", "user")
+        "role": user.get("role", "coder")
     }

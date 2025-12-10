@@ -22,11 +22,16 @@ const LoginPage = () => {
     try {
       const response = await authService.login(values);
       console.log('Login response:', response); // Add this for debugging
-      
+
       message.success('Login successful!');
 
+      // Route based on role
       if (response.role === 'admin') {
         navigate('/admin');
+      } else if (response.role === 'coder') {
+        navigate('/coding');
+      } else if (response.role === 'approver') {
+        navigate('/approvals');
       } else {
         navigate('/dashboard');
       }

@@ -122,7 +122,7 @@ const AdminPage = () => {
 
     return (
         <div style={{ padding: '24px' }}>
-            <Card title="User Management (Admin)">
+            <Card title="">
                 <Table
                     columns={columns}
                     dataSource={users}
@@ -142,7 +142,6 @@ const AdminPage = () => {
                 <Form form={form} layout="vertical">
                     <Form.Item name="role" label="Role" rules={[{ required: true }]}>
                         <Select>
-                            <Option value="user">User</Option>
                             <Option value="coder">Coder</Option>
                             <Option value="approver">Approver</Option>
                             <Option value="admin">Admin</Option>
