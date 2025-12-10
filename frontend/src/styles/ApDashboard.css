@@ -1,8 +1,6 @@
-/* src/styles/ApDashboard.css */
-
 /* Overall shell - more elegant gradient */
 .ap-dashboard-shell {
-  background: linear-gradient(135deg, #f8faff 0%, #f0f5ff 100%);
+  background: #ffffff;     /* Pure white */
   min-height: 100vh;
   padding: 32px 0 48px;
   font-family: 'Jura', 'Inter', sans-serif;

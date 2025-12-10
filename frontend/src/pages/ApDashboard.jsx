@@ -175,7 +175,7 @@ const ApDashboard = () => {
     ];
 
     return (
-        <div className="ap-dashboard-shell">
+        // <div className="ap-dashboard-shell">
             <div className="ap-dashboard">
 
                 {/* KPI CARDS */}
@@ -310,50 +310,61 @@ const ApDashboard = () => {
                             className="ap-chart-card"
                             title={<span className="ap-card-title">Invoice Status Breakdown</span>}
                         >
-                            <Plot
-                                data={[
-                                    {
-                                        labels: statusLabels,
-                                        values: statusValues,
-                                        type: "pie",
-                                        hole: 0.5,
-                                        marker: {
-                                            colors: statusPieColors,
-                                            line: { width: 1.5, color: "white" },
-                                        },
-                                        textinfo: "percent",
-                                        textposition: "outside",
-                                        hovertemplate:
-                                            "<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>",
-                                        pull: statusLabels.map(() => 0.02),
-                                    },
-                                ]}
-                                layout={{
-                                    autosize: true,
-                                    margin: { t: 24, r: 10, b: 10, l: 10 },
-                                    showlegend: true,
-                                    legend: {
-                                        orientation: "v",
-                                        x: 1.05,
-                                        xanchor: "left",
-                                        y: 0.5,
-                                    },
-                                    plot_bgcolor: "rgba(0,0,0,0)",
-                                    paper_bgcolor: "rgba(0,0,0,0)",
-                                    hoverlabel: {
-                                        bgcolor: "#1d2939",
-                                        font: { color: "white", size: 12 },
-                                    },
-                                    dragmode: false,
-                                    hovermode: "closest",
-                                }}
-                                className="ap-chart"
-                                useResizeHandler
-                                config={{
-                                    displayModeBar: false,
-                                    displaylogo: false,
-                                }}
-                            />
+                           <Plot
+  data={[
+    {
+      labels: statusLabels,
+      values: statusValues,
+      type: "pie",
+      hole: 0.4, // Smaller hole to make room for text
+      marker: {
+        colors: statusPieColors,
+        line: { width: 1.5, color: "white" },
+      },
+      textinfo: "percent",
+      textposition: "inside", // Percentages inside slices
+      textfont: {
+        size: 9,
+        family: "'Inter', sans-serif",
+        color: "white", // White text for better contrast
+      },
+      hovertemplate:
+        "<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>",
+      pull: statusLabels.map(() => 0.01), // Smaller pull effect
+    },
+  ]}
+  layout={{
+    autosize: true,
+    height: 260, // Even smaller
+    margin: { t: 10, r: 10, b: 10, l: 10 }, // Minimal margins
+    showlegend: true,
+    legend: {
+      orientation: "v",
+      x: 1.02,  // Closer to chart
+      xanchor: "left",
+      y: 0.5,
+      font: { 
+        size: 12,  // Very small legend
+        family: "'Inter', sans-serif"
+      },
+    },
+    plot_bgcolor: "rgba(0,0,0,0)",
+    paper_bgcolor: "rgba(0,0,0,0)",
+    hoverlabel: {
+      bgcolor: "#1d2939",
+      font: { color: "white", size: 12 },
+    },
+    dragmode: false,
+    hovermode: "closest",
+  }}
+  className="ap-chart"
+  useResizeHandler
+  style={{ width: '100%', height: '260px' }}
+  config={{
+    displayModeBar: false,
+    displaylogo: false,
+  }}
+/>
                         </Card>
                     </Col>
                 </Row>
@@ -563,7 +574,7 @@ const ApDashboard = () => {
                     </Col>
                 </Row>
             </div>
-        </div>
+        // </div>
     );
 };
 
