@@ -18,7 +18,8 @@ export const authService = {
         // Store user info for display purposes
         localStorage.setItem('user', JSON.stringify({
           email: credentials.email,
-          username: response.data.username || credentials.email.split('@')[0]
+          username: response.data.username || credentials.email.split('@')[0],
+          role: response.data.role
         }));
       }
       return response.data;

@@ -27,6 +27,7 @@ const { confirm } = Modal;
 
 const MasterDataPage = () => {
     const [loading, setLoading] = useState(false);
+    const [userRole, setUserRole] = useState('');
 
     const [files, setFiles] = useState([]);
     const [selectedFile, setSelectedFile] = useState(null);
@@ -53,6 +54,19 @@ const MasterDataPage = () => {
     const [editRecord, setEditRecord] = useState(null);
     const [addMode, setAddMode] = useState(false);
     const [form] = Form.useForm();
+
+    // Get user role from localStorage
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser);
+                setUserRole(user.role || '');
+            } catch (e) {
+                setUserRole('');
+            }
+        }
+    }, []);
 
     // -------------------------------------------------------
     // Load files
@@ -143,30 +157,33 @@ const MasterDataPage = () => {
                 String(a[key] || "").localeCompare(String(b[key] || "")),
         }));
 
-        generated.push({
-            title: "Actions",
-            key: "actions",
-            render: (_, record) => (
-                <Space>
-                    <Button
-                        type="link"
-                        icon={<EditOutlined />}
-                        onClick={() => openEditModal(record)}
-                    >
-                        Edit
-                    </Button>
+        // Only add Actions column if user is not a coder (view-only for coders)
+        if (userRole !== 'coder') {
+            generated.push({
+                title: "Actions",
+                key: "actions",
+                render: (_, record) => (
+                    <Space>
+                        <Button
+                            type="link"
+                            icon={<EditOutlined />}
+                            onClick={() => openEditModal(record)}
+                        >
+                            Edit
+                        </Button>
 
-                    <Button
-                        type="link"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => confirmDelete(record.key)}
-                    >
-                        Delete
-                    </Button>
-                </Space>
-            ),
-        });
+                        <Button
+                            type="link"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => confirmDelete(record.key)}
+                        >
+                            Delete
+                        </Button>
+                    </Space>
+                ),
+            });
+        }
 
         setColumns(generated);
     };
@@ -298,9 +315,11 @@ const MasterDataPage = () => {
                             style={{ marginBottom: 0 }}
                         />
                     </div>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
-                        Add Row
-                    </Button>
+                    {userRole !== 'coder' && (
+                        <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
+                            Add Row
+                        </Button>
+                    )}
                 </div>
 
                 {/* ROW 2: SHEET TABS & SEARCH BOX */}

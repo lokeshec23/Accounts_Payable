@@ -20,9 +20,21 @@ const LoginPage = () => {
   const handleLogin = async (values) => {
     setLoading(true);
     try {
-      await authService.login(values);
+      const response = await authService.login(values);
+      console.log('Login response:', response); // Add this for debugging
+
       message.success('Login successful!');
-      navigate('/dashboard');
+
+      // Route based on role
+      if (response.role === 'admin') {
+        navigate('/admin');
+      } else if (response.role === 'coder') {
+        navigate('/coding');
+      } else if (response.role === 'approver') {
+        navigate('/approvals');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error) {
       message.error(error.detail || 'Login failed. Please check your credentials.');
     } finally {

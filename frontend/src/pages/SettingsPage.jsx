@@ -24,6 +24,7 @@ const SettingsPage = () => {
     const [glRules, setGlRules] = useState([]);
     const [defaultConfig, setDefaultConfig] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [userRole, setUserRole] = useState('');
 
     // Modal State
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -55,6 +56,19 @@ const SettingsPage = () => {
             setLoading(false);
         }
     };
+
+    // Get user role from localStorage
+    useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser);
+                setUserRole(user.role || '');
+            } catch (e) {
+                setUserRole('');
+            }
+        }
+    }, []);
 
     useEffect(() => {
         fetchRules();
@@ -132,7 +146,8 @@ const SettingsPage = () => {
         { title: 'Min Amount', dataIndex: 'min_amount', key: 'min_amount', render: (val) => `$${val?.toLocaleString() || 0}` },
         { title: 'Max Amount', dataIndex: 'max_amount', key: 'max_amount', render: (val) => `$${val?.toLocaleString() || 0}` },
         { title: 'Approvers Required', dataIndex: 'approver_count', key: 'approver_count' },
-        {
+        // Only show actions if user is not a coder
+        ...(userRole !== 'coder' ? [{
             title: 'Actions',
             key: 'actions',
             render: (_, record) => (
@@ -141,13 +156,14 @@ const SettingsPage = () => {
                     <Button icon={<DeleteOutlined />} type="text" danger onClick={() => handleDelete(record, 'amount')} />
                 </Space>
             )
-        }
+        }] : [])
     ];
 
     const vendorColumns = [
         { title: 'Vendor Name', dataIndex: 'vendorName', key: 'vendorName' },
         { title: 'Approvers Required', dataIndex: 'approverCount', key: 'approverCount' },
-        {
+        // Only show actions if user is not a coder
+        ...(userRole !== 'coder' ? [{
             title: 'Actions',
             key: 'actions',
             render: (_, record) => (
@@ -156,13 +172,14 @@ const SettingsPage = () => {
                     <Button icon={<DeleteOutlined />} type="text" danger onClick={() => handleDelete(record, 'vendor')} />
                 </Space>
             )
-        }
+        }] : [])
     ];
 
     const glColumns = [
         { title: 'GL Code', dataIndex: 'glTitle', key: 'glTitle' },
         { title: 'Approvers Required', dataIndex: 'approverCount', key: 'approverCount' },
-        {
+        // Only show actions if user is not a coder
+        ...(userRole !== 'coder' ? [{
             title: 'Actions',
             key: 'actions',
             render: (_, record) => (
@@ -171,7 +188,7 @@ const SettingsPage = () => {
                     <Button icon={<DeleteOutlined />} type="text" danger onClick={() => handleDelete(record, 'gl')} />
                 </Space>
             )
-        }
+        }] : [])
     ];
 
     const paginationConfig = {
@@ -209,22 +226,26 @@ const SettingsPage = () => {
                 >
                     <InputNumber min={1} max={4} />
                 </Form.Item>
-                <Form.Item>
-                    <Button type="primary" htmlType="submit">
-                        Save
-                    </Button>
-                </Form.Item>
+                {userRole !== 'coder' && (
+                    <Form.Item>
+                        <Button type="primary" htmlType="submit">
+                            Save
+                        </Button>
+                    </Form.Item>
+                )}
             </Form>
         </div>
     );
 
     const renderTabContent = (type, columns, data) => (
         <div>
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => handleAdd(type)}>
-                    Add Rule
-                </Button>
-            </div>
+            {userRole !== 'coder' && (
+                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => handleAdd(type)}>
+                        Add Rule
+                    </Button>
+                </div>
+            )}
             <Table
                 columns={columns}
                 dataSource={data || []}

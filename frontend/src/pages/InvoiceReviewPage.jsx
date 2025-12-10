@@ -67,13 +67,17 @@ const InvoiceReviewPage = () => {
         return null;
     }
 
+    // Check if invoice is approved - make it read-only
+    const isApproved = invoiceData?.status === 'approved';
+    const effectiveReadOnly = readOnly || isApproved;
+
     return (
         <div style={{ height: 'calc(100vh - 10vh)', width: '100%' }}>
             <InvoiceReview
                 file={pdfUrl}
                 onBack={handleBack}
                 invoiceData={invoiceData}
-                readOnly={readOnly}
+                readOnly={effectiveReadOnly}
             />
         </div>
     );
