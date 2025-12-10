@@ -20,7 +20,9 @@ const LoginPage = () => {
   const handleLogin = async (values) => {
     setLoading(true);
     try {
-      await authService.login(values);
+      const response = await authService.login(values);
+      console.log('Login response:', response); // Add this for debugging
+
       message.success('Login successful!');
       navigate('/select-entity');
     } catch (error) {

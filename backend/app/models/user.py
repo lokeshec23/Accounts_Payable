@@ -6,6 +6,8 @@ class User(BaseModel):
     username: str
     email: EmailStr
     password: str
+    role: str = "user"  # admin, coder, approver, user
+    status: str = "pending"  # pending, active, rejected
     created_at: Optional[datetime] = None
 
 class UserInDB(User):
@@ -15,6 +17,8 @@ class UserResponse(BaseModel):
     id: str
     username: str
     email: EmailStr
+    role: str = "user"
+    status: str = "pending"
     created_at: datetime
 
     class Config:

@@ -270,4 +270,17 @@ export const approvalService = {
   }
 };
 
+// Admin service methods
+export const adminService = {
+  async getAllUsers() {
+    const response = await api.get('/users/');
+    return response.data;
+  },
+
+  async updateUserRole(userId, role, status) {
+    const response = await api.put(`/users/${userId}/role`, { role, status });
+    return response.data;
+  }
+};
+
 export default api;

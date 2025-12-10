@@ -12,6 +12,9 @@ const CodingReviewPage = () => {
     const navigate = useNavigate();
     const invoiceData = location.state?.invoice;
 
+    // Check if invoice is approved - make it read-only
+    const isApproved = invoiceData?.status === 'approved';
+
     // Resizable state
     const [leftWidth, setLeftWidth] = useState(() => {
         const saved = localStorage.getItem('codingReviewSplitWidth');
@@ -536,6 +539,7 @@ const CodingReviewPage = () => {
                     rows={1}
                     autoSize={{ minRows: 1, maxRows: 4 }}
                     style={{ width: '100%' }}
+                    disabled={isApproved}
                 />
             )
         }
@@ -618,6 +622,7 @@ const CodingReviewPage = () => {
                         { value: 'Liability', label: 'Liability' }
                     ]}
                     style={{ width: '100%' }}
+                    disabled={isApproved}
                 />
             )
         },
@@ -640,6 +645,7 @@ const CodingReviewPage = () => {
                         }
                         style={{ width: '100%' }}
                         min={0}
+                        disabled={isApproved}
                     />
                 </div>
             )
@@ -668,6 +674,7 @@ const CodingReviewPage = () => {
                         style={{ width: '100%' }}
                         min={0}
                         precision={2}
+                        disabled={isApproved}
                     />
                 </div>
             )
@@ -696,6 +703,7 @@ const CodingReviewPage = () => {
                         style={{ width: '100%' }}
                         min={0}
                         precision={2}
+                        disabled={isApproved}
                     />
                 </div>
             )
@@ -724,6 +732,7 @@ const CodingReviewPage = () => {
                     loading={loadingMasterData}
                     style={{ width: '100%' }}
                     dropdownMatchSelectWidth={false}
+                    disabled={isApproved}
                 />
             )
         },
@@ -751,6 +760,7 @@ const CodingReviewPage = () => {
                     loading={loadingMasterData}
                     style={{ width: '100%' }}
                     dropdownMatchSelectWidth={false}
+                    disabled={isApproved}
                 />
             )
         },
@@ -778,6 +788,7 @@ const CodingReviewPage = () => {
                     loading={loadingMasterData}
                     style={{ width: '100%' }}
                     dropdownMatchSelectWidth={false}
+                    disabled={isApproved}
                 />
             )
         },
@@ -805,6 +816,7 @@ const CodingReviewPage = () => {
                     loading={loadingMasterData}
                     style={{ width: '100%' }}
                     dropdownMatchSelectWidth={false}
+                    disabled={isApproved}
                 />
             )
         },
@@ -832,6 +844,7 @@ const CodingReviewPage = () => {
                     loading={loadingMasterData}
                     style={{ width: '100%' }}
                     dropdownMatchSelectWidth={false}
+                    disabled={isApproved}
                 />
             )
         },
@@ -922,6 +935,7 @@ const CodingReviewPage = () => {
                                 icon={<SaveOutlined />}
                                 onClick={handleSave}
                                 loading={saving}
+                                disabled={isApproved}
                             >
                                 Save
                             </Button>
@@ -931,6 +945,7 @@ const CodingReviewPage = () => {
                                     icon={<RollbackOutlined />}
                                     onClick={handleRecall}
                                     loading={saving}
+                                    disabled={isApproved}
                                 >
                                     Recall
                                 </Button>
@@ -940,6 +955,7 @@ const CodingReviewPage = () => {
                                 icon={<SendOutlined />}
                                 onClick={handleSendToApproval}
                                 loading={saving}
+                                disabled={isApproved}
                             >
                                 Send to Approval
                             </Button>
