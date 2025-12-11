@@ -53,6 +53,7 @@ const MainLayout = () => {
     // Global search for View Files modal table
     const [fieldsSearchTerm, setFieldsSearchTerm] = useState('');
 
+    const [userRole, setUserRole] = useState('');
     // ------------ FETCH INVOICES --------------
     const fetchInvoices = async () => {
         try {
@@ -103,6 +104,18 @@ const MainLayout = () => {
         }
     };
 
+
+    useEffect(() => {
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) {
+                try {
+                    const user = JSON.parse(storedUser);
+                    setUserRole(user.role || '');
+                } catch (e) {
+                    setUserRole('');
+                }
+            }
+        }, []);
     useEffect(() => {
         fetchInvoices();
     }, []);
@@ -499,7 +512,7 @@ const MainLayout = () => {
         if (status === "processed") {
             navigate("/invoice/review", { state: { invoice: record } });
         }
-        else if (status === "waiting_coding" || status === "coding") {
+        else if (status === "waiting_coding" || status === "coding" || status === "waiting_approval") {
             navigate("/coding/review", { state: { invoice: record } });
         }
         else {
@@ -585,14 +598,17 @@ const MainLayout = () => {
                             >
                                 View Files
                             </Button>
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={handleAddInvoice}
-                                className="add-invoice-btn"
-                            >
-                                Add Invoice
-                            </Button>
+                            {userRole !== "approver" && (
+                                <Button
+                                    type="primary"
+                                    icon={<PlusOutlined />}
+                                    onClick={handleAddInvoice}
+                                    className="add-invoice-btn"
+                                >
+                                    Add Invoice
+                                </Button>
+                            )}
+
                         </div>
                         <div className="table-toolbar" style={{ margin: 0 }}>
                             <Input

@@ -11,6 +11,8 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     const [hoveredKey, setHoveredKey] = useState(null);
     const [formattedData, setFormattedData] = useState(null);
 
+    const [userRole, setUserRole] = useState(null);
+
     // Resizable state
     const [leftWidth, setLeftWidth] = useState(() => {
         const saved = localStorage.getItem('invoiceReviewSplitWidth');
@@ -18,6 +20,18 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     });
     const [isDragging, setIsDragging] = useState(false);
     const leftWidthRef = useRef(leftWidth);
+
+    useEffect(() => {
+                const storedUser = localStorage.getItem('user');
+                if (storedUser) {
+                    try {
+                        const user = JSON.parse(storedUser);
+                        setUserRole(user.role || '');
+                    } catch (e) {
+                        setUserRole('');
+                    }
+                }
+            }, []);
 
     useEffect(() => {
         leftWidthRef.current = leftWidth;
@@ -344,7 +358,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                             setHoveredKey={setHoveredKey}
                             invoiceId={invoiceData?.id}
                             originalData={invoiceData}
-                            readOnly={readOnly}
+                            readOnly={readOnly || userRole === 'approver'} 
                         />
                     )}
                 </div>

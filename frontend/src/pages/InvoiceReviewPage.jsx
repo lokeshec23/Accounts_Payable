@@ -68,8 +68,9 @@ const InvoiceReviewPage = () => {
     }
 
     // Check if invoice is approved - make it read-only
-    const isApproved = invoiceData?.status === 'approved';
-    const effectiveReadOnly = readOnly || isApproved;
+    const isApproved = invoiceData?.status === 'approved';  
+    const isRejected = invoiceData?.status === 'rejected';
+    const effectiveReadOnly = readOnly || isApproved || isRejected;
 
     return (
         <div style={{ height: 'calc(100vh - 10vh)', width: '100%' }}>

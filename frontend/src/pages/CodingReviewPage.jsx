@@ -14,6 +14,7 @@ const CodingReviewPage = () => {
 
     // Check if invoice is approved - make it read-only
     const isApproved = invoiceData?.status === 'approved';
+    const isRejected = invoiceData?.status === 'rejected';
 
     // Resizable state
     const [leftWidth, setLeftWidth] = useState(() => {
@@ -45,6 +46,8 @@ const CodingReviewPage = () => {
     // Track selected rows for "apply to all" feature
     const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
+    const [userRole, setUserRole] = useState('');
+
     // Trigger workflow refresh
     const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
 
@@ -53,6 +56,18 @@ const CodingReviewPage = () => {
         backgroundColor: 'white',
         opacity: 1
     };
+
+      useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser);
+                setUserRole(user.role || '');
+            } catch (e) {
+                setUserRole('');
+            }
+        }
+    }, []);
 
     // Fetch PDF blob
     useEffect(() => {
@@ -538,8 +553,8 @@ const CodingReviewPage = () => {
                     placeholder="Enter header coding"
                     rows={1}
                     autoSize={{ minRows: 1, maxRows: 4 }}
-                    style={{ width: '100%' }}
-                    disabled={isApproved}
+                    style={{ ...disabledStyle, width: '100%' }}
+                    disabled={isApproved || isRejected || userRole === 'approver'}
                 />
             )
         }
@@ -621,8 +636,8 @@ const CodingReviewPage = () => {
                         { value: 'Asset', label: 'Asset' },
                         { value: 'Liability', label: 'Liability' }
                     ]}
-                    style={{ width: '100%' }}
-                    disabled={isApproved}
+                    style={{ width: '100%' , ...disabledStyle}}
+                    disabled={isApproved || isRejected || userRole === 'approver' }
                 />
             )
         },
@@ -643,9 +658,9 @@ const CodingReviewPage = () => {
                         onChange={(value) =>
                             handleCodingLineItemChange(index, 'quantity', value)
                         }
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', ...disabledStyle }}
                         min={0}
-                        disabled={isApproved}
+                        disabled={isApproved || isRejected || userRole === 'approver'}
                     />
                 </div>
             )
@@ -671,10 +686,10 @@ const CodingReviewPage = () => {
                         onChange={(value) =>
                             handleCodingLineItemChange(index, 'unit_price', value)
                         }
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', ...disabledStyle }}
                         min={0}
                         precision={2}
-                        disabled={isApproved}
+                        disabled={isApproved || isRejected || userRole === 'approver'}
                     />
                 </div>
             )
@@ -700,10 +715,10 @@ const CodingReviewPage = () => {
                         onChange={(value) =>
                             handleCodingLineItemChange(index, 'net_amount', value)
                         }
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', ...disabledStyle }}
                         min={0}
                         precision={2}
-                        disabled={isApproved}
+                        disabled={isApproved || isRejected || userRole === 'approver'}
                     />
                 </div>
             )
@@ -730,9 +745,9 @@ const CodingReviewPage = () => {
                         (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                     }
                     loading={loadingMasterData}
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', ...disabledStyle }}
                     dropdownMatchSelectWidth={false}
-                    disabled={isApproved}
+                    disabled={isApproved || isRejected || userRole === 'approver'}
                 />
             )
         },
@@ -758,9 +773,9 @@ const CodingReviewPage = () => {
                         (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                     }
                     loading={loadingMasterData}
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', ...disabledStyle }}
                     dropdownMatchSelectWidth={false}
-                    disabled={isApproved}
+                    disabled={isApproved || isRejected || userRole === 'approver'}
                 />
             )
         },
@@ -786,9 +801,9 @@ const CodingReviewPage = () => {
                         (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                     }
                     loading={loadingMasterData}
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', ...disabledStyle }}
                     dropdownMatchSelectWidth={false}
-                    disabled={isApproved}
+                    disabled={isApproved || isRejected || userRole === 'approver'}
                 />
             )
         },
@@ -814,9 +829,9 @@ const CodingReviewPage = () => {
                         (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                     }
                     loading={loadingMasterData}
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', ...disabledStyle }}
                     dropdownMatchSelectWidth={false}
-                    disabled={isApproved}
+                    disabled={isApproved || isRejected || userRole === 'approver'}
                 />
             )
         },
@@ -842,9 +857,9 @@ const CodingReviewPage = () => {
                         (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
                     }
                     loading={loadingMasterData}
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', ...disabledStyle }}
                     dropdownMatchSelectWidth={false}
-                    disabled={isApproved}
+                    disabled={isApproved || isRejected || userRole === 'approver'}
                 />
             )
         },
@@ -930,35 +945,40 @@ const CodingReviewPage = () => {
                         </Button>
 
                         <div style={{ display: 'flex', gap: '10px' }}>
+                            {!(isApproved || isRejected || userRole === 'approver') && (
                             <Button
                                 type="primary"
                                 icon={<SaveOutlined />}
                                 onClick={handleSave}
                                 loading={saving}
-                                disabled={isApproved}
                             >
                                 Save
                             </Button>
-                            {invoiceData?.status === 'waiting_approval' && (
-                                <Button
-                                    type="primary"
-                                    icon={<RollbackOutlined />}
-                                    onClick={handleRecall}
-                                    loading={saving}
-                                    disabled={isApproved}
-                                >
-                                    Recall
-                                </Button>
                             )}
-                            <Button
+                            {invoiceData?.status === 'waiting_approval' &&
+                                !isApproved &&
+                                !isRejected &&
+                                userRole !== 'approver' && (
+                                    <Button
+                                        type="primary"
+                                        icon={<RollbackOutlined />}
+                                        onClick={handleRecall}
+                                        loading={saving}
+                                    >
+                                        Recall
+                                    </Button>
+                            )}
+                            {!(isApproved || isRejected || userRole === 'approver') && (
+                            <Button 
                                 type="primary"
                                 icon={<SendOutlined />}
                                 onClick={handleSendToApproval}
                                 loading={saving}
-                                disabled={isApproved}
+                                disabled={isApproved || isRejected || userRole === 'approver'}
                             >
                                 Send to Approval
                             </Button>
+                            )}
                         </div>
                     </div>
 
