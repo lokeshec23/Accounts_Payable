@@ -106,16 +106,16 @@ const MainLayout = () => {
 
 
     useEffect(() => {
-            const storedUser = localStorage.getItem('user');
-            if (storedUser) {
-                try {
-                    const user = JSON.parse(storedUser);
-                    setUserRole(user.role || '');
-                } catch (e) {
-                    setUserRole('');
-                }
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser);
+                setUserRole(user.role || '');
+            } catch (e) {
+                setUserRole('');
             }
-        }, []);
+        }
+    }, []);
     useEffect(() => {
         fetchInvoices();
     }, []);
@@ -509,6 +509,12 @@ const MainLayout = () => {
     const handleView = (record) => {
         const status = record.status?.toLowerCase();
 
+        // If user is approver, always go to invoice review to see approval buttons
+        if (userRole === 'approver') {
+            navigate("/invoice/review", { state: { invoice: record } });
+            return;
+        }
+
         if (status === "processed") {
             navigate("/invoice/review", { state: { invoice: record } });
         }
@@ -640,7 +646,7 @@ const MainLayout = () => {
                 </>
             ),
         },
-        
+
     ];
 
     // =====================================================

@@ -1681,7 +1681,7 @@ const GenericInputFields = ({
                     )}
 
                     {/* Action Buttons in same row */}
-                    {readOnly && (
+                    {readOnly && (invoiceStatus === 'waiting_approval') && (
                         <Space style={{ marginLeft: '24px' }}>
                             <Button
                                 type="primary"

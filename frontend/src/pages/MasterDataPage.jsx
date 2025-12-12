@@ -353,7 +353,7 @@ const MasterDataPage = () => {
                             style={{ marginBottom: 0 }}
                         />
                     </div>
-                    {userRole !== 'coder' && (
+                    {(
                         <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
                             Add Row
                         </Button>
