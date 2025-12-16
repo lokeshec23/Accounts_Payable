@@ -698,171 +698,162 @@ const MainLayout = () => {
                         pagination={false}
                         size="small"
                         scroll={{ x: 3000 }}   // ⭐ DO NOT use scroll.y here
-                        columns={[
-                            {
-                                title: "S.No",
-                                key: "sno",
-                                width: 70,
-                                // fixed: "left",
-                                className: "sticky-col",
-                                render: (_, __, index) => index + 1,
-                            },
-                            {
-                                title: "Vendor Name",
-                                dataIndex: "vendorName",
-                                key: "vendorName",
-                                width: 150,
-                                className: "sticky-col",
-                                // fixed: "left",
-                                sorter: (a, b) =>
-                                    (a.vendorName || "").localeCompare(b.vendorName || ""),
-                                multiple: 2,
-                            },
-                            {
-                                title: "Vendor Address",
-                                dataIndex: "vendorAddress",
-                                key: "vendorAddress",
-                                width: 200,
-                                sorter: (a, b) =>
-                                    (a.vendorAddress || "").localeCompare(b.vendorAddress || ""),
-                                multiple: 3,
-                            },
-                            {
-                                title: "Vendor Country",
-                                dataIndex: "vendorCountry",
-                                key: "vendorCountry",
-                                width: 120,
-                                sorter: (a, b) =>
-                                    (a.vendorCountry || "").localeCompare(b.vendorCountry || ""),
-                                multiple: 4,
-                            },
-                            {
-                                title: "Vendor Tax ID",
-                                dataIndex: "vendorTaxId",
-                                key: "vendorTaxId",
-                                width: 150,
-                                sorter: (a, b) =>
-                                    (a.vendorTaxId || "").localeCompare(b.vendorTaxId || ""),
-                                multiple: 5,
-                            },
-                            {
-                                title: "Vendor Contact Email",
-                                dataIndex: "vendorEmail",
-                                key: "vendorEmail",
-                                width: 180,
-                                sorter: (a, b) =>
-                                    (a.vendorEmail || "").localeCompare(b.vendorEmail || ""),
-                                multiple: 6,
-                            },
-                            {
-                                title: "Vendor Phone",
-                                dataIndex: "vendorPhone",
-                                key: "vendorPhone",
-                                width: 130,
-                                sorter: (a, b) =>
-                                    (a.vendorPhone || "").localeCompare(b.vendorPhone || ""),
-                                multiple: 7,
-                            },
-                            {
-                                title: "Total Amount",
-                                dataIndex: "totalInvoiceAmount",
-                                key: "totalInvoiceAmount",
-                                width: 150,
-                                render: (val) => {
-                                    if (!val) return "-";
-                                    const strVal = val.toString();
-                                    return strVal.startsWith("$") ? strVal : `$${strVal}`;
-                                },
-                            },
-                            {
-                                title: "Amount Due",
-                                dataIndex: "amountDue",
-                                key: "amountDue",
-                                width: 150,
-                                render: (val) => {
-                                    if (!val) return "-";
-                                    const strVal = val.toString();
-                                    return strVal.startsWith("$") ? strVal : `$${strVal}`;
-                                },
-                            },
-                            {
-                                title: "Approval Status",
-                                dataIndex: "approvalStatus",
-                                key: "approvalStatus",
-                                width: 140,
-                                sorter: (a, b) =>
-                                    (a.approvalStatus || "").localeCompare(b.approvalStatus || ""),
-                                multiple: 8,
-                                filters: [
-                                    { text: "Processed", value: "processed" },
-                                    { text: "Coding", value: "waiting_coding" },
-                                    { text: "Waiting for Approval", value: "waiting_approval" },
-                                    { text: "Approved", value: "approved" },
-                                    { text: "Rejected", value: "rejected" },
-                                    { text: "Reworked", value: "reworked" },
-                                ],
-                                onFilter: (value, record) => record.approvalStatus === value,
-                                render: (status) => {
-                                    let color = "default";
-                                    let text = status;
+                         columns={[
+      // ================= BASIC =================
+      {
+        title: "S.No",
+        width: 70,
+        render: (_, __, index) => index + 1,
+        fixed: "left",
+      },
+      {
+        title: "Vendor Name",
+        dataIndex: "vendorName",
+        width: 180,
+        fixed: "left",
+      },
 
-                                    switch (status) {
-                                        case "processed":
-                                            color = "cyan";
-                                            text = "Processed";
-                                            break;
-                                        case "waiting_coding":
-                                            color = "orange";
-                                            text = "Coding";
-                                            break;
-                                        case "waiting_approval":
-                                            color = "gold";
-                                            text = "Waiting for Approval";
-                                            break;
-                                        case "approved":
-                                            color = "green";
-                                            text = "Approved";
-                                            break;
-                                        case "rejected":
-                                            color = "red";
-                                            text = "Rejected";
-                                            break;
-                                        case "reworked":
-                                            color = "purple";
-                                            text = "Reworked";
-                                            break;
-                                        default:
-                                            text = status || "Unknown";
-                                    }
+      // ================= VENDOR =================
+      {
+        title: "Vendor Address",
+        dataIndex: "vendorAddress",
+        width: 250,
+      },
+      {
+        title: "Vendor Country",
+        dataIndex: "vendorCountry",
+        width: 150,
+      },
+      {
+        title: "Vendor Tax ID",
+        dataIndex: "vendorTaxId",
+        width: 180,
+      },
+      {
+        title: "Vendor Email",
+        dataIndex: "vendorEmail",
+        width: 220,
+      },
+      {
+        title: "Vendor Phone",
+        dataIndex: "vendorPhone",
+        width: 160,
+      },
 
-                                    return <Tag color={color}>{text}</Tag>;
-                                },
-                            },
-                            {
-                                title: "Approver",
-                                dataIndex: "approverName",
-                                key: "approverName",
-                                width: 160,
-                                sorter: (a, b) =>
-                                    (a.approverName || "").localeCompare(b.approverName || ""),
-                                multiple: 9,
-                            },
-                            {
-                                title: "Approval Time",
-                                dataIndex: "approvalTimestamps",
-                                key: "approvalTimestamps",
-                                width: 200,
-                                sorter: (a, b) => {
-                                    if (!a.approvalTimestamps) return 1;
-                                    if (!b.approvalTimestamps) return -1;
-                                    return (
-                                        new Date(a.approvalTimestamps) -
-                                        new Date(b.approvalTimestamps)
-                                    );
-                                },
-                                multiple: 10,
-                            },
-                        ]}
+      // ================= CLIENT =================
+      {
+        title: "Client Name",
+        dataIndex: "clientName",
+        width: 220,
+      },
+      {
+        title: "Billing Address",
+        dataIndex: "billingAddress",
+        width: 300,
+      },
+      {
+        title: "Shipping Address",
+        dataIndex: "shippingAddress",
+        width: 300,
+      },
+
+      // ================= INVOICE =================
+      {
+        title: "Invoice Number",
+        dataIndex: "invoiceNumber",
+        width: 180,
+      },
+      {
+        title: "Invoice Date",
+        dataIndex: "invoiceDate",
+        width: 160,
+      },
+      {
+        title: "Due Date",
+        dataIndex: "dueDate",
+        width: 160,
+      },
+      {
+        title: "Currency",
+        dataIndex: "currency",
+        width: 120,
+      },
+
+      // ================= LINE ITEM =================
+      {
+        title: "Description",
+        dataIndex: "description",
+        width: 320,
+      },
+      {
+        title: "Item Code",
+        dataIndex: "itemCode",
+        width: 160,
+      },
+      {
+        title: "Quantity",
+        dataIndex: "quantity",
+        width: 120,
+      },
+      {
+        title: "Unit Price",
+        dataIndex: "unitPrice",
+        width: 160,
+      },
+      {
+        title: "Net Amount",
+        dataIndex: "netAmount",
+        width: 160,
+      },
+      {
+        title: "Tax Amount",
+        dataIndex: "taxAmount",
+        width: 160,
+      },
+
+      // ================= TOTALS =================
+      {
+        title: "Subtotal",
+        dataIndex: "subtotal",
+        width: 160,
+      },
+      {
+        title: "Total Amount",
+        dataIndex: "totalInvoiceAmount",
+        width: 180,
+      },
+      {
+        title: "Amount Due",
+        dataIndex: "amountDue",
+        width: 180,
+      },
+
+      // ================= APPROVAL =================
+      {
+        title: "Approval Status",
+        dataIndex: "approvalStatus",
+        width: 170,
+        render: (status) => {
+          let color = "default";
+          if (status === "approved") color = "green";
+          if (status === "rejected") color = "red";
+          if (status === "waiting_approval") color = "gold";
+          if (status === "waiting_coding") color = "orange";
+          if (status === "reworked") color = "purple";
+          return <Tag color={color}>{status}</Tag>;
+        },
+      },
+      {
+        title: "Approver",
+        dataIndex: "approverName",
+        width: 180,
+      },
+      {
+        title: "Approval Time",
+        dataIndex: "approvalTime",
+        width: 200,
+      },
+    ]}
                     />
                 </div>
             </Modal>
