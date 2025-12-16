@@ -417,7 +417,7 @@ const CodingReviewPage = () => {
             await approvalService.sendToApproval(invoiceData.id);
 
             message.success('Invoice sent to approval successfully!');
-            navigate('/approvals');
+            navigate('/coding');
         } catch (error) {
             console.error('Error sending:', error);
             message.error('Failed to send to approval');

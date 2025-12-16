@@ -311,6 +311,7 @@ const MainLayout = () => {
                     >
                         View
                     </Button>
+                    {userRole !== "approver" && (
                     <Button
                         type="link"
                         danger
@@ -319,6 +320,8 @@ const MainLayout = () => {
                     >
                         Delete
                     </Button>
+                    )}
+
                 </Space>
             ),
         },
