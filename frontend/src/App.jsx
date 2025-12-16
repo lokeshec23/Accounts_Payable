@@ -3,24 +3,14 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { ConfigProvider, message } from 'antd';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import InvoicePage from './pages/InvoicePage';
-import InvoiceReviewPage from './pages/InvoiceReviewPage';
-import CodingPage from './pages/CodingPage';
-import CodingReviewPage from './pages/CodingReviewPage';
-import ApprovalsPage from './pages/ApprovalsPage';
-import MasterDataPage from './pages/MasterDataPage';
-import SettingsPage from './pages/SettingsPage';
-import AdminPage from './pages/AdminPage';
-import DesignSystemPage from './pages/DesignSystemPage';
 import Header from './components/Header';
 import { EntityProvider } from './context/EntityContext';
 import { GlobalSettingsProvider } from './context/GlobalSettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import SelectEntity from './pages/SelectEntity';
 import './styles/message-override.css';
 import './styles/table-headers.css';
 import './styles/global-table-styles.css';
+import { routeMap } from './routeMap';
 
 const AppContent = () => {
   const location = useLocation();
@@ -44,42 +34,19 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/dashboard" element={<ProtectedRoute>
-          <DashboardPage />
-        </ProtectedRoute>} />
-        <Route path="/invoice" element={<ProtectedRoute>
-          <InvoicePage />
-        </ProtectedRoute>} />
-        <Route path="/invoice/review" element={<ProtectedRoute>
-          <InvoiceReviewPage />
-        </ProtectedRoute>} />
-        <Route path="/coding" element={<ProtectedRoute>
-          <CodingPage />
-        </ProtectedRoute>} />
-        <Route path="/coding/review" element={<ProtectedRoute>
-          <CodingReviewPage />
-        </ProtectedRoute>} />
-        <Route path="/approvals" element={<ProtectedRoute>
-          <ApprovalsPage />
-        </ProtectedRoute>} />
-        <Route path="/master-data" element={<ProtectedRoute>
-          <MasterDataPage />
-        </ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute>
-          <SettingsPage />
-        </ProtectedRoute>} />
-        <Route path="/admin" element={<ProtectedRoute>
-          <AdminPage />
-        </ProtectedRoute>} />
-        <Route path="/design-system" element={<DesignSystemPage />} />
-        <Route
-        path="/select-entity"
-        element={
-          <ProtectedRoute>
-            <SelectEntity />
-          </ProtectedRoute>
-        }
-        />
+        
+        {/* Dynamic Routes from routeMap - Drivers of the application */}
+        {Object.entries(routeMap).map(([path, component]) => (
+          <Route 
+            key={path} 
+            path={path} 
+            element={
+              <ProtectedRoute>
+                {component}
+              </ProtectedRoute>
+            } 
+          />
+        ))}
 
       </Routes>
     </>
