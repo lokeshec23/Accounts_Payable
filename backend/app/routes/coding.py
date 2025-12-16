@@ -177,14 +177,35 @@ async def create_or_update_coding(
             # Status should only change when user clicks "Send to Approval"
             
             # ---- CREATE/UPDATE WORKFLOW STEP: CODING ----
-            # Check if coding workflow step already exists
+            # Check if coding workflow step already exists *for this cycle*
+            
+            # 1. Determine start of current cycle (timestamp of last REWORKED or WAITING_CODING status)
+            status_history = invoice.get("status_history", [])
+            last_cycle_start = datetime.min
+            
+            for entry in reversed(status_history):
+                # We look for the LATEST rework or recall event
+                if entry.get("status") in ["reworked", "waiting_coding"] and entry.get("timestamp"):
+                    # ensure timestamp is datetime
+                    ts = entry.get("timestamp")
+                    if isinstance(ts, str):
+                        try:
+                           ts = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                        except:
+                           pass # ignore invalid
+                    if isinstance(ts, datetime):
+                        last_cycle_start = ts
+                        break
+            
+            # 2. Find if we have a CODING step after this time
             existing_coding_step = db.workflow_steps.find_one({
                 "invoice_id": coding_data.invoice_id,
-                "step_type": WorkflowStepType.CODING
+                "step_type": WorkflowStepType.CODING,
+                "timestamp": {"$gt": last_cycle_start}
             })
             
             if not existing_coding_step:
-                # Create coding workflow step only on first save
+                # Create coding workflow step only on first save OF THIS CYCLE
                 workflow_step = {
                     "invoice_id": coding_data.invoice_id,
                     "step_name": "Coding",

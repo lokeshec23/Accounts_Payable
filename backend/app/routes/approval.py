@@ -69,16 +69,24 @@ async def send_to_approval(
 
     # Update invoice status
     db.invoices.update_one(
-        {"_id": ObjectId(invoice_id)},
-        {
-            "$set": {
+    {"_id": ObjectId(invoice_id)},
+    {
+        "$set": {
+            "status": InvoiceStatus.WAITING_APPROVAL, 
+            "current_approver_level": 1,              
+            **extra_fields                              
+        },
+        "$push": {
+            "status_history": {
                 "status": InvoiceStatus.WAITING_APPROVAL,
-                **extra_fields
-            },
-            "$push": {"status_history": new_status_entry}
+                "user": current_user.username,
+                "timestamp": datetime.utcnow(),
+                "comment": None                         # ✅ SAFE
+            }
         }
-    )
-    
+    }
+)
+
     # Create workflow step: Waiting for Approval
     workflow_step = {
         "invoice_id": invoice_id,
