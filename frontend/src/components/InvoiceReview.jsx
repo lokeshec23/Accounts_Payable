@@ -3,6 +3,7 @@ import GenericInputFields from './GenericInputFields';
 import { schemaMap } from '../config/schemaMap';
 import PdfViewerWithHighlight from './PdfViewerWithHighlight';
 import PdfViewer from './Pdfviewer';
+import { useGlobalSettings } from '../context/GlobalSettingsContext';
 
 const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
 
@@ -10,7 +11,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     const [pageNumber, setPageNumber] = useState(1);
     const [hoveredKey, setHoveredKey] = useState(null);
     const [formattedData, setFormattedData] = useState(null);
-
+    const { settings } = useGlobalSettings();
     const [userRole, setUserRole] = useState(null);
 
     // Resizable state
@@ -358,7 +359,20 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                             setHoveredKey={setHoveredKey}
                             invoiceId={invoiceData?.id}
                             originalData={invoiceData}
-                            readOnly={readOnly || userRole === 'approver'} 
+                            readOnly={readOnly || (() => {
+                                // Dynamic permission: If user has access to /coding or /invoice, they can edit.
+                                // Otherwise (like typical approvers), they are read-only here.
+                                if (!settings.navigation || !userRole) return true; // Default safe
+                                const codingRoles = settings.navigation.find(n => n.path === '/coding')?.roles || [];
+                                const invoiceRoles = settings.navigation.find(n => n.path === '/invoice')?.roles || [];
+                                
+                                const canEdit = codingRoles.includes(userRole) || 
+                                              invoiceRoles.includes(userRole) || 
+                                              codingRoles.includes('all') ||
+                                              invoiceRoles.includes('all') ||
+                                              userRole === 'admin';
+                                return !canEdit;
+                            })()} 
                         />
                     )}
                 </div>

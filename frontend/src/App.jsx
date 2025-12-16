@@ -15,6 +15,7 @@ import AdminPage from './pages/AdminPage';
 import DesignSystemPage from './pages/DesignSystemPage';
 import Header from './components/Header';
 import { EntityProvider } from './context/EntityContext';
+import { GlobalSettingsProvider } from './context/GlobalSettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import SelectEntity from './pages/SelectEntity';
 import './styles/message-override.css';
@@ -95,9 +96,11 @@ const App = () => {
       }}
     >
       <EntityProvider>
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
+        <GlobalSettingsProvider>
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
+        </GlobalSettingsProvider>
       </EntityProvider>
     </ConfigProvider>
   );

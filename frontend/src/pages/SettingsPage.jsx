@@ -11,10 +11,13 @@ import {
     Input,
     InputNumber,
     message,
-    Spin
+    Select,
+    Spin,
+    Tag
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined, ExclamationCircleOutlined, } from '@ant-design/icons';
 import { approverConfigService } from '../services/api';
+
 
 const { Title, Text } = Typography;
 
@@ -27,6 +30,7 @@ const SettingsPage = () => {
     const [defaultConfig, setDefaultConfig] = useState(null);
     const [loading, setLoading] = useState(false);
     const [userRole, setUserRole] = useState('');
+
 
     // Modal State
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -281,6 +285,8 @@ const SettingsPage = () => {
         </div>
     );
 
+
+
     const generateFilters = (data, key) => {
     const vals = [...new Set(data.map(item => item[key]).filter(Boolean))];
     return vals.map(v => ({ text: v, value: v }));
@@ -356,9 +362,10 @@ const SettingsPage = () => {
 
 
     const items = [
+
         {
-            key: '0',
-            label: 'Default',
+            key: '0-default',
+            label: 'Default Approvers',
             children: renderDefaultSettings(),
         },
         {

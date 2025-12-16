@@ -5,10 +5,12 @@ import { LogoutOutlined, SettingOutlined } from "@ant-design/icons";
 import { authService } from "../services/auth";
 import "../styles/Header.css";
 import { useEntity } from "../context/EntityContext";
+import { useGlobalSettings } from "../context/GlobalSettingsContext";
 
 const Header = () => {
   const [username, setUsername] = useState("User");
   const { entity } = useEntity();
+  const { settings } = useGlobalSettings();
   const [role, setRole] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
@@ -48,62 +50,22 @@ const Header = () => {
 
         {/* NAVIGATION */}
         <nav className="header-nav">
-          <Link
-            to="/dashboard"
-            className={`nav-tab ${isActive("/dashboard") ? "active" : ""}`}
-          >
-            Dashboard
-          </Link>
+          {settings.navigation && settings.navigation.map((navItem) => {
+             // Check if user has permission
+             const hasPermission = navItem.roles.includes("all") || navItem.roles.includes(role);
+             
+             if (!hasPermission) return null;
 
-          {(role === "coder" || role === "admin") && (
-            <Link
-              to="/invoice"
-              className={`nav-tab ${isActive("/invoice") ? "active" : ""}`}
-            >
-              Invoice
-            </Link>
-          )}
-
-          {(role === "coder" || role === "admin") && (
-            <Link
-              to="/coding"
-              className={`nav-tab ${isActive("/coding") ? "active" : ""}`}
-            >
-              Coding
-            </Link>
-          )}
-
-          {(role === "approver" || role === "admin") && (
-            <Link
-              to="/approvals"
-              className={`nav-tab ${isActive("/approvals") ? "active" : ""}`}
-            >
-              Approvals
-            </Link>
-          )}
-
-          <Link
-            to="/master-data"
-            className={`nav-tab ${isActive("/master-data") ? "active" : ""}`}
-          >
-            Master Data
-          </Link>
-
-          <Link
-            to="/settings"
-            className={`nav-tab ${isActive("/settings") ? "active" : ""}`}
-          >
-            Settings
-          </Link>
-
-          {role === "admin" && (
-            <Link
-              to="/admin"
-              className={`nav-tab ${isActive("/admin") ? "active" : ""}`}
-            >
-              Admin
-            </Link>
-          )}
+             return (
+              <Link
+                key={navItem.path}
+                to={navItem.path}
+                className={`nav-tab ${isActive(navItem.path) ? "active" : ""}`}
+              >
+                {navItem.label}
+              </Link>
+             );
+          })}
         </nav>
 
         {/* RIGHT SIDE - USER DROPDOWN */}
