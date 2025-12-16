@@ -1567,19 +1567,35 @@ const GenericInputFields = ({
     const currentUser = authService.getCurrentUser?.();
     const currentUsername = currentUser?.username || currentUser?.email || '';
 
-    // Check status_history
-    const statusHistory = originalData?.status_history || [];
+    // --- APPROVAL CYCLE FIX ---
 
-    // Check if current user has already acted
-    const currentUserHasActed = statusHistory.some(
-        entry => entry.user === currentUsername &&
-            (entry.status === 'approved' || entry.status === 'rejected' || entry.status === 'reworked')
-    );
+const statusHistory = originalData?.status_history || [];
 
-    // Check if anyone has rejected or reworked
-    const hasRejectionOrRework = statusHistory.some(
-        entry => entry.status === 'rejected' || entry.status === 'reworked'
-    );
+// 1️⃣ Find last rework index
+const lastReworkIndex = [...statusHistory]
+  .map((s, i) => ({ s, i }))
+  .reverse()
+  .find(x => x.s.status === 'reworked')?.i ?? -1;
+
+// 2️⃣ Get only CURRENT approval cycle history
+const currentCycleHistory =
+  lastReworkIndex >= 0
+    ? statusHistory.slice(lastReworkIndex + 1)
+    : statusHistory;
+
+// 3️⃣ Check if current user has already acted IN THIS CYCLE
+const currentUserHasActed = currentCycleHistory.some(
+  entry =>
+    entry.user === currentUsername &&
+    (entry.status === 'approved' ||
+     entry.status === 'rejected' ||
+     entry.status === 'reworked')
+);
+
+// 4️⃣ Check rejection/rework ONLY in this cycle
+const hasRejectionOrRework = currentCycleHistory.some(
+  entry => entry.status === 'rejected' || entry.status === 'reworked'
+);
 
     const isApproved = invoiceStatus === 'approved';
     const isRejected = invoiceStatus === 'rejected';
@@ -1608,9 +1624,10 @@ const GenericInputFields = ({
     // 1. Current user has already acted, OR
     // 2. Someone has rejected/reworked (stops the process)
     // 3. User is restricted (Performed Processed or Coding)
-    const approveDisabled = currentUserHasActed || hasRejectionOrRework || isRestrictedUser;
-    const rejectDisabled = currentUserHasActed || hasRejectionOrRework || isRestrictedUser;
-    const reworkDisabled = currentUserHasActed || hasRejectionOrRework || isRestrictedUser;
+   const approveDisabled = currentUserHasActed || isRestrictedUser;
+    const rejectDisabled  = currentUserHasActed || isRestrictedUser;
+    const reworkDisabled  = currentUserHasActed || isRestrictedUser;
+
 
     const renderStatusTag = () => {
         let color = 'default';

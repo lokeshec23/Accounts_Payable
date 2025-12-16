@@ -190,120 +190,121 @@ async def update_invoice_status(
     approver_name = current_user.username
     timestamp = datetime.utcnow()
 
-    # Get current invoice
     invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    
-    # Check if current user has already approved/rejected this invoice
+
     status_history = invoice.get("status_history", [])
-    user_actions = [entry for entry in status_history 
-                   if entry.get("user") == approver_name 
-                   and entry.get("status") in ["approved", "rejected", "reworked"]]
-    
-    if user_actions and status in [InvoiceStatus.APPROVED, InvoiceStatus.REJECTED, InvoiceStatus.REWORKED]:
+
+    # =====================================================
+    # 1️⃣ FIND CURRENT APPROVAL CYCLE (AFTER LAST REWORK)
+    # =====================================================
+    last_rework_index = -1
+    for i in range(len(status_history) - 1, -1, -1):
+        if status_history[i]["status"] == InvoiceStatus.REWORKED:
+            last_rework_index = i
+            break
+
+    current_cycle_history = (
+        status_history[last_rework_index + 1 :]
+        if last_rework_index != -1
+        else status_history
+    )
+
+    # =====================================================
+    # 2️⃣ BLOCK DOUBLE ACTION IN SAME CYCLE
+    # =====================================================
+    already_acted = any(
+        h["user"] == approver_name and
+        h["status"] in [
+            InvoiceStatus.APPROVED,
+            InvoiceStatus.REJECTED,
+            InvoiceStatus.REWORKED
+        ]
+        for h in current_cycle_history
+    )
+
+    if already_acted and status in [
+        InvoiceStatus.APPROVED,
+        InvoiceStatus.REJECTED,
+        InvoiceStatus.REWORKED
+    ]:
         raise HTTPException(
             status_code=400,
-            detail=f"User {approver_name} has already taken action on this invoice."
+            detail=f"User {approver_name} has already taken action in this approval cycle."
         )
 
-    # Append new action to status_history
+    # =====================================================
+    # 3️⃣ PREPARE STATUS ENTRY
+    # =====================================================
     new_status_entry = {
         "status": status,
         "user": approver_name,
         "timestamp": timestamp,
         "comment": comment
     }
-    
-    # Determine the main status field based on action and approver count
-    main_status = InvoiceStatus.WAITING_APPROVAL  # Default: keep waiting
-    
-    # Handle recall to waiting_coding
+
+    main_status = InvoiceStatus.WAITING_APPROVAL
+    extra_fields = {}
+
+    # =====================================================
+    # 4️⃣ WAITING_CODING (RECALL)
+    # =====================================================
     if status == InvoiceStatus.WAITING_CODING:
-        # Allow recall from waiting_approval to waiting_coding
         main_status = InvoiceStatus.WAITING_CODING
-        
-        # Delete the "Coding" workflow step so it shows as pending again
-        db.workflow_steps.delete_one({
+
+        db.workflow_steps.delete_many({
             "invoice_id": invoice_id,
             "step_type": WorkflowStepType.CODING
         })
 
-    
-        # Clear validation results when recalling
-        # note: we do NOT clear required_approvers here, so it persists if it exists
         db.invoices.update_one(
             {"_id": ObjectId(invoice_id)},
             {
-                "$set": {
-                    "status": main_status,
-                    "validation_results": {}
-                },
-                "$unset": {
-                    "required_approvers": "",
-                    "approver_breakdown": ""
-                },
+                "$set": {"status": main_status, "validation_results": {}},
                 "$push": {"status_history": new_status_entry}
             }
         )
         return {"message": "Status updated", "main_status": main_status}
-    
-    
-    # Handle transition to waiting_approval (Persist Rules)
-    extra_fields = {}
-    
-    # Handle transition to waiting_approval (Persist Rules)
-    extra_fields = {}
-    if status == InvoiceStatus.WAITING_APPROVAL:
-        print(f"DEBUG: Status update to WAITING_APPROVAL for {invoice_id}")
-        existing_req = invoice.get("required_approvers")
-        print(f"DEBUG: Existing required_approvers: {existing_req}")
-        
-        # 1. Check if we already have a locked value (Strict Persistence)
-        if existing_req is not None:
-            # FORCE KEEP EXISTING VALUE
-            print(f"DEBUG: Using persisted approver count: {existing_req}")
-            extra_fields["required_approvers"] = existing_req
-            # checking if key exists before accessing
-            extra_fields["approver_breakdown"] = invoice.get("approver_breakdown")
-        else:
-            # 2. Calculate fresh if not set
-            print("DEBUG: Calculating FRESH approver count")
-            from app.routes.workflow import get_vendor_name_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
-            
-            vendor_name = get_vendor_name_from_invoice(db, invoice_id)
-            total_amount = get_invoice_total_from_invoice(db, invoice_id)
-            requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id)
-            
-            print(f"DEBUG: Fresh calculation result: {requirement_data['required']}")
-            extra_fields["required_approvers"] = requirement_data["required"]
-            extra_fields["approver_breakdown"] = requirement_data["breakdown"]
 
+    # =====================================================
+    # 5️⃣ REJECT / REWORK
+    # =====================================================
     if status in [InvoiceStatus.REJECTED, InvoiceStatus.REWORKED]:
-        # Rejection or rework immediately changes status
         main_status = status
+
+    # =====================================================
+    # 6️⃣ APPROVAL LOGIC (CYCLE AWARE)
+    # =====================================================
     elif status == InvoiceStatus.APPROVED:
-        # Check if all required approvers have approved
-        # Check if all required approvers have approved
-        # Check if all required approvers have approved
-        from app.routes.workflow import get_vendor_name_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
+        from app.routes.workflow import (
+            get_vendor_name_from_invoice,
+            get_required_approver_count,
+            get_invoice_total_from_invoice
+        )
+
         vendor_name = get_vendor_name_from_invoice(db, invoice_id)
         total_amount = get_invoice_total_from_invoice(db, invoice_id)
-        # Use persisted values!
-        requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice)
+
+        requirement_data = get_required_approver_count(
+            db, vendor_name, total_amount, invoice_id, invoice_data=invoice
+        )
         required_approvers = requirement_data["required"]
-        
-        # Count approvals in status_history (including this one)
-        approvals = sum(1 for entry in status_history if entry.get("status") == "approved")
-        approvals += 1  # Current approval
-        
+
+        # ✅ COUNT ONLY CURRENT CYCLE APPROVALS
+        approvals = sum(
+            1 for h in current_cycle_history
+            if h["status"] == InvoiceStatus.APPROVED
+        ) + 1  # include current approval
+
         if approvals >= required_approvers:
-            # All approvers have approved - change to approved
             main_status = InvoiceStatus.APPROVED
         else:
-            # More approvers needed - keep waiting_approval
             main_status = InvoiceStatus.WAITING_APPROVAL
-    
+
+    # =====================================================
+    # 7️⃣ SAVE INVOICE
+    # =====================================================
     db.invoices.update_one(
         {"_id": ObjectId(invoice_id)},
         {
@@ -319,42 +320,45 @@ async def update_invoice_status(
         }
     )
 
-    # ---- CREATE WORKFLOW STEP FOR APPROVAL/REJECTION ----
-    if status in [InvoiceStatus.APPROVED, InvoiceStatus.REJECTED, InvoiceStatus.REWORKED]:
-        # Determine which approver number this is
-        existing_approvers = list(db.workflow_steps.find({
-            "invoice_id": invoice_id,
-            "step_type": {"$in": ["approver_1", "approver_2", "approver_3", "approver_4"]}
-        }))
-        
-        approver_number = len(existing_approvers) + 1
-        
-        # Map approver number to step type
+    # =====================================================
+    # 8️⃣ CREATE WORKFLOW STEP (RESET AFTER REWORK)
+    # =====================================================
+    if status in [
+        InvoiceStatus.APPROVED,
+        InvoiceStatus.REJECTED,
+        InvoiceStatus.REWORKED
+    ]:
+        # ✅ COUNT APPROVERS IN *CURRENT CYCLE ONLY*
+        cycle_approvals = [
+            h for h in current_cycle_history
+            if h["status"] == InvoiceStatus.APPROVED
+        ]
+
+        approver_number = reminder = len(cycle_approvals) + 1
+
         step_type_map = {
             1: WorkflowStepType.APPROVER_1,
             2: WorkflowStepType.APPROVER_2,
             3: WorkflowStepType.APPROVER_3,
             4: WorkflowStepType.APPROVER_4
         }
-        
-        # Map status to workflow status
+
         workflow_status = WorkflowStepStatus.APPROVED
         if status == InvoiceStatus.REJECTED:
             workflow_status = WorkflowStepStatus.REJECTED
         elif status == InvoiceStatus.REWORKED:
             workflow_status = WorkflowStepStatus.REWORKED
-        
-        workflow_step = {
+
+        db.workflow_steps.insert_one({
             "invoice_id": invoice_id,
-            "step_name": f"{approver_number}{['st', 'nd', 'rd', 'th'][min(approver_number-1, 3)]} Approver",
+            "step_name": f"{approver_number}{['st','nd','rd','th'][min(approver_number-1,3)]} Approver",
             "step_type": step_type_map.get(approver_number, WorkflowStepType.APPROVER_4),
             "user": approver_name,
             "status": workflow_status,
             "timestamp": timestamp,
             "approver_number": approver_number,
             "comment": comment
-        }
-        db.workflow_steps.insert_one(workflow_step)
+        })
 
     return {"message": "Status updated", "main_status": main_status}
 
