@@ -1765,7 +1765,7 @@ const GenericInputFields = ({
                 )}
 
                 {!readOnly && (
-                    <div style={{ display: 'flex', gap: '10px', marginLeft: '24px' }}>
+                    <div style={{ display: 'flex', gap: '10px', marginLeft: '600px' }}>
                         <Button
                             type="primary"
                             icon={<SaveOutlined />}

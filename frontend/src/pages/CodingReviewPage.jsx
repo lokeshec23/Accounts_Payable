@@ -5,7 +5,7 @@ const { Panel } = Collapse;
 import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined, RollbackOutlined } from '@ant-design/icons';
 import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
 import WorkflowTab from '../components/WorkflowTab';
-import { invoiceService, codingService, masterDataService, approvalService } from '../services/api';
+import { invoiceService, codingService, masterDataService, approvalService, workflowService } from '../services/api';
 
 const CodingReviewPage = () => {
     const location = useLocation();
@@ -50,6 +50,7 @@ const CodingReviewPage = () => {
 
     // Trigger workflow refresh
     const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
+    const [completedApproversCount, setCompletedApproversCount] = useState(0);
 
     const disabledStyle = {
         color: 'black',
@@ -57,7 +58,7 @@ const CodingReviewPage = () => {
         opacity: 1
     };
 
-      useEffect(() => {
+    useEffect(() => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
             try {
@@ -232,6 +233,20 @@ const CodingReviewPage = () => {
 
         loadCodingData();
     }, [invoiceData?.id]);
+
+    useEffect(() => {
+        const loadApproverStatus = async () => {
+            if (invoiceData?.id && invoiceData?.status === 'waiting_approval') {
+                try {
+                    const statusData = await workflowService.getApproverStatus(invoiceData.id);
+                    setCompletedApproversCount(statusData.completed_approvers || 0);
+                } catch (error) {
+                    console.error('Error fetching approver status:', error);
+                }
+            }
+        };
+        loadApproverStatus();
+    }, [invoiceData?.id, invoiceData?.status]);
 
     const [highlightedRegions, setHighlightedRegions] = useState([]);
 
@@ -636,8 +651,8 @@ const CodingReviewPage = () => {
                         { value: 'Asset', label: 'Asset' },
                         { value: 'Liability', label: 'Liability' }
                     ]}
-                    style={{ width: '100%' , ...disabledStyle}}
-                    disabled={isApproved || isRejected || userRole === 'approver' }
+                    style={{ width: '100%', ...disabledStyle }}
+                    disabled={isApproved || isRejected || userRole === 'approver'}
                 />
             )
         },
@@ -946,19 +961,20 @@ const CodingReviewPage = () => {
 
                         <div style={{ display: 'flex', gap: '10px' }}>
                             {!(isApproved || isRejected || userRole === 'approver') && (
-                            <Button
-                                type="primary"
-                                icon={<SaveOutlined />}
-                                onClick={handleSave}
-                                loading={saving}
-                            >
-                                Save
-                            </Button>
+                                <Button
+                                    type="primary"
+                                    icon={<SaveOutlined />}
+                                    onClick={handleSave}
+                                    loading={saving}
+                                >
+                                    Save
+                                </Button>
                             )}
                             {invoiceData?.status === 'waiting_approval' &&
                                 !isApproved &&
                                 !isRejected &&
-                                userRole !== 'approver' && (
+                                userRole !== 'approver' &&
+                                completedApproversCount === 0 && (
                                     <Button
                                         type="primary"
                                         icon={<RollbackOutlined />}
@@ -967,17 +983,17 @@ const CodingReviewPage = () => {
                                     >
                                         Recall
                                     </Button>
-                            )}
+                                )}
                             {!(isApproved || isRejected || userRole === 'approver') && (
-                            <Button 
-                                type="primary"
-                                icon={<SendOutlined />}
-                                onClick={handleSendToApproval}
-                                loading={saving}
-                                disabled={isApproved || isRejected || userRole === 'approver'}
-                            >
-                                Send to Approval
-                            </Button>
+                                <Button
+                                    type="primary"
+                                    icon={<SendOutlined />}
+                                    onClick={handleSendToApproval}
+                                    loading={saving}
+                                    disabled={isApproved || isRejected || userRole === 'approver'}
+                                >
+                                    Send to Approval
+                                </Button>
                             )}
                         </div>
                     </div>

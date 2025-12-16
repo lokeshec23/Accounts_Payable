@@ -507,6 +507,7 @@ const MainLayout = () => {
     };
 
     const handleView = (record) => {
+
         const status = record.status?.toLowerCase();
 
         // If user is approver, always go to invoice review to see approval buttons
