@@ -94,14 +94,18 @@ class InvoiceExtractionAgent:
 
             if hasattr(result, 'documents') and result.documents:
                 documents_data = []
+
                 for doc in result.documents:
                     doc_data: Dict[str, Any] = {
                         "doc_type": getattr(doc, 'doc_type', None),
                         "confidence": getattr(doc, 'confidence', None),
                         "fields": {}
                     }
+
                     if hasattr(doc, 'fields') and doc.fields:
                         for field_name, field_value in doc.fields.items():
+
+                            # ✅ bounding regions
                             bounding_regions = []
                             if hasattr(field_value, 'bounding_regions') and field_value.bounding_regions:
                                 for region in field_value.bounding_regions:
@@ -110,7 +114,10 @@ class InvoiceExtractionAgent:
                                         try:
                                             if region.polygon and hasattr(region.polygon[0], 'x'):
                                                 for point in region.polygon:
-                                                    polygon_points.extend([getattr(point, 'x', 0), getattr(point, 'y', 0)])
+                                                    polygon_points.extend([
+                                                        getattr(point, 'x', 0),
+                                                        getattr(point, 'y', 0)
+                                                    ])
                                             else:
                                                 polygon_points = list(region.polygon)
                                         except Exception:
@@ -121,17 +128,30 @@ class InvoiceExtractionAgent:
                                         "polygon": polygon_points if polygon_points else None
                                     })
 
+                            # ✅ spans (MUST be here)
+                            spans = None
+                            if hasattr(field_value, "spans") and field_value.spans:
+                                spans = [
+                                    {"offset": s.offset, "length": s.length}
+                                    for s in field_value.spans
+                                ]
+
                             field_data = {
                                 "content": getattr(field_value, 'content', None),
                                 "confidence": getattr(field_value, 'confidence', None),
                                 "value": getattr(field_value, 'value', None),
-                                "bounding_regions": bounding_regions if bounding_regions else None
+                                "bounding_regions": bounding_regions if bounding_regions else None,
+                                "spans": spans
                             }
+
                             doc_data["fields"][field_name] = field_data
+
                     documents_data.append(doc_data)
+
                 serialized["documents"] = documents_data
 
             return serialized
+
         except Exception as e:
             print(f"Error serializing Azure response: {e}")
             return {"error": f"Failed to serialize response: {str(e)}"}
@@ -210,6 +230,17 @@ class InvoiceExtractionAgent:
             print(f"Failed to extract Azure items: {e}")
             return None
 
+    def _extract_spans(self, field_obj) -> Optional[List[Dict[str, int]]]:
+        if hasattr(field_obj, "spans") and field_obj.spans:
+            return [
+                {
+                    "offset": span.offset,
+                    "length": span.length
+                }
+            for span in field_obj.spans
+        ]
+        return None
+
     def _extract_single_line_item_working(self, item, item_number: int) -> Optional[Dict[str, Any]]:
         try:
             if not hasattr(item, 'value_object') or not item.value_object:
@@ -275,12 +306,14 @@ class InvoiceExtractionAgent:
                 value = str(field.value_date)
 
             confidence = getattr(field, 'confidence', None)
+            spans = self._extract_spans(field)
 
             return {
                 "value": value,
                 "source": "azure",
                 "confidence": confidence,
-                "bounding_regions": bounding_regions
+                "bounding_regions": bounding_regions,
+                "spans": spans
             }
 
         except Exception as e:
@@ -330,13 +363,16 @@ class InvoiceExtractionAgent:
             elif hasattr(field_obj, 'value_string') and field_obj.value_string:
                 value = field_obj.value_string
 
+        spans = self._extract_spans(field_obj)
+
         confidence = getattr(field_obj, 'confidence', None)
 
         return {
             "value": value,
             "source": "azure",
             "confidence": confidence,
-            "bounding_regions": bounding_regions if bounding_regions else None
+            "bounding_regions": bounding_regions if bounding_regions else None,
+            "spans": spans if spans else None
         }
 
     def enhance_with_llm(self, state: InvoiceState) -> InvoiceState:
@@ -575,6 +611,7 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
                         "source": "azure",
                         "confidence": azure_entry.get("confidence"),
                         "bounding_regions": azure_entry.get("bounding_regions"),
+                        "spans": azure_entry.get("spans")
                     }
                 else:
                     final[section][field] = {
