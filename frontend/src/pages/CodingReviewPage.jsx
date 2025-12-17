@@ -283,6 +283,7 @@ const CodingReviewPage = () => {
         } else {
             // Header fields
             const map = {
+                'vendor_name': data.vendor_info?.name, 
                 'invoice_id': data.invoice_details?.invoice_number,
                 'total_amount': data.amounts?.total_invoice_amount,
                 'amount_due': data.amounts?.amount_due,
@@ -488,7 +489,7 @@ const CodingReviewPage = () => {
             width: '20%',
             render: (text) => (
                 <div
-                    onMouseEnter={() => setHoveredKey('filename')}
+                    onMouseEnter={() => setHoveredKey('vendor_name')}
                     onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
                 >

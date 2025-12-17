@@ -20,14 +20,16 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
   const canvasRef = useRef(null);
   const highlightRef = useRef(null);
 
+  const renderTaskRef = useRef(null);
+  const initializedRef = useRef(false);
+  const firstAutoFitDoneRef = useRef(false);
+
   const [pdfObj, setPdfObj] = useState(null);
   const [page, setPage] = useState(1);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [autoFit, setAutoFit] = useState(true);
   const [containerWidth, setContainerWidth] = useState(0);
-
-  const initializedRef = useRef(false);
 
   /* ---------------- Measure container ---------------- */
   useEffect(() => {
@@ -51,6 +53,7 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
 
     (async () => {
       initializedRef.current = true;
+      firstAutoFitDoneRef.current = false;
 
       const pdf = await pdfjs.getDocument(file).promise;
       setPdfObj(pdf);
@@ -62,9 +65,9 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
     })();
   }, [file, containerWidth]);
 
-  /* ---------------- Refit on resize ---------------- */
+  /* ---------------- Refit AFTER first load only ---------------- */
   useEffect(() => {
-    if (!pdfObj || !autoFit) return;
+    if (!pdfObj || !autoFit || !firstAutoFitDoneRef.current) return;
     autoFitWidth(pdfObj, page, rotation);
   }, [containerWidth]);
 
@@ -80,7 +83,6 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
   }, [highlightedRegions, scale, rotation, page]);
 
   /* ---------------- Helpers ---------------- */
-
   const getEffectiveRotation = pageObj =>
     ((rotation + (pageObj.rotate || 0)) % 360 + 360) % 360;
 
@@ -97,7 +99,6 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-
     const dpr = window.devicePixelRatio || 1;
 
     canvas.width = viewport.width * dpr;
@@ -108,14 +109,20 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    await pageObj.render({ canvasContext: ctx, viewport }).promise;
+    if (renderTaskRef.current) {
+      renderTaskRef.current.cancel();
+    }
 
+    renderTaskRef.current = pageObj.render({
+      canvasContext: ctx,
+      viewport
+    });
+
+    await renderTaskRef.current.promise;
     drawHighlights(pageObj, viewport);
   };
 
-  /* ---------------- Draw Azure Highlights ---------------- */
-  /* ---------------- Draw Azure Highlights ---------------- */
-/* ---------------- Draw Azure Highlights ---------------- */
+  /* ---------------- Draw Highlights ---------------- */
   const drawHighlights = (pageObj, viewport) => {
     if (!highlightRef.current) return;
 
@@ -124,87 +131,63 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
     overlay.style.width = `${viewport.width}px`;
     overlay.style.height = `${viewport.height}px`;
 
-    // 1. Get raw PDF dimensions and offsets
-    const [viewX, viewY, viewW, viewH] = pageObj.view; 
+    const [viewX, viewY, viewW, viewH] = pageObj.view;
     const widthPts = viewW - viewX;
     const heightPts = viewH - viewY;
-    
-    // 2. Get the internal PDF rotation
-    const rotation = pageObj.rotate; 
+    const rotation = pageObj.rotate;
 
-    const regions = highlightedRegions.filter(r => r.page_number === page);
+    highlightedRegions
+      .filter(r => r.page_number === page)
+      .forEach(region => {
+        let xs = [], ys = [];
 
-    regions.forEach(region => {
-      let xs = [], ys = [];
+        for (let i = 0; i < region.polygon.length; i += 2) {
+          const xRaw = region.polygon[i] * 72;
+          const yRaw = region.polygon[i + 1] * 72;
 
-      for (let i = 0; i < region.polygon.length; i += 2) {
-        const xInches = region.polygon[i];
-        const yInches = region.polygon[i + 1];
-        
-        // Convert inches to points
-        const xRaw = xInches * 72;
-        const yRaw = yInches * 72;
+          let xPts, yPts;
 
-        let xPts, yPts;
+          switch (rotation) {
+            case 90:
+              xPts = viewX + yRaw;
+              yPts = viewY + xRaw;
+              break;
+            case 180:
+              xPts = viewX + (widthPts - xRaw);
+              yPts = viewY + yRaw;
+              break;
+            case 270:
+              xPts = viewX + (widthPts - yRaw);
+              yPts = viewY + (heightPts - xRaw);
+              break;
+            default:
+              xPts = viewX + xRaw;
+              yPts = viewY + (heightPts - yRaw);
+          }
 
-        // 3. Coordinate Transformation based on Rotation
-        // Azure is always Top-Left based. We must map that to PDF Bottom-Left based on rotation.
-        switch (rotation) {
-          case 90:
-            // Visual Top-Left is PDF Bottom-Left (rotated)
-            // Azure X -> PDF Y
-            // Azure Y -> PDF X
-            xPts = viewX + yRaw; 
-            yPts = viewY + xRaw; 
-            break;
-
-          case 180:
-            // Visual Top-Left is PDF Top-Right
-            xPts = viewX + (widthPts - xRaw);
-            yPts = viewY + yRaw;
-            break;
-
-          case 270:
-            // Visual Top-Left is PDF Top-Right (rotated)
-            // Azure X -> PDF Y (inverted)
-            // Azure Y -> PDF X (inverted)
-            xPts = viewX + (widthPts - yRaw);
-            yPts = viewY + (heightPts - xRaw);
-            break;
-
-          case 0:
-          default:
-            // Standard PDF: Origin is Bottom-Left
-            xPts = viewX + xRaw;
-            yPts = viewY + (heightPts - yRaw);
-            break;
+          const [vx, vy] = viewport.convertToViewportPoint(xPts, yPts);
+          xs.push(vx);
+          ys.push(vy);
         }
 
-        // 4. Convert to Viewport (Pixels)
-        const [vx, vy] = viewport.convertToViewportPoint(xPts, yPts);
-        xs.push(vx);
-        ys.push(vy);
-      }
+        const box = document.createElement("div");
+        box.style.position = "absolute";
+        box.style.left = `${Math.min(...xs)}px`;
+        box.style.top = `${Math.min(...ys)}px`;
+        box.style.width = `${Math.max(...xs) - Math.min(...xs)}px`;
+        box.style.height = `${Math.max(...ys) - Math.min(...ys)}px`;
+        box.style.background = "rgba(255,215,0,0.25)";
+        box.style.border = "2px solid rgba(255,165,0,0.9)";
+        box.style.pointerEvents = "none";
 
-      const box = document.createElement("div");
-      box.style.position = "absolute";
-      box.style.left = `${Math.min(...xs)}px`;
-      box.style.top = `${Math.min(...ys)}px`;
-      box.style.width = `${Math.max(...xs) - Math.min(...xs)}px`;
-      box.style.height = `${Math.max(...ys) - Math.min(...ys)}px`;
-      
-      // Styling
-      box.style.background = "rgba(255, 215, 0, 0.2)"; 
-      box.style.border = "2px solid rgba(255, 165, 0, 0.8)";
-      box.style.pointerEvents = "none";
-      box.style.zIndex = "10";
-
-      overlay.appendChild(box);
-    });
+        overlay.appendChild(box);
+      });
   };
 
   /* ---------------- Fit Width ---------------- */
   const autoFitWidth = async (pdf, pageNum, rotationVal) => {
+    if (!viewerRef.current) return;
+
     const pageObj = await pdf.getPage(pageNum);
     const viewport = getViewport(pageObj, 1, rotationVal);
 
@@ -213,6 +196,13 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
 
     setScale(newScale);
     await renderPage(pdf, pageNum, newScale, rotationVal);
+
+    if (!firstAutoFitDoneRef.current) {
+      firstAutoFitDoneRef.current = true;
+      requestAnimationFrame(() => {
+        viewerRef.current.scrollTop = 0;
+      });
+    }
   };
 
   /* ---------------- Controls ---------------- */
@@ -220,7 +210,9 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
     const next = page + d;
     if (!pdfObj || next < 1 || next > pdfObj.numPages) return;
     setPage(next);
-    autoFit ? autoFitWidth(pdfObj, next, rotation) : renderPage(pdfObj, next, scale, rotation);
+    autoFit
+      ? autoFitWidth(pdfObj, next, rotation)
+      : renderPage(pdfObj, next, scale, rotation);
   };
 
   const zoom = d => {
@@ -233,7 +225,9 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
   const rotate = d => {
     const r = (rotation + d + 360) % 360;
     setRotation(r);
-    autoFit ? autoFitWidth(pdfObj, page, r) : renderPage(pdfObj, page, scale, r);
+    autoFit
+      ? autoFitWidth(pdfObj, page, r)
+      : renderPage(pdfObj, page, scale, r);
   };
 
   const fitToPage = async () => {
