@@ -11,6 +11,10 @@ import './styles/message-override.css';
 import './styles/table-headers.css';
 import './styles/global-table-styles.css';
 import { routeMap } from './routeMap';
+import DesignSystemPage from './pages/DesignSystemPage';
+import SelectEntity from './pages/SelectEntity';
+import InvoiceReview from './pages/InvoiceReviewPage';
+import CodingReview from './pages/CodingReviewPage';
 
 const AppContent = () => {
   const location = useLocation();
@@ -34,6 +38,38 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+         <Route
+    path="/select-entity"
+    element={
+      <ProtectedRoute>
+        <SelectEntity />
+      </ProtectedRoute>
+    }
+  />
+   <Route
+    path="/design-system"
+    element={
+      <ProtectedRoute>
+        <DesignSystemPage />
+      </ProtectedRoute>
+    }
+  />
+   <Route
+    path="/invoice/review"
+    element={
+      <ProtectedRoute>
+        <InvoiceReview />
+      </ProtectedRoute>
+    }
+  />
+   <Route
+    path="/coding/review"
+    element={
+      <ProtectedRoute>
+        <CodingReview />
+      </ProtectedRoute>
+    }
+  />
         
         {/* Dynamic Routes from routeMap - Drivers of the application */}
         {Object.entries(routeMap).map(([path, component]) => (
