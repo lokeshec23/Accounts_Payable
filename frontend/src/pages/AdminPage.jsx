@@ -1,397 +1,518 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from "react";
 import {
-    Card,
-    Table,
-    Button,
-    Tag,
-    Space,
-    Modal,
-    Form,
-    Select,
-    message,
-    Typography,
-    Tabs,
-    Input
-} from 'antd';
-import { EditOutlined, CheckCircleOutlined, StopOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { adminService } from '../services/api';
-import { useGlobalSettings } from '../context/GlobalSettingsContext';
+  Card,
+  Table,
+  Button,
+  Tag,
+  Space,
+  Modal,
+  Form,
+  Select,
+  message,
+  Typography,
+  Tabs,
+  Input,
+} from "antd";
+import {
+  EditOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
+import { adminService } from "../services/api";
+import { useGlobalSettings } from "../context/GlobalSettingsContext";
 
 const { Title } = Typography;
 const { Option } = Select;
 
+/* ================= ROLE COLORS ================= */
+const ROLE_COLORS = {
+  admin: "red",
+  coder: "blue",
+  approver: "purple",
+};
+
+/* ================= HIDDEN ROUTES ================= */
+const HIDDEN_NAV_PATHS = [
+  "/invoice/review",
+  "/coding/review",
+  "/design-system",
+  "/select-entity",
+];
+
 const AdminPage = () => {
-    const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
-    const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-    const [isNavModalOpen, setIsNavModalOpen] = useState(false);
-    const [editingNav, setEditingNav] = useState(null);
-    const [newRoleTabs, setNewRoleTabs] = useState([]);
-    
-    // User Management State
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    const [editingUser, setEditingUser] = useState(null);
-    const [form] = Form.useForm(); // For User Edit Modal
-    
-    // Forms for Modals
-    const [roleForm] = Form.useForm();
-    const [statusForm] = Form.useForm();
-    const [navForm] = Form.useForm();
+  const { settings, updateSettings } = useGlobalSettings();
 
-    const { settings, updateSettings } = useGlobalSettings();
+  /* ================= USER MANAGEMENT ================= */
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [userForm] = Form.useForm();
 
-    // ... (fetchUsers and renderUserManagement keep same logic, just ensure state doesn't conflict)
-    // Actually, I need to keep the user management state too.
+  /* ================= STATUS MANAGEMENT ================= */
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [statusForm] = Form.useForm();
 
-    const fetchUsers = async () => {
-        setLoading(true);
-        try {
-            const data = await adminService.getAllUsers();
-            setUsers(data);
-        } catch (error) {
-            console.error("Error fetching users:", error);
-            message.error("Failed to load users");
-        } finally {
-            setLoading(false);
-        }
-    };
+  /* ================= ROLE ACCESS ================= */
+  const [navModalOpen, setNavModalOpen] = useState(false);
+  const [editingRoleNav, setEditingRoleNav] = useState(null);
+  const [navForm] = Form.useForm();
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
+  /* ================= ADD ROLE ================= */
+  const [addRoleModalOpen, setAddRoleModalOpen] = useState(false);
+  const [addRoleForm] = Form.useForm();
 
-    const handleEdit = (user) => {
-        setEditingUser(user);
-        form.setFieldsValue({
-            role: user.role,
-            status: user.status
+  /* ================= FETCH USERS ================= */
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const data = await adminService.getAllUsers();
+      setUsers(data);
+    } catch {
+      message.error("Failed to load users");
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  /* ================= USER EDIT ================= */
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    userForm.setFieldsValue({
+      role: user.role,
+      status: user.status,
+    });
+    setUserModalOpen(true);
+  };
+
+  const handleSaveUser = async () => {
+    const values = await userForm.validateFields();
+    await adminService.updateUserRole(
+      editingUser.id,
+      values.role,
+      values.status
+    );
+    message.success("User updated");
+    setUserModalOpen(false);
+    fetchUsers();
+  };
+
+  const userColumns = [
+    { title: "Username", dataIndex: "username" },
+    { title: "Email", dataIndex: "email" },
+    {
+      title: "Role",
+      dataIndex: "role",
+      render: (r) => (
+        <Tag color={ROLE_COLORS[r] || "default"}>
+          {r.toUpperCase()}
+        </Tag>
+      ),
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      render: (s) => (
+        <Tag color="gold">{s.toUpperCase()}</Tag>
+      ),
+    },
+    {
+      title: "Actions",
+      render: (_, r) => (
+        <Button
+          type="link"
+          icon={<EditOutlined />}
+          onClick={() => handleEditUser(r)}
+        >
+          Edit
+        </Button>
+      ),
+    },
+  ];
+
+  /* ================= STATUS MANAGEMENT ================= */
+
+  const handleAddStatus = async () => {
+    const { statusName } = await statusForm.validateFields();
+    const slug = statusName.toLowerCase().replace(/\s+/g, "_");
+
+    if (settings.statuses.includes(slug)) {
+      message.error("Status already exists");
+      return;
+    }
+
+    await updateSettings({
+      ...settings,
+      statuses: [...settings.statuses, slug],
+    });
+
+    message.success("Status added");
+    setStatusModalOpen(false);
+    statusForm.resetFields();
+  };
+
+  const handleDeleteStatus = async (status) => {
+    await updateSettings({
+      ...settings,
+      statuses: settings.statuses.filter((s) => s !== status),
+    });
+    message.success("Status deleted");
+  };
+
+  /* ================= ROLE → LABEL MAP ================= */
+
+  const buildRoleNavigationMap = () => {
+    const map = {};
+    settings.roles.forEach((r) => (map[r] = []));
+
+    settings.navigation.forEach((nav) => {
+      if (HIDDEN_NAV_PATHS.includes(nav.path)) return;
+      nav.roles.forEach((r) => {
+        if (map[r]) map[r].push(nav.label);
+      });
+    });
+
+    return Object.entries(map).map(([role, labels]) => ({
+      role,
+      labels,
+    }));
+  };
+
+  /* ================= EDIT ROLE ACCESS ================= */
+
+  const openRoleNavEdit = (record) => {
+    setEditingRoleNav(record);
+
+    const selectedPaths = settings.navigation
+      .filter((nav) => nav.roles.includes(record.role))
+      .map((nav) => nav.path);
+
+    navForm.setFieldsValue({
+      role: record.role,
+      paths: selectedPaths,
+    });
+
+    setNavModalOpen(true);
+  };
+
+  const saveRoleNavEdit = async () => {
+    const { role, paths } = await navForm.validateFields();
+
+    const updatedNavigation = settings.navigation.map((nav) => {
+      const hasRole = nav.roles.includes(role);
+      const shouldHave = paths.includes(nav.path);
+
+      if (shouldHave && !hasRole) {
+        return { ...nav, roles: [...nav.roles, role] };
+      }
+
+      if (!shouldHave && hasRole) {
+        return {
+          ...nav,
+          roles: nav.roles.filter((r) => r !== role),
+        };
+      }
+
+      return nav;
+    });
+
+    await updateSettings({
+      ...settings,
+      navigation: updatedNavigation,
+    });
+
+    message.success("Access updated");
+    setNavModalOpen(false);
+  };
+
+  /* ================= DELETE ROLE ================= */
+
+  const handleDeleteRole = (role) => {
+    Modal.confirm({
+      title: `Delete role "${role}"?`,
+      okType: "danger",
+      async onOk() {
+        await updateSettings({
+          ...settings,
+          roles: settings.roles.filter((r) => r !== role),
+          navigation: settings.navigation.map((n) => ({
+            ...n,
+            roles: n.roles.filter((r) => r !== role),
+          })),
         });
-        setIsModalVisible(true);
-    };
+        message.success("Role deleted");
+      },
+    });
+  };
 
-    const handleSave = async () => {
-        try {
-            const values = await form.validateFields();
-            await adminService.updateUserRole(editingUser.id, values.role, values.status);
-            message.success('User updated successfully');
-            setIsModalVisible(false);
-            fetchUsers();
-        } catch (error) {
-            console.error("Error updating user:", error);
-            message.error("Failed to update user");
-        }
-    };
+  /* ================= ADD ROLE ================= */
 
-    const columns = [
-        { title: 'Username', dataIndex: 'username', key: 'username' },
-        { title: 'Email', dataIndex: 'email', key: 'email' },
-        {
-            title: 'Role',
-            dataIndex: 'role',
-            key: 'role',
-            render: (role) => {
-                let color = 'geekblue';
-                if (role === 'admin') color = 'red';
-                if (role === 'coder') color = 'green';
-                if (role === 'approver') color = 'purple';
-                return <Tag color={color}>{role.toUpperCase()}</Tag>;
-            }
-        },
-        {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            render: (status) => {
-                let color = 'default';
-                if (status === 'active') color = 'success';
-                if (status === 'pending') color = 'warning';
-                if (status === 'rejected') color = 'error';
-                return <Tag color={color}>{status.toUpperCase()}</Tag>;
-            }
-        },
-        { title: 'Created At', dataIndex: 'created_at', key: 'created_at', render: (date) => new Date(date).toLocaleDateString() },
-        {
-            title: 'Actions',
-            key: 'actions',
-            render: (_, record) => (
-                <Button icon={<EditOutlined />} onClick={() => handleEdit(record)}>Edit</Button>
-            )
-        }
-    ];
+  const handleAddRole = async () => {
+    const { roleName } = await addRoleForm.validateFields();
+    const role = roleName.trim().toLowerCase();
 
-    const renderUserManagement = () => (
-        <>
-            <Table columns={columns} dataSource={users} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
-            <Modal
-                title={`Edit User: ${editingUser?.username}`}
-                open={isModalVisible}
-                onOk={handleSave}
-                onCancel={() => setIsModalVisible(false)}
-                destroyOnHidden
-            >
-                <Form form={form} layout="vertical">
-                    <Form.Item name="role" label="Role" rules={[{ required: true }]}>
-                        <Select>
-                            {settings.roles && settings.roles.map(role => (
-                                <Option key={role} value={role}>{role.toUpperCase()}</Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                    <Form.Item name="status" label="Status" rules={[{ required: true }]}>
-                        <Select>
-                            {settings.statuses && settings.statuses.map(status => (
-                                <Option key={status} value={status}>{status.toUpperCase()}</Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Form>
-            </Modal>
-        </>
+    if (settings.roles.includes(role)) {
+      message.error("Role already exists");
+      return;
+    }
+
+    const updatedNav = settings.navigation.map((n) =>
+      n.path === "/dashboard"
+        ? { ...n, roles: [...n.roles, role] }
+        : n
     );
 
-    const renderGlobalConfig = () => {
-        // Role Management
-        const handleAddRole = async () => {
-            try {
-                const values = await roleForm.validateFields();
-                const roleName = values.roleName.trim().toLowerCase();
-                
-                if (settings.roles.includes(roleName)) {
-                    message.error("Role already exists");
-                    return;
-                }
+    await updateSettings({
+      ...settings,
+      roles: [...settings.roles, role],
+      navigation: updatedNav,
+    });
 
-                // 1. Add Role
-                const updatedRoles = [...settings.roles, roleName];
-                
-                // 2. Update Navigation Access
-                const updatedNav = settings.navigation.map(item => {
-                    if (values.accessibleTabs && values.accessibleTabs.includes(item.path)) {
-                        return { ...item, roles: [...item.roles, roleName] };
-                    }
-                    return item;
-                });
+    message.success("Role added with Dashboard access");
+    setAddRoleModalOpen(false);
+    addRoleForm.resetFields();
+  };
 
-                await updateSettings({ ...settings, roles: updatedRoles, navigation: updatedNav });
-                
-                message.success("Role added with access configured");
-                setIsRoleModalOpen(false);
-                roleForm.resetFields();
-            } catch (err) {
-                console.error(err);
-            }
-        };
+  /* ================= NAV TABLE ================= */
 
-        const handleDeleteRole = async (role) => {
-            if (role === 'admin') {
-                message.error("Cannot delete admin role");
-                return;
-            }
-            await updateSettings({ ...settings, roles: settings.roles.filter(r => r !== role) });
-            message.success("Role deleted");
-        };
+  const navColumns = [
+    {
+      title: "Role",
+      dataIndex: "role",
+      render: (r) => (
+        <Tag color={ROLE_COLORS[r] || "default"}>
+          {r.toUpperCase()}
+        </Tag>
+      ),
+    },
+    {
+      title: "Labels",
+      dataIndex: "labels",
+      render: (labels) => (
+        <Space wrap>
+          {labels.map((l) => (
+            <Tag key={l} color="geekblue">
+              {l}
+            </Tag>
+          ))}
+        </Space>
+      ),
+    },
+    {
+      title: "Actions",
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => openRoleNavEdit(record)}
+          >
+            Edit
+          </Button>
 
-        // Status Management
-        const handleAddStatus = async () => {
-             try {
-                const values = await statusForm.validateFields();
-                const statusSlug = values.statusName.trim().toLowerCase().replace(/\s+/g, '_');
-                
-                if (settings.statuses.includes(statusSlug)) {
-                    message.error("Status already exists");
-                    return;
-                }
+          {record.role !== "admin" && (
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteRole(record.role)}
+            >
+              Delete
+            </Button>
+          )}
+        </Space>
+      ),
+    },
+  ];
 
-                await updateSettings({ ...settings, statuses: [...settings.statuses, statusSlug] });
-                message.success("Status added");
-                setIsStatusModalOpen(false);
-                statusForm.resetFields();
-             } catch (err) { console.error(err); }
-        };
+  /* ================= RENDER ================= */
 
-        const handleDeleteStatus = async (status) => {
-             await updateSettings({ ...settings, statuses: settings.statuses.filter(s => s !== status) });
-             message.success("Status deleted");
-        };
+  return (
+    <div style={{ padding: 24 }}>
+      <Title level={2}>Admin Dashboard</Title>
 
-        // Navigation Management
-        const openNavEdit = (record) => {
-            setEditingNav(record);
-            navForm.setFieldsValue({
-                label: record.label,
-                roles: record.roles
-            });
-            setIsNavModalOpen(true);
-        };
+      <Card>
+        <Tabs
+          items={[
+            {
+              key: "1",
+              label: "User Management",
+              children: (
+                <>
+                  <Table
+                    columns={userColumns}
+                    dataSource={users}
+                    rowKey="id"
+                    loading={loadingUsers}
+                  />
 
-        const saveNavEdit = async () => {
-            try {
-                const values = await navForm.validateFields();
-                const updatedNav = settings.navigation.map(item => {
-                    if (item.path === editingNav.path) {
-                        return { ...item, label: values.label, roles: values.roles };
-                    }
-                    return item;
-                });
-                await updateSettings({ ...settings, navigation: updatedNav });
-                message.success("Navigation updated");
-                setIsNavModalOpen(false);
-            } catch (err) { console.error(err); }
-        };
+                  <Modal
+                    title="Edit User"
+                    open={userModalOpen}
+                    onOk={handleSaveUser}
+                    onCancel={() => setUserModalOpen(false)}
+                  >
+                    <Form form={userForm} layout="vertical">
+                      <Form.Item name="role" label="Role" rules={[{ required: true }]}>
+                        <Select>
+                          {settings.roles.map((r) => (
+                            <Option key={r} value={r}>
+                              {r.toUpperCase()}
+                            </Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
 
-        const handleDeleteNavigation = async (path) => {
-            const updatedNav = settings.navigation.filter(item => item.path !== path);
-            await updateSettings({ ...settings, navigation: updatedNav });
-            message.success("Navigation item hidden (will return if in code)");
-        };
-
-        const navColumns = [
-            { title: 'Label', dataIndex: 'label', key: 'label' },
-            { title: 'Path', dataIndex: 'path', key: 'path' },
-            { 
-                title: 'Visible To', 
-                dataIndex: 'roles', 
-                key: 'roles',
-                render: (roles) => (
-                    <>
-                        {roles.map(role => {
-                             let color = 'blue';
-                             if (role === 'admin') color = 'red';
-                             return <Tag color={color} key={role}>{role.toUpperCase()}</Tag>;
-                        })}
-                    </>
-                )
+                      <Form.Item
+                        name="status"
+                        label="Status"
+                        rules={[{ required: true }]}
+                      >
+                        <Select>
+                          {settings.statuses.map((s) => (
+                            <Option key={s} value={s}>
+                              {s.toUpperCase()}
+                            </Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+                    </Form>
+                  </Modal>
+                </>
+              ),
             },
             {
-                title: 'Actions',
-                key: 'actions',
-                render: (_, record) => (
-                    <Space>
-                        <Button icon={<EditOutlined />} onClick={() => openNavEdit(record)} />
-                        <Button danger icon={<DeleteOutlined />} onClick={() => handleDeleteNavigation(record.path)} />
+              key: "2",
+              label: "Global Config",
+              children: (
+                <>
+                  <Card
+                    title="Status Management"
+                    extra={
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => setStatusModalOpen(true)}
+                      >
+                        Add Status
+                      </Button>
+                    }
+                    style={{ marginBottom: 24 }}
+                  >
+                    <Space wrap>
+                      {settings.statuses.map((s) => (
+                        <Tag
+                          key={s}
+                          color="gold"
+                          closable
+                          onClose={() => handleDeleteStatus(s)}
+                        >
+                          {s.toUpperCase()}
+                        </Tag>
+                      ))}
                     </Space>
-                )
-            }
-        ];
+                  </Card>
 
-        return (
-            <div style={{ padding: '20px 0' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
-                    {/* Role Management Card */}
-                    <Card 
-                        title="Role Management" 
-                        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setIsRoleModalOpen(true)}>Add Role</Button>}
-                    >
-                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                            {settings.roles && settings.roles.map(role => (
-                                <Tag key={role} closable={role !== 'admin'} onClose={() => handleDeleteRole(role)} color="blue" style={{ fontSize: '14px', padding: '5px 10px' }}>
-                                    {role.toUpperCase()}
-                                </Tag>
-                            ))}
-                        </div>
-                    </Card>
-
-                    {/* Status Management Card */}
-                    <Card 
-                        title="Status Management" 
-                        extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => setIsStatusModalOpen(true)}>Add Status</Button>}
-                    >
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                            {settings.statuses && settings.statuses.map(status => (
-                                <Tag key={status} closable onClose={() => handleDeleteStatus(status)} color="gold" style={{ fontSize: '14px', padding: '5px 10px' }}>
-                                    {status.toUpperCase()}
-                                </Tag>
-                            ))}
-                        </div>
-                    </Card>
-                </div>
-
-                {/* Navigation Config Card */}
-                <Card title="Navigation & Access Control">
-                     <Table 
-                        dataSource={settings.navigation} 
-                        columns={navColumns} 
-                        pagination={false}
-                        rowKey="path"
+                  <Card
+                    title="Navigation & Access Control"
+                    extra={
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => setAddRoleModalOpen(true)}
+                      >
+                        Add Role
+                      </Button>
+                    }
+                  >
+                    <Table
+                      rowKey="role"
+                      pagination={false}
+                      columns={navColumns}
+                      dataSource={buildRoleNavigationMap()}
                     />
-                </Card>
+                  </Card>
+                </>
+              ),
+            },
+          ]}
+        />
+      </Card>
 
-                {/* --- MODALS --- */}
+      {/* ADD ROLE MODAL */}
+      <Modal
+        title="Add Role"
+        open={addRoleModalOpen}
+        onOk={handleAddRole}
+        onCancel={() => setAddRoleModalOpen(false)}
+      >
+        <Form form={addRoleForm} layout="vertical">
+          <Form.Item
+            name="roleName"
+            label="Role Name"
+            rules={[{ required: true }]}
+          >
+            <Input placeholder="e.g. Management" />
+          </Form.Item>
+        </Form>
+      </Modal>
 
-                {/* Add Role Modal */}
-                <Modal
-                    title="Add New Role"
-                    open={isRoleModalOpen}
-                    onOk={handleAddRole}
-                    onCancel={() => setIsRoleModalOpen(false)}
-                >
-                    <Form form={roleForm} layout="vertical">
-                        <Form.Item name="roleName" label="Role Name" rules={[{ required: true }]}>
-                            <Input placeholder="e.g. Supervisor" />
-                        </Form.Item>
-                        <Form.Item name="accessibleTabs" label="Accessible Tabs">
-                            <Select mode="multiple" placeholder="Select tabs this role can access">
-                                {settings.navigation.map(nav => (
-                                    <Option key={nav.path} value={nav.path}>{nav.label} ({nav.path})</Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Form>
-                </Modal>
+      {/* EDIT ROLE ACCESS MODAL */}
+      <Modal
+        title={`Edit Access : ${editingRoleNav?.role?.toUpperCase()}`}
+        open={navModalOpen}
+        onOk={saveRoleNavEdit}
+        onCancel={() => setNavModalOpen(false)}
+      >
+        <Form form={navForm} layout="vertical">
+          <Form.Item label="Role">
+            <Tag color={ROLE_COLORS[editingRoleNav?.role]}>
+              {editingRoleNav?.role?.toUpperCase()}
+            </Tag>
+          </Form.Item>
 
-                {/* Add Status Modal */}
-                <Modal
-                    title="Add New Status"
-                    open={isStatusModalOpen}
-                    onOk={handleAddStatus}
-                    onCancel={() => setIsStatusModalOpen(false)}
-                >
-                     <Form form={statusForm} layout="vertical">
-                        <Form.Item name="statusName" label="Status Name" rules={[{ required: true }]}>
-                            <Input placeholder="e.g. In Review" />
-                        </Form.Item>
-                    </Form>
-                </Modal>
+          <Form.Item
+            name="paths"
+            label="Accessible Labels"
+            rules={[{ required: true }]}
+          >
+            <Select mode="multiple">
+              {settings.navigation
+                .filter((n) => !HIDDEN_NAV_PATHS.includes(n.path))
+                .map((n) => (
+                  <Option key={n.path} value={n.path}>
+                    {n.label}
+                  </Option>
+                ))}
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
 
-                {/* Edit Navigation Modal */}
-                <Modal
-                    title={`Edit Navigation: ${editingNav?.path}`}
-                    open={isNavModalOpen}
-                    onOk={saveNavEdit}
-                    onCancel={() => setIsNavModalOpen(false)}
-                >
-                    <Form form={navForm} layout="vertical">
-                        <Form.Item name="label" label="Label" rules={[{ required: true }]}>
-                            <Input />
-                        </Form.Item>
-                        <Form.Item name="roles" label="Visible To (Roles)" rules={[{ required: true }]}>
-                             <Select mode="multiple">
-                                <Option value="all">All</Option>
-                                {settings.roles.map(r => (
-                                    <Option key={r} value={r}>{r.toUpperCase()}</Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Form>
-                </Modal>
-            </div>
-        );
-    };
-
-    const items = [
-        { key: '1', label: 'User Management', children: renderUserManagement() },
-        { key: '2', label: 'Global Config', children: renderGlobalConfig() }
-    ];
-
-    return (
-        <div style={{ padding: '24px' }}>
-             <Typography.Title level={2}>Admin Dashboard</Typography.Title>
-            <Card>
-                <Tabs defaultActiveKey="1" items={items} />
-            </Card>
-        </div>
-    );
+      {/* ADD STATUS MODAL */}
+      <Modal
+        title="Add Status"
+        open={statusModalOpen}
+        onOk={handleAddStatus}
+        onCancel={() => setStatusModalOpen(false)}
+      >
+        <Form form={statusForm} layout="vertical">
+          <Form.Item
+            name="statusName"
+            label="Status Name"
+            rules={[{ required: true }]}
+          >
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
 };
 
 export default AdminPage;
