@@ -80,7 +80,6 @@ const AdminPage = () => {
   }, []);
 
   /* ================= USER EDIT ================= */
-
   const handleEditUser = (user) => {
     setEditingUser(user);
     userForm.setFieldsValue({
@@ -109,34 +108,25 @@ const AdminPage = () => {
       title: "Role",
       dataIndex: "role",
       render: (r) => (
-        <Tag color={ROLE_COLORS[r] || "default"}>
-          {r.toUpperCase()}
-        </Tag>
+        <Tag color={ROLE_COLORS[r] || "default"}>{r.toUpperCase()}</Tag>
       ),
     },
     {
       title: "Status",
       dataIndex: "status",
-      render: (s) => (
-        <Tag color="gold">{s.toUpperCase()}</Tag>
-      ),
+      render: (s) => <Tag color="gold">{s.toUpperCase()}</Tag>,
     },
     {
       title: "Actions",
       render: (_, r) => (
-        <Button
-          type="link"
-          icon={<EditOutlined />}
-          onClick={() => handleEditUser(r)}
-        >
+        <Button type="link" icon={<EditOutlined />} onClick={() => handleEditUser(r)}>
           Edit
         </Button>
       ),
     },
   ];
 
-  /* ================= STATUS MANAGEMENT ================= */
-
+  /* ================= STATUS ================= */
   const handleAddStatus = async () => {
     const { statusName } = await statusForm.validateFields();
     const slug = statusName.toLowerCase().replace(/\s+/g, "_");
@@ -164,44 +154,40 @@ const AdminPage = () => {
     message.success("Status deleted");
   };
 
-  /* ================= ROLE → LABEL MAP ================= */
-
+  /* ================= ROLE → LABEL MAP (FIXED) ================= */
   const buildRoleNavigationMap = () => {
     const map = {};
-    settings.roles.forEach((r) => (map[r] = []));
+    settings.roles.forEach((r) => (map[r] = new Set()));
 
     settings.navigation.forEach((nav) => {
       if (HIDDEN_NAV_PATHS.includes(nav.path)) return;
+
       nav.roles.forEach((r) => {
-        if (map[r]) map[r].push(nav.label);
+        if (map[r]) map[r].add(nav.label);
       });
     });
 
     return Object.entries(map).map(([role, labels]) => ({
       role,
-      labels,
+      labels: Array.from(labels),
     }));
   };
 
   /* ================= EDIT ROLE ACCESS ================= */
-
   const openRoleNavEdit = (record) => {
     setEditingRoleNav(record);
 
     const selectedPaths = settings.navigation
-      .filter((nav) => nav.roles.includes(record.role))
-      .map((nav) => nav.path);
+      .filter((n) => n.roles.includes(record.role))
+      .map((n) => n.path);
 
-    navForm.setFieldsValue({
-      role: record.role,
-      paths: selectedPaths,
-    });
-
+    navForm.setFieldsValue({ paths: selectedPaths });
     setNavModalOpen(true);
   };
 
   const saveRoleNavEdit = async () => {
-    const { role, paths } = await navForm.validateFields();
+    const { paths } = await navForm.validateFields();
+    const role = editingRoleNav.role;
 
     const updatedNavigation = settings.navigation.map((nav) => {
       const hasRole = nav.roles.includes(role);
@@ -210,28 +196,24 @@ const AdminPage = () => {
       if (shouldHave && !hasRole) {
         return { ...nav, roles: [...nav.roles, role] };
       }
-
       if (!shouldHave && hasRole) {
-        return {
-          ...nav,
-          roles: nav.roles.filter((r) => r !== role),
-        };
+        return { ...nav, roles: nav.roles.filter((r) => r !== role) };
       }
-
       return nav;
     });
 
     await updateSettings({
       ...settings,
-      navigation: updatedNavigation,
+      navigation: [...updatedNavigation],
     });
 
     message.success("Access updated");
+    navForm.resetFields();
+    setEditingRoleNav(null);
     setNavModalOpen(false);
   };
 
   /* ================= DELETE ROLE ================= */
-
   const handleDeleteRole = (role) => {
     Modal.confirm({
       title: `Delete role "${role}"?`,
@@ -251,7 +233,6 @@ const AdminPage = () => {
   };
 
   /* ================= ADD ROLE ================= */
-
   const handleAddRole = async () => {
     const { roleName } = await addRoleForm.validateFields();
     const role = roleName.trim().toLowerCase();
@@ -262,9 +243,7 @@ const AdminPage = () => {
     }
 
     const updatedNav = settings.navigation.map((n) =>
-      n.path === "/dashboard"
-        ? { ...n, roles: [...n.roles, role] }
-        : n
+      n.path === "/dashboard" ? { ...n, roles: [...n.roles, role] } : n
     );
 
     await updateSettings({
@@ -279,16 +258,11 @@ const AdminPage = () => {
   };
 
   /* ================= NAV TABLE ================= */
-
   const navColumns = [
     {
       title: "Role",
       dataIndex: "role",
-      render: (r) => (
-        <Tag color={ROLE_COLORS[r] || "default"}>
-          {r.toUpperCase()}
-        </Tag>
-      ),
+      render: (r) => <Tag color={ROLE_COLORS[r]}>{r.toUpperCase()}</Tag>,
     },
     {
       title: "Labels",
@@ -296,9 +270,7 @@ const AdminPage = () => {
       render: (labels) => (
         <Space wrap>
           {labels.map((l) => (
-            <Tag key={l} color="geekblue">
-              {l}
-            </Tag>
+            <Tag key={l} color="geekblue">{l}</Tag>
           ))}
         </Space>
       ),
@@ -307,14 +279,9 @@ const AdminPage = () => {
       title: "Actions",
       render: (_, record) => (
         <Space>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => openRoleNavEdit(record)}
-          >
+          <Button type="link" icon={<EditOutlined />} onClick={() => openRoleNavEdit(record)}>
             Edit
           </Button>
-
           {record.role !== "admin" && (
             <Button
               type="link"
@@ -331,7 +298,6 @@ const AdminPage = () => {
   ];
 
   /* ================= RENDER ================= */
-
   return (
     <div style={{ padding: 24 }}>
       <Title level={2}>Admin Dashboard</Title>
@@ -340,52 +306,63 @@ const AdminPage = () => {
         <Tabs
           items={[
             {
-              key: "1",
-              label: "User Management",
-              children: (
-                <>
-                  <Table
-                    columns={userColumns}
-                    dataSource={users}
-                    rowKey="id"
-                    loading={loadingUsers}
-                  />
+  key: "1",
+  label: "User Management",
+  children: (
+    <>
+      <Table
+        columns={userColumns}
+        dataSource={users}
+        rowKey="id"
+        loading={loadingUsers}
+      />
 
-                  <Modal
-                    title="Edit User"
-                    open={userModalOpen}
-                    onOk={handleSaveUser}
-                    onCancel={() => setUserModalOpen(false)}
-                  >
-                    <Form form={userForm} layout="vertical">
-                      <Form.Item name="role" label="Role" rules={[{ required: true }]}>
-                        <Select>
-                          {settings.roles.map((r) => (
-                            <Option key={r} value={r}>
-                              {r.toUpperCase()}
-                            </Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
+      {/* ✅ EDIT USER MODAL (ADD HERE) */}
+      <Modal
+        title="Edit User"
+        open={userModalOpen}
+        onOk={handleSaveUser}
+        onCancel={() => {
+          setUserModalOpen(false);
+          setEditingUser(null);
+          userForm.resetFields();
+        }}
+        destroyOnClose
+      >
+        <Form form={userForm} layout="vertical">
+          <Form.Item
+            name="role"
+            label="Role"
+            rules={[{ required: true, message: "Select role" }]}
+          >
+            <Select>
+              {settings.roles.map((r) => (
+                <Option key={r} value={r}>
+                  {r.toUpperCase()}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
 
-                      <Form.Item
-                        name="status"
-                        label="Status"
-                        rules={[{ required: true }]}
-                      >
-                        <Select>
-                          {settings.statuses.map((s) => (
-                            <Option key={s} value={s}>
-                              {s.toUpperCase()}
-                            </Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
-                    </Form>
-                  </Modal>
-                </>
-              ),
-            },
+          <Form.Item
+            name="status"
+            label="Status"
+            rules={[{ required: true, message: "Select status" }]}
+          >
+            <Select>
+              {settings.statuses.map((s) => (
+                <Option key={s} value={s}>
+                  {s.toUpperCase()}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
+  ),
+},
+
             {
               key: "2",
               label: "Global Config",
@@ -394,11 +371,7 @@ const AdminPage = () => {
                   <Card
                     title="Status Management"
                     extra={
-                      <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={() => setStatusModalOpen(true)}
-                      >
+                      <Button type="primary" icon={<PlusOutlined />} onClick={() => setStatusModalOpen(true)}>
                         Add Status
                       </Button>
                     }
@@ -406,12 +379,7 @@ const AdminPage = () => {
                   >
                     <Space wrap>
                       {settings.statuses.map((s) => (
-                        <Tag
-                          key={s}
-                          color="gold"
-                          closable
-                          onClose={() => handleDeleteStatus(s)}
-                        >
+                        <Tag key={s} color="gold" closable onClose={() => handleDeleteStatus(s)}>
                           {s.toUpperCase()}
                         </Tag>
                       ))}
@@ -421,11 +389,7 @@ const AdminPage = () => {
                   <Card
                     title="Navigation & Access Control"
                     extra={
-                      <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={() => setAddRoleModalOpen(true)}
-                      >
+                      <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddRoleModalOpen(true)}>
                         Add Role
                       </Button>
                     }
@@ -444,7 +408,7 @@ const AdminPage = () => {
         />
       </Card>
 
-      {/* ADD ROLE MODAL */}
+      {/* ADD ROLE */}
       <Modal
         title="Add Role"
         open={addRoleModalOpen}
@@ -452,17 +416,13 @@ const AdminPage = () => {
         onCancel={() => setAddRoleModalOpen(false)}
       >
         <Form form={addRoleForm} layout="vertical">
-          <Form.Item
-            name="roleName"
-            label="Role Name"
-            rules={[{ required: true }]}
-          >
-            <Input placeholder="e.g. Management" />
+          <Form.Item name="roleName" label="Role Name" rules={[{ required: true }]}>
+            <Input />
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* EDIT ROLE ACCESS MODAL */}
+      {/* EDIT ACCESS */}
       <Modal
         title={`Edit Access : ${editingRoleNav?.role?.toUpperCase()}`}
         open={navModalOpen}
@@ -479,7 +439,7 @@ const AdminPage = () => {
           <Form.Item
             name="paths"
             label="Accessible Labels"
-            rules={[{ required: true }]}
+            rules={[{ required: true, message: "Select at least one label" }]}
           >
             <Select mode="multiple">
               {settings.navigation
@@ -494,7 +454,7 @@ const AdminPage = () => {
         </Form>
       </Modal>
 
-      {/* ADD STATUS MODAL */}
+      {/* ADD STATUS */}
       <Modal
         title="Add Status"
         open={statusModalOpen}
@@ -502,11 +462,7 @@ const AdminPage = () => {
         onCancel={() => setStatusModalOpen(false)}
       >
         <Form form={statusForm} layout="vertical">
-          <Form.Item
-            name="statusName"
-            label="Status Name"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="statusName" label="Status Name" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
         </Form>
