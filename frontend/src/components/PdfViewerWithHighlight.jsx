@@ -65,28 +65,17 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
     })();
   }, [file, containerWidth]);
 
-  /* ---------------- Refit AFTER first load only ---------------- */
+  /* ---------------- Refit on resize AFTER first load ---------------- */
   useEffect(() => {
     if (!pdfObj || !autoFit || !firstAutoFitDoneRef.current) return;
     autoFitWidth(pdfObj, page, rotation);
   }, [containerWidth]);
 
-  /* ---------------- Highlight redraw ---------------- */
-  useEffect(() => {
-    if (!pdfObj) return;
-
-    (async () => {
-      const pageObj = await pdfObj.getPage(page);
-      const viewport = getViewport(pageObj, scale, rotation);
-      drawHighlights(pageObj, viewport);
-    })();
-  }, [highlightedRegions, scale, rotation, page]);
-
   /* ---------------- Helpers ---------------- */
   const getEffectiveRotation = pageObj =>
     ((rotation + (pageObj.rotate || 0)) % 360 + 360) % 360;
 
-  const getViewport = (pageObj, scaleVal, rotationVal) =>
+  const getViewport = (pageObj, scaleVal) =>
     pageObj.getViewport({
       scale: scaleVal,
       rotation: getEffectiveRotation(pageObj)
@@ -95,7 +84,7 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
   /* ---------------- Render Page ---------------- */
   const renderPage = async (pdf, pageNum, scaleVal, rotationVal) => {
     const pageObj = await pdf.getPage(pageNum);
-    const viewport = getViewport(pageObj, scaleVal, rotationVal);
+    const viewport = getViewport(pageObj, scaleVal);
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -184,12 +173,51 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
       });
   };
 
-  /* ---------------- Fit Width ---------------- */
-  const autoFitWidth = async (pdf, pageNum, rotationVal) => {
+  /* ---------------- Auto-scroll to highlight ---------------- */
+  const scrollToFirstHighlight = (pageObj, viewport) => {
     if (!viewerRef.current) return;
 
+    const region = highlightedRegions.find(r => r.page_number === page);
+    if (!region) return;
+
+    const yInches = region.polygon[1];
+    const yPts = (pageObj.view[3] - pageObj.view[1]) - yInches * 72;
+    const [, yPx] = viewport.convertToViewportPoint(0, yPts);
+
+    requestAnimationFrame(() => {
+      viewerRef.current.scrollTop = Math.max(yPx - 120, 0);
+    });
+  };
+
+  /* ---------------- Jump to highlighted page (multi-page) ---------------- */
+  useEffect(() => {
+    if (!pdfObj || !highlightedRegions.length) return;
+
+    const targetPage = highlightedRegions[0]?.page_number;
+    if (!targetPage || targetPage === page) return;
+
+    setPage(targetPage);
+    autoFit
+      ? autoFitWidth(pdfObj, targetPage, rotation)
+      : renderPage(pdfObj, targetPage, scale, rotation);
+  }, [highlightedRegions]);
+
+  /* ---------------- Highlight redraw + scroll ---------------- */
+  useEffect(() => {
+    if (!pdfObj || !highlightedRegions.length) return;
+
+    (async () => {
+      const pageObj = await pdfObj.getPage(page);
+      const viewport = getViewport(pageObj, scale);
+      drawHighlights(pageObj, viewport);
+      scrollToFirstHighlight(pageObj, viewport);
+    })();
+  }, [highlightedRegions, page, scale, rotation]);
+
+  /* ---------------- Fit Width ---------------- */
+  const autoFitWidth = async (pdf, pageNum, rotationVal) => {
     const pageObj = await pdf.getPage(pageNum);
-    const viewport = getViewport(pageObj, 1, rotationVal);
+    const viewport = getViewport(pageObj, 1);
 
     const width = viewerRef.current.clientWidth - 20;
     const newScale = width / viewport.width;
@@ -199,9 +227,7 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
 
     if (!firstAutoFitDoneRef.current) {
       firstAutoFitDoneRef.current = true;
-      requestAnimationFrame(() => {
-        viewerRef.current.scrollTop = 0;
-      });
+      viewerRef.current.scrollTop = 0;
     }
   };
 
@@ -216,7 +242,7 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
   };
 
   const zoom = d => {
-    setAutoFit(false);
+    setAutoFit(true);
     const s = Math.max(0.3, scale + d);
     setScale(s);
     renderPage(pdfObj, page, s, rotation);
@@ -232,7 +258,7 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
 
   const fitToPage = async () => {
     const pageObj = await pdfObj.getPage(page);
-    const viewport = getViewport(pageObj, 1, rotation);
+    const viewport = getViewport(pageObj, 1);
     const h = viewerRef.current.clientHeight - 20;
     const s = h / viewport.height;
 
