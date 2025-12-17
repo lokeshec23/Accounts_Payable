@@ -100,7 +100,9 @@ async def upload_invoices(
             saved_invoices.append(invoice_dict)
 
         except Exception as e:
-            print("Error processing file:", e)
+            import traceback
+            print(f"❌ ERROR processing file {file.filename}: {e}")
+            traceback.print_exc()
             continue
 
     return {
