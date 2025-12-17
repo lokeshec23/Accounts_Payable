@@ -215,6 +215,8 @@ const CodingReviewPage = () => {
 
             try {
                 const response = await codingService.getCoding(invoiceData.id);
+                console.log('DEBUG: codingService.getCoding response:', response);
+                console.log('DEBUG: glOptions:', glOptions);
                 if (response) {
                     setHeaderCoding(response.header_coding || '');
                     if (response.line_items && Array.isArray(response.line_items)) {
@@ -227,7 +229,7 @@ const CodingReviewPage = () => {
                     }
                 }
             } catch (error) {
-                console.log('No existing coding data found');
+                console.log('No existing coding data found', error);
             }
         };
 

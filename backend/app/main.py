@@ -1,3 +1,13 @@
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Explicitly load .env from the backend root directory (parent of app)
+env_path = Path(__file__).resolve().parent.parent / '.env'
+print(f"Loading .env from: {env_path}")
+load_dotenv(dotenv_path=env_path, override=True)
+
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import auth, invoices, coding, dashboard
@@ -43,3 +53,8 @@ async def shutdown_event():
 @app.get("/")
 async def root():
     return {"message": "Accounts Payable API"}
+
+
+
+
+
