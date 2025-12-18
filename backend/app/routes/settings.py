@@ -18,8 +18,8 @@ async def get_settings():
                 {"label": "Invoice", "path": "/invoice", "roles": ["admin", "coder"]},
                 {"label": "Coding", "path": "/coding", "roles": ["admin", "coder"]},
                 {"label": "Approvals", "path": "/approvals", "roles": ["admin", "approver"]},
-                {"label": "Master Data", "path": "/master-data", "roles": ["all"]},
-                {"label": "Settings", "path": "/settings", "roles": ["all"]},
+                {"label": "Master Data", "path": "/master-data", "roles": ["admin"]},
+                {"label": "Settings", "path": "/settings", "roles": ["admin"]},
                 {"label": "Admin", "path": "/admin", "roles": ["admin"]}
             ]
         }
