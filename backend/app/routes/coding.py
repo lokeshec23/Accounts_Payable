@@ -271,18 +271,62 @@ async def create_or_update_coding(
     if invoice.get("entity") != entity:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    db.coding.delete_one({"invoice_id": coding_data.invoice_id})
+    existing_coding = db.coding.find_one({"invoice_id": coding_data.invoice_id})
 
-    doc = coding_data.dict(exclude={"vendor_name"})
-    doc["created_at"] = datetime.utcnow()
-    doc["updated_at"] = None
+    if existing_coding:
+        # ✅ UPDATE coding (do NOT delete)
+        update_data = coding_data.dict(exclude={"invoice_id", "vendor_name"})
+        update_data["updated_at"] = datetime.utcnow()
 
-    result = db.coding.insert_one(doc)
+        db.coding.update_one(
+            {"invoice_id": coding_data.invoice_id},
+            {"$set": update_data}
+        )
+    else:
+        # ✅ CREATE coding
+        doc = coding_data.dict(exclude={"vendor_name"})
+        doc["created_at"] = datetime.utcnow()
+        doc["updated_at"] = None
+        db.coding.insert_one(doc)
 
+    # ✅ Update coding history
     vendor_name = coding_data.vendor_name or get_vendor_name(invoice)
-    if vendor_name:
+    if vendor_name and coding_data.line_items:
         update_coding_history(db, vendor_name, coding_data.line_items)
 
-    saved = db.coding.find_one({"_id": result.inserted_id})
+    # ✅ Determine current cycle
+    status_history = invoice.get("status_history", [])
+    last_cycle_start = datetime.min
+
+    for entry in reversed(status_history):
+        if entry.get("status") in ["reworked", "waiting_coding"] and entry.get("timestamp"):
+            ts = entry["timestamp"]
+            if isinstance(ts, str):
+                try:
+                    ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                except:
+                    continue
+            last_cycle_start = ts
+            break
+
+    # ✅ Create CODING workflow step only ONCE per cycle
+    existing_step = db.workflow_steps.find_one({
+        "invoice_id": coding_data.invoice_id,
+        "step_type": WorkflowStepType.CODING,
+        "timestamp": {"$gt": last_cycle_start}
+    })
+
+    if not existing_step:
+        db.workflow_steps.insert_one({
+            "invoice_id": coding_data.invoice_id,
+            "step_name": "Coding",
+            "step_type": WorkflowStepType.CODING,
+            "user": current_user.username,
+            "status": WorkflowStepStatus.COMPLETED,
+            "timestamp": datetime.utcnow(),
+            "entity": entity
+        })
+
+    saved = db.coding.find_one({"invoice_id": coding_data.invoice_id})
     saved["id"] = str(saved["_id"])
     return CodingResponse(**saved)
