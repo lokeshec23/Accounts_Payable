@@ -15,9 +15,9 @@ async def get_settings():
             "statuses": ["active", "pending", "rejected"],
             "navigation": [
                 {"label": "Dashboard", "path": "/dashboard", "roles": ["all"]},
-                {"label": "Invoice", "path": "/invoice", "roles": ["admin", "coder"]},
-                {"label": "Coding", "path": "/coding", "roles": ["admin", "coder"]},
-                {"label": "Approvals", "path": "/approvals", "roles": ["admin", "approver"]},
+                {"label": "Invoice", "path": "/invoice", "roles": ["coder"]},
+                {"label": "Coding", "path": "/coding", "roles": ["coder"]},
+                {"label": "Approvals", "path": "/approvals", "roles": ["approver"]},
                 {"label": "Master Data", "path": "/master-data", "roles": ["admin"]},
                 {"label": "Settings", "path": "/settings", "roles": ["admin"]},
                 {"label": "Admin", "path": "/admin", "roles": ["admin"]}
