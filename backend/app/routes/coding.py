@@ -230,9 +230,9 @@ async def get_coding(
 
         db.workflow_steps.insert_one({
             "invoice_id": invoice_id,
-            "step_name": "Coding (Auto)",
+            "step_name": "Coding",
             "step_type": WorkflowStepType.CODING,
-            "user": "System",
+            "user": current_user.username,
             "status": WorkflowStepStatus.COMPLETED,
             "timestamp": datetime.utcnow(),
             "entity": entity
