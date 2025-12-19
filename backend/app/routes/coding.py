@@ -216,32 +216,6 @@ async def get_coding(
     suggestions = get_coding_suggestions(db, vendor_name, items)
 
     # ✅ AUTO SAVE IF ANY GL EXISTS
-    if any(i.gl_code for i in suggestions):
-        doc = {
-            "invoice_id": invoice_id,
-            "vendor_name": vendor_name,
-            "line_items": [i.dict() for i in suggestions],
-            "created_at": datetime.utcnow(),
-            "updated_at": None,
-            "status": "auto-coded"
-        }
-
-        result = db.coding.insert_one(doc)
-
-        db.workflow_steps.insert_one({
-            "invoice_id": invoice_id,
-            "step_name": "Coding",
-            "step_type": WorkflowStepType.CODING,
-            "user": current_user.username,
-            "status": WorkflowStepStatus.COMPLETED,
-            "timestamp": datetime.utcnow(),
-            "entity": entity
-        })
-
-        saved = db.coding.find_one({"_id": result.inserted_id})
-        saved["id"] = str(saved["_id"])
-        return CodingResponse(**saved)
-
     return CodingResponse(
         id="suggested",
         invoice_id=invoice_id,
