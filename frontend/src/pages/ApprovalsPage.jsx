@@ -16,6 +16,7 @@ const ApprovalsPage = () => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [allApprovalInvoices, setAllApprovalInvoices] = useState([]);
+    const storedUser = JSON.parse(localStorage.getItem('user'));
 
     // Global search term for approvals table
     const [searchTerm, setSearchTerm] = useState('');
@@ -54,10 +55,22 @@ const ApprovalsPage = () => {
                 rawData: invoice
             }));
 
-            const allowedStatuses = ['waiting_approval', 'approved', 'rejected', 'reworked'];
-            const filteredData = transformedData.filter((item) =>
-                allowedStatuses.includes(item.status)
-            );
+           const filteredData = transformedData.filter((item) => {
+    const approvedBy = item.rawData.approved_by || [];
+
+    const hasApproved = approvedBy.some((a) => {
+        if (typeof a === 'string') {
+            return a === storedUser.email;
+        }
+        if (typeof a === 'object') {
+            return a.email === storedUser.email;
+        }
+        return false;
+    });
+
+    return item.status === 'waiting_approval' && !hasApproved;
+});
+
 
             setAllApprovalInvoices(filteredData);
             setData(filteredData);

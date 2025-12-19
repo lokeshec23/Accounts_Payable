@@ -27,6 +27,7 @@ class InvoiceBase(BaseModel):
     required_approvers: Optional[int] = None
     approver_breakdown: Optional[Dict[str, Any]] = None
     entity: Optional[str] = None
+    approved_by: Optional[List[str]] = []
 
 class InvoiceCreate(InvoiceBase):
     pass

@@ -263,7 +263,7 @@ async def update_invoice_status(
         db.invoices.update_one(
             {"_id": ObjectId(invoice_id)},
             {
-                "$set": {"status": main_status, "validation_results": {}},
+                "$set": {"status": main_status, "validation_results": {}, "approved_by": []},
                 "$push": {"status_history": new_status_entry}
             }
         )
@@ -307,19 +307,43 @@ async def update_invoice_status(
     # =====================================================
     # 7️⃣ SAVE INVOICE
     # =====================================================
+    # =====================================================
+    # 7️⃣ SAVE INVOICE
+    # =====================================================
+    
+    # Per-Approver Visibility Logic
+    if main_status == InvoiceStatus.APPROVED:
+        # Add current user to approved_by list
+        extra_fields["approved_by"] = {"$each": [current_user.email]} # handled by $addToSet logic below if I separate it, or I can just use $addToSet in the update
+        pass # defer to the update call
+    elif main_status in [InvoiceStatus.REJECTED, InvoiceStatus.REWORKED, InvoiceStatus.WAITING_CODING]:
+        # Reset approved_by list on rejection/rework/recall
+        # Note: WAITING_CODING is handled separately above with its own update, so we need to handle it there too if we want to be safe, 
+        # but the block above returns early. Let's fix the WAITING_CODING block too.
+        pass
+
+    # Update operation construction
+    update_query = {
+        "$set": {
+            "status": main_status,
+            "validation_results.approver_name": approver_name,
+            "validation_results.approval_timestamp": timestamp.isoformat(),
+            "validation_results.last_action": status,
+            "validation_results.approver_comment": comment,
+            **extra_fields
+        },
+        "$push": {"status_history": new_status_entry}
+    }
+
+    # Add specific operator for approved_by
+    if status == InvoiceStatus.APPROVED:
+         update_query["$addToSet"] = {"approved_by": current_user.email}
+    elif status in [InvoiceStatus.REJECTED, InvoiceStatus.REWORKED, InvoiceStatus.WAITING_CODING]:
+         update_query["$set"]["approved_by"] = []
+
     db.invoices.update_one(
         {"_id": ObjectId(invoice_id)},
-        {
-            "$set": {
-                "status": main_status,
-                "validation_results.approver_name": approver_name,
-                "validation_results.approval_timestamp": timestamp.isoformat(),
-                "validation_results.last_action": status,
-                "validation_results.approver_comment": comment,
-                **extra_fields
-            },
-            "$push": {"status_history": new_status_entry}
-        }
+        update_query
     )
 
     # =====================================================
