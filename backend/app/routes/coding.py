@@ -283,23 +283,6 @@ async def create_or_update_coding(
             last_cycle_start = ts
             break
 
-    # ✅ Create CODING workflow step only ONCE per cycle
-    existing_step = db.workflow_steps.find_one({
-        "invoice_id": coding_data.invoice_id,
-        "step_type": WorkflowStepType.CODING,
-        "timestamp": {"$gt": last_cycle_start}
-    })
-
-    if not existing_step:
-        db.workflow_steps.insert_one({
-            "invoice_id": coding_data.invoice_id,
-            "step_name": "Coding",
-            "step_type": WorkflowStepType.CODING,
-            "user": current_user.username,
-            "status": WorkflowStepStatus.COMPLETED,
-            "timestamp": datetime.utcnow(),
-            "entity": entity
-        })
 
     saved = db.coding.find_one({"invoice_id": coding_data.invoice_id})
     saved["id"] = str(saved["_id"])

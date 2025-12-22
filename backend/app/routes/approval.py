@@ -87,6 +87,42 @@ async def send_to_approval(
     }
 )
 
+
+    # -------------------------------------------------------------
+    # ✅ INSERT "CODING COMPLETED" STEP HERE (Moved from coding.py)
+    # -------------------------------------------------------------
+    # We define the start of the current cycle based on the last time it was in "reworked" or "waiting_coding"
+    status_history = invoice.get("status_history", [])
+    last_cycle_start = datetime.min
+    for entry in reversed(status_history):
+        if entry.get("status") in ["reworked", "waiting_coding"] and entry.get("timestamp"):
+            ts = entry["timestamp"]
+            if isinstance(ts, str):
+                try:
+                    ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                except:
+                    continue
+            last_cycle_start = ts
+            break
+
+    # Avoid duplicate "Coding" steps for the same cycle
+    existing_coding_step = db.workflow_steps.find_one({
+        "invoice_id": invoice_id,
+        "step_type": WorkflowStepType.CODING,
+        "timestamp": {"$gt": last_cycle_start}
+    })
+
+    if not existing_coding_step:
+        db.workflow_steps.insert_one({
+            "invoice_id": invoice_id,
+            "step_name": "Coding",
+            "step_type": WorkflowStepType.CODING,
+            "user": current_user.username,
+            "status": WorkflowStepStatus.COMPLETED,
+            "timestamp": datetime.utcnow(),
+            "entity": entity
+        })
+
     # Create workflow step: Waiting for Approval
     workflow_step = {
         "invoice_id": invoice_id,
