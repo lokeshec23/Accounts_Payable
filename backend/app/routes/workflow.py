@@ -102,7 +102,7 @@ def get_invoice_total_from_invoice(db, invoice_id: str):
             
     return None
 
-def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None, invoice_data: dict = None):
+def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None, invoice_data: dict = None, currency: str = "USD"):
     """
     Get the required approver count with detailed breakdown.
     Logic: MAX(Vendor_Rule_Count, Amount_Rule_Count, GL_Rule_Count)
@@ -129,7 +129,7 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
             "required": invoice_data["required_approvers"],
             "breakdown": invoice_data.get("approver_breakdown", {
                 "vendor": {"count": 0, "name": vendor_name},
-                "amount": {"count": 0, "value": amount},
+                "amount": {"count": 0, "value": amount, "currency": currency},
                 "gl": {"count": 0, "codes": []},
                 "note": "Loaded from persisted invoice data"
             })
@@ -164,9 +164,21 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
     amount_count = 0
     if amount is not None:
         # Find all rules that might apply (where start of range is <= amount)
-        candidates = list(db.approver_amount.find({
+        # AND currency matches (or rule has no currency, assume USD default or legacy)
+        # Actually, if we want strict, we should match.
+        
+        query = {
             "min_amount": {"$lte": amount}
-        }))
+        }
+        
+        if currency:
+             query["$or"] = [
+                 {"currency": currency},
+                 {"currency": {"$exists": False}}, # Legacy support
+                 {"currency": None}
+             ]
+        
+        candidates = list(db.approver_amount.find(query))
         
         for rule in candidates:
             max_amt = rule.get("max_amount")
@@ -176,7 +188,10 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
                 # If multiple rules match, take the one requiring MOST approvers
                 if rule_count > amount_count:
                     amount_count = rule_count
-            
+        
+        if amount_count == 0:
+            amount_count = default_count
+    
     # 3. GL Based Count
     gl_count = 0
     matched_gls = []
@@ -216,6 +231,9 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
                     if count > gl_count:
                         gl_count = count
                     matched_gls.append(code)
+            
+            if gl_count == 0:
+                gl_count = default_count
 
     # 4. Return Maximum Requirement with Breakdown
     max_count = max(vendor_count, amount_count, gl_count)
@@ -250,9 +268,10 @@ async def get_workflow_history(
     # Get vendor name and required approver count
     vendor_name = get_vendor_name_from_invoice(db, invoice_id)
     total_amount = get_invoice_total_from_invoice(db, invoice_id)
-    
+    currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
+
     # Result is now a dict with breakdown
-    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice)
+    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice, currency=currency)
     required_approvers = requirement_data["required"]
     approver_breakdown = requirement_data["breakdown"]
     
@@ -341,7 +360,8 @@ async def get_approver_status(
     # Get vendor name and required approver count
     vendor_name = get_vendor_name_from_invoice(db, invoice_id)
     total_amount = get_invoice_total_from_invoice(db, invoice_id)
-    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice)
+    currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
+    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice, currency=currency)
     required_approvers = requirement_data["required"]
     
     # Get all approver steps

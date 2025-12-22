@@ -62,7 +62,8 @@ async def send_to_approval(
         
         vendor_name = get_vendor_name_from_invoice(db, invoice_id)
         total_amount = get_invoice_total_from_invoice(db, invoice_id)
-        requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id)
+        currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
+        requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, currency=currency)
         
         extra_fields["required_approvers"] = requirement_data["required"]
         extra_fields["approver_breakdown"] = requirement_data["breakdown"]

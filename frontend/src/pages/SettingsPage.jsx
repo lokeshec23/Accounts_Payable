@@ -197,13 +197,25 @@ const SettingsPage = () => {
       title: "Min Amount",
       dataIndex: "min_amount",
       key: "min_amount",
-      render: (val) => `$${val?.toLocaleString() || 0}`,
+      render: (val, record) => {
+        const symbol = record.currency === 'INR' ? '₹' : '$';
+        return `${symbol}${val?.toLocaleString() || 0}`;
+      }
     },
     {
       title: "Max Amount",
       dataIndex: "max_amount",
       key: "max_amount",
-      render: (val) => `$${val?.toLocaleString() || 0}`,
+      render: (val, record) => {
+        const symbol = record.currency === 'INR' ? '₹' : '$';
+        return `${symbol}${val?.toLocaleString() || 0}`;
+      }
+    },
+    {
+      title: "Currency",
+      dataIndex: "currency",
+      key: "currency",
+      render: (val) => val || 'USD'
     },
     {
       title: "Approvers Required",
@@ -516,6 +528,16 @@ const SettingsPage = () => {
         <Form form={form} layout="vertical">
           {modalType === "amount" && (
             <>
+              <Form.Item
+                name="currency"
+                label="Currency"
+                initialValue="USD"
+              >
+                <Select>
+                  <Select.Option value="USD">USD ($)</Select.Option>
+                  <Select.Option value="INR">INR (₹)</Select.Option>
+                </Select>
+              </Form.Item>
               <Form.Item
                 name="min_amount"
                 label="Min Amount"
