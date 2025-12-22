@@ -121,8 +121,8 @@ const MasterDataPage = () => {
 
             const result = await masterDataService.getSheetData(collectionName);
 
-            const rows = result.map((r, index) => ({
-                key: index + 1,
+            const rows = result.map((r, index = 1) => ({
+                key: index,
                 ...r,
             }));
 

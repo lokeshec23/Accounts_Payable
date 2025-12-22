@@ -146,22 +146,24 @@ def edit_row(
 
     return {"status": "updated"}
 
-
 @router.delete("/sheet/{collection_name}/delete")
 def delete_row(
-    collection_name: str, 
-    request: DeleteRowRequest,
+    collection_name: str,
+    row_index: int,  # 👈 QUERY PARAM
     current_user: UserResponse = Depends(get_current_user)
 ):
     db = get_database()
-    rows, chunks = load_full_sheet(collection_name)
+    rows, _ = load_full_sheet(collection_name)
 
-    if request.row_index >= len(rows):
-        raise HTTPException(400, "Row index out of range")
+    if row_index < 0 or row_index >= len(rows):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Row index {row_index} out of range (total={len(rows)})"
+        )
 
-    rows.pop(request.row_index)
+    rows.pop(row_index)
 
-    # Save updated chunks
+    # Rewrite chunks
     chunk_size = 5000
     db[collection_name].delete_many({})
 
