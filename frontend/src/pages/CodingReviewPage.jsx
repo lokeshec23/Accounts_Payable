@@ -285,7 +285,7 @@ const CodingReviewPage = () => {
         } else {
             // Header fields
             const map = {
-                'vendor_name': data.vendor_info?.name, 
+                'vendor_name': data.vendor_info?.name,
                 'invoice_id': data.invoice_details?.invoice_number,
                 'total_amount': data.amounts?.total_invoice_amount,
                 'amount_due': data.amounts?.amount_due,
@@ -408,7 +408,7 @@ const CodingReviewPage = () => {
                 item: String(item.item || '')
             }));
 
-            // Save coding first
+            // Save coding first - this ensures "Send for Approval" triggers a save
             await codingService.saveCoding({
                 invoice_id: invoiceData.id,
                 header_coding: headerCoding,

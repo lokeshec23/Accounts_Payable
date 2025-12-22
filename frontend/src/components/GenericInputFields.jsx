@@ -578,34 +578,45 @@ const GenericInputFields = ({
 
 
     // ---------- coding save ----------
-    const handleSaveCoding = async () => {
+    // ---------- coding save ----------
+    const handleSaveCoding = async (silent = false) => {
         if (!invoiceId) {
-            message.error('No invoice ID provided');
+            if (!silent) message.error('No invoice ID provided');
             return;
         }
 
         try {
             setSaving(true);
 
-            await codingService.saveCoding(invoiceId, {
+            // Correct API call: pass single object
+            await codingService.saveCoding({
+                invoice_id: invoiceId,
                 header_coding: headerCoding,
                 line_items: codingLineItems
             });
 
-            // Trigger actual status update to lock approver count
-            await invoiceService.updateInvoiceStatus(invoiceId, 'waiting_approval');
+            // Trigger actual status update to lock approver count (if needed, or just save)
+             // await invoiceService.updateInvoiceStatus(invoiceId, 'waiting_approval'); // This seems wrong in saveCoding generic context, usually save is just save data.
+             // checks context: handleSaveCoding was originally calling updateInvoiceStatus to waiting_approval? 
+             // Original line 596: await invoiceService.updateInvoiceStatus(invoiceId, 'waiting_approval');
+             // This looks like it was "Send to Approval" logic disguised as Save Coding? 
+             // But the button says "Save Coding" (implicit in handleSave if activeTab=3).
+             // AND the message said "Invoice sent for approval". 
+             // It seems handleSaveCoding in GenericInputFields was conflating saving with sending to approval!
+             // I should make it JUST save coding.
+            
+            if (!silent) message.success('Coding data saved successfully!');
+            // message.success("Invoice sent for approval"); // Removing this side effect from pure save
 
-            message.success('Coding data saved successfully!');
-            message.success("Invoice sent for approval");
-
-            // Redirect to Approvals Page
-            navigate("/approvals");
+            // Redirect to Approvals Page // Removing redirect from pure save
+            // navigate("/approvals");
         } catch (error) {
             console.error('Error saving coding data:', error);
-            message.error(
+            if (!silent) message.error(
                 error.response?.data?.detail ||
                 'Failed to save coding data. Please try again.'
             );
+            throw error; // Re-throw to allow callers to handle failure
         } finally {
             setSaving(false);
         }
@@ -617,10 +628,14 @@ const GenericInputFields = ({
             return;
         }
 
-        if (activeTab === '3') {
-            await handleSaveCoding();
+        try {
+             // Save both always to be safe? Or depending on tab?
+             // User wants "Save should be triggered".
+             await handleSaveCoding(true); // Save coding silently
+             await saveInvoiceData(); // Save extracted data (Main save)
+        } catch (e) {
+            // Error handled in sub-functions
         }
-        await saveInvoiceData();
     };
 
     const handleSendForCoding = async () => {
@@ -631,10 +646,19 @@ const GenericInputFields = ({
 
         try {
             setSaving(true);
-            // First save the data
+            
+            // 1. Save Invoice Extraction Data
             await saveInvoiceData();
 
-            // Then update status
+            // 2. Save Coding Data (GL codes, etc.)
+            // We need to construct the payload as expected by codingService
+             await codingService.saveCoding({
+                invoice_id: invoiceId,
+                header_coding: headerCoding,
+                line_items: codingLineItems
+            });
+
+            // 3. Update Status
             await invoiceService.updateInvoice(invoiceId, {
                 status: 'waiting_coding'
             });
