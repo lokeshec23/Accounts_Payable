@@ -52,7 +52,10 @@ const CodingPage = () => {
                 uploadedBy: invoice.uploaded_by || 'Unknown',
                 status: invoice.status || 'coding',
                 fileUrl: invoice.file_url || '/sample-invoice.pdf',
-                rawData: invoice
+                status: invoice.status || 'coding',
+                fileUrl: invoice.file_url || '/sample-invoice.pdf',
+                rawData: invoice,
+                currency: invoice.extracted_data?.invoice_details?.currency?.value || 'USD'
             }));
 
             // Calculate pagination
@@ -121,10 +124,12 @@ const CodingPage = () => {
             key: 'totalAmount',
             width: 150,
             sorter: (a, b) => (parseFloat(a.totalAmount) || 0) - (parseFloat(b.totalAmount) || 0),
-            render: (val) => {
+            render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                return strVal.startsWith('$') ? strVal : `$${strVal}`;
+                const symbol = record.currency === 'INR' ? '₹' : '$';
+                const cleanVal = strVal.replace(/[$,₹]/g, '').trim();
+                return `${symbol}${cleanVal}`;
             },
         },
         {
@@ -133,10 +138,12 @@ const CodingPage = () => {
             key: 'amountDue',
             width: 150,
             sorter: (a, b) => (parseFloat(a.amountDue) || 0) - (parseFloat(b.amountDue) || 0),
-            render: (val) => {
+            render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                return strVal.startsWith('$') ? strVal : `$${strVal}`;
+                const symbol = record.currency === 'INR' ? '₹' : '$';
+                const cleanVal = strVal.replace(/[$,₹]/g, '').trim();
+                return `${symbol}${cleanVal}`;
             },
         },
         {

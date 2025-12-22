@@ -69,6 +69,11 @@ const GenericInputFields = ({
     // Approver comment
     const [approverComment, setApproverComment] = useState('');
 
+    const getCurrencySymbol = () => {
+        const val = extractValue(formData['Invoice Currency']);
+        return val === 'INR' ? '₹' : '$';
+    };
+
     // ---------- helpers ----------
     const parseCurrencyValue = (value) => {
         if (!value) return 0;
@@ -701,10 +706,10 @@ const GenericInputFields = ({
                         step={0.01}
                         formatter={(value) =>
                             value !== null && value !== undefined && value !== ''
-                                ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                                ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
                                 : ''
                         }
-                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
                         disabled={readOnly}
                     />
                 </div>
@@ -738,7 +743,6 @@ const GenericInputFields = ({
                     options={[
                         { value: 'USD', label: '$ USD' },
                         { value: 'INR', label: '₹ INR' },
-                        { value: 'EUR', label: '€ EUR' }
                     ]}
                     disabled={readOnly}
                 />
@@ -902,9 +906,9 @@ const GenericInputFields = ({
                         }
                         step={0.01}
                         formatter={(value) =>
-                            value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                            value ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                         }
-                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
                         disabled={readOnly}
                     />
                 </div>
@@ -928,9 +932,9 @@ const GenericInputFields = ({
                         }
                         step={0.01}
                         formatter={(value) =>
-                            value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                            value ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                         }
-                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
                         disabled={readOnly}
                     />
                 </div>
@@ -954,9 +958,9 @@ const GenericInputFields = ({
                         }
                         step={0.01}
                         formatter={(value) =>
-                            value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                            value ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                         }
-                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
                         disabled={readOnly}
                     />
                 </div>
@@ -1025,15 +1029,7 @@ const GenericInputFields = ({
                         >
                             <div style={{ fontWeight: 500 }}>Currency:</div>
                             <div>
-                                <Select
-                                    style={{ width: '100%' }}
-                                    defaultValue="USD"
-                                    options={[
-                                        { value: 'USD', label: '$ USD' },
-                                        { value: 'INR', label: '₹ INR' }
-                                    ]}
-
-                                />
+                                {renderFieldInput('Invoice Currency', formData['Invoice Currency'])}
                             </div>
                         </div>
 
@@ -1426,10 +1422,10 @@ const GenericInputFields = ({
                                         value={codingLineItems[index]?.unit_price || 0}
                                         formatter={(value) =>
                                             value
-                                                ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                                                ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
                                                 : ''
                                         }
-                                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
                                         onChange={(value) =>
                                             handleCodingLineItemChange(index, 'unit_price', value)
                                         }
@@ -1450,10 +1446,10 @@ const GenericInputFields = ({
                                         value={codingLineItems[index]?.net_amount || 0}
                                         formatter={(value) =>
                                             value
-                                                ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                                                ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
                                                 : ''
                                         }
-                                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
                                         onChange={(value) =>
                                             handleCodingLineItemChange(index, 'net_amount', value)
                                         }

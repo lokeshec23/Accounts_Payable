@@ -90,7 +90,12 @@ const MainLayout = () => {
                     approvalTime: validation.approval_timestamp
                         ? formatDateTimeIST(validation.approval_timestamp)
                         : '',
+                    approverName: validation.approver_name || '',
+                    approvalTime: validation.approval_timestamp
+                        ? formatDateTimeIST(validation.approval_timestamp)
+                        : '',
                     rawData: invoice,
+                    currency: getValue(invoiceDetails.currency)
                 };
             });
 
@@ -182,10 +187,12 @@ const MainLayout = () => {
             key: 'totalAmount',
             width: 150,
             sorter: (a, b) => (parseFloat(a.totalAmount) || 0) - (parseFloat(b.totalAmount) || 0),
-            render: (val) => {
+            render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                return strVal.startsWith('$') ? strVal : `${strVal}`;
+                const symbol = record.currency === 'INR' ? '₹' : '$';
+                const cleanVal = strVal.replace(/[$,₹]/g, '').trim();
+                return `${symbol}${cleanVal}`;
             },
         },
         {
@@ -194,10 +201,12 @@ const MainLayout = () => {
             key: 'amountDue',
             width: 150,
             sorter: (a, b) => (parseFloat(a.amountDue) || 0) - (parseFloat(b.amountDue) || 0),
-            render: (val) => {
+            render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                return strVal.startsWith('$') ? strVal : `$${strVal}`;
+                const symbol = record.currency === 'INR' ? '₹' : '$';
+                const cleanVal = strVal.replace(/[$,₹]/g, '').trim();
+                return `${symbol}${cleanVal}`;
             },
         },
         {
@@ -803,16 +812,34 @@ const MainLayout = () => {
         title: "Unit Price",
         dataIndex: "unitPrice",
         width: 160,
+        render: (val, record) => {
+            if (!val) return '-';
+            const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
+            const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
+            return `${symbol}${cleanVal}`;
+        },
       },
       {
         title: "Net Amount",
         dataIndex: "netAmount",
         width: 160,
+        render: (val, record) => {
+            if (!val) return '-';
+            const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
+            const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
+            return `${symbol}${cleanVal}`;
+        },
       },
       {
         title: "Tax Amount",
         dataIndex: "taxAmount",
         width: 160,
+        render: (val, record) => {
+            if (!val) return '-';
+            const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
+            const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
+            return `${symbol}${cleanVal}`;
+        },
       },
 
       // ================= TOTALS =================
@@ -820,16 +847,34 @@ const MainLayout = () => {
         title: "Subtotal",
         dataIndex: "subtotal",
         width: 160,
+        render: (val, record) => {
+            if (!val) return '-';
+            const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
+            const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
+            return `${symbol}${cleanVal}`;
+        },
       },
       {
         title: "Total Amount",
         dataIndex: "totalInvoiceAmount",
         width: 180,
+        render: (val, record) => {
+            if (!val) return '-';
+            const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
+            const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
+            return `${symbol}${cleanVal}`;
+        },
       },
       {
         title: "Amount Due",
         dataIndex: "amountDue",
         width: 180,
+        render: (val, record) => {
+            if (!val) return '-';
+            const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
+            const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
+            return `${symbol}${cleanVal}`;
+        },
       },
 
       // ================= APPROVAL =================

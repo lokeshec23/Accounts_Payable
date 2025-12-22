@@ -52,6 +52,12 @@ const CodingReviewPage = () => {
     const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
     const [completedApproversCount, setCompletedApproversCount] = useState(0);
 
+    const getCurrencySymbol = () => {
+        const data = invoiceData?.extracted_data || invoiceData?.rawData?.extracted_data;
+        const currency = invoiceData?.currency || data?.invoice_details?.currency?.value || data?.invoice_details?.currency || 'USD';
+        return currency === 'INR' ? '₹' : '$';
+    };
+
     const disabledStyle = {
         color: 'black',
         backgroundColor: 'white',
@@ -525,7 +531,7 @@ const CodingReviewPage = () => {
                     onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
                 >
-                    <Input value={text} disabled style={disabledStyle} />
+                    <Input value={text ? `${getCurrencySymbol()} ${text}` : ''} disabled style={disabledStyle} />
                 </div>
             )
         },
@@ -540,7 +546,7 @@ const CodingReviewPage = () => {
                     onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
                 >
-                    <Input value={text} disabled style={disabledStyle} />
+                    <Input value={text ? `${getCurrencySymbol()} ${text}` : ''} disabled style={disabledStyle} />
                 </div>
             )
         },
@@ -698,9 +704,9 @@ const CodingReviewPage = () => {
                     <InputNumber
                         value={codingLineItems[index]?.unit_price || 0}
                         formatter={(value) =>
-                            value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                            value ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                         }
-                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
                         onChange={(value) =>
                             handleCodingLineItemChange(index, 'unit_price', value)
                         }
@@ -727,9 +733,9 @@ const CodingReviewPage = () => {
                     <InputNumber
                         value={codingLineItems[index]?.net_amount || 0}
                         formatter={(value) =>
-                            value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                            value ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                         }
-                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
                         onChange={(value) =>
                             handleCodingLineItemChange(index, 'net_amount', value)
                         }
