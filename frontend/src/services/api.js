@@ -165,7 +165,13 @@ export const masterDataService = {
       { data: { row_index: rowIndex } }
     );
     return response.data;
-  }
+  },
+  
+   async getEntities() {
+    const response = await api.get("/master/entities");
+    return response.data;
+  },
+
 };
 
 // Workflow service methods

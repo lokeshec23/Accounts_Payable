@@ -172,3 +172,34 @@ def delete_row(
         })
 
     return {"status": "deleted"}
+
+@router.get("/entities")
+def get_entities(
+    current_user: UserResponse = Depends(get_current_user)
+):
+    db = get_database()
+
+    # 🔹 Find the Entity sheet metadata
+    excel_files = db["excel_files"]
+    entity_file = excel_files.find_one(
+        {"sheet_collections.sheet_name": "Entity"},
+        {"sheet_collections.$": 1}
+    )
+
+    if not entity_file:
+        raise HTTPException(status_code=404, detail="Entity master not found")
+
+    # 🔹 Get collection name for Entity sheet
+    entity_sheet = entity_file["sheet_collections"][0]
+    collection_name = entity_sheet["collection_name"]
+
+    # 🔹 Load all chunks
+    chunks = list(
+        db[collection_name].find().sort("chunk_index", ASCENDING)
+    )
+
+    entities = []
+    for chunk in chunks:
+        entities.extend(chunk.get("rows", []))
+
+    return entities
