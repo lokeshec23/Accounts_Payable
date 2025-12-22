@@ -312,14 +312,14 @@ const MainLayout = () => {
                         View
                     </Button>
                     {userRole !== "approver" && (
-                    <Button
-                        type="link"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleDelete(record)}
-                    >
-                        Delete
-                    </Button>
+                        <Button
+                            type="link"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleDelete(record)}
+                        >
+                            Delete
+                        </Button>
                     )}
 
                 </Space>
@@ -608,7 +608,7 @@ const MainLayout = () => {
                             >
                                 View Files
                             </Button>
-                            {userRole !== "approver" && (
+                            {userRole !== "approver" && userRole !== "admin" && (
                                 <Button
                                     type="primary"
                                     icon={<PlusOutlined />}
@@ -702,162 +702,162 @@ const MainLayout = () => {
                         pagination={false}
                         size="small"
                         scroll={{ x: 3000 }}   // ⭐ DO NOT use scroll.y here
-                         columns={[
-      // ================= BASIC =================
-      {
-        title: "S.No",
-        width: 70,
-        render: (_, __, index) => index + 1,
-        fixed: "left",
-      },
-      {
-        title: "Vendor Name",
-        dataIndex: "vendorName",
-        width: 180,
-        fixed: "left",
-      },
+                        columns={[
+                            // ================= BASIC =================
+                            {
+                                title: "S.No",
+                                width: 70,
+                                render: (_, __, index) => index + 1,
+                                fixed: "left",
+                            },
+                            {
+                                title: "Vendor Name",
+                                dataIndex: "vendorName",
+                                width: 180,
+                                fixed: "left",
+                            },
 
-      // ================= VENDOR =================
-      {
-        title: "Vendor Address",
-        dataIndex: "vendorAddress",
-        width: 250,
-      },
-      {
-        title: "Vendor Country",
-        dataIndex: "vendorCountry",
-        width: 150,
-      },
-      {
-        title: "Vendor Tax ID",
-        dataIndex: "vendorTaxId",
-        width: 180,
-      },
-      {
-        title: "Vendor Email",
-        dataIndex: "vendorEmail",
-        width: 220,
-      },
-      {
-        title: "Vendor Phone",
-        dataIndex: "vendorPhone",
-        width: 160,
-      },
+                            // ================= VENDOR =================
+                            {
+                                title: "Vendor Address",
+                                dataIndex: "vendorAddress",
+                                width: 250,
+                            },
+                            {
+                                title: "Vendor Country",
+                                dataIndex: "vendorCountry",
+                                width: 150,
+                            },
+                            {
+                                title: "Vendor Tax ID",
+                                dataIndex: "vendorTaxId",
+                                width: 180,
+                            },
+                            {
+                                title: "Vendor Email",
+                                dataIndex: "vendorEmail",
+                                width: 220,
+                            },
+                            {
+                                title: "Vendor Phone",
+                                dataIndex: "vendorPhone",
+                                width: 160,
+                            },
 
-      // ================= CLIENT =================
-      {
-        title: "Client Name",
-        dataIndex: "clientName",
-        width: 220,
-      },
-      {
-        title: "Billing Address",
-        dataIndex: "billingAddress",
-        width: 300,
-      },
-      {
-        title: "Shipping Address",
-        dataIndex: "shippingAddress",
-        width: 300,
-      },
+                            // ================= CLIENT =================
+                            {
+                                title: "Client Name",
+                                dataIndex: "clientName",
+                                width: 220,
+                            },
+                            {
+                                title: "Billing Address",
+                                dataIndex: "billingAddress",
+                                width: 300,
+                            },
+                            {
+                                title: "Shipping Address",
+                                dataIndex: "shippingAddress",
+                                width: 300,
+                            },
 
-      // ================= INVOICE =================
-      {
-        title: "Invoice Number",
-        dataIndex: "invoiceNumber",
-        width: 180,
-      },
-      {
-        title: "Invoice Date",
-        dataIndex: "invoiceDate",
-        width: 160,
-      },
-      {
-        title: "Due Date",
-        dataIndex: "dueDate",
-        width: 160,
-      },
-      {
-        title: "Currency",
-        dataIndex: "currency",
-        width: 120,
-      },
+                            // ================= INVOICE =================
+                            {
+                                title: "Invoice Number",
+                                dataIndex: "invoiceNumber",
+                                width: 180,
+                            },
+                            {
+                                title: "Invoice Date",
+                                dataIndex: "invoiceDate",
+                                width: 160,
+                            },
+                            {
+                                title: "Due Date",
+                                dataIndex: "dueDate",
+                                width: 160,
+                            },
+                            {
+                                title: "Currency",
+                                dataIndex: "currency",
+                                width: 120,
+                            },
 
-      // ================= LINE ITEM =================
-      {
-        title: "Description",
-        dataIndex: "description",
-        width: 320,
-      },
-      {
-        title: "Item Code",
-        dataIndex: "itemCode",
-        width: 160,
-      },
-      {
-        title: "Quantity",
-        dataIndex: "quantity",
-        width: 120,
-      },
-      {
-        title: "Unit Price",
-        dataIndex: "unitPrice",
-        width: 160,
-      },
-      {
-        title: "Net Amount",
-        dataIndex: "netAmount",
-        width: 160,
-      },
-      {
-        title: "Tax Amount",
-        dataIndex: "taxAmount",
-        width: 160,
-      },
+                            // ================= LINE ITEM =================
+                            {
+                                title: "Description",
+                                dataIndex: "description",
+                                width: 320,
+                            },
+                            {
+                                title: "Item Code",
+                                dataIndex: "itemCode",
+                                width: 160,
+                            },
+                            {
+                                title: "Quantity",
+                                dataIndex: "quantity",
+                                width: 120,
+                            },
+                            {
+                                title: "Unit Price",
+                                dataIndex: "unitPrice",
+                                width: 160,
+                            },
+                            {
+                                title: "Net Amount",
+                                dataIndex: "netAmount",
+                                width: 160,
+                            },
+                            {
+                                title: "Tax Amount",
+                                dataIndex: "taxAmount",
+                                width: 160,
+                            },
 
-      // ================= TOTALS =================
-      {
-        title: "Subtotal",
-        dataIndex: "subtotal",
-        width: 160,
-      },
-      {
-        title: "Total Amount",
-        dataIndex: "totalInvoiceAmount",
-        width: 180,
-      },
-      {
-        title: "Amount Due",
-        dataIndex: "amountDue",
-        width: 180,
-      },
+                            // ================= TOTALS =================
+                            {
+                                title: "Subtotal",
+                                dataIndex: "subtotal",
+                                width: 160,
+                            },
+                            {
+                                title: "Total Amount",
+                                dataIndex: "totalInvoiceAmount",
+                                width: 180,
+                            },
+                            {
+                                title: "Amount Due",
+                                dataIndex: "amountDue",
+                                width: 180,
+                            },
 
-      // ================= APPROVAL =================
-      {
-        title: "Approval Status",
-        dataIndex: "approvalStatus",
-        width: 170,
-        render: (status) => {
-          let color = "default";
-          if (status === "approved") color = "green";
-          if (status === "rejected") color = "red";
-          if (status === "waiting_approval") color = "gold";
-          if (status === "waiting_coding") color = "orange";
-          if (status === "reworked") color = "purple";
-          return <Tag color={color}>{status}</Tag>;
-        },
-      },
-      {
-        title: "Approver",
-        dataIndex: "approverName",
-        width: 180,
-      },
-      {
-        title: "Approval Time",
-        dataIndex: "approvalTime",
-        width: 200,
-      },
-    ]}
+                            // ================= APPROVAL =================
+                            {
+                                title: "Approval Status",
+                                dataIndex: "approvalStatus",
+                                width: 170,
+                                render: (status) => {
+                                    let color = "default";
+                                    if (status === "approved") color = "green";
+                                    if (status === "rejected") color = "red";
+                                    if (status === "waiting_approval") color = "gold";
+                                    if (status === "waiting_coding") color = "orange";
+                                    if (status === "reworked") color = "purple";
+                                    return <Tag color={color}>{status}</Tag>;
+                                },
+                            },
+                            {
+                                title: "Approver",
+                                dataIndex: "approverName",
+                                width: 180,
+                            },
+                            {
+                                title: "Approval Time",
+                                dataIndex: "approvalTime",
+                                width: 200,
+                            },
+                        ]}
                     />
                 </div>
             </Modal>

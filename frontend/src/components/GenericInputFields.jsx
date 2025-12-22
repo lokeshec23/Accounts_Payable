@@ -40,6 +40,11 @@ const GenericInputFields = ({
     originalData,
     readOnly = false
 }) => {
+    // Current User & Role
+    const currentUser = authService.getCurrentUser?.();
+    const isCoder = currentUser?.role === 'coder';
+    const initialStatus = originalData?.status || 'waiting_approval';
+
     const navigate = useNavigate();
     const extractionData = data?.extraction_json || {};
     const lineItemsFromData = data?.items || data?.LineItems || [];
@@ -54,12 +59,15 @@ const GenericInputFields = ({
     const [activeTab, setActiveTab] = useState(readOnly ? '3' : '1');
 
     // Status & validation info
-    const [invoiceStatus, setInvoiceStatus] = useState(
-        originalData?.status || 'waiting_approval'
-    );
+    const [invoiceStatus, setInvoiceStatus] = useState(initialStatus);
     const [validationInfo, setValidationInfo] = useState(
         originalData?.validation_results || {}
     );
+
+    // Derived disable state
+    const isCoderWaiting = (invoiceStatus === 'waiting_approval' && isCoder);
+    const isAdmin = currentUser?.role === 'admin';
+    const disableInputs = readOnly || isCoderWaiting || isAdmin;
 
     // Coding tab
     const [headerCoding, setHeaderCoding] = useState('');
@@ -89,7 +97,7 @@ const GenericInputFields = ({
         return fieldValue;
     };
 
-    const disabledStyle = readOnly
+    const disabledStyle = disableInputs
         ? {
             color: '#000000',
             backgroundColor: '#ffffff',
@@ -596,15 +604,15 @@ const GenericInputFields = ({
             });
 
             // Trigger actual status update to lock approver count (if needed, or just save)
-             // await invoiceService.updateInvoiceStatus(invoiceId, 'waiting_approval'); // This seems wrong in saveCoding generic context, usually save is just save data.
-             // checks context: handleSaveCoding was originally calling updateInvoiceStatus to waiting_approval? 
-             // Original line 596: await invoiceService.updateInvoiceStatus(invoiceId, 'waiting_approval');
-             // This looks like it was "Send to Approval" logic disguised as Save Coding? 
-             // But the button says "Save Coding" (implicit in handleSave if activeTab=3).
-             // AND the message said "Invoice sent for approval". 
-             // It seems handleSaveCoding in GenericInputFields was conflating saving with sending to approval!
-             // I should make it JUST save coding.
-            
+            // await invoiceService.updateInvoiceStatus(invoiceId, 'waiting_approval'); // This seems wrong in saveCoding generic context, usually save is just save data.
+            // checks context: handleSaveCoding was originally calling updateInvoiceStatus to waiting_approval?
+            // Original line 596: await invoiceService.updateInvoiceStatus(invoiceId, 'waiting_approval');
+            // This looks like it was "Send to Approval" logic disguised as Save Coding?
+            // But the button says "Save Coding" (implicit in handleSave if activeTab=3).
+            // AND the message said "Invoice sent for approval".
+            // It seems handleSaveCoding in GenericInputFields was conflating saving with sending to approval!
+            // I should make it JUST save coding.
+
             if (!silent) message.success('Coding data saved successfully!');
             // message.success("Invoice sent for approval"); // Removing this side effect from pure save
 
@@ -629,10 +637,10 @@ const GenericInputFields = ({
         }
 
         try {
-             // Save both always to be safe? Or depending on tab?
-             // User wants "Save should be triggered".
-             await handleSaveCoding(true); // Save coding silently
-             await saveInvoiceData(); // Save extracted data (Main save)
+            // Save both always to be safe? Or depending on tab?
+            // User wants "Save should be triggered".
+            await handleSaveCoding(true); // Save coding silently
+            await saveInvoiceData(); // Save extracted data (Main save)
         } catch (e) {
             // Error handled in sub-functions
         }
@@ -646,13 +654,13 @@ const GenericInputFields = ({
 
         try {
             setSaving(true);
-            
+
             // 1. Save Invoice Extraction Data
             await saveInvoiceData();
 
             // 2. Save Coding Data (GL codes, etc.)
             // We need to construct the payload as expected by codingService
-             await codingService.saveCoding({
+            await codingService.saveCoding({
                 invoice_id: invoiceId,
                 header_coding: headerCoding,
                 line_items: codingLineItems
@@ -705,7 +713,7 @@ const GenericInputFields = ({
                                 : ''
                         }
                         parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                        disabled={readOnly}
+                        disabled={disableInputs}
                     />
                 </div>
             );
@@ -723,7 +731,7 @@ const GenericInputFields = ({
                         value={stringValue ? dayjs(stringValue) : null}
                         onChange={(date, dateString) => handleInputChange(field, dateString)}
                         format="YYYY-MM-DD"
-                        disabled={readOnly}
+                        disabled={disableInputs}
                     />
                 </div>
             );
@@ -740,7 +748,7 @@ const GenericInputFields = ({
                         { value: 'INR', label: '₹ INR' },
                         { value: 'EUR', label: '€ EUR' }
                     ]}
-                    disabled={readOnly}
+                    disabled={disableInputs}
                 />
             );
         }
@@ -756,7 +764,7 @@ const GenericInputFields = ({
                         rows={3}
                         value={stringValue}
                         onChange={(e) => handleInputChange(field, e.target.value)}
-                        disabled={readOnly}
+                        disabled={disableInputs}
                         style={disabledStyle}
                     />
                 </div>
@@ -768,7 +776,7 @@ const GenericInputFields = ({
                 <Checkbox
                     checked={stringValue === 'true' || stringValue === true}
                     onChange={(e) => handleInputChange(field, e.target.checked)}
-                    disabled={readOnly}
+                    disabled={disableInputs}
                 >
                     {field}
                 </Checkbox>
@@ -784,7 +792,7 @@ const GenericInputFields = ({
                 <Input
                     value={stringValue}
                     onChange={(e) => handleInputChange(field, e.target.value)}
-                    disabled={readOnly}
+                    disabled={disableInputs}
                     style={disabledStyle}
                 />
             </div>
@@ -815,7 +823,7 @@ const GenericInputFields = ({
                         onChange={(e) =>
                             handleLineItemChange(index, 'Description', e.target.value)
                         }
-                        disabled={readOnly}
+                        disabled={disableInputs}
                         style={disabledStyle}
                     />
                 </div>
@@ -836,7 +844,7 @@ const GenericInputFields = ({
                         onChange={(e) =>
                             handleLineItemChange(index, 'ItemCode', e.target.value)
                         }
-                        disabled={readOnly}
+                        disabled={disableInputs}
                         style={disabledStyle}
                     />
                 </div>
@@ -858,7 +866,7 @@ const GenericInputFields = ({
                         onChange={(value) =>
                             handleLineItemChange(index, 'Quantity', value)
                         }
-                        disabled={readOnly}
+                        disabled={disableInputs}
                     />
                 </div>
             )
@@ -878,7 +886,7 @@ const GenericInputFields = ({
                         onChange={(e) =>
                             handleLineItemChange(index, 'UnitOfMeasure', e.target.value)
                         }
-                        disabled={readOnly}
+                        disabled={disableInputs}
                         style={disabledStyle}
                     />
                 </div>
@@ -905,7 +913,7 @@ const GenericInputFields = ({
                             value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                         }
                         parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                        disabled={readOnly}
+                        disabled={disableInputs}
                     />
                 </div>
             )
@@ -931,7 +939,7 @@ const GenericInputFields = ({
                             value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                         }
                         parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                        disabled={readOnly}
+                        disabled={disableInputs}
                     />
                 </div>
             )
@@ -957,7 +965,7 @@ const GenericInputFields = ({
                             value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                         }
                         parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                        disabled={readOnly}
+                        disabled={disableInputs}
                     />
                 </div>
             )
@@ -973,7 +981,7 @@ const GenericInputFields = ({
                     icon={<DeleteOutlined />}
                     onClick={() => handleDeleteLineItem(index)}
                     size="small"
-                    disabled={readOnly}
+                    disabled={disableInputs}
                 >
                     Delete
                 </Button>
@@ -1032,7 +1040,7 @@ const GenericInputFields = ({
                                         { value: 'USD', label: '$ USD' },
                                         { value: 'INR', label: '₹ INR' }
                                     ]}
-
+                                    disabled={disableInputs}
                                 />
                             </div>
                         </div>
@@ -1067,57 +1075,8 @@ const GenericInputFields = ({
                         scroll={{ x: 'max-content' }}
                         size="small"
                     />
-                    {!readOnly && (
-                        <Button
-                            type="dashed"
-                            icon={<PlusOutlined />}
-                            onClick={handleAddLineItem}
-                            style={{ marginTop: '16px', width: '100%' }}
-                        >
-                            Add Line Item
-                        </Button>
-                    )}
                 </Panel>
             </Collapse>
-
-            {/* Send for Coding Button - Only show in non-readOnly mode */}
-            {!readOnly && (
-                <div style={{
-                    marginTop: '24px',
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    paddingRight: '20px'
-                }}>
-                    {/* <Button
-                        type="primary"
-                        icon={<SendOutlined />}
-                        onClick={async () => {
-                            try {
-                                console.log('Invoice ID:', invoiceId);
-                                console.log('Data:', data);
-
-                                const idToUse = invoiceId || data?._id || data?.id;
-                                console.log('ID to use:', idToUse);
-
-                                if (idToUse) {
-                                    await invoiceService.updateInvoiceStatus(idToUse, 'waiting_coding');
-                                    message.success('Invoice sent for coding!');
-                                    navigate('/coding');
-                                } else {
-                                    console.error('No invoice ID found');
-                                    message.error('Invoice ID not found');
-                                }
-                            } catch (error) {
-                                console.error('Error sending for coding:', error);
-                                message.error('Failed to send for coding: ' + (error.message || 'Unknown error'));
-                            }
-                        }}
-                        style={{ backgroundColor: '#1890ff' }}
-                    >
-                        Send for Coding
-                    </Button> */}
-                </div>
-            )}
         </div>
     );
 
@@ -1206,6 +1165,7 @@ const GenericInputFields = ({
                             type="dashed"
                             icon={<PlusOutlined />}
                             onClick={handleAddLineItem}
+                            disabled={disableInputs}
                             style={{ marginTop: '16px', width: '100%' }}
                         >
                             Add Line Item
@@ -1326,7 +1286,7 @@ const GenericInputFields = ({
                                         placeholder="Enter header coding"
                                         value={headerCoding}
                                         onChange={(e) => handleHeaderCodingChange(e.target.value)}
-                                        disabled={readOnly}
+                                        disabled={disableInputs}
                                     />
                                 )
                             }
@@ -1373,7 +1333,7 @@ const GenericInputFields = ({
                                     <Input
                                         value={text}
                                         placeholder="Enter description"
-                                        disabled={readOnly}
+                                        disabled={disableInputs}
                                         style={disabledStyle}
                                     />
                                 )
@@ -1394,7 +1354,7 @@ const GenericInputFields = ({
                                             { value: 'Asset', label: 'Asset' },
                                             { value: 'Liability', label: 'Liability' }
                                         ]}
-                                        disabled={readOnly}
+                                        disabled={disableInputs}
                                         style={{ width: '100%', ...disabledStyle }}
                                     />
                                 )
@@ -1412,7 +1372,7 @@ const GenericInputFields = ({
                                         }
                                         style={{ width: '100%', ...disabledStyle }}
                                         min={0}
-                                        disabled={readOnly}
+                                        disabled={disableInputs}
                                     />
                                 )
                             },
@@ -1436,7 +1396,7 @@ const GenericInputFields = ({
                                         style={{ width: '100%', ...disabledStyle }}
                                         min={0}
                                         precision={2}
-                                        disabled={readOnly}
+                                        disabled={disableInputs}
                                     />
                                 )
                             },
@@ -1460,7 +1420,7 @@ const GenericInputFields = ({
                                         style={{ width: '100%', ...disabledStyle }}
                                         min={0}
                                         precision={2}
-                                        disabled={readOnly}
+                                        disabled={disableInputs}
                                     />
                                 )
                             },
@@ -1476,7 +1436,7 @@ const GenericInputFields = ({
                                         onChange={(e) =>
                                             handleCodingLineItemChange(index, 'gl_code', e.target.value)
                                         }
-                                        disabled={readOnly}
+                                        disabled={disableInputs}
                                         style={disabledStyle}
                                     />
                                 )
@@ -1491,7 +1451,7 @@ const GenericInputFields = ({
                                         value={codingLineItems[index]?.lob || ''}
                                         placeholder="LOB"
                                         onChange={(e) => handleCodingLineItemChange(index, 'lob', e.target.value)}
-                                        disabled={readOnly}
+                                        disabled={disableInputs}
                                         style={disabledStyle}
                                     />
                                 )
@@ -1506,7 +1466,7 @@ const GenericInputFields = ({
                                         value={codingLineItems[index]?.department || ''}
                                         placeholder="Department"
                                         onChange={(e) => handleCodingLineItemChange(index, 'department', e.target.value)}
-                                        disabled={readOnly}
+                                        disabled={disableInputs}
                                         style={disabledStyle}
                                     />
                                 )
@@ -1521,7 +1481,7 @@ const GenericInputFields = ({
                                         value={codingLineItems[index]?.customer || ''}
                                         placeholder="Customer"
                                         onChange={(e) => handleCodingLineItemChange(index, 'customer', e.target.value)}
-                                        disabled={readOnly}
+                                        disabled={disableInputs}
                                         style={disabledStyle}
                                     />
                                 )
@@ -1537,7 +1497,7 @@ const GenericInputFields = ({
                                         value={codingLineItems[index]?.item || ''}
                                         placeholder="Item"
                                         onChange={(e) => handleCodingLineItemChange(index, 'item', e.target.value)}
-                                        disabled={readOnly}
+                                        disabled={disableInputs}
                                         style={disabledStyle}
                                     />
                                 )
@@ -1552,7 +1512,7 @@ const GenericInputFields = ({
                                         danger
                                         icon={<DeleteOutlined />}
                                         onClick={() => handleDeleteLineItem(index)}
-                                        disabled={readOnly}
+                                        disabled={disableInputs}
                                     />
                                 )
                             }
@@ -1588,38 +1548,39 @@ const GenericInputFields = ({
     };
 
     // ---------- status helpers for buttons ----------
-    const currentUser = authService.getCurrentUser?.();
+    // const currentUser = authService.getCurrentUser?.(); // Defined at top 
+    // We already have currentUser from the top scope
     const currentUsername = currentUser?.username || currentUser?.email || '';
 
     // --- APPROVAL CYCLE FIX ---
 
-const statusHistory = originalData?.status_history || [];
+    const statusHistory = originalData?.status_history || [];
 
-// 1️⃣ Find last rework index
-const lastReworkIndex = [...statusHistory]
-  .map((s, i) => ({ s, i }))
-  .reverse()
-  .find(x => x.s.status === 'reworked')?.i ?? -1;
+    // 1️⃣ Find last rework index
+    const lastReworkIndex = [...statusHistory]
+        .map((s, i) => ({ s, i }))
+        .reverse()
+        .find(x => x.s.status === 'reworked')?.i ?? -1;
 
-// 2️⃣ Get only CURRENT approval cycle history
-const currentCycleHistory =
-  lastReworkIndex >= 0
-    ? statusHistory.slice(lastReworkIndex + 1)
-    : statusHistory;
+    // 2️⃣ Get only CURRENT approval cycle history
+    const currentCycleHistory =
+        lastReworkIndex >= 0
+            ? statusHistory.slice(lastReworkIndex + 1)
+            : statusHistory;
 
-// 3️⃣ Check if current user has already acted IN THIS CYCLE
-const currentUserHasActed = currentCycleHistory.some(
-  entry =>
-    entry.user === currentUsername &&
-    (entry.status === 'approved' ||
-     entry.status === 'rejected' ||
-     entry.status === 'reworked')
-);
+    // 3️⃣ Check if current user has already acted IN THIS CYCLE
+    const currentUserHasActed = currentCycleHistory.some(
+        entry =>
+            entry.user === currentUsername &&
+            (entry.status === 'approved' ||
+                entry.status === 'rejected' ||
+                entry.status === 'reworked')
+    );
 
-// 4️⃣ Check rejection/rework ONLY in this cycle
-const hasRejectionOrRework = currentCycleHistory.some(
-  entry => entry.status === 'rejected' || entry.status === 'reworked'
-);
+    // 4️⃣ Check rejection/rework ONLY in this cycle
+    const hasRejectionOrRework = currentCycleHistory.some(
+        entry => entry.status === 'rejected' || entry.status === 'reworked'
+    );
 
     const isApproved = invoiceStatus === 'approved';
     const isRejected = invoiceStatus === 'rejected';
@@ -1648,9 +1609,9 @@ const hasRejectionOrRework = currentCycleHistory.some(
     // 1. Current user has already acted, OR
     // 2. Someone has rejected/reworked (stops the process)
     // 3. User is restricted (Performed Processed or Coding)
-   const approveDisabled = currentUserHasActed || isRestrictedUser;
-    const rejectDisabled  = currentUserHasActed || isRestrictedUser;
-    const reworkDisabled  = currentUserHasActed || isRestrictedUser;
+    const approveDisabled = currentUserHasActed || isRestrictedUser;
+    const rejectDisabled = currentUserHasActed || isRestrictedUser;
+    const reworkDisabled = currentUserHasActed || isRestrictedUser;
 
 
     const renderStatusTag = () => {
@@ -1813,6 +1774,7 @@ const hasRejectionOrRework = currentCycleHistory.some(
                             onClick={handleSave}
                             loading={saving}
                             size="default"
+                            disabled={disableInputs}
                         >
                             Save
                         </Button>
@@ -1822,6 +1784,7 @@ const hasRejectionOrRework = currentCycleHistory.some(
                             onClick={handleSendForCoding}
                             loading={saving}
                             size="default"
+                            disabled={disableInputs}
                         >
                             Send for Coding
                         </Button>

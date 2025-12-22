@@ -15,6 +15,11 @@ const CodingReviewPage = () => {
     // Check if invoice is approved - make it read-only
     const isApproved = invoiceData?.status === 'approved';
     const isRejected = invoiceData?.status === 'rejected';
+    const isWaitingApproval = invoiceData?.status === 'waiting_approval';
+    // We can assume userRole is set by the effect hook below, but we need it for the initial render logic if possible or use the state 
+    // Since userRole is state, we can use it directly in the render.
+
+
 
     // Resizable state
     const [leftWidth, setLeftWidth] = useState(() => {
@@ -47,6 +52,9 @@ const CodingReviewPage = () => {
     const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
     const [userRole, setUserRole] = useState('');
+
+    // Combined disable logic
+    const disableEditing = isApproved || isRejected || userRole === 'approver' || userRole === 'admin' || (isWaitingApproval && userRole === 'coder');
 
     // Trigger workflow refresh
     const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
@@ -572,7 +580,7 @@ const CodingReviewPage = () => {
                     rows={1}
                     autoSize={{ minRows: 1, maxRows: 4 }}
                     style={{ ...disabledStyle, width: '100%' }}
-                    disabled={isApproved || isRejected || userRole === 'approver'}
+                    disabled={disableEditing}
                 />
             )
         }
@@ -655,7 +663,7 @@ const CodingReviewPage = () => {
                         { value: 'Liability', label: 'Liability' }
                     ]}
                     style={{ width: '100%', ...disabledStyle }}
-                    disabled={isApproved || isRejected || userRole === 'approver'}
+                    disabled={disableEditing}
                 />
             )
         },
@@ -678,7 +686,7 @@ const CodingReviewPage = () => {
                         }
                         style={{ width: '100%', ...disabledStyle }}
                         min={0}
-                        disabled={isApproved || isRejected || userRole === 'approver'}
+                        disabled={disableEditing}
                     />
                 </div>
             )
@@ -707,7 +715,7 @@ const CodingReviewPage = () => {
                         style={{ width: '100%', ...disabledStyle }}
                         min={0}
                         precision={2}
-                        disabled={isApproved || isRejected || userRole === 'approver'}
+                        disabled={disableEditing}
                     />
                 </div>
             )
@@ -736,7 +744,7 @@ const CodingReviewPage = () => {
                         style={{ width: '100%', ...disabledStyle }}
                         min={0}
                         precision={2}
-                        disabled={isApproved || isRejected || userRole === 'approver'}
+                        disabled={disableEditing}
                     />
                 </div>
             )
@@ -765,7 +773,7 @@ const CodingReviewPage = () => {
                     loading={loadingMasterData}
                     style={{ width: '100%', ...disabledStyle }}
                     dropdownMatchSelectWidth={false}
-                    disabled={isApproved || isRejected || userRole === 'approver'}
+                    disabled={disableEditing}
                 />
             )
         },
@@ -793,7 +801,7 @@ const CodingReviewPage = () => {
                     loading={loadingMasterData}
                     style={{ width: '100%', ...disabledStyle }}
                     dropdownMatchSelectWidth={false}
-                    disabled={isApproved || isRejected || userRole === 'approver'}
+                    disabled={disableEditing}
                 />
             )
         },
@@ -821,7 +829,7 @@ const CodingReviewPage = () => {
                     loading={loadingMasterData}
                     style={{ width: '100%', ...disabledStyle }}
                     dropdownMatchSelectWidth={false}
-                    disabled={isApproved || isRejected || userRole === 'approver'}
+                    disabled={disableEditing}
                 />
             )
         },
@@ -849,7 +857,7 @@ const CodingReviewPage = () => {
                     loading={loadingMasterData}
                     style={{ width: '100%', ...disabledStyle }}
                     dropdownMatchSelectWidth={false}
-                    disabled={isApproved || isRejected || userRole === 'approver'}
+                    disabled={disableEditing}
                 />
             )
         },
@@ -877,7 +885,7 @@ const CodingReviewPage = () => {
                     loading={loadingMasterData}
                     style={{ width: '100%', ...disabledStyle }}
                     dropdownMatchSelectWidth={false}
-                    disabled={isApproved || isRejected || userRole === 'approver'}
+                    disabled={disableEditing}
                 />
             )
         },
@@ -963,12 +971,13 @@ const CodingReviewPage = () => {
                         </Button>
 
                         <div style={{ display: 'flex', gap: '10px' }}>
-                            {!(isApproved || isRejected || userRole === 'approver') && (
+                            {!disableEditing && (
                                 <Button
                                     type="primary"
                                     icon={<SaveOutlined />}
                                     onClick={handleSave}
                                     loading={saving}
+                                    disabled={disableEditing}
                                 >
                                     Save
                                 </Button>
@@ -977,6 +986,7 @@ const CodingReviewPage = () => {
                                 !isApproved &&
                                 !isRejected &&
                                 userRole !== 'approver' &&
+                                userRole !== 'admin' &&
                                 completedApproversCount === 0 && (
                                     <Button
                                         type="primary"
@@ -987,13 +997,13 @@ const CodingReviewPage = () => {
                                         Recall
                                     </Button>
                                 )}
-                            {!(isApproved || isRejected || userRole === 'approver') && (
+                            {!disableEditing && (
                                 <Button
                                     type="primary"
                                     icon={<SendOutlined />}
                                     onClick={handleSendToApproval}
                                     loading={saving}
-                                    disabled={isApproved || isRejected || userRole === 'approver'}
+                                    disabled={disableEditing}
                                 >
                                     Send to Approval
                                 </Button>
