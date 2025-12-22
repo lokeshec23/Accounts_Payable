@@ -217,7 +217,7 @@ const WorkflowTab = ({ invoiceId, refreshTrigger }) => {
       )}
       {workflowData.approver_breakdown?.amount && (
         <Tag color="orange">
-          Amount (${workflowData.approver_breakdown.amount.value}):
+          Amount ({workflowData.approver_breakdown.amount.currency === 'INR' ? '₹' : '$'}{workflowData.approver_breakdown.amount.value}):
           {workflowData.approver_breakdown.amount.count}
         </Tag>
       )}

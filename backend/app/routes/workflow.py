@@ -242,7 +242,7 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
         "required": max_count,
         "breakdown": {
             "vendor": {"count": vendor_count, "name": vendor_name},
-            "amount": {"count": amount_count, "value": amount},
+            "amount": {"count": amount_count, "value": amount, "currency": currency},
             "gl": {"count": gl_count, "codes": matched_gls}
         }
     }
