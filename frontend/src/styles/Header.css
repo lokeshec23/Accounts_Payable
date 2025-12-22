@@ -8,7 +8,7 @@
     position: sticky;
     top: 0;
     z-index: 1000;
-    height: 10vh;
+    height: 3vh;
     min-height: 60px;
 }
 
@@ -28,6 +28,8 @@
 .header-logo {
     position: absolute;
     left: 16px;
+    top: 50%;
+    transform: translateY(-30%); /* move slightly down */
 }
 
 .header-logo img {
@@ -45,7 +47,7 @@
 }
 
 .nav-tab {
-    padding: 20px 20px;
+    padding: 18px 20px;
     font-size: 16px;
     font-family: 'Jura', sans-serif;
     font-weight: 500;
