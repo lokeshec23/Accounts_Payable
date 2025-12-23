@@ -249,7 +249,28 @@ const CodingReviewPage = () => {
             if (invoiceData?.id && invoiceData?.status === 'waiting_approval') {
                 try {
                     const statusData = await workflowService.getApproverStatus(invoiceData.id);
-                    setCompletedApproversCount(statusData.completed_approvers || 0);
+
+                    // Calculate count based on current cycle only
+                    // Find last reset time (reworked/rejected)
+                    const history = invoiceData?.rawData?.status_history || [];
+                    let lastResetTime = new Date(0);
+
+                    history.forEach(entry => {
+                        if (['reworked', 'rejected', 'waiting_coding'].includes(entry.status) && entry.timestamp) {
+                            const entryTime = new Date(entry.timestamp);
+                            if (entryTime > lastResetTime) {
+                                lastResetTime = entryTime;
+                            }
+                        }
+                    });
+
+                    // Filter approvers that are after the last reset
+                    const currentCycleApprovers = (statusData.approvers || []).filter(app => {
+                        const appTime = new Date(app.timestamp);
+                        return appTime > lastResetTime;
+                    });
+
+                    setCompletedApproversCount(currentCycleApprovers.length);
                 } catch (error) {
                     console.error('Error fetching approver status:', error);
                 }
