@@ -51,8 +51,6 @@ const ApprovalsPage = () => {
                     : '—',
 
                 approverComment: invoice.validation_results?.approver_comment || '',
-
-                approverComment: invoice.validation_results?.approver_comment || '',
                 rawData: invoice,
                 currency: invoice.extracted_data?.invoice_details?.currency?.value || 'USD'
             }));

@@ -52,8 +52,6 @@ const CodingPage = () => {
                 uploadedBy: invoice.uploaded_by || 'Unknown',
                 status: invoice.status || 'coding',
                 fileUrl: invoice.file_url || '/sample-invoice.pdf',
-                status: invoice.status || 'coding',
-                fileUrl: invoice.file_url || '/sample-invoice.pdf',
                 rawData: invoice,
                 currency: invoice.extracted_data?.invoice_details?.currency?.value || 'USD'
             }));
