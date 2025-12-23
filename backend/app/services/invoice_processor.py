@@ -38,10 +38,10 @@ class InvoiceProcessor:
             "original_filename": file.filename
         }
 
-    def process_invoice_extraction(self, file_path: str) -> Dict[str, Any]:
+    async def process_invoice_extraction(self, file_path: str) -> Dict[str, Any]:
         """Process invoice using your existing extraction pipeline"""
         try:
-            result = self.orchestrator.process_invoice(
+            result = await self.orchestrator.process_invoice(
                 file_path, 
                 output_dir=str(self.output_dir)
             )

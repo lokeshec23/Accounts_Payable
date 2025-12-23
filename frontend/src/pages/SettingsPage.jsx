@@ -95,7 +95,9 @@ const SettingsPage = () => {
         );
 
         if (!targetFile) {
-          console.error("Master file 'AP_CA Inc_Invoice_Codification' not found");
+          console.error(
+            "Master file 'AP_CA Inc_Invoice_Codification' not found"
+          );
           return;
         }
 
@@ -104,9 +106,12 @@ const SettingsPage = () => {
         // Load GL
         const glSheet = sheets.find((s) => s.sheet_name === "GL");
         if (glSheet) {
-          const rows = await masterDataService.getSheetData(glSheet.collection_name);
+          const rows = await masterDataService.getSheetData(
+            glSheet.collection_name
+          );
           const gl = rows.map((row) => {
-            const acc = row["Account number"] || row["account_number"] || row["Code"];
+            const acc =
+              row["Account number"] || row["account_number"] || row["Code"];
             const title = row["Title"] || row["Name"] || row["Description"];
             return {
               value: `${acc} - ${title}`,
@@ -118,18 +123,40 @@ const SettingsPage = () => {
 
         // Load Vendors
         const vendorSheet = sheets.find((s) =>
-          ["Vendor", "Vendor_Master", "Vendor Master", "Customer_Master", "Vendor_Info"].includes(s.sheet_name)
+          [
+            "Vendor",
+            "Vendor_Master",
+            "Vendor Master",
+            "Customer_Master",
+            "Vendor_Info",
+          ].includes(s.sheet_name)
         );
 
         if (vendorSheet) {
-          const rows = await masterDataService.getSheetData(vendorSheet.collection_name);
-          const vendors = rows.map((row) => {
-            const name = row["VENDOR_NAME"] || row["Vendor_Name"] || row["Vendor name"] || row["Name"] || row["vendor_name"] || row["vendorName"] || row["CUSTOMER_NAME"];
-            return {
-              value: name,
-              label: name,
-            };
-          }).filter(v => v.value); // Filter out empty names
+          const rows = await masterDataService.getSheetData(
+            vendorSheet.collection_name
+          );
+
+          const vendors = rows
+            .map((row, index) => {
+              const name =
+                row["VENDOR_NAME"] ||
+                row["Vendor_Name"] ||
+                row["Vendor name"] ||
+                row["Name"] ||
+                row["vendor_name"] ||
+                row["vendorName"] ||
+                row["CUSTOMER_NAME"];
+
+              if (!name) return null;
+
+              return {
+                value: `${name}__${index}`,
+                label: name,
+              };
+            })
+            .filter(Boolean);
+
           setVendorOptions(vendors);
         }
       } catch (error) {
@@ -261,24 +288,24 @@ const SettingsPage = () => {
       dataIndex: "min_amount",
       key: "min_amount",
       render: (val, record) => {
-        const symbol = record.currency === 'INR' ? '₹' : '$';
+        const symbol = record.currency === "INR" ? "₹" : "$";
         return `${symbol}${val?.toLocaleString() || 0}`;
-      }
+      },
     },
     {
       title: "Max Amount",
       dataIndex: "max_amount",
       key: "max_amount",
       render: (val, record) => {
-        const symbol = record.currency === 'INR' ? '₹' : '$';
+        const symbol = record.currency === "INR" ? "₹" : "$";
         return `${symbol}${val?.toLocaleString() || 0}`;
-      }
+      },
     },
     {
       title: "Currency",
       dataIndex: "currency",
       key: "currency",
-      render: (val) => val || 'USD'
+      render: (val) => val || "USD",
     },
     {
       title: "Approvers Required",
@@ -591,11 +618,7 @@ const SettingsPage = () => {
         <Form form={form} layout="vertical">
           {modalType === "amount" && (
             <>
-              <Form.Item
-                name="currency"
-                label="Currency"
-                initialValue="USD"
-              >
+              <Form.Item name="currency" label="Currency" initialValue="USD">
                 <Select>
                   <Select.Option value="USD">USD ($)</Select.Option>
                   <Select.Option value="INR">INR (₹)</Select.Option>
@@ -645,15 +668,13 @@ const SettingsPage = () => {
               >
                 <Select
                   showSearch
-                  placeholder="Select Vendor"
-                  disabled={!!editingRecord}
-                  loading={loadingMasterData}
                   options={vendorOptions}
-                  optionFilterProp="label"
-                  filterOption={(input, option) => {
-                    const label = String(option?.label ?? "");
-                    return label.toLowerCase().includes(input.toLowerCase());
-                  }}
+                  optionFilterProp="value"
+                  filterOption={(input, option) =>
+                    String(option?.value || "")
+                      .toLowerCase()
+                      .includes(input.toLowerCase())
+                  }
                 />
               </Form.Item>
               <Form.Item
@@ -679,7 +700,9 @@ const SettingsPage = () => {
                   loading={loadingMasterData}
                   options={glOptions}
                   filterOption={(input, option) =>
-                    (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                    (option?.label ?? "")
+                      .toLowerCase()
+                      .includes(input.toLowerCase())
                   }
                 />
               </Form.Item>

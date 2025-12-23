@@ -695,8 +695,7 @@ const GenericInputFields = ({
         if (
             field.includes('Amount') ||
             field.includes('Price') ||
-            field.includes('Total') ||
-            field.includes('Tax')
+            field.includes('Total')
         ) {
             const cleanValue = stringValue?.toString().replace(/[^\d.-]/g, '');
             const numValue = parseFloat(cleanValue);
