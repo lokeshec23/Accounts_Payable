@@ -90,10 +90,6 @@ const MainLayout = () => {
                     approvalTime: validation.approval_timestamp
                         ? formatDateTimeIST(validation.approval_timestamp)
                         : '',
-                    approverName: validation.approver_name || '',
-                    approvalTime: validation.approval_timestamp
-                        ? formatDateTimeIST(validation.approval_timestamp)
-                        : '',
                     rawData: invoice,
                     currency: getValue(invoiceDetails.currency)
                 };
