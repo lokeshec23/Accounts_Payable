@@ -11,12 +11,14 @@ import {
     Input,
     Modal,
     Form,
+    Upload,
 } from "antd";
 import {
     PlusOutlined,
     EditOutlined,
     DeleteOutlined,
     ExclamationCircleOutlined,
+    UploadOutlined,
 } from "@ant-design/icons";
 import { masterDataService } from "../services/api";
 import "../styles/MainLayout.css";
@@ -45,7 +47,7 @@ const MasterDataPage = () => {
         current: 1,
         pageSize: 20,
         showSizeChanger: true,
-        pageSizeOptions: ["5","10", "20", "50"],
+        pageSizeOptions: ["5", "10", "20", "50"],
         showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
     });
 
@@ -86,6 +88,46 @@ const MasterDataPage = () => {
         } finally {
             setLoading(false);
         }
+
+    };
+
+    const handleFileUpload = async (file) => {
+        try {
+            setLoading(true);
+            await masterDataService.uploadFile(file);
+            message.success("File uploaded successfully");
+            loadFiles(); // Refresh file list
+        } catch (error) {
+            console.error(error);
+            message.error("Failed to upload file");
+        } finally {
+            setLoading(false);
+        }
+        return false; // Prevent auto upload by antd
+    };
+
+
+    const handleFileDelete = (fileId) => {
+        confirm({
+            title: "Delete this Excel file?",
+            icon: <ExclamationCircleOutlined />,
+            content: "This will delete the file and all its sheets permanently.",
+            okText: "Yes",
+            okType: "danger",
+            onOk: async () => {
+                try {
+                    setLoading(true);
+                    await masterDataService.deleteFile(fileId);
+                    message.success("File deleted successfully");
+                    loadFiles();
+                } catch (error) {
+                    console.error(error);
+                    message.error("Failed to delete file");
+                } finally {
+                    setLoading(false);
+                }
+            },
+        });
     };
 
     // -------------------------------------------------------
@@ -148,7 +190,7 @@ const MasterDataPage = () => {
     // -------------------------------------------------------
     // Auto-generate table columns with sort + filter
     // -------------------------------------------------------
-   
+
     const generateColumns = (sampleRow, rows) => {
         const colKeys = Object.keys(sampleRow).filter(k => k !== "key");
 
@@ -354,9 +396,27 @@ const MasterDataPage = () => {
                         />
                     </div>
                     {(
-                        <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
-                            Add Row
-                        </Button>
+                        <Space>
+                            <Upload
+                                beforeUpload={handleFileUpload}
+                                showUploadList={false}
+                                accept=".xls,.xlsx,.csv"
+                            >
+                                <Button type="primary" icon={<UploadOutlined />}>Upload Excel/CSV</Button>
+                            </Upload>
+                            {selectedFile && (
+                                <Button
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    onClick={() => handleFileDelete(selectedFile._id)}
+                                >
+                                    Delete File
+                                </Button>
+                            )}
+                            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
+                                Add Row
+                            </Button>
+                        </Space>
                     )}
                 </div>
 

@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, UploadFile, File
 from bson import ObjectId
 from pymongo import ASCENDING
 from app.database.mongodb import get_database
 import pandas as pd
 import numpy as np
+# Trigger reload
 from fastapi import Depends
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
@@ -22,6 +23,135 @@ def list_files(
     for f in files:
         f["_id"] = str(f["_id"])
     return files
+    
+@router.post("/upload")
+async def upload_master_file(
+    file: UploadFile = File(...),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    try:
+        db = get_database()
+        
+        # Check extension
+        if not file.filename.endswith(('.xls', '.xlsx', '.csv')):
+             raise HTTPException(400, "Invalid file format. Please upload .xls, .xlsx, or .csv")
+             
+        contents = await file.read()
+        import io
+        
+        file_id = ObjectId()
+        sheet_collections = []
+        
+        # Handle CSV files
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(contents))
+            
+            # Basic cleaning
+            df = df.replace({np.nan: None})
+            
+            # Use filename without extension as sheet name
+            sheet_name = file.filename.rsplit('.', 1)[0]
+            safe_sheet_name = "".join(c for c in sheet_name if c.isalnum() or c in (' ', '_', '-')).strip()
+            safe_sheet_name = safe_sheet_name.replace(" ", "_")
+            
+            collection_name = f"master_{file_id}_{safe_sheet_name}"
+            
+            rows = df.to_dict(orient="records")
+            
+            # Insert into new collection (chunked)
+            chunk_size = 5000
+            if rows:
+                for i in range(0, len(rows), chunk_size):
+                    db[collection_name].insert_one({
+                        "chunk_index": i // chunk_size,
+                        "rows": rows[i:i + chunk_size]
+                    })
+            
+            sheet_collections.append({
+                "sheet_name": sheet_name,
+                "collection_name": collection_name
+            })
+        
+        # Handle Excel files
+        else:
+            xls = pd.ExcelFile(io.BytesIO(contents))
+            
+            for sheet_name in xls.sheet_names:
+                df = pd.read_excel(xls, sheet_name=sheet_name)
+                
+                # Basic cleaning
+                df = df.replace({np.nan: None})
+                
+                # Create a unique collection name
+                # sanitize sheet name
+                safe_sheet_name = "".join(c for c in sheet_name if c.isalnum() or c in (' ', '_', '-')).strip()
+                safe_sheet_name = safe_sheet_name.replace(" ", "_")
+                
+                collection_name = f"master_{file_id}_{safe_sheet_name}"
+                
+                rows = df.to_dict(orient="records")
+                
+                # Insert into new collection (chunked)
+                chunk_size = 5000
+                if rows:
+                    for i in range(0, len(rows), chunk_size):
+                        db[collection_name].insert_one({
+                            "chunk_index": i // chunk_size,
+                            "rows": rows[i:i + chunk_size]
+                        })
+                
+                sheet_collections.append({
+                    "sheet_name": sheet_name,
+                    "collection_name": collection_name
+                })
+            
+        # Store metadata in excel_files
+        from datetime import datetime
+        file_meta = {
+            "_id": file_id,
+            "file_name": file.filename,
+            "uploaded_at": datetime.utcnow(),
+            "uploaded_by": current_user.username,
+            "sheet_collections": sheet_collections,
+            "status": "active"
+        }
+        
+        db.excel_files.insert_one(file_meta)
+        
+        return {"message": "File uploaded successfully", "file_id": str(file_id)}
+        
+        
+    except Exception as e:
+        print(f"Error uploading file: {e}")
+        raise HTTPException(500, f"Failed to upload file: {str(e)}")
+
+@router.delete("/files/{file_id}")
+async def delete_master_file(
+    file_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    try:
+        db = get_database()
+        
+        # Get file metadata to find all collections
+        file_meta = db.excel_files.find_one({"_id": ObjectId(file_id)})
+        if not file_meta:
+            raise HTTPException(404, "File not found")
+        
+        # Delete all sheet collections
+        for sheet in file_meta.get("sheet_collections", []):
+            collection_name = sheet.get("collection_name")
+            if collection_name:
+                db[collection_name].drop()
+        
+        # Delete file metadata
+        db.excel_files.delete_one({"_id": ObjectId(file_id)})
+        
+        return {"message": "File deleted successfully"}
+        
+    except Exception as e:
+        print(f"Error deleting file: {e}")
+        raise HTTPException(500, f"Failed to delete file: {str(e)}")
 
 
 @router.get("/{file_id}/sheets")

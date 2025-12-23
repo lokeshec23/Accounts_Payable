@@ -166,9 +166,25 @@ export const masterDataService = {
     );
     return response.data;
   },
-  
-   async getEntities() {
+
+  async getEntities() {
     const response = await api.get("/master/entities");
+    return response.data;
+  },
+
+  // 7️⃣ Upload Excel file
+  async uploadFile(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await api.post("/master/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
+    return response.data;
+  },
+
+  // 8️⃣ Delete Excel file
+  async deleteFile(fileId) {
+    const response = await api.delete(`/master/files/${fileId}`);
     return response.data;
   },
 

@@ -90,10 +90,7 @@ const MainLayout = () => {
                     approvalTime: validation.approval_timestamp
                         ? formatDateTimeIST(validation.approval_timestamp)
                         : '',
-                    approverName: validation.approver_name || '',
-                    approvalTime: validation.approval_timestamp
-                        ? formatDateTimeIST(validation.approval_timestamp)
-                        : '',
+
                     rawData: invoice,
                     currency: getValue(invoiceDetails.currency)
                 };
@@ -792,90 +789,90 @@ const MainLayout = () => {
                                 width: 120,
                             },
 
-      // ================= LINE ITEM =================
-      {
-        title: "Description",
-        dataIndex: "description",
-        width: 320,
-      },
-      {
-        title: "Item Code",
-        dataIndex: "itemCode",
-        width: 160,
-      },
-      {
-        title: "Quantity",
-        dataIndex: "quantity",
-        width: 120,
-      },
-      {
-        title: "Unit Price",
-        dataIndex: "unitPrice",
-        width: 160,
-        render: (val, record) => {
-            if (!val) return '-';
-            const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
-            const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
-            return `${symbol}${cleanVal}`;
-        },
-      },
-      {
-        title: "Net Amount",
-        dataIndex: "netAmount",
-        width: 160,
-        render: (val, record) => {
-            if (!val) return '-';
-            const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
-            const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
-            return `${symbol}${cleanVal}`;
-        },
-      },
-      {
-        title: "Tax Amount",
-        dataIndex: "taxAmount",
-        width: 160,
-        render: (val, record) => {
-            if (!val) return '-';
-            const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
-            const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
-            return `${symbol}${cleanVal}`;
-        },
-      },
+                            // ================= LINE ITEM =================
+                            {
+                                title: "Description",
+                                dataIndex: "description",
+                                width: 320,
+                            },
+                            {
+                                title: "Item Code",
+                                dataIndex: "itemCode",
+                                width: 160,
+                            },
+                            {
+                                title: "Quantity",
+                                dataIndex: "quantity",
+                                width: 120,
+                            },
+                            {
+                                title: "Unit Price",
+                                dataIndex: "unitPrice",
+                                width: 160,
+                                render: (val, record) => {
+                                    if (!val) return '-';
+                                    const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
+                                    const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
+                                    return `${symbol}${cleanVal}`;
+                                },
+                            },
+                            {
+                                title: "Net Amount",
+                                dataIndex: "netAmount",
+                                width: 160,
+                                render: (val, record) => {
+                                    if (!val) return '-';
+                                    const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
+                                    const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
+                                    return `${symbol}${cleanVal}`;
+                                },
+                            },
+                            {
+                                title: "Tax Amount",
+                                dataIndex: "taxAmount",
+                                width: 160,
+                                render: (val, record) => {
+                                    if (!val) return '-';
+                                    const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
+                                    const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
+                                    return `${symbol}${cleanVal}`;
+                                },
+                            },
 
-      // ================= TOTALS =================
-      {
-        title: "Subtotal",
-        dataIndex: "subtotal",
-        width: 160,
-        render: (val, record) => {
-            if (!val) return '-';
-            const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
-            const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
-            return `${symbol}${cleanVal}`;
-        },
-      },
-      {
-        title: "Total Amount",
-        dataIndex: "totalInvoiceAmount",
-        width: 180,
-        render: (val, record) => {
-            if (!val) return '-';
-            const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
-            const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
-            return `${symbol}${cleanVal}`;
-        },
-      },
-      {
-        title: "Amount Due",
-        dataIndex: "amountDue",
-        width: 180,
-        render: (val, record) => {
-            if (!val) return '-';
-            const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
-            const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
-            return `${symbol}${cleanVal}`;
-        },
-      },
+                            // ================= TOTALS =================
+                            {
+                                title: "Subtotal",
+                                dataIndex: "subtotal",
+                                width: 160,
+                                render: (val, record) => {
+                                    if (!val) return '-';
+                                    const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
+                                    const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
+                                    return `${symbol}${cleanVal}`;
+                                },
+                            },
+                            {
+                                title: "Total Amount",
+                                dataIndex: "totalInvoiceAmount",
+                                width: 180,
+                                render: (val, record) => {
+                                    if (!val) return '-';
+                                    const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
+                                    const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
+                                    return `${symbol}${cleanVal}`;
+                                },
+                            },
+                            {
+                                title: "Amount Due",
+                                dataIndex: "amountDue",
+                                width: 180,
+                                render: (val, record) => {
+                                    if (!val) return '-';
+                                    const symbol = record.invoiceCurrency === 'INR' ? '₹' : '$';
+                                    const cleanVal = val.toString().replace(/[$,₹]/g, '').trim();
+                                    return `${symbol}${cleanVal}`;
+                                },
+                            },
 
                             // ================= APPROVAL =================
                             {
