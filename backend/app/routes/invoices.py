@@ -12,6 +12,7 @@ from datetime import datetime
 import os
 from bson.objectid import ObjectId
 import uuid
+import asyncio
 
 router = APIRouter()
 invoice_processor = InvoiceProcessor()
@@ -24,22 +25,20 @@ async def upload_invoices(
     entity: str = Depends(get_current_entity)
 ):
     db = get_database()
-    saved_invoices = []
-
     upload_dir = "uploads"
     os.makedirs(upload_dir, exist_ok=True)
 
-    for file in files:
+    async def _process_single_file(file: UploadFile):
         try:
             # ---- CLEAN FILENAME ----
             clean_name = file.filename.replace("\\", "/").split("/")[-1]
-
             new_name = f"{uuid.uuid4()}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{clean_name}"
             file_path = os.path.join(upload_dir, new_name)
 
             # ---- SAVE FILE ----
+            contents = await file.read()
             with open(file_path, "wb") as f:
-                f.write(await file.read())
+                f.write(contents)
 
             # ---- CREATE DB RECORD ----
             invoice_data = InvoiceCreate(
@@ -66,7 +65,7 @@ async def upload_invoices(
             invoice_id = str(result.inserted_id)
 
             # ---- RUN EXTRACTION ----
-            extraction = invoice_processor.process_invoice_extraction(file_path)
+            extraction = await invoice_processor.process_invoice_extraction(file_path)
 
             update_data = {
                 "extracted_data": extraction.get("extracted_data", {}),
@@ -88,22 +87,28 @@ async def upload_invoices(
                 "timestamp": datetime.utcnow(),
                 "approver_number": None,
                 "comment": None,
-                "entity": entity  # Store entity in workflow step too?
+                "entity": entity
             }
             db.workflow_steps.insert_one(workflow_step)
 
             # ---- PREPARE JSON SAFE RESPONSE ----
             invoice_dict.update(update_data)
             invoice_dict["id"] = invoice_id
-            invoice_dict.pop("_id", None)  # ❗ remove ObjectId
-
-            saved_invoices.append(invoice_dict)
+            invoice_dict.pop("_id", None)
+            return invoice_dict
 
         except Exception as e:
             import traceback
             print(f"❌ ERROR processing file {file.filename}: {e}")
             traceback.print_exc()
-            continue
+            return None
+
+    # Run processing tasks concurrently
+    tasks = [_process_single_file(file) for file in files]
+    results = await asyncio.gather(*tasks)
+
+    # Filter out failures
+    saved_invoices = [res for res in results if res is not None]
 
     return {
         "count": len(saved_invoices),

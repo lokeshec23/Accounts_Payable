@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime
 from typing import Dict, Any, List, TypedDict, Optional
 from dotenv import load_dotenv
-from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.ai.documentintelligence.aio import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import AnalyzeResult, AnalyzeDocumentRequest
 from azure.core.credentials import AzureKeyCredential
 from langchain_openai import AzureChatOpenAI
@@ -51,7 +51,7 @@ class InvoiceExtractionAgent:
             print(f"Failed to initialize Azure clients: {e}")
             raise
 
-    def extract_with_azure_doc_intel(self, state: InvoiceState) -> InvoiceState:
+    async def extract_with_azure_doc_intel(self, state: InvoiceState) -> InvoiceState:
         try:
             self.processing_steps.append("Azure Document Intelligence Extraction Started")
             file_path = state["file_path"]
@@ -59,12 +59,11 @@ class InvoiceExtractionAgent:
             print(f"Processing file: {file_path}")
 
             with open(file_path, "rb") as document:
-                poller = self.doc_intel_client.begin_analyze_document(
+                poller = await self.doc_intel_client.begin_analyze_document(
                     "prebuilt-invoice",
                     AnalyzeDocumentRequest(bytes_source=document.read())
                 )
-
-            result: AnalyzeResult = poller.result()
+                result: AnalyzeResult = await poller.result()
 
             raw_response = self._serialize_azure_response(result)
             state["raw_azure_response"] = raw_response
@@ -375,7 +374,7 @@ class InvoiceExtractionAgent:
             "spans": spans if spans else None
         }
 
-    def enhance_with_llm(self, state: InvoiceState) -> InvoiceState:
+    async def enhance_with_llm(self, state: InvoiceState) -> InvoiceState:
         try:
             self.processing_steps.append("LLM Enhancement Started")
 
@@ -383,7 +382,7 @@ class InvoiceExtractionAgent:
             raw_content = state["raw_azure_response"].get("content", "") if state["raw_azure_response"] else ""
 
             prompt = self._create_header_enhancement_prompt(azure_data, raw_content)
-            enhanced_headers = self._call_llm_for_enhancement(prompt)
+            enhanced_headers = await self._call_llm_for_enhancement(prompt)
 
             merged = self._merge_azure_and_llm(azure_data, enhanced_headers)
 
@@ -496,14 +495,14 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
 """
         return user_prompt
 
-    def _call_llm_for_enhancement(self, prompt: str) -> Dict[str, Any]:
+    async def _call_llm_for_enhancement(self, prompt: str) -> Dict[str, Any]:
         try:
             messages = [
                 SystemMessage(content="You are an expert invoice data extraction specialist. Extract header fields only - DO NOT extract line items. Return ONLY valid JSON."),
                 HumanMessage(content=prompt)
             ]
 
-            response = self.llm.invoke(messages)
+            response = await self.llm.ainvoke(messages)
             response_text = response.content.strip()
 
             if response_text.startswith("```json"):
