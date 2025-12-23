@@ -21,7 +21,7 @@ import {
   EditOutlined,
   ExclamationCircleOutlined,
 } from "@ant-design/icons";
-import { approverConfigService } from "../services/api";
+import { approverConfigService, masterDataService } from "../services/api";
 
 const { Title, Text } = Typography;
 
@@ -40,6 +40,11 @@ const SettingsPage = () => {
   const [modalType, setModalType] = useState(null); // 'amount', 'vendor', 'gl'
   const [editingRecord, setEditingRecord] = useState(null);
   const [form] = Form.useForm();
+
+  // Master Data State
+  const [vendorOptions, setVendorOptions] = useState([]);
+  const [glOptions, setGlOptions] = useState([]);
+  const [loadingMasterData, setLoadingMasterData] = useState(false);
 
   const fetchRules = async () => {
     setLoading(true);
@@ -77,6 +82,64 @@ const SettingsPage = () => {
 
   useEffect(() => {
     fetchRules();
+  }, []);
+
+  useEffect(() => {
+    const fetchMasterData = async () => {
+      try {
+        setLoadingMasterData(true);
+        const files = await masterDataService.getFiles();
+
+        const targetFile = files.find(
+          (f) => f.file_name?.trim() === "AP_CA Inc_Invoice_Codification"
+        );
+
+        if (!targetFile) {
+          console.error("Master file 'AP_CA Inc_Invoice_Codification' not found");
+          return;
+        }
+
+        const sheets = await masterDataService.getSheets(targetFile._id);
+
+        // Load GL
+        const glSheet = sheets.find((s) => s.sheet_name === "GL");
+        if (glSheet) {
+          const rows = await masterDataService.getSheetData(glSheet.collection_name);
+          const gl = rows.map((row) => {
+            const acc = row["Account number"] || row["account_number"] || row["Code"];
+            const title = row["Title"] || row["Name"] || row["Description"];
+            return {
+              value: `${acc} - ${title}`,
+              label: `${acc} - ${title}`,
+            };
+          });
+          setGlOptions(gl);
+        }
+
+        // Load Vendors
+        const vendorSheet = sheets.find((s) =>
+          ["Vendor", "Vendor_Master", "Vendor Master", "Customer_Master", "Vendor_Info"].includes(s.sheet_name)
+        );
+
+        if (vendorSheet) {
+          const rows = await masterDataService.getSheetData(vendorSheet.collection_name);
+          const vendors = rows.map((row) => {
+            const name = row["VENDOR_NAME"] || row["Vendor_Name"] || row["Vendor name"] || row["Name"] || row["vendor_name"] || row["vendorName"] || row["CUSTOMER_NAME"];
+            return {
+              value: name,
+              label: name,
+            };
+          }).filter(v => v.value); // Filter out empty names
+          setVendorOptions(vendors);
+        }
+      } catch (error) {
+        console.error("Error fetching master data:", error);
+      } finally {
+        setLoadingMasterData(false);
+      }
+    };
+
+    fetchMasterData();
   }, []);
 
   // Handlers
@@ -580,7 +643,18 @@ const SettingsPage = () => {
                 label="Vendor Name"
                 rules={[{ required: true }]}
               >
-                <Input disabled={!!editingRecord} />
+                <Select
+                  showSearch
+                  placeholder="Select Vendor"
+                  disabled={!!editingRecord}
+                  loading={loadingMasterData}
+                  options={vendorOptions}
+                  optionFilterProp="label"
+                  filterOption={(input, option) => {
+                    const label = String(option?.label ?? "");
+                    return label.toLowerCase().includes(input.toLowerCase());
+                  }}
+                />
               </Form.Item>
               <Form.Item
                 name="approverCount"
@@ -598,7 +672,16 @@ const SettingsPage = () => {
                 label="GL Code"
                 rules={[{ required: true }]}
               >
-                <Input disabled={!!editingRecord} />
+                <Select
+                  showSearch
+                  placeholder="Select GL Code"
+                  disabled={!!editingRecord}
+                  loading={loadingMasterData}
+                  options={glOptions}
+                  filterOption={(input, option) =>
+                    (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                  }
+                />
               </Form.Item>
               <Form.Item
                 name="approverCount"
