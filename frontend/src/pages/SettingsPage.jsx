@@ -137,8 +137,6 @@ const SettingsPage = () => {
             vendorSheet.collection_name
           );
 
-          console.log("Total rows:", rows.length);
-
           const vendors = rows
             .map((row, index) => {
               const name =
