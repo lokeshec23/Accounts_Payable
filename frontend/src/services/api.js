@@ -162,7 +162,7 @@ export const masterDataService = {
   async deleteRow(collectionName, rowIndex) {
     const response = await api.delete(
       `/master/sheet/${collectionName}/delete`,
-      { data: { row_index: rowIndex } }
+      { params: { row_index: rowIndex } }
     );
     return response.data;
   },

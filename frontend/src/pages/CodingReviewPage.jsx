@@ -21,6 +21,21 @@ const CodingReviewPage = () => {
 
 
 
+    const formatCurrencyOnce = (value) => {
+    if (value === null || value === undefined || value === '') return '';
+
+    const symbol = getCurrencySymbol();
+
+    // Convert to string
+    let str = String(value).trim();
+
+    // Remove existing currency symbols
+    str = str.replace(/[₹$]/g, '').trim();
+
+    return `${symbol} ${str}`;
+};
+
+
     // Resizable state
     const [leftWidth, setLeftWidth] = useState(() => {
         const saved = localStorage.getItem('codingReviewSplitWidth');
@@ -59,6 +74,12 @@ const CodingReviewPage = () => {
     // Trigger workflow refresh
     const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
     const [completedApproversCount, setCompletedApproversCount] = useState(0);
+
+    const getCurrencySymbol = () => {
+        const data = invoiceData?.extracted_data || invoiceData?.rawData?.extracted_data;
+        const currency = invoiceData?.currency || data?.invoice_details?.currency?.value || data?.invoice_details?.currency || 'USD';
+        return currency === 'INR' ? '₹' : '$';
+    };
 
     const disabledStyle = {
         color: 'black',
@@ -517,7 +538,7 @@ const CodingReviewPage = () => {
             title: 'Vendor Name',
             dataIndex: 'vendor_name',
             key: 'vendor_name',
-            width: '20%',
+            width: '18%',
             render: (text) => (
                 <div
                     onMouseEnter={() => setHoveredKey('vendor_name')}
@@ -532,7 +553,7 @@ const CodingReviewPage = () => {
             title: 'Invoice ID',
             dataIndex: 'invoice_id',
             key: 'invoice_id',
-            width: '15%',
+            width: '18%',
             render: (text) => (
                 <div
                     onMouseEnter={() => setHoveredKey('invoice_id')}
@@ -547,14 +568,19 @@ const CodingReviewPage = () => {
             title: 'Total Amount',
             dataIndex: 'total_amount',
             key: 'total_amount',
-            width: '15%',
+            width: '18%',
             render: (text) => (
                 <div
                     onMouseEnter={() => setHoveredKey('total_amount')}
                     onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
                 >
-                    <Input value={text} disabled style={disabledStyle} />
+                   <Input
+                        value={formatCurrencyOnce(text)}
+                        disabled
+                        style={disabledStyle}
+                    />
+
                 </div>
             )
         },
@@ -562,14 +588,18 @@ const CodingReviewPage = () => {
             title: 'Amount Due',
             dataIndex: 'amount_due',
             key: 'amount_due',
-            width: '15%',
+            width: '18%',
             render: (text) => (
                 <div
                     onMouseEnter={() => setHoveredKey('amount_due')}
                     onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
                 >
-                    <Input value={text} disabled style={disabledStyle} />
+                   <Input
+                        value={formatCurrencyOnce(text)}
+                        disabled
+                        style={disabledStyle}
+                    />
                 </div>
             )
         },
@@ -577,7 +607,7 @@ const CodingReviewPage = () => {
             title: 'Due Date',
             dataIndex: 'due_date',
             key: 'due_date',
-            width: '10%',
+            width: '18%',
             render: (text) => (
                 <div
                     onMouseEnter={() => setHoveredKey('due_date')}
@@ -592,17 +622,18 @@ const CodingReviewPage = () => {
             title: 'Header Coding',
             dataIndex: 'header_coding',
             key: 'header_coding',
-            width: '35%',
+            width: '18%',
             render: () => (
-                <Input.TextArea
+                <Input
                     value={headerCoding}
                     onChange={(e) => handleHeaderCodingChange(e.target.value)}
                     placeholder="Enter header coding"
                     rows={1}
                     autoSize={{ minRows: 1, maxRows: 4 }}
                     style={{ ...disabledStyle, width: '100%' }}
-                    disabled={disableEditing}
+                    disabled={isApproved || isRejected || userRole === 'approver' || disableEditing}
                 />
+
             )
         }
     ];
@@ -698,17 +729,15 @@ const CodingReviewPage = () => {
                 <div
                     onMouseEnter={() => setHoveredKey(`LineItem_${index}_quantity`)}
                     onMouseLeave={() => setHoveredKey(null)}
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', }}
                 >
                     <InputNumber
-                        value={codingLineItems[index]?.quantity || 0}
-                        onChange={(value) =>
-                            handleCodingLineItemChange(index, 'quantity', value)
-                        }
-                        style={{ width: '100%', ...disabledStyle }}
-                        min={0}
-                        disabled={disableEditing}
+                        value={codingLineItems[index]?.quantity ?? ''}
+                        readOnly
+                        controls={false}
+                        className="readonly-input-number"
                     />
+
                 </div>
             )
         },
@@ -724,20 +753,18 @@ const CodingReviewPage = () => {
                     onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
                 >
-                    <InputNumber
-                        value={codingLineItems[index]?.unit_price || 0}
+                   <InputNumber
+                        value={codingLineItems[index]?.unit_price ?? ''}
                         formatter={(value) =>
-                            value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                            value
+                                ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                                : ''
                         }
-                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                        onChange={(value) =>
-                            handleCodingLineItemChange(index, 'unit_price', value)
-                        }
-                        style={{ width: '100%', ...disabledStyle }}
-                        min={0}
-                        precision={2}
-                        disabled={disableEditing}
+                        readOnly
+                        controls={false}
+                        className="readonly-input-number"
                     />
+
                 </div>
             )
         },
@@ -753,20 +780,18 @@ const CodingReviewPage = () => {
                     onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
                 >
-                    <InputNumber
-                        value={codingLineItems[index]?.net_amount || 0}
+                   <InputNumber
+                        value={codingLineItems[index]?.net_amount ?? ''}
                         formatter={(value) =>
-                            value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                            value
+                                ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                                : ''
                         }
-                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
-                        onChange={(value) =>
-                            handleCodingLineItemChange(index, 'net_amount', value)
-                        }
-                        style={{ width: '100%', ...disabledStyle }}
-                        min={0}
-                        precision={2}
-                        disabled={disableEditing}
+                        readOnly
+                        controls={false}
+                        className="readonly-input-number"
                     />
+
                 </div>
             )
         },

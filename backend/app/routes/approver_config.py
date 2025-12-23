@@ -321,7 +321,7 @@ async def get_default_config(
         # Default fallback if nothing in DB
         return ApproverDefaultResponse(
             id="default", 
-            default_approver_count=4, 
+            default_approver_count=2, 
             updated_at=None
         )
 

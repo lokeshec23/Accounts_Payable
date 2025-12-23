@@ -28,3 +28,8 @@
     font-size: 13px !important;
     /* Secondary font size - smaller than header */
 }
+
+/* Remove white line / shadow in AntD table header scrollbar cell */
+.ant-table-wrapper .ant-table-cell-scrollbar:not([rowspan]) {
+    box-shadow: none !important;
+}

@@ -102,7 +102,7 @@ def get_invoice_total_from_invoice(db, invoice_id: str):
             
     return None
 
-def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None, invoice_data: dict = None):
+def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None, invoice_data: dict = None, currency: str = "USD", entity: str = None):
     """
     Get the required approver count with detailed breakdown.
     Logic: MAX(Vendor_Rule_Count, Amount_Rule_Count, GL_Rule_Count)
@@ -129,7 +129,7 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
             "required": invoice_data["required_approvers"],
             "breakdown": invoice_data.get("approver_breakdown", {
                 "vendor": {"count": 0, "name": vendor_name},
-                "amount": {"count": 0, "value": amount},
+                "amount": {"count": 0, "value": amount, "currency": currency},
                 "gl": {"count": 0, "codes": []},
                 "note": "Loaded from persisted invoice data"
             })
@@ -139,8 +139,20 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
     vendor_count = 0 # Will verify below
     
     # Check default config first
-    default_config = db.approver_default.find_one({})
-    default_count = default_config.get("default_approver_count", 4) if default_config else 4
+    default_query = {}
+    if entity:
+        default_query["entity"] = entity
+        
+    default_config = db.approver_default.find_one(default_query)
+    
+    # Fallback if specific entity default not found, try generic? 
+    # Or strict? Let's assume strict for now, or fallback to ANY if desired, but request implies strict entity separation.
+    # If not found for entity, maybe fallback to no-entity default?
+    if not default_config and entity:
+         default_config = db.approver_default.find_one({"entity": {"$exists": False}})
+
+    # If still no config, fallback to hardcoded 4
+    default_count = default_config.get("default_approver_count", 2) if default_config else 2
     
     if vendor_name:
         # Try finding by vendor_name (snake_case)
@@ -164,9 +176,25 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
     amount_count = 0
     if amount is not None:
         # Find all rules that might apply (where start of range is <= amount)
-        candidates = list(db.approver_amount.find({
+        # AND currency matches (or rule has no currency, assume USD default or legacy)
+        # Actually, if we want strict, we should match.
+        
+        query = {
             "min_amount": {"$lte": amount}
-        }))
+        }
+        
+        # Add entity filter
+        if entity:
+            query["entity"] = entity
+        
+        if currency:
+             query["$or"] = [
+                 {"currency": currency},
+                 {"currency": {"$exists": False}}, # Legacy support
+                 {"currency": None}
+             ]
+        
+        candidates = list(db.approver_amount.find(query))
         
         for rule in candidates:
             max_amt = rule.get("max_amount")
@@ -176,7 +204,10 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
                 # If multiple rules match, take the one requiring MOST approvers
                 if rule_count > amount_count:
                     amount_count = rule_count
-            
+        
+        if amount_count == 0:
+            amount_count = default_count
+    
     # 3. GL Based Count
     gl_count = 0
     matched_gls = []
@@ -197,25 +228,39 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
                 code_clean = str(code).strip()
                 # GL rules are stored with "glTitle" (e.g. "12345 - Expense")
                 # We need to match exact strings from coding
-                rule = db.approver_gl.find_one({"glTitle": code_clean})
+                
+                gl_query = {"glTitle": code_clean}
+                if entity:
+                    gl_query["entity"] = entity
+                    
+                rule = db.approver_gl.find_one(gl_query)
                 
                 # If not found, try matching just the code part (assuming "Code - Description" format)
                 if not rule and " - " in code_clean:
                     parts = code_clean.split(" - ", 1)
                     # Try matching code (prefix)
                     short_code = parts[0].strip()
-                    rule = db.approver_gl.find_one({"glTitle": short_code})
+                    gl_query_short = {"glTitle": short_code}
+                    if entity:
+                        gl_query_short["entity"] = entity
+                    rule = db.approver_gl.find_one(gl_query_short)
                     
                     # If still not found, try matching description (suffix)
                     if not rule and len(parts) > 1:
                         description = parts[1].strip()
-                        rule = db.approver_gl.find_one({"glTitle": description})
+                        gl_query_desc = {"glTitle": description}
+                        if entity:
+                             gl_query_desc["entity"] = entity
+                        rule = db.approver_gl.find_one(gl_query_desc)
                 
                 if rule:
                     count = rule.get("approverCount", rule.get("approver_count", 0))
                     if count > gl_count:
                         gl_count = count
                     matched_gls.append(code)
+            
+            if gl_count == 0:
+                gl_count = default_count
 
     # 4. Return Maximum Requirement with Breakdown
     max_count = max(vendor_count, amount_count, gl_count)
@@ -224,7 +269,7 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
         "required": max_count,
         "breakdown": {
             "vendor": {"count": vendor_count, "name": vendor_name},
-            "amount": {"count": amount_count, "value": amount},
+            "amount": {"count": amount_count, "value": amount, "currency": currency},
             "gl": {"count": gl_count, "codes": matched_gls}
         }
     }
@@ -250,9 +295,10 @@ async def get_workflow_history(
     # Get vendor name and required approver count
     vendor_name = get_vendor_name_from_invoice(db, invoice_id)
     total_amount = get_invoice_total_from_invoice(db, invoice_id)
-    
+    currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
+
     # Result is now a dict with breakdown
-    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice)
+    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice, currency=currency, entity=entity)
     required_approvers = requirement_data["required"]
     approver_breakdown = requirement_data["breakdown"]
     
@@ -341,7 +387,8 @@ async def get_approver_status(
     # Get vendor name and required approver count
     vendor_name = get_vendor_name_from_invoice(db, invoice_id)
     total_amount = get_invoice_total_from_invoice(db, invoice_id)
-    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice)
+    currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
+    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice, currency=currency, entity=entity)
     required_approvers = requirement_data["required"]
     
     # Get all approver steps

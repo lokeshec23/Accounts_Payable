@@ -287,9 +287,10 @@ async def update_invoice_status(
 
         vendor_name = get_vendor_name_from_invoice(db, invoice_id)
         total_amount = get_invoice_total_from_invoice(db, invoice_id)
+        currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
 
         requirement_data = get_required_approver_count(
-            db, vendor_name, total_amount, invoice_id, invoice_data=invoice
+            db, vendor_name, total_amount, invoice_id, invoice_data=invoice, currency=currency, entity=invoice.get("entity")
         )
         required_approvers = requirement_data["required"]
 
@@ -312,15 +313,8 @@ async def update_invoice_status(
     # =====================================================
     
     # Per-Approver Visibility Logic
-    if main_status == InvoiceStatus.APPROVED:
-        # Add current user to approved_by list
-        extra_fields["approved_by"] = {"$each": [current_user.email]} # handled by $addToSet logic below if I separate it, or I can just use $addToSet in the update
-        pass # defer to the update call
-    elif main_status in [InvoiceStatus.REJECTED, InvoiceStatus.REWORKED, InvoiceStatus.WAITING_CODING]:
-        # Reset approved_by list on rejection/rework/recall
-        # Note: WAITING_CODING is handled separately above with its own update, so we need to handle it there too if we want to be safe, 
-        # but the block above returns early. Let's fix the WAITING_CODING block too.
-        pass
+    # (handled by explicit operators in update_query construction below)
+    pass
 
     # Update operation construction
     update_query = {
@@ -434,7 +428,8 @@ async def update_invoice(
              
              vendor_name = get_vendor_name_from_invoice(db, invoice_id)
              total_amount = get_invoice_total_from_invoice(db, invoice_id)
-             requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id)
+             currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
+             requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, currency=currency, entity=invoice.get("entity"))
              
              update_data["required_approvers"] = requirement_data["required"]
              update_data["approver_breakdown"] = requirement_data["breakdown"]

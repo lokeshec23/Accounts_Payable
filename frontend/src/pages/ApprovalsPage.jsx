@@ -51,8 +51,8 @@ const ApprovalsPage = () => {
                     : '—',
 
                 approverComment: invoice.validation_results?.approver_comment || '',
-
-                rawData: invoice
+                rawData: invoice,
+                currency: invoice.extracted_data?.invoice_details?.currency?.value || 'USD'
             }));
 
            const filteredData = transformedData.filter((item) => {
@@ -170,10 +170,12 @@ const ApprovalsPage = () => {
             key: 'totalAmount',
             width: 150,
             sorter: (a, b) => (parseFloat(a.totalAmount) || 0) - (parseFloat(b.totalAmount) || 0),
-            render: (val) => {
+            render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                return strVal.startsWith('$') ? strVal : `$${strVal}`;
+                const symbol = record.currency === 'INR' ? '₹' : '$';
+                const cleanVal = strVal.replace(/[$,₹]/g, '').trim();
+                return `${symbol}${cleanVal}`;
             },
         },
         {
@@ -182,10 +184,12 @@ const ApprovalsPage = () => {
             key: 'amountDue',
             width: 150,
             sorter: (a, b) => (parseFloat(a.amountDue) || 0) - (parseFloat(b.amountDue) || 0),
-            render: (val) => {
+            render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                return strVal.startsWith('$') ? strVal : `$${strVal}`;
+                const symbol = record.currency === 'INR' ? '₹' : '$';
+                const cleanVal = strVal.replace(/[$,₹]/g, '').trim();
+                return `${symbol}${cleanVal}`;
             },
         },
         {
