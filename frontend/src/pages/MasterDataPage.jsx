@@ -404,6 +404,11 @@ const MasterDataPage = () => {
                             >
                                 <Button type="primary" icon={<UploadOutlined />}>Upload Excel/CSV</Button>
                             </Upload>
+                            
+                            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
+                                Add Row
+                            </Button>
+
                             {selectedFile && (
                                 <Button
                                     danger
@@ -413,9 +418,7 @@ const MasterDataPage = () => {
                                     Delete File
                                 </Button>
                             )}
-                            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
-                                Add Row
-                            </Button>
+
                         </Space>
                     )}
                 </div>
