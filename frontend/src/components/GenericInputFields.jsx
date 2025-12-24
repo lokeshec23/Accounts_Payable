@@ -1079,6 +1079,17 @@ const GenericInputFields = ({
                         scroll={{ x: 'max-content' }}
                         size="small"
                     />
+                    {!readOnly && (
+                        <Button
+                            type="dashed"
+                            icon={<PlusOutlined />}
+                            onClick={handleAddLineItem}
+                            disabled={disableInputs}
+                            style={{ marginTop: '16px', width: '100%' }}
+                        >
+                            Add Line Item
+                        </Button>
+                    )}
                 </Panel>
             </Collapse>
         </div>
