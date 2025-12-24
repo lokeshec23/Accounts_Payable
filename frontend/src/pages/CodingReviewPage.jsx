@@ -1088,6 +1088,73 @@ const CodingReviewPage = () => {
                                 )
                             },
                             {
+                                key: 'gl_summary',
+                                label: 'GL Summary',
+                                children: (
+                                    <div style={{ padding: '20px', background: '#f9f9f9', borderRadius: '8px', border: '1px solid #e8e8e8', marginTop: '10px' }}>
+                                        <h3 style={{ marginBottom: '16px', borderBottom: '2px solid #1890ff', paddingBottom: '8px', color: '#001529' }}>GL Distribution Summary</h3>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                            {(() => {
+                                                // Try persisted summary from backend first
+                                                const persistedSummary = invoiceData?.gl_summary;
+                                                
+                                                if (persistedSummary && persistedSummary.length > 0) {
+                                                    return persistedSummary.map((item) => (
+                                                        <div key={item.gl_code} style={{ 
+                                                            display: 'flex', 
+                                                            justifyContent: 'space-between', 
+                                                            alignItems: 'center',
+                                                            padding: '10px 15px',
+                                                            background: 'white',
+                                                            borderRadius: '6px',
+                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                                            borderLeft: '4px solid #1890ff'
+                                                        }}>
+                                                            <span style={{ fontWeight: '600', fontSize: '15px' }}>{item.gl_code}</span>
+                                                            <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#1890ff' }}>
+                                                                {getCurrencySymbol()} {parseFloat(item.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </span>
+                                                        </div>
+                                                    ));
+                                                }
+
+                                                // Fallback to calculation from current state
+                                                const summary = {};
+                                                codingLineItems.forEach(item => {
+                                                    if (item.gl_code) {
+                                                        summary[item.gl_code] = (summary[item.gl_code] || 0) + (parseFloat(item.net_amount) || 0);
+                                                    }
+                                                });
+                                                
+                                                const summaryEntries = Object.entries(summary);
+                                                
+                                                if (summaryEntries.length === 0) {
+                                                    return <p style={{ fontStyle: 'italic', color: '#8c8c8c' }}>No GL codes assigned to line items yet.</p>;
+                                                }
+                                                
+                                                return summaryEntries.map(([glCode, total]) => (
+                                                    <div key={glCode} style={{ 
+                                                        display: 'flex', 
+                                                        justifyContent: 'space-between', 
+                                                        alignItems: 'center',
+                                                        padding: '10px 15px',
+                                                        background: 'white',
+                                                        borderRadius: '6px',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                                        borderLeft: '4px solid #1890ff'
+                                                    }}>
+                                                        <span style={{ fontWeight: '600', fontSize: '15px' }}>{glCode}</span>
+                                                        <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#1890ff' }}>
+                                                            {getCurrencySymbol()} {total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </span>
+                                                    </div>
+                                                ));
+                                            })()}
+                                        </div>
+                                    </div>
+                                )
+                            },
+                            {
                                 key: 'workflow',
                                 label: 'Workflow',
                                 children: <WorkflowTab invoiceId={invoiceData?.id} refreshTrigger={workflowRefreshTrigger} />

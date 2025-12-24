@@ -268,7 +268,22 @@ async def create_or_update_coding(
     if vendor_name and coding_data.line_items:
         update_coding_history(db, vendor_name, coding_data.line_items)
 
-    # ✅ Determine current cycle
+    # ✅ Update gl_summary in invoices collection
+    summary_map = {}
+    for item in coding_data.line_items:
+        if item.gl_code:
+            summary_map[item.gl_code] = summary_map.get(item.gl_code, 0.0) + item.net_amount
+    
+    gl_summary = []
+    for code, total in summary_map.items():
+        gl_summary.append({"gl_code": code, "total_amount": total})
+    
+    db.invoices.update_one(
+        {"_id": ObjectId(coding_data.invoice_id)},
+        {"$set": {"gl_summary": gl_summary}}
+    )
+
+    # Determine current cycle
     status_history = invoice.get("status_history", [])
     last_cycle_start = datetime.min
 
