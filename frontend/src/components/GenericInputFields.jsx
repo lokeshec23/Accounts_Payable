@@ -1273,13 +1273,6 @@ const GenericInputFields = ({
                     'Company Registration Number'
                 ])}
 
-                {renderFieldGroup('Approval Workflow', [
-                    'Approval Workflow ID',
-                    'Approval Required',
-                    'Approver List / Roles:',
-                    'Approval Status:',
-                    'Approval Timestamps'
-                ])}
             </Collapse>
 
             {/* Send for Coding Button - Only show in non-readOnly mode */}
