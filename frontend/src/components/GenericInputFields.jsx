@@ -1384,6 +1384,7 @@ const GenericInputFields = ({
             <Collapse defaultActiveKey={['header', 'lineitems']}>
                 <Panel header="Header" key="header">
                     <Table
+                        key={getCurrencySymbol()}
                         columns={[
                             {
                                 title: 'Vendor Name',
@@ -1401,7 +1402,12 @@ const GenericInputFields = ({
                                 title: 'Total Amount',
                                 dataIndex: 'totalAmount',
                                 key: 'totalAmount',
-                                width: '15%'
+                                width: '15%',
+                                render: (text) => (
+                                    <span>
+                                        {getCurrencySymbol()} {parseCurrencyValue(text).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                )
                             },
                             {
                                 title: 'Due Date',
