@@ -5,7 +5,7 @@ const { Panel } = Collapse;
 import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined, RollbackOutlined } from '@ant-design/icons';
 import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
 import WorkflowTab from '../components/WorkflowTab';
-import { invoiceService, codingService, masterDataService, approvalService, workflowService } from '../services/api';
+import { invoiceService, codingService, masterDataService, approvalService, workflowService, currencyService } from '../services/api';
 
 const CodingReviewPage = () => {
     const location = useLocation();
@@ -29,8 +29,17 @@ const CodingReviewPage = () => {
         // Convert to string
         let str = String(value).trim();
 
-        // Remove existing currency symbols
-        str = str.replace(/[₹$]/g, '').trim();
+        // Dynamic stripping of any known currency symbols from the backend list
+        // Plus common fallbacks
+        const allSymbols = [...new Set([
+            ...currencies.map(c => c.symbol),
+            '$', '₹', '€', '£', '¥'
+        ])].filter(Boolean);
+        
+        const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const symbolPattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}]`, 'g');
+        
+        str = str.replace(symbolPattern, '').trim();
 
         return `${symbol} ${str}`;
     };
@@ -61,6 +70,7 @@ const CodingReviewPage = () => {
     const [deptOptions, setDeptOptions] = useState([]);
     const [customerOptions, setCustomerOptions] = useState([]);
     const [itemOptions, setItemOptions] = useState([]);
+    const [currencies, setCurrencies] = useState([]);
     const [loadingMasterData, setLoadingMasterData] = useState(false);
 
     // Track selected rows for "apply to all" feature
@@ -77,8 +87,22 @@ const CodingReviewPage = () => {
 
     const getCurrencySymbol = () => {
         const data = invoiceData?.extracted_data || invoiceData?.rawData?.extracted_data;
-        const currency = invoiceData?.currency || data?.invoice_details?.currency?.value || data?.invoice_details?.currency || 'USD';
-        return currency === 'INR' ? '₹' : '$';
+        const val = invoiceData?.currency || data?.invoice_details?.currency?.value || data?.invoice_details?.currency || 'USD';
+        
+        // Robust matching against code OR name
+        const match = currencies.find(c => 
+            c.code?.toUpperCase() === val?.toUpperCase() || 
+            c.name?.toLowerCase() === val?.toLowerCase()
+        );
+        
+        if (match) return match.symbol;
+        
+        // Fallbacks
+        const search = val?.toString().toLowerCase() || '';
+        if (search.includes('inr') || search.includes('rupee')) return '₹';
+        if (search.includes('euro') || search.includes('eur')) return '€';
+        
+        return '$';
     };
 
     const disabledStyle = {
@@ -200,6 +224,9 @@ const CodingReviewPage = () => {
                 });
                 setItemOptions(item);
 
+                // Currencies
+                const currData = await currencyService.getCurrencies();
+                setCurrencies(currData);
 
             } catch (error) {
                 console.error("Error fetching master data:", error);

@@ -21,7 +21,7 @@ import {
   EditOutlined,
   ExclamationCircleOutlined,
 } from "@ant-design/icons";
-import { approverConfigService, masterDataService } from "../services/api";
+import { approverConfigService, masterDataService, currencyService } from "../services/api";
 
 const { Title, Text } = Typography;
 
@@ -31,13 +31,14 @@ const SettingsPage = () => {
   const [amountRules, setAmountRules] = useState([]);
   const [vendorRules, setVendorRules] = useState([]);
   const [glRules, setGlRules] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
   const [defaultConfig, setDefaultConfig] = useState(null);
   const [loading, setLoading] = useState(false);
   const [userRole, setUserRole] = useState("");
 
   // Modal State
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'amount', 'vendor', 'gl'
+  const [modalType, setModalType] = useState(null); // 'amount', 'vendor', 'gl', 'currency'
   const [editingRecord, setEditingRecord] = useState(null);
   const [form] = Form.useForm();
 
@@ -49,16 +50,18 @@ const SettingsPage = () => {
   const fetchRules = async () => {
     setLoading(true);
     try {
-      const [amountData, vendorData, glData, defaultData] = await Promise.all([
+      const [amountData, vendorData, glData, defaultData, currencyData] = await Promise.all([
         approverConfigService.getAmountRules(),
         approverConfigService.getAllConfigs(),
         approverConfigService.getGLRules(),
         approverConfigService.getDefaultConfig(),
+        currencyService.getCurrencies(),
       ]);
       setAmountRules(amountData);
       setVendorRules(vendorData);
       setGlRules(glData);
       setDefaultConfig(defaultData);
+      setCurrencies(currencyData);
     } catch (error) {
       console.error("Error fetching rules:", error);
       message.error("Failed to fetch rules");
@@ -209,11 +212,18 @@ const SettingsPage = () => {
     let deleteLabel = "";
 
     if (type === "amount") {
-      deleteLabel = `Amount Range: $${record.min_amount} - $${record.max_amount}`;
+      const match = currencies.find(c => 
+        c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+        c.name?.toLowerCase() === record.currency?.toLowerCase()
+      );
+      const symbol = match ? match.symbol : (record.currency === "INR" ? "₹" : "$");
+      deleteLabel = `Amount Range: ${symbol}${record.min_amount} - ${symbol}${record.max_amount}`;
     } else if (type === "vendor") {
       deleteLabel = `Vendor: ${record.vendorName}`;
     } else if (type === "gl") {
       deleteLabel = `GL Code: ${record.glTitle}`;
+    } else if (type === "currency") {
+      deleteLabel = `Currency: ${record.name} (${record.symbol})`;
     }
 
     confirm({
@@ -232,6 +242,8 @@ const SettingsPage = () => {
             await approverConfigService.deleteConfig(record.vendorName);
           } else if (type === "gl") {
             await approverConfigService.deleteGLRule(record.glTitle);
+          } else if (type === "currency") {
+            await currencyService.deleteCurrency(record.id);
           }
 
           message.success("Rule deleted successfully");
@@ -270,6 +282,12 @@ const SettingsPage = () => {
         await approverConfigService.createOrUpdateConfig(values);
       } else if (modalType === "gl") {
         await approverConfigService.createGLRule(values);
+      } else if (modalType === "currency") {
+        if (editingRecord) {
+          await currencyService.updateCurrency(editingRecord.id, values);
+        } else {
+          await currencyService.createCurrency(values);
+        }
       }
 
       setIsModalVisible(false);
@@ -288,7 +306,11 @@ const SettingsPage = () => {
       dataIndex: "min_amount",
       key: "min_amount",
       render: (val, record) => {
-        const symbol = record.currency === "INR" ? "₹" : "$";
+        const match = currencies.find(c => 
+          c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+          c.name?.toLowerCase() === record.currency?.toLowerCase()
+        );
+        const symbol = match ? match.symbol : (record.currency === "INR" ? "₹" : "$");
         return `${symbol}${val?.toLocaleString() || 0}`;
       },
     },
@@ -297,7 +319,11 @@ const SettingsPage = () => {
       dataIndex: "max_amount",
       key: "max_amount",
       render: (val, record) => {
-        const symbol = record.currency === "INR" ? "₹" : "$";
+        const match = currencies.find(c => 
+          c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+          c.name?.toLowerCase() === record.currency?.toLowerCase()
+        );
+        const symbol = match ? match.symbol : (record.currency === "INR" ? "₹" : "$");
         return `${symbol}${val?.toLocaleString() || 0}`;
       },
     },
@@ -452,6 +478,51 @@ const SettingsPage = () => {
       : []),
   ];
 
+  const currencyColumns = [
+    { title: "Currency Name", dataIndex: "name", key: "name" },
+    { title: "Symbol", dataIndex: "symbol", key: "symbol" },
+    { title: "Code", dataIndex: "code", key: "code" },
+    ...(userRole !== "coder"
+      ? [
+          {
+            title: "Actions",
+            key: "actions",
+            render: (_, record) => (
+              <Space size="middle">
+                <span
+                  style={{
+                    color: "#1677ff",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                  onClick={() => handleEdit(record, "currency")}
+                >
+                  <EditOutlined />
+                  Edit
+                </span>
+
+                <span
+                  style={{
+                    color: "#ff4d4f",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                  onClick={() => handleDelete(record, "currency")}
+                >
+                  <DeleteOutlined />
+                  Delete
+                </span>
+              </Space>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   const paginationConfig = {
     defaultPageSize: 10,
     showSizeChanger: true,
@@ -594,6 +665,11 @@ const SettingsPage = () => {
       label: "By GL Code",
       children: renderTabContent("gl", glColumns, glRules),
     },
+    {
+      key: "4",
+      label: "Currency",
+      children: renderTabContent("currency", currencyColumns, currencies),
+    },
   ];
 
   return (
@@ -608,7 +684,9 @@ const SettingsPage = () => {
             ? "Amount"
             : modalType === "vendor"
             ? "Vendor"
-            : "GL"
+            : modalType === "gl"
+            ? "GL"
+            : "Currency"
         } Rule`}
         open={isModalVisible}
         onOk={handleSave}
@@ -616,12 +694,28 @@ const SettingsPage = () => {
         destroyOnHidden
       >
         <Form form={form} layout="vertical">
+          {modalType === "currency" && (
+            <>
+              <Form.Item name="name" label="Currency Name" rules={[{ required: true }]}>
+                <Input placeholder="e.g. US Dollar" />
+              </Form.Item>
+              <Form.Item name="symbol" label="Symbol" rules={[{ required: true }]}>
+                <Input placeholder="e.g. $" />
+              </Form.Item>
+              <Form.Item name="code" label="Code" rules={[{ required: true }]}>
+                <Input placeholder="e.g. USD" />
+              </Form.Item>
+            </>
+          )}
           {modalType === "amount" && (
             <>
               <Form.Item name="currency" label="Currency" initialValue="USD">
                 <Select>
-                  <Select.Option value="USD">USD ($)</Select.Option>
-                  <Select.Option value="INR">INR (₹)</Select.Option>
+                  {currencies.map(c => (
+                    <Select.Option key={c.id || c.code} value={c.code}>
+                      {c.code} ({c.symbol})
+                    </Select.Option>
+                  ))}
                 </Select>
               </Form.Item>
               <Form.Item
@@ -631,10 +725,18 @@ const SettingsPage = () => {
               >
                 <InputNumber
                   style={{ width: "100%" }}
-                  formatter={(value) =>
-                    `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                  }
-                  parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+                  formatter={(value) => {
+                    const curr = form.getFieldValue('currency') || 'USD';
+                    const match = currencies.find(c => c.code === curr);
+                    const symbol = match ? match.symbol : '$';
+                    return `${symbol} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                  }}
+                  parser={(value) => {
+                    const allSymbols = [...new Set([...currencies.map(c => c.symbol), '$', '₹', '€'])].filter(Boolean);
+                    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
+                    return value.replace(pattern, '');
+                  }}
                 />
               </Form.Item>
               <Form.Item
@@ -644,10 +746,18 @@ const SettingsPage = () => {
               >
                 <InputNumber
                   style={{ width: "100%" }}
-                  formatter={(value) =>
-                    `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                  }
-                  parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+                  formatter={(value) => {
+                    const curr = form.getFieldValue('currency') || 'USD';
+                    const match = currencies.find(c => c.code === curr);
+                    const symbol = match ? match.symbol : '$';
+                    return `${symbol} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                  }}
+                  parser={(value) => {
+                    const allSymbols = [...new Set([...currencies.map(c => c.symbol), '$', '₹', '€'])].filter(Boolean);
+                    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
+                    return value.replace(pattern, '');
+                  }}
                 />
               </Form.Item>
               <Form.Item

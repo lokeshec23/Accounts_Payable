@@ -9,17 +9,28 @@ import {
   CheckOutlined,
   HourglassOutlined
 } from '@ant-design/icons';
-import { workflowService } from '../services/api';
+import { workflowService, currencyService } from '../services/api';
 import { formatDateTimeIST } from '../utils/dateUtils';
 import './WorkflowTab.css';
 
-const WorkflowTab = ({ invoiceId, refreshTrigger }) => {
+const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
   const [workflowData, setWorkflowData] = useState(null);
+  const [currencies, setCurrencies] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchWorkflowHistory();
+    fetchCurrencies();
   }, [invoiceId, refreshTrigger]);
+
+  const fetchCurrencies = async () => {
+    try {
+      const data = await currencyService.getCurrencies();
+      setCurrencies(data);
+    } catch (err) {
+      console.error('Error fetching currencies:', err);
+    }
+  };
 
   const fetchWorkflowHistory = async () => {
     if (!invoiceId) return;
@@ -205,7 +216,7 @@ const WorkflowTab = ({ invoiceId, refreshTrigger }) => {
   return (
     <div className="workflow-tab-container">
       <Card
-  title="Workflow History"
+  // title={`Workflow History`}
   className="workflow-card"
   extra={
     <div className="workflow-info" style={{ display: 'flex', gap: '10px' }}>
@@ -217,7 +228,15 @@ const WorkflowTab = ({ invoiceId, refreshTrigger }) => {
       )}
       {workflowData.approver_breakdown?.amount && (
         <Tag color="orange">
-          Amount ({workflowData.approver_breakdown.amount.currency === 'INR' ? '₹' : '$'}{workflowData.approver_breakdown.amount.value}):
+          Amount ({(() => {
+              const val = workflowData.approver_breakdown.amount.currency;
+              const match = currencies.find(c =>
+                c.code?.toUpperCase() === val?.toUpperCase() ||
+                c.name?.toLowerCase() === val?.toLowerCase()
+              );
+              const symbol = match ? match.symbol : (val === 'INR' ? '₹' : '$');
+              return `${symbol}`;
+          })()}{workflowData.approver_breakdown.amount.value}):
           {workflowData.approver_breakdown.amount.count}
         </Tag>
       )}

@@ -38,6 +38,8 @@ const GenericInputFields = ({
     setHoveredKey,
     invoiceId,
     originalData,
+    currencies = [],
+    onCurrencyChange,
     readOnly = false
 }) => {
     // Current User & Role
@@ -76,10 +78,29 @@ const GenericInputFields = ({
 
     // Approver comment
     const [approverComment, setApproverComment] = useState('');
+    const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
+
+    const invoiceDisplayId = originalData?.extracted_data?.invoice_details?.invoice_number?.value || 
+                          originalData?.extracted_data?.invoice_details?.invoice_id?.value || 
+                          originalData?.invoiceId;
 
     const getCurrencySymbol = () => {
-        const val = extractValue(formData['Invoice Currency']);
-        return val === 'INR' ? '₹' : '$';
+        const val = extractValue(formData['Invoice Currency']) || 'USD';
+        
+        // Robust matching against code OR name
+        const match = currencies.find(c => 
+            c.code?.toUpperCase() === val?.toUpperCase() || 
+            c.name?.toLowerCase() === val?.toLowerCase()
+        );
+        
+        if (match) return match.symbol;
+        
+        // Fallbacks
+        const search = val?.toString().toLowerCase() || '';
+        if (search.includes('inr') || search.includes('rupee')) return '₹';
+        if (search.includes('euro') || search.includes('eur')) return '€';
+        
+        return '$';
     };
 
     // ---------- helpers ----------
@@ -716,7 +737,15 @@ const GenericInputFields = ({
                                 ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
                                 : ''
                         }
-                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
+                        parser={(value) => {
+                            const allSymbols = [...new Set([
+                                ...currencies.map(c => c.symbol),
+                                '$', '₹', '€', '£', '¥'
+                            ])].filter(Boolean);
+                            const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
+                            return value.replace(pattern, '');
+                        }}
                         disabled={readOnly}
                     />
                 </div>
@@ -742,15 +771,22 @@ const GenericInputFields = ({
         }
 
         if (field.includes('Currency')) {
+            const currentOptions = currencies.length > 0
+                ? currencies.map(c => ({ value: c.code, label: `${c.symbol} ${c.code}` }))
+                : [
+                    { value: 'USD', label: '$ USD' },
+                    { value: 'INR', label: '₹ INR' },
+                ];
+
             return (
                 <Select
                     style={{ width: '100%', ...disabledStyle }}
                     value={stringValue}
-                    onChange={(val) => handleInputChange(field, val)}
-                    options={[
-                        { value: 'USD', label: '$ USD' },
-                        { value: 'INR', label: '₹ INR' },
-                    ]}
+                    onChange={(val) => {
+                        handleInputChange(field, val);
+                        if (onCurrencyChange) onCurrencyChange(val);
+                    }}
+                    options={currentOptions}
                     disabled={disableInputs}
                 />
             );
@@ -915,7 +951,15 @@ const GenericInputFields = ({
                         formatter={(value) =>
                             value ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                         }
-                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
+                        parser={(value) => {
+                            const allSymbols = [...new Set([
+                                ...currencies.map(c => c.symbol),
+                                '$', '₹', '€', '£', '¥'
+                            ])].filter(Boolean);
+                            const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
+                            return value.replace(pattern, '');
+                        }}
                         disabled={readOnly}
                     />
                 </div>
@@ -941,7 +985,15 @@ const GenericInputFields = ({
                         formatter={(value) =>
                             value ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                         }
-                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
+                        parser={(value) => {
+                            const allSymbols = [...new Set([
+                                ...currencies.map(c => c.symbol),
+                                '$', '₹', '€', '£', '¥'
+                            ])].filter(Boolean);
+                            const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
+                            return value.replace(pattern, '');
+                        }}
                         disabled={readOnly}
                     />
                 </div>
@@ -967,7 +1019,15 @@ const GenericInputFields = ({
                         formatter={(value) =>
                             value ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
                         }
-                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
+                        parser={(value) => {
+                            const allSymbols = [...new Set([
+                                ...currencies.map(c => c.symbol),
+                                '$', '₹', '€', '£', '¥'
+                            ])].filter(Boolean);
+                            const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
+                            return value.replace(pattern, '');
+                        }}
                         disabled={readOnly}
                     />
                 </div>
@@ -1615,7 +1675,11 @@ const GenericInputFields = ({
             case 'gl_summary':
                 return glSummaryTab;
             case '4':
-                return <WorkflowTab invoiceId={invoiceId} />;
+                return <WorkflowTab 
+                    invoiceId={invoiceId} 
+                    invoiceDisplayId={invoiceDisplayId}
+                    refreshTrigger={workflowRefreshTrigger}
+                />;
             default:
                 return quickViewTab;
         }

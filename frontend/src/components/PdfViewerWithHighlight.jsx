@@ -36,6 +36,7 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
     if (!viewerRef.current) return;
 
     const measure = () => {
+      if (!viewerRef.current) return;
       const w = viewerRef.current.clientWidth;
       if (w > 0) setContainerWidth(w);
     };

@@ -24,7 +24,7 @@ import {
 } from '@ant-design/icons';
 
 import InvoiceUpload from './InvoiceUpload';
-import { invoiceService } from '../services/api';
+import { invoiceService, currencyService } from '../services/api';
 import ApDashboard from '../pages/ApDashboard'; // 📊 Dashboard
 import { formatDateTimeIST } from '../utils/dateUtils';
 import '../styles/MainLayout.css';
@@ -53,7 +53,7 @@ const MainLayout = () => {
 
     // Global search for View Files modal table
     const [fieldsSearchTerm, setFieldsSearchTerm] = useState('');
-
+    const [currencies, setCurrencies] = useState([]);
     const [userRole, setUserRole] = useState('');
 
     // Tab control - check if navigation state requests a specific tab
@@ -131,6 +131,19 @@ const MainLayout = () => {
             }
         }
     }, []);
+
+    useEffect(() => {
+        const fetchCurrencies = async () => {
+            try {
+                const data = await currencyService.getCurrencies();
+                setCurrencies(data);
+            } catch (err) {
+                console.error("Failed to fetch currencies", err);
+            }
+        };
+        fetchCurrencies();
+    }, []);
+
     useEffect(() => {
         fetchInvoices();
     }, []);
@@ -200,8 +213,12 @@ const MainLayout = () => {
             render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                const symbol = record.currency === 'INR' ? '₹' : '$';
-                const cleanVal = strVal.replace(/[$,₹]/g, '').trim();
+                const match = currencies.find(c => 
+                    c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+                    c.name?.toLowerCase() === record.currency?.toLowerCase()
+                );
+                const symbol = match ? match.symbol : (record.currency === 'INR' ? '₹' : '$');
+                const cleanVal = strVal.replace(/[$,₹,€]/g, '').trim();
                 return `${symbol}${cleanVal}`;
             },
         },
@@ -214,8 +231,12 @@ const MainLayout = () => {
             render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                const symbol = record.currency === 'INR' ? '₹' : '$';
-                const cleanVal = strVal.replace(/[$,₹]/g, '').trim();
+                const match = currencies.find(c => 
+                    c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+                    c.name?.toLowerCase() === record.currency?.toLowerCase()
+                );
+                const symbol = match ? match.symbol : (record.currency === 'INR' ? '₹' : '$');
+                const cleanVal = strVal.replace(/[$,₹,€]/g, '').trim();
                 return `${symbol}${cleanVal}`;
             },
         },
