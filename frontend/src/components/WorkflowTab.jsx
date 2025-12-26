@@ -216,7 +216,7 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
   return (
     <div className="workflow-tab-container">
       <Card
-  title={`Workflow History ${invoiceDisplayId ? `- ${invoiceDisplayId}` : ''}`}
+  // title={`Workflow History`}
   className="workflow-card"
   extra={
     <div className="workflow-info" style={{ display: 'flex', gap: '10px' }}>
@@ -235,7 +235,7 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
                 c.name?.toLowerCase() === val?.toLowerCase()
               );
               const symbol = match ? match.symbol : (val === 'INR' ? '₹' : '$');
-              return `${val} ${symbol}`;
+              return `${symbol}`;
           })()}{workflowData.approver_breakdown.amount.value}):
           {workflowData.approver_breakdown.amount.count}
         </Tag>
