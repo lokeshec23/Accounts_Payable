@@ -1068,13 +1068,25 @@ const CodingReviewPage = () => {
                         paddingBottom: '16px',
                         borderBottom: '1px solid #f0f0f0'
                     }}>
-                        <Button
-                            icon={<ArrowLeftOutlined />}
-                            onClick={() => navigate('/dashboard', { state: { activeTab: 'invoices' } })}
-                        >
-                            Back to Invoice
-                        </Button>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+    <Button
+        icon={<ArrowLeftOutlined />}
+        onClick={() => navigate('/dashboard')}
+        style={{ borderRadius: '6px 0 0 6px' }}
+    >
+        Back to Invoice
+    </Button>
 
+    <Button
+        icon={<ArrowLeftOutlined />}
+        onClick={() => navigate('/coding')}
+        style={{ borderRadius: '0 6px 6px 0' }}
+    >
+        Back to Coding
+    </Button>
+</div>
+
+                    
                         <div style={{ display: 'flex', gap: '10px' }}>
                             {!disableEditing && (
                                 <Button
