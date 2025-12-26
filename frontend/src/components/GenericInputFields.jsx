@@ -78,6 +78,11 @@ const GenericInputFields = ({
 
     // Approver comment
     const [approverComment, setApproverComment] = useState('');
+    const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
+
+    const invoiceDisplayId = originalData?.extracted_data?.invoice_details?.invoice_number?.value || 
+                          originalData?.extracted_data?.invoice_details?.invoice_id?.value || 
+                          originalData?.invoiceId;
 
     const getCurrencySymbol = () => {
         const val = extractValue(formData['Invoice Currency']) || 'USD';
@@ -1670,7 +1675,11 @@ const GenericInputFields = ({
             case 'gl_summary':
                 return glSummaryTab;
             case '4':
-                return <WorkflowTab invoiceId={invoiceId} />;
+                return <WorkflowTab 
+                    invoiceId={invoiceId} 
+                    invoiceDisplayId={invoiceDisplayId}
+                    refreshTrigger={workflowRefreshTrigger}
+                />;
             default:
                 return quickViewTab;
         }

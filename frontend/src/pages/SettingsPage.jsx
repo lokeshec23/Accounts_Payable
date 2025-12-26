@@ -212,7 +212,12 @@ const SettingsPage = () => {
     let deleteLabel = "";
 
     if (type === "amount") {
-      deleteLabel = `Amount Range: $${record.min_amount} - $${record.max_amount}`;
+      const match = currencies.find(c => 
+        c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+        c.name?.toLowerCase() === record.currency?.toLowerCase()
+      );
+      const symbol = match ? match.symbol : (record.currency === "INR" ? "₹" : "$");
+      deleteLabel = `Amount Range: ${symbol}${record.min_amount} - ${symbol}${record.max_amount}`;
     } else if (type === "vendor") {
       deleteLabel = `Vendor: ${record.vendorName}`;
     } else if (type === "gl") {
@@ -301,7 +306,11 @@ const SettingsPage = () => {
       dataIndex: "min_amount",
       key: "min_amount",
       render: (val, record) => {
-        const symbol = record.currency === "INR" ? "₹" : "$";
+        const match = currencies.find(c => 
+          c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+          c.name?.toLowerCase() === record.currency?.toLowerCase()
+        );
+        const symbol = match ? match.symbol : (record.currency === "INR" ? "₹" : "$");
         return `${symbol}${val?.toLocaleString() || 0}`;
       },
     },
@@ -310,7 +319,11 @@ const SettingsPage = () => {
       dataIndex: "max_amount",
       key: "max_amount",
       render: (val, record) => {
-        const symbol = record.currency === "INR" ? "₹" : "$";
+        const match = currencies.find(c => 
+          c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+          c.name?.toLowerCase() === record.currency?.toLowerCase()
+        );
+        const symbol = match ? match.symbol : (record.currency === "INR" ? "₹" : "$");
         return `${symbol}${val?.toLocaleString() || 0}`;
       },
     },
@@ -698,8 +711,11 @@ const SettingsPage = () => {
             <>
               <Form.Item name="currency" label="Currency" initialValue="USD">
                 <Select>
-                  <Select.Option value="USD">USD ($)</Select.Option>
-                  <Select.Option value="INR">INR (₹)</Select.Option>
+                  {currencies.map(c => (
+                    <Select.Option key={c.id || c.code} value={c.code}>
+                      {c.code} ({c.symbol})
+                    </Select.Option>
+                  ))}
                 </Select>
               </Form.Item>
               <Form.Item
@@ -709,10 +725,18 @@ const SettingsPage = () => {
               >
                 <InputNumber
                   style={{ width: "100%" }}
-                  formatter={(value) =>
-                    `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                  }
-                  parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+                  formatter={(value) => {
+                    const curr = form.getFieldValue('currency') || 'USD';
+                    const match = currencies.find(c => c.code === curr);
+                    const symbol = match ? match.symbol : '$';
+                    return `${symbol} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                  }}
+                  parser={(value) => {
+                    const allSymbols = [...new Set([...currencies.map(c => c.symbol), '$', '₹', '€'])].filter(Boolean);
+                    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
+                    return value.replace(pattern, '');
+                  }}
                 />
               </Form.Item>
               <Form.Item
@@ -722,10 +746,18 @@ const SettingsPage = () => {
               >
                 <InputNumber
                   style={{ width: "100%" }}
-                  formatter={(value) =>
-                    `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                  }
-                  parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+                  formatter={(value) => {
+                    const curr = form.getFieldValue('currency') || 'USD';
+                    const match = currencies.find(c => c.code === curr);
+                    const symbol = match ? match.symbol : '$';
+                    return `${symbol} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                  }}
+                  parser={(value) => {
+                    const allSymbols = [...new Set([...currencies.map(c => c.symbol), '$', '₹', '€'])].filter(Boolean);
+                    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
+                    return value.replace(pattern, '');
+                  }}
                 />
               </Form.Item>
               <Form.Item
