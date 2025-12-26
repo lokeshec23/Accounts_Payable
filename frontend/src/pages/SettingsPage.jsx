@@ -21,7 +21,11 @@ import {
   EditOutlined,
   ExclamationCircleOutlined,
 } from "@ant-design/icons";
-import { approverConfigService, masterDataService, currencyService } from "../services/api";
+import {
+  approverConfigService,
+  masterDataService,
+  currencyService,
+} from "../services/api";
 
 const { Title, Text } = Typography;
 
@@ -35,6 +39,55 @@ const SettingsPage = () => {
   const [defaultConfig, setDefaultConfig] = useState(null);
   const [loading, setLoading] = useState(false);
   const [userRole, setUserRole] = useState("");
+
+  const EXTRA_CURRENCIES = [
+    { code: "USD", name: "US Dollar", symbol: "$" },
+    { code: "EUR", name: "Euro", symbol: "€" },
+    { code: "INR", name: "Indian Rupee", symbol: "₹" },
+    { code: "GBP", name: "British Pound", symbol: "£" },
+    { code: "JPY", name: "Japanese Yen", symbol: "¥" },
+    { code: "AUD", name: "Australian Dollar", symbol: "A$" },
+    { code: "CAD", name: "Canadian Dollar", symbol: "C$" },
+    { code: "CHF", name: "Swiss Franc", symbol: "CHF" },
+    { code: "CNY", name: "Chinese Yuan", symbol: "¥" },
+    { code: "HKD", name: "Hong Kong Dollar", symbol: "HK$" },
+    { code: "SGD", name: "Singapore Dollar", symbol: "S$" },
+    { code: "NZD", name: "New Zealand Dollar", symbol: "NZ$" },
+    { code: "ZAR", name: "South African Rand", symbol: "R" },
+    { code: "AED", name: "UAE Dirham", symbol: "د.إ" },
+    { code: "SAR", name: "Saudi Riyal", symbol: "﷼" },
+    { code: "QAR", name: "Qatari Riyal", symbol: "﷼" },
+    { code: "KWD", name: "Kuwaiti Dinar", symbol: "KD" },
+    { code: "BHD", name: "Bahraini Dinar", symbol: "BD" },
+    { code: "OMR", name: "Omani Rial", symbol: "﷼" },
+    { code: "THB", name: "Thai Baht", symbol: "฿" },
+    { code: "IDR", name: "Indonesian Rupiah", symbol: "Rp" },
+    { code: "MYR", name: "Malaysian Ringgit", symbol: "RM" },
+    { code: "PHP", name: "Philippine Peso", symbol: "₱" },
+    { code: "KRW", name: "South Korean Won", symbol: "₩" },
+    { code: "VND", name: "Vietnamese Dong", symbol: "₫" },
+    { code: "BRL", name: "Brazilian Real", symbol: "R$" },
+    { code: "MXN", name: "Mexican Peso", symbol: "$" },
+    { code: "ARS", name: "Argentine Peso", symbol: "$" },
+    { code: "CLP", name: "Chilean Peso", symbol: "$" },
+    { code: "COP", name: "Colombian Peso", symbol: "$" },
+    { code: "EGP", name: "Egyptian Pound", symbol: "£" },
+    { code: "NGN", name: "Nigerian Naira", symbol: "₦" },
+    { code: "KES", name: "Kenyan Shilling", symbol: "KSh" },
+    { code: "PKR", name: "Pakistani Rupee", symbol: "₨" },
+    { code: "BDT", name: "Bangladeshi Taka", symbol: "৳" },
+    { code: "LKR", name: "Sri Lankan Rupee", symbol: "Rs" },
+    { code: "ILS", name: "Israeli Shekel", symbol: "₪" },
+    { code: "TRY", name: "Turkish Lira", symbol: "₺" },
+    { code: "RUB", name: "Russian Ruble", symbol: "₽" },
+  ];
+
+  const mergedCurrencies = [
+    ...currencies,
+    ...EXTRA_CURRENCIES.filter(
+      (extra) => !currencies.some((c) => c.code === extra.code)
+    ),
+  ];
 
   // Modal State
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -50,13 +103,14 @@ const SettingsPage = () => {
   const fetchRules = async () => {
     setLoading(true);
     try {
-      const [amountData, vendorData, glData, defaultData, currencyData] = await Promise.all([
-        approverConfigService.getAmountRules(),
-        approverConfigService.getAllConfigs(),
-        approverConfigService.getGLRules(),
-        approverConfigService.getDefaultConfig(),
-        currencyService.getCurrencies(),
-      ]);
+      const [amountData, vendorData, glData, defaultData, currencyData] =
+        await Promise.all([
+          approverConfigService.getAmountRules(),
+          approverConfigService.getAllConfigs(),
+          approverConfigService.getGLRules(),
+          approverConfigService.getDefaultConfig(),
+          currencyService.getCurrencies(),
+        ]);
       setAmountRules(amountData);
       setVendorRules(vendorData);
       setGlRules(glData);
@@ -212,11 +266,16 @@ const SettingsPage = () => {
     let deleteLabel = "";
 
     if (type === "amount") {
-      const match = currencies.find(c => 
-        c.code?.toUpperCase() === record.currency?.toUpperCase() || 
-        c.name?.toLowerCase() === record.currency?.toLowerCase()
+      const match = currencies.find(
+        (c) =>
+          c.code?.toUpperCase() === record.currency?.toUpperCase() ||
+          c.name?.toLowerCase() === record.currency?.toLowerCase()
       );
-      const symbol = match ? match.symbol : (record.currency === "INR" ? "₹" : "$");
+      const symbol = match
+        ? match.symbol
+        : record.currency === "INR"
+        ? "₹"
+        : "$";
       deleteLabel = `Amount Range: ${symbol}${record.min_amount} - ${symbol}${record.max_amount}`;
     } else if (type === "vendor") {
       deleteLabel = `Vendor: ${record.vendorName}`;
@@ -306,11 +365,16 @@ const SettingsPage = () => {
       dataIndex: "min_amount",
       key: "min_amount",
       render: (val, record) => {
-        const match = currencies.find(c => 
-          c.code?.toUpperCase() === record.currency?.toUpperCase() || 
-          c.name?.toLowerCase() === record.currency?.toLowerCase()
+        const match = currencies.find(
+          (c) =>
+            c.code?.toUpperCase() === record.currency?.toUpperCase() ||
+            c.name?.toLowerCase() === record.currency?.toLowerCase()
         );
-        const symbol = match ? match.symbol : (record.currency === "INR" ? "₹" : "$");
+        const symbol = match
+          ? match.symbol
+          : record.currency === "INR"
+          ? "₹"
+          : "$";
         return `${symbol}${val?.toLocaleString() || 0}`;
       },
     },
@@ -319,11 +383,16 @@ const SettingsPage = () => {
       dataIndex: "max_amount",
       key: "max_amount",
       render: (val, record) => {
-        const match = currencies.find(c => 
-          c.code?.toUpperCase() === record.currency?.toUpperCase() || 
-          c.name?.toLowerCase() === record.currency?.toLowerCase()
+        const match = currencies.find(
+          (c) =>
+            c.code?.toUpperCase() === record.currency?.toUpperCase() ||
+            c.name?.toLowerCase() === record.currency?.toLowerCase()
         );
-        const symbol = match ? match.symbol : (record.currency === "INR" ? "₹" : "$");
+        const symbol = match
+          ? match.symbol
+          : record.currency === "INR"
+          ? "₹"
+          : "$";
         return `${symbol}${val?.toLocaleString() || 0}`;
       },
     },
@@ -696,14 +765,47 @@ const SettingsPage = () => {
         <Form form={form} layout="vertical">
           {modalType === "currency" && (
             <>
-              <Form.Item name="name" label="Currency Name" rules={[{ required: true }]}>
-                <Input placeholder="e.g. US Dollar" />
+              <Form.Item
+                name="code"
+                label="Currency Code"
+                rules={[{ required: true }]}
+              >
+                <Select
+                  showSearch
+                  placeholder="Select currency"
+                  onChange={(value) => {
+                    const selected = mergedCurrencies.find(
+                      (c) => c.code === value
+                    );
+                    if (selected) {
+                      form.setFieldsValue({
+                        name: selected.name,
+                        symbol: selected.symbol,
+                      });
+                    }
+                  }}
+                >
+                  {mergedCurrencies.map((c) => (
+                    <Select.Option key={c.code} value={c.code}>
+                      {c.code} - {c.name}
+                    </Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
-              <Form.Item name="symbol" label="Symbol" rules={[{ required: true }]}>
-                <Input placeholder="e.g. $" />
+              <Form.Item
+                name="name"
+                label="Currency Name"
+                rules={[{ required: true }]}
+              >
+                <Input />
               </Form.Item>
-              <Form.Item name="code" label="Code" rules={[{ required: true }]}>
-                <Input placeholder="e.g. USD" />
+
+              <Form.Item
+                name="symbol"
+                label="Symbol"
+                rules={[{ required: true }]}
+              >
+                <Input />
               </Form.Item>
             </>
           )}
@@ -711,7 +813,7 @@ const SettingsPage = () => {
             <>
               <Form.Item name="currency" label="Currency" initialValue="USD">
                 <Select>
-                  {currencies.map(c => (
+                  {currencies.map((c) => (
                     <Select.Option key={c.id || c.code} value={c.code}>
                       {c.code} ({c.symbol})
                     </Select.Option>
@@ -726,16 +828,30 @@ const SettingsPage = () => {
                 <InputNumber
                   style={{ width: "100%" }}
                   formatter={(value) => {
-                    const curr = form.getFieldValue('currency') || 'USD';
-                    const match = currencies.find(c => c.code === curr);
-                    const symbol = match ? match.symbol : '$';
-                    return `${symbol} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                    const curr = form.getFieldValue("currency") || "USD";
+                    const match = mergedCurrencies.find((c) => c.code === curr);
+                    const symbol = match ? match.symbol : "$";
+                    return `${symbol} ${value}`.replace(
+                      /\B(?=(\d{3})+(?!\d))/g,
+                      ","
+                    );
                   }}
                   parser={(value) => {
-                    const allSymbols = [...new Set([...currencies.map(c => c.symbol), '$', '₹', '€'])].filter(Boolean);
-                    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
-                    return value.replace(pattern, '');
+                    const allSymbols = [
+                      ...new Set([
+                        ...mergedCurrencies.map((c) => c.symbol),
+                        "$",
+                        "₹",
+                        "€",
+                      ]),
+                    ].filter(Boolean);
+                    const escapeRegex = (s) =>
+                      s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                    const pattern = new RegExp(
+                      `[${allSymbols.map(escapeRegex).join("")}\\s,]*`,
+                      "g"
+                    );
+                    return value.replace(pattern, "");
                   }}
                 />
               </Form.Item>
@@ -747,16 +863,30 @@ const SettingsPage = () => {
                 <InputNumber
                   style={{ width: "100%" }}
                   formatter={(value) => {
-                    const curr = form.getFieldValue('currency') || 'USD';
-                    const match = currencies.find(c => c.code === curr);
-                    const symbol = match ? match.symbol : '$';
-                    return `${symbol} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                    const curr = form.getFieldValue("currency") || "USD";
+                    const match = mergedCurrencies.find((c) => c.code === curr);
+                    const symbol = match ? match.symbol : "$";
+                    return `${symbol} ${value}`.replace(
+                      /\B(?=(\d{3})+(?!\d))/g,
+                      ","
+                    );
                   }}
                   parser={(value) => {
-                    const allSymbols = [...new Set([...currencies.map(c => c.symbol), '$', '₹', '€'])].filter(Boolean);
-                    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
-                    return value.replace(pattern, '');
+                    const allSymbols = [
+                      ...new Set([
+                        ...mergedCurrencies.map((c) => c.symbol),
+                        "$",
+                        "₹",
+                        "€",
+                      ]),
+                    ].filter(Boolean);
+                    const escapeRegex = (s) =>
+                      s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                    const pattern = new RegExp(
+                      `[${allSymbols.map(escapeRegex).join("")}\\s,]*`,
+                      "g"
+                    );
+                    return value.replace(pattern, "");
                   }}
                 />
               </Form.Item>

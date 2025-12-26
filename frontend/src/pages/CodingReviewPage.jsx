@@ -11,6 +11,7 @@ const CodingReviewPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const invoiceData = location.state?.invoice;
+    const [currencySymbol, setCurrencySymbol] = useState('$');
 
     // Check if invoice is approved - make it read-only
     const isApproved = invoiceData?.status === 'approved';
@@ -112,6 +113,39 @@ const CodingReviewPage = () => {
     };
 
     useEffect(() => {
+        if (!invoiceData) return;
+
+        const val =
+            invoiceData?.currency ||
+            invoiceData?.rawData?.extracted_data?.invoice_details?.currency?.value ||
+            'USD';
+
+        // Try to match symbol from loaded currencies
+        const match = currencies.find(
+            c =>
+                c.code?.toUpperCase() === val?.toUpperCase() ||
+                c.name?.toLowerCase() === val?.toLowerCase()
+        );
+
+        if (match) {
+            setCurrencySymbol(match.symbol);
+        } else {
+            // IMMEDIATE Fallbacks if currencies aren't loaded yet
+            const search = val.toLowerCase();
+            if (search.includes('inr') || search.includes('rupee')) {
+                setCurrencySymbol('₹');
+            } else if (search.includes('eur')) {
+                setCurrencySymbol('€');
+            } else if (search.includes('gbp') || search.includes('pound')) {
+                setCurrencySymbol('£');
+            } else {
+                setCurrencySymbol('$');
+            }
+        }
+    }, [invoiceData, currencies]);
+
+
+    useEffect(() => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
             try {
@@ -183,49 +217,47 @@ const CodingReviewPage = () => {
                     }));
                 };
 
-                // GL → Account Number - Title
-                const gl = await loadSheet("GL", row => {
-                    const acc = row["Account number"] || row["account_number"] || row["Code"];
-                    const title = row["Title"] || row["Name"] || row["Description"];
-                    return `${acc} - ${title}`;
-                });
+                const [
+                    gl,
+                    lob,
+                    dept,
+                    cust,
+                    item,
+                    currData
+                ] = await Promise.all([
+                    loadSheet("GL", row => {
+                        const acc = row["Account number"] || row["account_number"] || row["Code"];
+                        const title = row["Title"] || row["Name"] || row["Description"];
+                        return `${acc} - ${title}`;
+                    }),
+                    loadSheet("LOB", row => {
+                        const id = row["LOB ID"];
+                        const name = row["Name"];
+                        return `${id} - ${name}`;
+                    }),
+                    loadSheet("Department", row => {
+                        const id = row["Department ID"] || row["ID"];
+                        const name = row["Department name"] || row["Department Name"] || row["Name"];
+                        return `${id} - ${name}`;
+                    }),
+                    loadSheet("Customer_Master", row => {
+                        const id = row["CUSTOMER_ID"] || row["Customer ID"];
+                        const name = row["CUSTOMER_NAME"] || row["Customer Name"];
+                        return `${id} - ${name}`;
+                    }),
+                    loadSheet("Item", row => {
+                        const id = row["Item ID"];
+                        const name = row["Name"];
+                        return `${id} - ${name}`;
+                    }),
+                    currencyService.getCurrencies()
+                ]);
+
                 setGlOptions(gl);
-
-                // LOB → LOB Id - Name
-                const lob = await loadSheet("LOB", row => {
-                    const id = row["LOB ID"];      // your actual field
-                    const name = row["Name"];      // your actual field
-                    return `${id} - ${name}`;
-                });
                 setLobOptions(lob);
-
-
-                // Department → Department Id - Department Name
-                const dept = await loadSheet("Department", row => {
-                    const id = row["Department ID"] || row["ID"];
-                    const name = row["Department name"] || row["Department Name"] || row["Name"];
-                    return `${id} - ${name}`;
-                });
                 setDeptOptions(dept);
-
-                // Customer → customer_id - customer_name
-                const cust = await loadSheet("Customer_Master", row => {
-                    const id = row["CUSTOMER_ID"] || row["Customer ID"];
-                    const name = row["CUSTOMER_NAME"] || row["Customer Name"];
-                    return `${id} - ${name}`;
-                });
                 setCustomerOptions(cust);
-
-                // Item → item_id - name
-                const item = await loadSheet("Item", row => {
-                    const id = row["Item ID"];
-                    const name = row["Name"];
-                    return `${id} - ${name}`;
-                });
                 setItemOptions(item);
-
-                // Currencies
-                const currData = await currencyService.getCurrencies();
                 setCurrencies(currData);
 
             } catch (error) {
