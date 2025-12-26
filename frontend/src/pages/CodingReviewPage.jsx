@@ -1069,22 +1069,21 @@ const CodingReviewPage = () => {
                         borderBottom: '1px solid #f0f0f0'
                     }}>
                         <div style={{ display: 'flex', gap: '10px' }}>
-    <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate('/dashboard')}
-        style={{ borderRadius: '6px 0 0 6px' }}
-    >
-        Back to Invoice
-    </Button>
+                            <Button
+                                icon={<ArrowLeftOutlined />}
+                                onClick={() => navigate('/coding')}
+                            >
+                                Back to Coding
+                            </Button>
+                            <Button
+                                icon={<ArrowLeftOutlined />}
+                                onClick={() => navigate('/dashboard', { state: { activeTab: 'invoices' } })}
+                            >
+                                Back to Invoice
+                            </Button>
+                        </div>
 
-    <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate('/coding')}
-        style={{ borderRadius: '0 6px 6px 0' }}
-    >
-        Back to Coding
-    </Button>
-</div>
+
 
                     
                         <div style={{ display: 'flex', gap: '10px' }}>
@@ -1164,49 +1163,24 @@ const CodingReviewPage = () => {
                                 children: (
                                     <div style={{ padding: '20px', background: '#f9f9f9', borderRadius: '8px', border: '1px solid #e8e8e8', marginTop: '10px' }}>
                                         <h3 style={{ marginBottom: '16px', borderBottom: '2px solid #1890ff', paddingBottom: '8px', color: '#001529' }}>GL Distribution Summary</h3>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                            {(() => {
-                                                // Try persisted summary from backend first
-                                                const persistedSummary = invoiceData?.gl_summary;
-                                                
-                                                if (persistedSummary && persistedSummary.length > 0) {
-                                                    return persistedSummary.map((item) => (
-                                                        <div key={item.gl_code} style={{ 
-                                                            display: 'flex', 
-                                                            justifyContent: 'space-between', 
-                                                            alignItems: 'center',
-                                                            padding: '10px 15px',
-                                                            background: 'white',
-                                                            borderRadius: '6px',
-                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                                            borderLeft: '4px solid #1890ff'
-                                                        }}>
-                                                            <span style={{ fontWeight: '600', fontSize: '15px' }}>{item.gl_code}</span>
-                                                            <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#1890ff' }}>
-                                                                {getCurrencySymbol()} {parseFloat(item.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                            </span>
-                                                        </div>
-                                                    ));
-                                                }
 
-                                                // Fallback to calculation from current state
-                                                const summary = {};
-                                                codingLineItems.forEach(item => {
-                                                    if (item.gl_code) {
-                                                        summary[item.gl_code] = (summary[item.gl_code] || 0) + (parseFloat(item.net_amount) || 0);
-                                                    }
-                                                });
-                                                
-                                                const summaryEntries = Object.entries(summary);
-                                                
-                                                if (summaryEntries.length === 0) {
-                                                    return <p style={{ fontStyle: 'italic', color: '#8c8c8c' }}>No GL codes assigned to line items yet.</p>;
-                                                }
-                                                
-                                                return summaryEntries.map(([glCode, total]) => (
-                                                    <div key={glCode} style={{ 
-                                                        display: 'flex', 
-                                                        justifyContent: 'space-between', 
+                                        {(() => {
+                                            // Use Total Amount from Header Coding (invoiceData)
+                                            // Matches the 'total_amount' field in headerDataSource
+                                            const headerTotalAmountRaw = invoiceData?.rawData?.extracted_data?.amounts?.total_invoice_amount?.value;
+                                            // Robust parsing: convert to string, remove currency symbols and commas, then parse
+                                            const cleanedTotalAmount = String(headerTotalAmountRaw || '0').replace(/[^0-9.-]+/g, '');
+                                            const headerTotalAmount = parseFloat(cleanedTotalAmount) || 0;
+
+                                            // Try persisted summary from backend first for the breakdown
+                                            const persistedSummary = invoiceData?.gl_summary;
+                                            let summaryElements = null;
+
+                                            if (persistedSummary && persistedSummary.length > 0) {
+                                                summaryElements = persistedSummary.map((item) => (
+                                                    <div key={item.gl_code} style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
                                                         alignItems: 'center',
                                                         padding: '10px 15px',
                                                         background: 'white',
@@ -1214,14 +1188,70 @@ const CodingReviewPage = () => {
                                                         boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                                                         borderLeft: '4px solid #1890ff'
                                                     }}>
-                                                        <span style={{ fontWeight: '600', fontSize: '15px' }}>{glCode}</span>
+                                                        <span style={{ fontWeight: '600', fontSize: '15px' }}>{item.gl_code}</span>
                                                         <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#1890ff' }}>
-                                                            {getCurrencySymbol()} {total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            {getCurrencySymbol()} {parseFloat(item.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </span>
                                                     </div>
                                                 ));
-                                            })()}
-                                        </div>
+                                            } else {
+                                                // Fallback to calculation from current state (just for the breakdown parts)
+                                                const summary = {};
+
+                                                codingLineItems.forEach(item => {
+                                                    if (item.gl_code) {
+                                                        summary[item.gl_code] = (summary[item.gl_code] || 0) + (parseFloat(item.net_amount) || 0);
+                                                    }
+                                                });
+
+                                                const summaryEntries = Object.entries(summary);
+
+                                                if (summaryEntries.length === 0) {
+                                                    summaryElements = <p style={{ fontStyle: 'italic', color: '#8c8c8c' }}>No GL codes assigned to line items yet.</p>;
+                                                } else {
+                                                    summaryElements = summaryEntries.map(([glCode, total]) => (
+                                                        <div key={glCode} style={{
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                            padding: '10px 15px',
+                                                            background: 'white',
+                                                            borderRadius: '6px',
+                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                                            borderLeft: '4px solid #1890ff'
+                                                        }}>
+                                                            <span style={{ fontWeight: '600', fontSize: '15px' }}>{glCode}</span>
+                                                            <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#1890ff' }}>
+                                                                {getCurrencySymbol()} {total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            </span>
+                                                        </div>
+                                                    ));
+                                                }
+                                            }
+
+                                            return (
+                                                <>
+                                                    <div style={{
+                                                        padding: '15px 20px',
+                                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                        borderRadius: '8px',
+                                                        marginBottom: '20px',
+                                                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center'
+                                                    }}>
+                                                        <span style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>Total Amount:</span>
+                                                        <span style={{ fontSize: '24px', fontWeight: 'bold', color: 'white' }}>
+                                                            {getCurrencySymbol()} {headerTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                        {summaryElements}
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 )
                             },
