@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Button } from 'antd';
+import { ArrowLeftOutlined } from '@ant-design/icons';
 import GenericInputFields from './GenericInputFields';
 import { schemaMap } from '../config/schemaMap';
 import PdfViewerWithHighlight from './PdfViewerWithHighlight';
@@ -23,16 +25,16 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     const leftWidthRef = useRef(leftWidth);
 
     useEffect(() => {
-                const storedUser = localStorage.getItem('user');
-                if (storedUser) {
-                    try {
-                        const user = JSON.parse(storedUser);
-                        setUserRole(user.role || '');
-                    } catch (e) {
-                        setUserRole('');
-                    }
-                }
-            }, []);
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser);
+                setUserRole(user.role || '');
+            } catch (e) {
+                setUserRole('');
+            }
+        }
+    }, []);
 
     useEffect(() => {
         leftWidthRef.current = leftWidth;
@@ -349,9 +351,19 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                     style={{
                         flex: 1, // Take remaining space
                         overflow: 'auto',
-                        background: 'white'
+                        background: 'white',
+                        padding: '20px'
                     }}
                 >
+                    <div style={{ marginBottom: '16px' }}>
+                        <Button
+                            icon={<ArrowLeftOutlined />}
+                            onClick={onBack}
+                        >
+                            Back to Invoice
+                        </Button>
+                    </div>
+
                     {formattedData && (
                         <GenericInputFields
                             data={formattedData}
@@ -365,19 +377,19 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                                 if (!settings.navigation || !userRole) return true; // Default safe
                                 const codingRoles = settings.navigation.find(n => n.path === '/coding')?.roles || [];
                                 const invoiceRoles = settings.navigation.find(n => n.path === '/invoice')?.roles || [];
-                                
-                                const canEdit = codingRoles.includes(userRole) || 
-                                              invoiceRoles.includes(userRole) || 
-                                              codingRoles.includes('all') ||
-                                              invoiceRoles.includes('all') ||
-                                              userRole === 'admin';
+
+                                const canEdit = codingRoles.includes(userRole) ||
+                                    invoiceRoles.includes(userRole) ||
+                                    codingRoles.includes('all') ||
+                                    invoiceRoles.includes('all') ||
+                                    userRole === 'admin';
                                 return !canEdit;
-                            })()} 
+                            })()}
                         />
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

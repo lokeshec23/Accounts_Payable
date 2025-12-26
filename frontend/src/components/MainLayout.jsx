@@ -1,6 +1,6 @@
 // src/components/MainLayout.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Table,
     Button,
@@ -35,6 +35,7 @@ const { confirm } = Modal;
 
 const MainLayout = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [allInvoices, setAllInvoices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -54,6 +55,19 @@ const MainLayout = () => {
     const [fieldsSearchTerm, setFieldsSearchTerm] = useState('');
 
     const [userRole, setUserRole] = useState('');
+
+    // Tab control - check if navigation state requests a specific tab
+    const [activeTab, setActiveTab] = useState(() => {
+        return location.state?.activeTab || 'dashboard';
+    });
+
+    // Update active tab when location state changes
+    useEffect(() => {
+        if (location.state?.activeTab) {
+            setActiveTab(location.state.activeTab);
+        }
+    }, [location.state]);
+
     // ------------ FETCH INVOICES --------------
     const fetchInvoices = async () => {
         try {
@@ -662,7 +676,12 @@ const MainLayout = () => {
 
     return (
         <div className="main-layout">
-            <Tabs defaultActiveKey="dashboard" items={tabItems} className="main-tabs" />
+            <Tabs
+                activeKey={activeTab}
+                onChange={setActiveTab}
+                items={tabItems}
+                className="main-tabs"
+            />
 
             {/* UPLOAD MODAL */}
             <Modal

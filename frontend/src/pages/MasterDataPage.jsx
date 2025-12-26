@@ -402,7 +402,7 @@ const MasterDataPage = () => {
                                 showUploadList={false}
                                 accept=".xls,.xlsx,.csv"
                             >
-                                <Button type="primary" icon={<UploadOutlined />}>Upload Excel/CSV</Button>
+                                <Button type="primary" icon={<UploadOutlined />}>Upload File</Button>
                             </Upload>
                             
                             <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
