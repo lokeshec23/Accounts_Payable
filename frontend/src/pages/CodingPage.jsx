@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Button, Tag, Space, Spin, message } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
-import { invoiceService } from '../services/api';
+import { invoiceService, currencyService } from '../services/api';
 import { formatDateTimeIST } from '../utils/dateUtils';
 import '../styles/MainLayout.css';
 
@@ -17,6 +17,7 @@ const CodingPage = () => {
     });
 
     const [allCodingInvoices, setAllCodingInvoices] = useState([]);
+    const [currencies, setCurrencies] = useState([]);
 
     // Fetch invoices from backend
     const fetchInvoices = async (page = 1, pageSize = 10) => {
@@ -80,6 +81,16 @@ const CodingPage = () => {
     // Load invoices on component mount
     useEffect(() => {
         fetchInvoices();
+        
+        const fetchCurrencies = async () => {
+            try {
+                const data = await currencyService.getCurrencies();
+                setCurrencies(data);
+            } catch (err) {
+                console.error("Failed to fetch currencies", err);
+            }
+        };
+        fetchCurrencies();
     }, []);
 
     // Handle table pagination change
@@ -126,8 +137,12 @@ const CodingPage = () => {
             render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                const symbol = record.currency === 'INR' ? '₹' : '$';
-                const cleanVal = strVal.replace(/[$,₹]/g, '').trim();
+                const match = currencies.find(c => 
+                    c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+                    c.name?.toLowerCase() === record.currency?.toLowerCase()
+                );
+                const symbol = match ? match.symbol : (record.currency === 'INR' ? '₹' : '$');
+                const cleanVal = strVal.replace(/[$,₹,€]/g, '').trim();
                 return `${symbol}${cleanVal}`;
             },
         },
@@ -140,8 +155,12 @@ const CodingPage = () => {
             render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                const symbol = record.currency === 'INR' ? '₹' : '$';
-                const cleanVal = strVal.replace(/[$,₹]/g, '').trim();
+                const match = currencies.find(c => 
+                    c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+                    c.name?.toLowerCase() === record.currency?.toLowerCase()
+                );
+                const symbol = match ? match.symbol : (record.currency === 'INR' ? '₹' : '$');
+                const cleanVal = strVal.replace(/[$,₹,€]/g, '').trim();
                 return `${symbol}${cleanVal}`;
             },
         },

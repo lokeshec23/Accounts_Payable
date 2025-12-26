@@ -317,4 +317,23 @@ export const settingsService = {
   }
 };
 
+export const currencyService = {
+  async getCurrencies() {
+    const response = await api.get('/currency/');
+    return response.data;
+  },
+  async createCurrency(data) {
+    const response = await api.post('/currency/', data);
+    return response.data;
+  },
+  async updateCurrency(id, data) {
+    const response = await api.put(`/currency/${id}`, data);
+    return response.data;
+  },
+  async deleteCurrency(id) {
+    const response = await api.delete(`/currency/${id}`);
+    return response.data;
+  }
+};
+
 export default api;

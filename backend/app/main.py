@@ -10,7 +10,7 @@ load_dotenv(dotenv_path=env_path, override=True)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth, invoices, coding, dashboard
+from app.routes import auth, invoices, coding, dashboard, currency
 from app.routes import master_data, workflow, approver_config, approval, admin, settings as settings_route
 from app.database.mongodb import connect_to_mongo, close_mongo_connection
 
@@ -37,6 +37,7 @@ app.include_router(approver_config.router, prefix="/api/approver-config", tags=[
 app.include_router(approval.router, prefix="/api/approval", tags=["approval"])
 app.include_router(admin.router, prefix="/api/users", tags=["admin"])
 app.include_router(settings_route.router, prefix="/api/settings", tags=["Settings"])
+app.include_router(currency.router, prefix="/api/currency", tags=["Currencies"])
 
 from app.database.bootstrap import bootstrap_admin
 from app.database.migration import migrate_users_role_status

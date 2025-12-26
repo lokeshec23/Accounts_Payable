@@ -4,6 +4,10 @@ import { schemaMap } from '../config/schemaMap';
 import PdfViewerWithHighlight from './PdfViewerWithHighlight';
 import PdfViewer from './Pdfviewer';
 import { useGlobalSettings } from '../context/GlobalSettingsContext';
+import { currencyService } from '../services/api';
+import { Select, Space, Typography } from 'antd';
+
+const { Text } = Typography;
 
 const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
 
@@ -13,6 +17,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     const [formattedData, setFormattedData] = useState(null);
     const { settings } = useGlobalSettings();
     const [userRole, setUserRole] = useState(null);
+    const [currencies, setCurrencies] = useState([]);
 
     // Resizable state
     const [leftWidth, setLeftWidth] = useState(() => {
@@ -21,6 +26,23 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     });
     const [isDragging, setIsDragging] = useState(false);
     const leftWidthRef = useRef(leftWidth);
+
+    useEffect(() => {
+        const fetchCurrencies = async () => {
+            try {
+                const data = await currencyService.getCurrencies();
+                setCurrencies(data);
+            } catch (err) {
+                console.error("Failed to fetch currencies", err);
+            }
+        };
+        fetchCurrencies();
+    }, []);
+
+    const handleCurrencyChange = (value) => {
+        // No global localStorage side effects
+        console.log("Currency changed to:", value);
+    };
 
     useEffect(() => {
                 const storedUser = localStorage.getItem('user');
@@ -359,6 +381,8 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                             setHoveredKey={setHoveredKey}
                             invoiceId={invoiceData?.id}
                             originalData={invoiceData}
+                            currencies={currencies}
+                            onCurrencyChange={handleCurrencyChange}
                             readOnly={readOnly || (() => {
                                 // Dynamic permission: If user has access to /coding or /invoice, they can edit.
                                 // Otherwise (like typical approvers), they are read-only here.

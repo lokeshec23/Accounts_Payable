@@ -21,7 +21,7 @@ import {
   EditOutlined,
   ExclamationCircleOutlined,
 } from "@ant-design/icons";
-import { approverConfigService, masterDataService } from "../services/api";
+import { approverConfigService, masterDataService, currencyService } from "../services/api";
 
 const { Title, Text } = Typography;
 
@@ -31,13 +31,14 @@ const SettingsPage = () => {
   const [amountRules, setAmountRules] = useState([]);
   const [vendorRules, setVendorRules] = useState([]);
   const [glRules, setGlRules] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
   const [defaultConfig, setDefaultConfig] = useState(null);
   const [loading, setLoading] = useState(false);
   const [userRole, setUserRole] = useState("");
 
   // Modal State
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'amount', 'vendor', 'gl'
+  const [modalType, setModalType] = useState(null); // 'amount', 'vendor', 'gl', 'currency'
   const [editingRecord, setEditingRecord] = useState(null);
   const [form] = Form.useForm();
 
@@ -49,16 +50,18 @@ const SettingsPage = () => {
   const fetchRules = async () => {
     setLoading(true);
     try {
-      const [amountData, vendorData, glData, defaultData] = await Promise.all([
+      const [amountData, vendorData, glData, defaultData, currencyData] = await Promise.all([
         approverConfigService.getAmountRules(),
         approverConfigService.getAllConfigs(),
         approverConfigService.getGLRules(),
         approverConfigService.getDefaultConfig(),
+        currencyService.getCurrencies(),
       ]);
       setAmountRules(amountData);
       setVendorRules(vendorData);
       setGlRules(glData);
       setDefaultConfig(defaultData);
+      setCurrencies(currencyData);
     } catch (error) {
       console.error("Error fetching rules:", error);
       message.error("Failed to fetch rules");
@@ -214,6 +217,8 @@ const SettingsPage = () => {
       deleteLabel = `Vendor: ${record.vendorName}`;
     } else if (type === "gl") {
       deleteLabel = `GL Code: ${record.glTitle}`;
+    } else if (type === "currency") {
+      deleteLabel = `Currency: ${record.name} (${record.symbol})`;
     }
 
     confirm({
@@ -232,6 +237,8 @@ const SettingsPage = () => {
             await approverConfigService.deleteConfig(record.vendorName);
           } else if (type === "gl") {
             await approverConfigService.deleteGLRule(record.glTitle);
+          } else if (type === "currency") {
+            await currencyService.deleteCurrency(record.id);
           }
 
           message.success("Rule deleted successfully");
@@ -270,6 +277,12 @@ const SettingsPage = () => {
         await approverConfigService.createOrUpdateConfig(values);
       } else if (modalType === "gl") {
         await approverConfigService.createGLRule(values);
+      } else if (modalType === "currency") {
+        if (editingRecord) {
+          await currencyService.updateCurrency(editingRecord.id, values);
+        } else {
+          await currencyService.createCurrency(values);
+        }
       }
 
       setIsModalVisible(false);
@@ -452,6 +465,51 @@ const SettingsPage = () => {
       : []),
   ];
 
+  const currencyColumns = [
+    { title: "Currency Name", dataIndex: "name", key: "name" },
+    { title: "Symbol", dataIndex: "symbol", key: "symbol" },
+    { title: "Code", dataIndex: "code", key: "code" },
+    ...(userRole !== "coder"
+      ? [
+          {
+            title: "Actions",
+            key: "actions",
+            render: (_, record) => (
+              <Space size="middle">
+                <span
+                  style={{
+                    color: "#1677ff",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                  onClick={() => handleEdit(record, "currency")}
+                >
+                  <EditOutlined />
+                  Edit
+                </span>
+
+                <span
+                  style={{
+                    color: "#ff4d4f",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                  onClick={() => handleDelete(record, "currency")}
+                >
+                  <DeleteOutlined />
+                  Delete
+                </span>
+              </Space>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   const paginationConfig = {
     defaultPageSize: 10,
     showSizeChanger: true,
@@ -594,6 +652,11 @@ const SettingsPage = () => {
       label: "By GL Code",
       children: renderTabContent("gl", glColumns, glRules),
     },
+    {
+      key: "4",
+      label: "Currency",
+      children: renderTabContent("currency", currencyColumns, currencies),
+    },
   ];
 
   return (
@@ -608,7 +671,9 @@ const SettingsPage = () => {
             ? "Amount"
             : modalType === "vendor"
             ? "Vendor"
-            : "GL"
+            : modalType === "gl"
+            ? "GL"
+            : "Currency"
         } Rule`}
         open={isModalVisible}
         onOk={handleSave}
@@ -616,6 +681,19 @@ const SettingsPage = () => {
         destroyOnHidden
       >
         <Form form={form} layout="vertical">
+          {modalType === "currency" && (
+            <>
+              <Form.Item name="name" label="Currency Name" rules={[{ required: true }]}>
+                <Input placeholder="e.g. US Dollar" />
+              </Form.Item>
+              <Form.Item name="symbol" label="Symbol" rules={[{ required: true }]}>
+                <Input placeholder="e.g. $" />
+              </Form.Item>
+              <Form.Item name="code" label="Code" rules={[{ required: true }]}>
+                <Input placeholder="e.g. USD" />
+              </Form.Item>
+            </>
+          )}
           {modalType === "amount" && (
             <>
               <Form.Item name="currency" label="Currency" initialValue="USD">

@@ -7,7 +7,7 @@ import {
     DeleteOutlined,
     ExclamationCircleOutlined
 } from '@ant-design/icons';
-import { invoiceService } from '../services/api';
+import { invoiceService, currencyService } from '../services/api';
 
 const { confirm } = Modal;
 
@@ -16,6 +16,7 @@ const ApprovalsPage = () => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [allApprovalInvoices, setAllApprovalInvoices] = useState([]);
+    const [currencies, setCurrencies] = useState([]);
     const storedUser = JSON.parse(localStorage.getItem('user'));
 
     // Global search term for approvals table
@@ -85,6 +86,16 @@ const ApprovalsPage = () => {
 
     useEffect(() => {
         fetchInvoices();
+
+        const fetchCurrencies = async () => {
+            try {
+                const data = await currencyService.getCurrencies();
+                setCurrencies(data);
+            } catch (err) {
+                console.error("Failed to fetch currencies", err);
+            }
+        };
+        fetchCurrencies();
     }, []);
 
     // Global search across all approvals
@@ -173,8 +184,12 @@ const ApprovalsPage = () => {
             render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                const symbol = record.currency === 'INR' ? '₹' : '$';
-                const cleanVal = strVal.replace(/[$,₹]/g, '').trim();
+                const match = currencies.find(c => 
+                    c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+                    c.name?.toLowerCase() === record.currency?.toLowerCase()
+                );
+                const symbol = match ? match.symbol : (record.currency === 'INR' ? '₹' : '$');
+                const cleanVal = strVal.replace(/[$,₹,€]/g, '').trim();
                 return `${symbol}${cleanVal}`;
             },
         },
@@ -187,8 +202,12 @@ const ApprovalsPage = () => {
             render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                const symbol = record.currency === 'INR' ? '₹' : '$';
-                const cleanVal = strVal.replace(/[$,₹]/g, '').trim();
+                const match = currencies.find(c => 
+                    c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+                    c.name?.toLowerCase() === record.currency?.toLowerCase()
+                );
+                const symbol = match ? match.symbol : (record.currency === 'INR' ? '₹' : '$');
+                const cleanVal = strVal.replace(/[$,₹,€]/g, '').trim();
                 return `${symbol}${cleanVal}`;
             },
         },
