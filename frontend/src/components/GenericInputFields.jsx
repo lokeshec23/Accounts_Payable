@@ -943,7 +943,7 @@ const GenericInputFields = ({
                 >
                     <InputNumber
                         style={{ width: '100%', ...disabledStyle }}
-                        value={extractValue(val)}
+                        value={parseCurrencyValue(extractValue(val))}
                         onChange={(value) =>
                             handleLineItemChange(index, 'UnitPrice', value)
                         }
@@ -977,7 +977,7 @@ const GenericInputFields = ({
                 >
                     <InputNumber
                         style={{ width: '100%', ...disabledStyle }}
-                        value={extractValue(val)}
+                        value={parseCurrencyValue(extractValue(val))}
                         onChange={(value) =>
                             handleLineItemChange(index, 'Discount', value)
                         }
@@ -1011,7 +1011,7 @@ const GenericInputFields = ({
                 >
                     <InputNumber
                         style={{ width: '100%', ...disabledStyle }}
-                        value={extractValue(val)}
+                        value={parseCurrencyValue(extractValue(val))}
                         onChange={(value) =>
                             handleLineItemChange(index, 'NetAmount', value)
                         }
@@ -1130,6 +1130,7 @@ const GenericInputFields = ({
 
                 <Panel header="Line Items" key="lineitems">
                     <Table
+                        key={getCurrencySymbol()}
                         columns={lineItemColumns}
                         dataSource={lineItems.map((item, index) => ({
                             ...item,
@@ -1290,6 +1291,7 @@ const GenericInputFields = ({
 
                 <Panel header="Line Items" key="Line Items">
                     <Table
+                        key={getCurrencySymbol()}
                         columns={lineItemColumns}
                         dataSource={lineItems.map((item, index) => ({
                             ...item,
@@ -1448,6 +1450,7 @@ const GenericInputFields = ({
 
                 <Panel header="Line Items" key="lineitems">
                     <Table
+                        key={getCurrencySymbol()}
                         columns={[
                             {
                                 title: 'S.No',
