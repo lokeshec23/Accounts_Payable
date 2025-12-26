@@ -22,18 +22,18 @@ const CodingReviewPage = () => {
 
 
     const formatCurrencyOnce = (value) => {
-    if (value === null || value === undefined || value === '') return '';
+        if (value === null || value === undefined || value === '') return '';
 
-    const symbol = getCurrencySymbol();
+        const symbol = getCurrencySymbol();
 
-    // Convert to string
-    let str = String(value).trim();
+        // Convert to string
+        let str = String(value).trim();
 
-    // Remove existing currency symbols
-    str = str.replace(/[₹$]/g, '').trim();
+        // Remove existing currency symbols
+        str = str.replace(/[₹$]/g, '').trim();
 
-    return `${symbol} ${str}`;
-};
+        return `${symbol} ${str}`;
+    };
 
 
     // Resizable state
@@ -575,7 +575,7 @@ const CodingReviewPage = () => {
                     onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
                 >
-                   <Input
+                    <Input
                         value={formatCurrencyOnce(text)}
                         disabled
                         style={disabledStyle}
@@ -595,7 +595,7 @@ const CodingReviewPage = () => {
                     onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
                 >
-                   <Input
+                    <Input
                         value={formatCurrencyOnce(text)}
                         disabled
                         style={disabledStyle}
@@ -753,7 +753,7 @@ const CodingReviewPage = () => {
                     onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
                 >
-                   <InputNumber
+                    <InputNumber
                         value={codingLineItems[index]?.unit_price ?? ''}
                         formatter={(value) =>
                             value
@@ -780,7 +780,7 @@ const CodingReviewPage = () => {
                     onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
                 >
-                   <InputNumber
+                    <InputNumber
                         value={codingLineItems[index]?.net_amount ?? ''}
                         formatter={(value) =>
                             value
@@ -1011,9 +1011,9 @@ const CodingReviewPage = () => {
                     }}>
                         <Button
                             icon={<ArrowLeftOutlined />}
-                            onClick={() => navigate('/coding')}
+                            onClick={() => navigate('/dashboard', { state: { activeTab: 'invoices' } })}
                         >
-                            Back to Coding
+                            Back to Invoice
                         </Button>
 
                         <div style={{ display: 'flex', gap: '10px' }}>

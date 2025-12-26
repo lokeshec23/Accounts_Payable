@@ -47,7 +47,7 @@ const InvoiceReviewPage = () => {
     }, [invoice, navigate]);
 
     const handleBack = () => {
-        navigate('/dashboard');
+        navigate('/dashboard', { state: { activeTab: 'invoices' } });
     };
 
     if (loading) {
@@ -68,7 +68,7 @@ const InvoiceReviewPage = () => {
     }
 
     // Check if invoice is approved - make it read-only
-    const isApproved = invoiceData?.status === 'approved';  
+    const isApproved = invoiceData?.status === 'approved';
     const isRejected = invoiceData?.status === 'rejected';
     const effectiveReadOnly = readOnly || isApproved || isRejected;
 
