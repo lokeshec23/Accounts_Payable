@@ -1244,7 +1244,7 @@ const CodingReviewPage = () => {
                                                 <>
                                                     <div style={{
                                                         padding: '15px 20px',
-                                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                        background: 'linear-gradient(135deg, #3ba5d8 0%, #2b8fc4 100%)',
                                                         borderRadius: '8px',
                                                         marginBottom: '20px',
                                                         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
