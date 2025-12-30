@@ -216,41 +216,46 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
   return (
     <div className="workflow-tab-container">
       <Card
-  // title={`Workflow History`}
-  className="workflow-card"
-  extra={
-    <div className="workflow-info" style={{ display: 'flex', gap: '10px' }}>
-      {workflowData.approver_breakdown?.vendor && (
-        <Tag color="cyan">
-          Vendor ({workflowData.approver_breakdown.vendor.name}):
-          {workflowData.approver_breakdown.vendor.count}
-        </Tag>
-      )}
-      {workflowData.approver_breakdown?.amount && (
-        <Tag color="orange">
-          Amount ({(() => {
-              const val = workflowData.approver_breakdown.amount.currency;
-              const match = currencies.find(c =>
-                c.code?.toUpperCase() === val?.toUpperCase() ||
-                c.name?.toLowerCase() === val?.toLowerCase()
-              );
-              const symbol = match ? match.symbol : (val === 'INR' ? '₹' : '$');
-              return `${symbol}`;
-          })()}{workflowData.approver_breakdown.amount.value}):
-          {workflowData.approver_breakdown.amount.count}
-        </Tag>
-      )}
-      {workflowData.approver_breakdown?.gl && (
-        <Tag color="purple">
-          GL: {workflowData.approver_breakdown.gl.count}
-        </Tag>
-      )}
-      <Tag color="red" style={{ fontWeight: 'bold' }}>
-        Required Approvers: {workflowData.required_approvers}
-      </Tag>
-    </div>
-  }
->
+        // title={`Workflow History`}
+        className="workflow-card"
+        extra={
+          <div className="workflow-info" style={{ display: 'flex', gap: '10px' }}>
+            {workflowData.approver_breakdown?.default !== undefined && (
+              <Tag color="geekblue">
+                Default: {workflowData.approver_breakdown.default}
+              </Tag>
+            )}
+            {workflowData.approver_breakdown?.vendor && (
+              <Tag color="cyan">
+                Vendor ({workflowData.approver_breakdown.vendor.name}):
+                {workflowData.approver_breakdown.vendor.count}
+              </Tag>
+            )}
+            {workflowData.approver_breakdown?.amount && (
+              <Tag color="orange">
+                Amount ({(() => {
+                  const val = workflowData.approver_breakdown.amount.currency;
+                  const match = currencies.find(c =>
+                    c.code?.toUpperCase() === val?.toUpperCase() ||
+                    c.name?.toLowerCase() === val?.toLowerCase()
+                  );
+                  const symbol = match ? match.symbol : (val === 'INR' ? '₹' : '$');
+                  return `${symbol}`;
+                })()}{workflowData.approver_breakdown.amount.value}):
+                {workflowData.approver_breakdown.amount.count}
+              </Tag>
+            )}
+            {workflowData.approver_breakdown?.gl && (
+              <Tag color="purple">
+                GL: {workflowData.approver_breakdown.gl.count}
+              </Tag>
+            )}
+            <Tag color="red" style={{ fontWeight: 'bold' }}>
+              Required Approvers: {workflowData.required_approvers}
+            </Tag>
+          </div>
+        }
+      >
 
         <Timeline items={getTimelineItems()} />
       </Card>

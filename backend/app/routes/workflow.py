@@ -156,11 +156,18 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
     
     if vendor_name:
         # Try finding by vendor_name (snake_case)
-        config = db.approver_number.find_one({"vendor_name": vendor_name.strip()})
+        query = {"vendor_name": vendor_name.strip()}
+        if entity:
+            query["entity"] = entity
+            
+        config = db.approver_number.find_one(query)
         
         # If not found, try vendorName (camelCase)
         if not config:
-            config = db.approver_number.find_one({"vendorName": vendor_name.strip()})
+            query = {"vendorName": vendor_name.strip()}
+            if entity:
+                query["entity"] = entity
+            config = db.approver_number.find_one(query)
             
         if config:
             if "approver_count" in config:
@@ -270,7 +277,8 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
         "breakdown": {
             "vendor": {"count": vendor_count, "name": vendor_name},
             "amount": {"count": amount_count, "value": amount, "currency": currency},
-            "gl": {"count": gl_count, "codes": matched_gls}
+            "gl": {"count": gl_count, "codes": matched_gls},
+            "default": default_count
         }
     }
 
