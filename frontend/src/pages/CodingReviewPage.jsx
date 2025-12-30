@@ -36,10 +36,10 @@ const CodingReviewPage = () => {
             ...currencies.map(c => c.symbol),
             '$', '₹', '€', '£', '¥'
         ])].filter(Boolean);
-        
+
         const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const symbolPattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}]`, 'g');
-        
+
         str = str.replace(symbolPattern, '').trim();
 
         return `${symbol} ${str}`;
@@ -87,24 +87,35 @@ const CodingReviewPage = () => {
     const [completedApproversCount, setCompletedApproversCount] = useState(0);
 
     const getCurrencySymbol = () => {
-        const data = invoiceData?.extracted_data || invoiceData?.rawData?.extracted_data;
-        const val = invoiceData?.currency || data?.invoice_details?.currency?.value || data?.invoice_details?.currency || 'USD';
-        
-        // Robust matching against code OR name
-        const match = currencies.find(c => 
-            c.code?.toUpperCase() === val?.toUpperCase() || 
-            c.name?.toLowerCase() === val?.toLowerCase()
+        const raw =
+            invoiceData?.currency ||
+            invoiceData?.rawData?.extracted_data?.invoice_details?.currency?.value ||
+            'USD';
+
+        // Normalize value safely
+        const val = typeof raw === 'string'
+            ? raw
+            : typeof raw === 'object' && raw !== null
+                ? raw.value || raw.code || ''
+                : '';
+
+        const normalized = val.toString().trim().toUpperCase();
+
+        const match = currencies.find(c =>
+            c.code?.toUpperCase() === normalized ||
+            c.name?.toUpperCase() === normalized
         );
-        
+
         if (match) return match.symbol;
-        
+
         // Fallbacks
-        const search = val?.toString().toLowerCase() || '';
-        if (search.includes('inr') || search.includes('rupee')) return '₹';
-        if (search.includes('euro') || search.includes('eur')) return '€';
-        
+        if (normalized.includes('INR') || normalized.includes('RUPEE')) return '₹';
+        if (normalized.includes('EUR')) return '€';
+        if (normalized.includes('GBP') || normalized.includes('POUND')) return '£';
+
         return '$';
     };
+
 
     const disabledStyle = {
         color: 'black',
@@ -1085,7 +1096,7 @@ const CodingReviewPage = () => {
 
 
 
-                    
+
                         <div style={{ display: 'flex', gap: '10px' }}>
                             {!disableEditing && (
                                 <Button
