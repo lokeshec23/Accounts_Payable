@@ -80,26 +80,26 @@ const GenericInputFields = ({
     const [approverComment, setApproverComment] = useState('');
     const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
 
-    const invoiceDisplayId = originalData?.extracted_data?.invoice_details?.invoice_number?.value || 
-                          originalData?.extracted_data?.invoice_details?.invoice_id?.value || 
-                          originalData?.invoiceId;
+    const invoiceDisplayId = originalData?.extracted_data?.invoice_details?.invoice_number?.value ||
+        originalData?.extracted_data?.invoice_details?.invoice_id?.value ||
+        originalData?.invoiceId;
 
     const getCurrencySymbol = () => {
         const val = extractValue(formData['Invoice Currency']) || 'USD';
-        
+
         // Robust matching against code OR name
-        const match = currencies.find(c => 
-            c.code?.toUpperCase() === val?.toUpperCase() || 
+        const match = currencies.find(c =>
+            c.code?.toUpperCase() === val?.toUpperCase() ||
             c.name?.toLowerCase() === val?.toLowerCase()
         );
-        
+
         if (match) return match.symbol;
-        
+
         // Fallbacks
         const search = val?.toString().toLowerCase() || '';
         if (search.includes('inr') || search.includes('rupee')) return '₹';
         if (search.includes('euro') || search.includes('eur')) return '€';
-        
+
         return '$';
     };
 
@@ -1163,12 +1163,12 @@ const GenericInputFields = ({
                 {(() => {
                     // Use persisted summary if available, otherwise calculate from current line items
                     const persistedSummary = originalData?.gl_summary;
-                    
+
                     if (persistedSummary && persistedSummary.length > 0) {
                         return persistedSummary.map((item) => (
-                            <div key={item.gl_code} style={{ 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
+                            <div key={item.gl_code} style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
                                 alignItems: 'center',
                                 padding: '10px 15px',
                                 background: 'white',
@@ -1191,17 +1191,17 @@ const GenericInputFields = ({
                             summaryMap[item.gl_code] = (summaryMap[item.gl_code] || 0) + (parseFloat(item.net_amount) || 0);
                         }
                     });
-                    
+
                     const summaryEntries = Object.entries(summaryMap);
-                    
+
                     if (summaryEntries.length === 0) {
                         return <p style={{ fontStyle: 'italic', color: '#8c8c8c' }}>No GL codes assigned to line items yet.</p>;
                     }
-                    
+
                     return summaryEntries.map(([glCode, total]) => (
-                        <div key={glCode} style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
+                        <div key={glCode} style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
                             alignItems: 'center',
                             padding: '10px 15px',
                             background: 'white',
@@ -1684,8 +1684,8 @@ const GenericInputFields = ({
             case 'gl_summary':
                 return glSummaryTab;
             case '4':
-                return <WorkflowTab 
-                    invoiceId={invoiceId} 
+                return <WorkflowTab
+                    invoiceId={invoiceId}
                     invoiceDisplayId={invoiceDisplayId}
                     refreshTrigger={workflowRefreshTrigger}
                 />;
@@ -1915,7 +1915,7 @@ const GenericInputFields = ({
                 )}
 
                 {!readOnly && (
-                    <div style={{ display: 'flex', gap: '10px', marginLeft: '600px' }}>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                         <Button
                             type="primary"
                             icon={<SaveOutlined />}

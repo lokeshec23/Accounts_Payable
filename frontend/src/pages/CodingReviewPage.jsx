@@ -36,10 +36,10 @@ const CodingReviewPage = () => {
             ...currencies.map(c => c.symbol),
             '$', '₹', '€', '£', '¥'
         ])].filter(Boolean);
-        
+
         const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const symbolPattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}]`, 'g');
-        
+
         str = str.replace(symbolPattern, '').trim();
 
         return `${symbol} ${str}`;
@@ -89,20 +89,20 @@ const CodingReviewPage = () => {
     const getCurrencySymbol = () => {
         const data = invoiceData?.extracted_data || invoiceData?.rawData?.extracted_data;
         const val = invoiceData?.currency || data?.invoice_details?.currency?.value || data?.invoice_details?.currency || 'USD';
-        
+
         // Robust matching against code OR name
-        const match = currencies.find(c => 
-            c.code?.toUpperCase() === val?.toUpperCase() || 
+        const match = currencies.find(c =>
+            c.code?.toUpperCase() === val?.toUpperCase() ||
             c.name?.toLowerCase() === val?.toLowerCase()
         );
-        
+
         if (match) return match.symbol;
-        
+
         // Fallbacks
         const search = val?.toString().toLowerCase() || '';
         if (search.includes('inr') || search.includes('rupee')) return '₹';
         if (search.includes('euro') || search.includes('eur')) return '€';
-        
+
         return '$';
     };
 
@@ -1085,7 +1085,7 @@ const CodingReviewPage = () => {
 
 
 
-                    
+
                         <div style={{ display: 'flex', gap: '10px' }}>
                             {!disableEditing && (
                                 <Button
