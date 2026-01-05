@@ -26,6 +26,7 @@ def list_files(
     
 @router.post("/upload")
 async def upload_master_file(
+    tab_name: str,
     file: UploadFile = File(...),
     current_user: UserResponse = Depends(get_current_user)
 ):
@@ -38,135 +39,164 @@ async def upload_master_file(
              
         contents = await file.read()
         import io
-        
-        file_id = ObjectId()
-        sheet_collections = []
+        import re
+
+        def slugify(text):
+            return re.sub(r'[^a-zA-Z0-9]', '_', str(text)).strip('_')
+
+        sheets_data = {} # {sheet_name: df}
         
         # Handle CSV files
         if file.filename.endswith('.csv'):
             df = pd.read_csv(io.BytesIO(contents))
-            
-            # Basic cleaning
             df = df.replace({np.nan: None})
+            sheets_data["Sheet1"] = df
+        else:
+            xls = pd.ExcelFile(io.BytesIO(contents))
+            for sheet_name in xls.sheet_names:
+                df = pd.read_excel(xls, sheet_name=sheet_name)
+                df = df.replace({np.nan: None})
+                sheets_data[sheet_name] = df
+
+        # Prepare metadata
+        sheet_metadata = []
+        
+        # Clear existing metadata and collections for this tab first
+        existing_meta = db.excel_files.find_one({"tab_name": tab_name})
+        if existing_meta and "sheets" in existing_meta:
+            for s in existing_meta["sheets"]:
+                db[s["collection_name"]].drop()
+        elif existing_meta:
+            # Fallback for old structure
+            db[f"master_data_{tab_name}"].drop()
+
+        for idx, (sheet_name, df) in enumerate(sheets_data.items()):
+            safe_name = slugify(sheet_name)
+            sub_collection = f"master_data_{tab_name}_{idx}_{safe_name}"
             
-            # Use filename without extension as sheet name
-            sheet_name = file.filename.rsplit('.', 1)[0]
-            safe_sheet_name = "".join(c for c in sheet_name if c.isalnum() or c in (' ', '_', '-')).strip()
-            safe_sheet_name = safe_sheet_name.replace(" ", "_")
-            
-            collection_name = f"master_{file_id}_{safe_sheet_name}"
+            # Inject Vendor_Master default fields ONLY for the first sheet of Vendor_Master tab
+            if tab_name == "Vendor_Master" and idx == 0:
+                if "GST / Use Tax Eligibility Configuration" not in df.columns:
+                    df["GST / Use Tax Eligibility Configuration"] = "Eligible"
+                if "TDS/Withhold Tax Applicability Configuration" not in df.columns:
+                    df["TDS/Withhold Tax Applicability Configuration"] = "No"
+                if "TDS Percentage" not in df.columns:
+                    df["TDS Percentage"] = ""
+                if "TDS Section Code and Description" not in df.columns:
+                    df["TDS Section Code and Description"] = ""
+                if "Workflow Applicability Configuration" not in df.columns:
+                    df["Workflow Applicability Configuration"] = "Yes"
             
             rows = df.to_dict(orient="records")
             
-            # Insert into new collection (chunked)
+            # Clear (redundant but safe) and Insert
+            db[sub_collection].delete_many({})
             chunk_size = 5000
             if rows:
                 for i in range(0, len(rows), chunk_size):
-                    db[collection_name].insert_one({
+                    db[sub_collection].insert_one({
                         "chunk_index": i // chunk_size,
                         "rows": rows[i:i + chunk_size]
                     })
             
-            sheet_collections.append({
-                "sheet_name": sheet_name,
-                "collection_name": collection_name
+            sheet_metadata.append({
+                "name": sheet_name,
+                "collection_name": sub_collection
             })
-        
-        # Handle Excel files
-        else:
-            xls = pd.ExcelFile(io.BytesIO(contents))
-            
-            for sheet_name in xls.sheet_names:
-                df = pd.read_excel(xls, sheet_name=sheet_name)
-                
-                # Basic cleaning
-                df = df.replace({np.nan: None})
-                
-                # Create a unique collection name
-                # sanitize sheet name
-                safe_sheet_name = "".join(c for c in sheet_name if c.isalnum() or c in (' ', '_', '-')).strip()
-                safe_sheet_name = safe_sheet_name.replace(" ", "_")
-                
-                collection_name = f"master_{file_id}_{safe_sheet_name}"
-                
-                rows = df.to_dict(orient="records")
-                
-                # Insert into new collection (chunked)
-                chunk_size = 5000
-                if rows:
-                    for i in range(0, len(rows), chunk_size):
-                        db[collection_name].insert_one({
-                            "chunk_index": i // chunk_size,
-                            "rows": rows[i:i + chunk_size]
-                        })
-                
-                sheet_collections.append({
-                    "sheet_name": sheet_name,
-                    "collection_name": collection_name
-                })
-            
-        # Store metadata in excel_files
+
+        # Update metadata
         from datetime import datetime
-        file_meta = {
-            "_id": file_id,
-            "file_name": file.filename,
-            "uploaded_at": datetime.utcnow(),
-            "uploaded_by": current_user.username,
-            "sheet_collections": sheet_collections,
-            "status": "active"
+        db.excel_files.update_one(
+            {"tab_name": tab_name},
+            {"$set": {
+                "file_name": file.filename,
+                "uploaded_at": datetime.utcnow(),
+                "uploaded_by": current_user.username,
+                "status": "active",
+                "sheets": sheet_metadata
+            }},
+            upsert=True
+        )
+        
+        return {
+            "message": "File uploaded successfully", 
+            "sheets": sheet_metadata
         }
-        
-        db.excel_files.insert_one(file_meta)
-        
-        return {"message": "File uploaded successfully", "file_id": str(file_id)}
-        
         
     except Exception as e:
         print(f"Error uploading file: {e}")
         raise HTTPException(500, f"Failed to upload file: {str(e)}")
 
-@router.delete("/files/{file_id}")
-async def delete_master_file(
-    file_id: str,
+@router.delete("/files/{tab_name}")
+async def delete_tab_data(
+    tab_name: str,
     current_user: UserResponse = Depends(get_current_user)
 ):
     try:
         db = get_database()
+        meta = db.excel_files.find_one({"tab_name": tab_name})
         
-        # Get file metadata to find all collections
-        file_meta = db.excel_files.find_one({"_id": ObjectId(file_id)})
-        if not file_meta:
-            raise HTTPException(404, "File not found")
-        
-        # Delete all sheet collections
-        for sheet in file_meta.get("sheet_collections", []):
-            collection_name = sheet.get("collection_name")
-            if collection_name:
-                db[collection_name].drop()
-        
-        # Delete file metadata
-        db.excel_files.delete_one({"_id": ObjectId(file_id)})
-        
-        return {"message": "File deleted successfully"}
-        
+        if meta and "sheets" in meta:
+            for s in meta["sheets"]:
+                db[s["collection_name"]].drop()
+        else:
+            # Fallback
+            db[f"master_data_{tab_name}"].drop()
+
+        db.excel_files.delete_one({"tab_name": tab_name})
+        return {"message": f"Data for {tab_name} deleted successfully"}
     except Exception as e:
-        print(f"Error deleting file: {e}")
-        raise HTTPException(500, f"Failed to delete file: {str(e)}")
+        print(f"Error deleting data: {e}")
+        raise HTTPException(500, f"Failed to delete data: {str(e)}")
 
 
-@router.get("/{file_id}/sheets")
-def get_sheets(
-    file_id: str,
+
+
+@router.get("/files")
+def list_files(
     current_user: UserResponse = Depends(get_current_user)
 ):
     db = get_database()
-    files_meta = db["excel_files"]
+    # Return status of the 4 fixed tabs
+    tabs = ["Entity_Master", "Vendor_Master", "Line_Items", "TDS_Rates"]
+    result = []
+    for tab in tabs:
+        meta = db.excel_files.find_one({"tab_name": tab})
+        if meta:
+            meta["_id"] = str(meta["_id"])
+            result.append(meta)
+        else:
+            result.append({
+                "tab_name": tab,
+                "file_name": None,
+                "status": "missing"
+            })
+    return result
 
-    doc = files_meta.find_one({"_id": ObjectId(file_id)})
-    if not doc:
-        raise HTTPException(404, "File not found")
+# Removed get_sheets as we use fixed tabs now
 
-    return doc["sheet_collections"]
+@router.get("/entities")
+def get_entities(
+    current_user: UserResponse = Depends(get_current_user)
+):
+    db = get_database()
+    
+    # Support multi-sheet collection naming
+    meta = db.excel_files.find_one({"tab_name": "Entity_Master"})
+    collection_name = "master_data_Entity_Master"
+    if meta and "sheets" in meta and len(meta["sheets"]) > 0:
+        collection_name = meta["sheets"][0]["collection_name"]
+    
+    chunks = list(
+        db[collection_name].find().sort("chunk_index", ASCENDING)
+    )
+
+    entities = []
+    for chunk in chunks:
+        entities.extend(chunk.get("rows", []))
+
+    return entities
+
 
 
 def load_full_sheet(collection_name: str):
@@ -305,33 +335,4 @@ def delete_row(
 
     return {"status": "deleted"}
 
-@router.get("/entities")
-def get_entities(
-    current_user: UserResponse = Depends(get_current_user)
-):
-    db = get_database()
 
-    # 🔹 Find the Entity sheet metadata
-    excel_files = db["excel_files"]
-    entity_file = excel_files.find_one(
-        {"sheet_collections.sheet_name": "Entity"},
-        {"sheet_collections.$": 1}
-    )
-
-    if not entity_file:
-        raise HTTPException(status_code=404, detail="Entity master not found")
-
-    # 🔹 Get collection name for Entity sheet
-    entity_sheet = entity_file["sheet_collections"][0]
-    collection_name = entity_sheet["collection_name"]
-
-    # 🔹 Load all chunks
-    chunks = list(
-        db[collection_name].find().sort("chunk_index", ASCENDING)
-    )
-
-    entities = []
-    for chunk in chunks:
-        entities.extend(chunk.get("rows", []))
-
-    return entities

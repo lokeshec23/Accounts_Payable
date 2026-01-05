@@ -131,11 +131,8 @@ export const masterDataService = {
     return response.data;
   },
 
-  // 2️⃣ Get all sheets for a selected file
-  async getSheets(fileId) {
-    const response = await api.get(`/master/${fileId}/sheets`);
-    return response.data;
-  },
+  // No longer needed as we use fixed tabs
+
 
   // 3️⃣ Get sheet rows (merged from chunks)
   async getSheetData(collectionName) {
@@ -173,18 +170,18 @@ export const masterDataService = {
   },
 
   // 7️⃣ Upload Excel file
-  async uploadFile(file) {
+  async uploadFile(tabName, file) {
     const formData = new FormData();
     formData.append("file", file);
-    const response = await api.post("/master/upload", formData, {
+    const response = await api.post(`/master/upload?tab_name=${tabName}`, formData, {
       headers: { "Content-Type": "multipart/form-data" }
     });
     return response.data;
   },
 
-  // 8️⃣ Delete Excel file
-  async deleteFile(fileId) {
-    const response = await api.delete(`/master/files/${fileId}`);
+  // 8️⃣ Delete data for a tab
+  async deleteFile(tabName) {
+    const response = await api.delete(`/master/files/${tabName}`);
     return response.data;
   },
 

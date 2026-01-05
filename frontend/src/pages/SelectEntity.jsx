@@ -42,12 +42,29 @@ const SelectEntity = () => {
     navigate("/");
   };
 
-  const handleSelect = (entity) => {
-    localStorage.setItem("selected_entity", entity.ENTITY_NAME);
-    localStorage.setItem("selected_entity_no", entity.ENTITY_NO);
 
-    setEntity(entity.ENTITY_NAME);
-    setSelectedLabel(entity.ENTITY_NAME);
+  const getFieldLoose = (obj, searchFields) => {
+    if (!obj) return null;
+    const keys = Object.keys(obj);
+    for (const field of searchFields) {
+      if (obj[field] !== undefined && obj[field] !== null) return obj[field];
+      const foundKey = keys.find(k =>
+        k.toLowerCase().replace(/[^a-z0-9]/g, '') === field.toLowerCase().replace(/[^a-z0-9]/g, '')
+      );
+      if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null) return obj[foundKey];
+    }
+    return null;
+  };
+
+  const handleSelect = (entity) => {
+    const name = getFieldLoose(entity, ["ENTITY_NAME", "entity_name", "Name", "EntityName", "Entity Name"]) || "Unknown Entity";
+    const no = getFieldLoose(entity, ["ENTITY_NO", "entity_no", "ID", "No", "Entity No", "ENTITYID"]) || "0";
+
+    localStorage.setItem("selected_entity", name);
+    localStorage.setItem("selected_entity_no", String(no));
+
+    setEntity(name);
+    setSelectedLabel(name);
 
     navigate("/dashboard");
   };
@@ -63,18 +80,25 @@ const SelectEntity = () => {
   ];
 
   // 🔽 Entity dropdown menu
-  const entityMenu = {
-    items: entities.map((entity) => ({
-      key: entity.ENTITY_NO,
-      label: entity.ENTITY_NAME,
-      onClick: () => handleSelect(entity),
-    })),
-  };
+  const entityMenuItems = entities.length > 0
+    ? entities.map((entity, index) => {
+      const name = getFieldLoose(entity, ["ENTITY_NAME", "entity_name", "Name", "EntityName", "Entity Name"]) || "Unknown Entity";
+      const no = getFieldLoose(entity, ["ENTITY_NO", "entity_no", "ID", "No", "Entity No", "ENTITYID"]) || index;
+      return {
+        key: no,
+        label: name,
+        onClick: () => handleSelect(entity),
+      };
+    })
+    : [{ key: "no-data", label: "No entities found. Please upload Entity Master first.", disabled: true }];
+
+  const entityMenu = { items: entityMenuItems };
+
 
   return (
     <div className="entity-container">
-      {/* HEADER */}
       <header className="entity-header">
+
         <img src="/loandna-logo.png" alt="LoanDNA Logo" className="header-logo" />
 
         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
@@ -108,7 +132,7 @@ const SelectEntity = () => {
           </Dropdown>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     Card,
     Typography,
@@ -12,6 +12,8 @@ import {
     Modal,
     Form,
     Upload,
+    Select,
+    Empty
 } from "antd";
 import {
     PlusOutlined,
@@ -19,45 +21,52 @@ import {
     DeleteOutlined,
     ExclamationCircleOutlined,
     UploadOutlined,
+    InboxOutlined
 } from "@ant-design/icons";
 import { masterDataService } from "../services/api";
 import "../styles/MainLayout.css";
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Search } = Input;
 const { confirm } = Modal;
+const { Dragger } = Upload;
+
+const MASTER_TABS = [
+    { key: "Entity_Master", label: "Entity Master" },
+    { key: "Vendor_Master", label: "Vendor Master" },
+    { key: "Line_Items", label: "Line Items" },
+    { key: "TDS_Rates", label: "TDS Rates" }
+];
 
 const MasterDataPage = () => {
     const [loading, setLoading] = useState(false);
     const [userRole, setUserRole] = useState('');
-
-    const [files, setFiles] = useState([]);
-    const [selectedFile, setSelectedFile] = useState(null);
-
-    const [sheets, setSheets] = useState([]);
-    const [selectedSheet, setSelectedSheet] = useState(null);
+    const [activeTab, setActiveTab] = useState("Entity_Master");
+    const [activeSubTab, setActiveSubTab] = useState(null); // { name, collection_name }
+    const [tabStatus, setTabStatus] = useState({}); // { tabKey: { file_name, status, sheets: [] } }
 
     const [tableData, setTableData] = useState([]);
     const [columns, setColumns] = useState([]);
-
     const [searchText, setSearchText] = useState("");
 
-    // Pagination state
+    // TDS Rates for dropdowns in Vendor Master
+    const [tdsRates, setTdsRates] = useState([]);
+
     const [pagination, setPagination] = useState({
         current: 1,
-        pageSize: 20,
+        pageSize: 10,
         showSizeChanger: true,
         pageSizeOptions: ["5", "10", "20", "50"],
         showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
     });
 
-    // Modal state
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editRecord, setEditRecord] = useState(null);
     const [addMode, setAddMode] = useState(false);
     const [form] = Form.useForm();
+    const tdsApplicable = Form.useWatch("TDS/Withhold Tax Applicability Configuration", form);
 
-    // Get user role from localStorage
+
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
@@ -70,100 +79,89 @@ const MasterDataPage = () => {
         }
     }, []);
 
-    // -------------------------------------------------------
-    // Load files
-    // -------------------------------------------------------
     useEffect(() => {
-        loadFiles();
+        loadTabStatus();
     }, []);
 
-    const loadFiles = async () => {
+    useEffect(() => {
+        if (activeTab) {
+            // Immediately clear current view to avoid showing stale data from previous tab
+            setTableData([]);
+            setColumns([]);
+            setSearchText("");
+
+            // Reset activeSubTab to the first sheet of this tab if available
+            const status = tabStatus[activeTab];
+            if (status && status.sheets && status.sheets.length > 0) {
+                setActiveSubTab(status.sheets[0]);
+            } else {
+                setActiveSubTab(null);
+                loadSheetData(`master_data_${activeTab}`);
+            }
+        }
+    }, [activeTab, tabStatus]);
+
+    useEffect(() => {
+        if (activeSubTab) {
+            loadSheetData(activeSubTab.collection_name);
+        }
+    }, [activeSubTab]);
+
+
+
+    // Fetch TDS Rates whenever TDS_Rates tab data would be available
+    useEffect(() => {
+        if (activeTab === "Vendor_Master") {
+            fetchTdsRates();
+        }
+    }, [activeTab]);
+
+    const fetchTdsRates = async () => {
+        try {
+            // Intelligent discovery: search for sheet with "TDS" or "Rates" or "Tax"
+            const tdsStatus = tabStatus["TDS_Rates"];
+            let collectionName = "master_data_TDS_Rates";
+            if (tdsStatus && tdsStatus.sheets && tdsStatus.sheets.length > 0) {
+                const sheet = tdsStatus.sheets.find(s =>
+                    s.name.toLowerCase().includes("tds") ||
+                    s.name.toLowerCase().includes("rate") ||
+                    s.name.toLowerCase().includes("tax")
+                );
+                collectionName = sheet ? sheet.collection_name : tdsStatus.sheets[0].collection_name;
+            }
+            const data = await masterDataService.getSheetData(collectionName);
+            setTdsRates(data);
+        } catch (error) {
+            console.error("Failed to fetch TDS rates for dropdowns", error);
+        }
+    };
+
+
+
+    const loadTabStatus = async () => {
         try {
             setLoading(true);
             const data = await masterDataService.getFiles();
-            setFiles(data);
-            if (data.length > 0) setSelectedFile(data[0]);
+            const statusMap = {};
+            data.forEach(item => {
+                statusMap[item.tab_name] = item;
+            });
+            setTabStatus(statusMap);
         } catch {
-            message.error("Failed to load files");
-        } finally {
-            setLoading(false);
-        }
-
-    };
-
-    const handleFileUpload = async (file) => {
-        try {
-            setLoading(true);
-            await masterDataService.uploadFile(file);
-            message.success("File uploaded successfully");
-            loadFiles(); // Refresh file list
-        } catch (error) {
-            console.error(error);
-            message.error("Failed to upload file");
-        } finally {
-            setLoading(false);
-        }
-        return false; // Prevent auto upload by antd
-    };
-
-
-    const handleFileDelete = (fileId) => {
-        confirm({
-            title: "Delete this Excel file?",
-            icon: <ExclamationCircleOutlined />,
-            content: "This will delete the file and all its sheets permanently.",
-            okText: "Yes",
-            okType: "danger",
-            onOk: async () => {
-                try {
-                    setLoading(true);
-                    await masterDataService.deleteFile(fileId);
-                    message.success("File deleted successfully");
-                    loadFiles();
-                } catch (error) {
-                    console.error(error);
-                    message.error("Failed to delete file");
-                } finally {
-                    setLoading(false);
-                }
-            },
-        });
-    };
-
-    // -------------------------------------------------------
-    // Load sheets on file change
-    // -------------------------------------------------------
-    useEffect(() => {
-        if (selectedFile) loadSheets(selectedFile._id);
-    }, [selectedFile]);
-
-    const loadSheets = async (fileId) => {
-        try {
-            setLoading(true);
-            const result = await masterDataService.getSheets(fileId);
-            setSheets(result);
-            if (result.length > 0) setSelectedSheet(result[0]);
-        } catch {
-            message.error("Failed to load sheets");
+            message.error("Failed to load master data status");
         } finally {
             setLoading(false);
         }
     };
 
-    // -------------------------------------------------------
-    // Load sheet data when sheet changes
-    // -------------------------------------------------------
-    useEffect(() => {
-        if (selectedSheet) loadSheetData(selectedSheet.collection_name);
-    }, [selectedSheet]);
-
-    const loadSheetData = async (collectionName) => {
+    const loadSheetData = async (targetCollection) => {
         try {
             setLoading(true);
-
+            const collectionName = targetCollection || (activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`);
             const result = await masterDataService.getSheetData(collectionName);
 
-            const rows = result.map((r, index = 1) => ({
+
+            const rows = result.map((r, index) => ({
                 key: index,
                 ...r,
             }));
@@ -172,58 +170,91 @@ const MasterDataPage = () => {
 
             if (rows.length > 0) {
                 generateColumns(rows[0], rows);
+            } else {
+                setColumns([]);
             }
 
-            // Reset to first page when data changes
-            setPagination({
-                ...pagination,
-                current: 1,
-            });
+            setPagination(prev => ({ ...prev, current: 1 }));
         } catch (error) {
             console.log(error);
-            message.error("Failed to load sheet data");
+            // Don't show error if it's just missing data
+            setTableData([]);
+            setColumns([]);
         } finally {
             setLoading(false);
         }
     };
 
-    // -------------------------------------------------------
-    // Auto-generate table columns with sort + filter
-    // -------------------------------------------------------
+    const handleFileUpload = async (file) => {
+        try {
+            setLoading(true);
+            await masterDataService.uploadFile(activeTab, file);
+            message.success(`${activeTab} uploaded successfully`);
+            await loadTabStatus();
+        } catch (error) {
+
+            console.error(error);
+            message.error("Failed to upload file");
+        } finally {
+            setLoading(false);
+        }
+        return false;
+    };
+
+    const handleTabDelete = () => {
+        confirm({
+            title: `Delete data for ${activeTab.replace(/_/g, " ")}?`,
+            icon: <ExclamationCircleOutlined />,
+            content: "This will permanently delete all rows in this tab.",
+            okText: "Yes",
+            okType: "danger",
+            onOk: async () => {
+                try {
+                    setLoading(true);
+                    await masterDataService.deleteFile(activeTab);
+                    message.success("Data deleted successfully");
+                    await loadTabStatus();
+                    setTableData([]);
+                    setColumns([]);
+                } catch (error) {
+
+                    message.error("Failed to delete data");
+                } finally {
+                    setLoading(false);
+                }
+            },
+        });
+    };
 
     const generateColumns = (sampleRow, rows) => {
         const colKeys = Object.keys(sampleRow).filter(k => k !== "key");
 
         const generated = colKeys.map((colKey) => {
             const values = rows.map(r => r[colKey]);
-
             const uniqueValues = [...new Set(
                 values.filter(v => v !== null && v !== undefined && v !== "")
             )];
 
             return {
-                title: colKey.toUpperCase(),
+                title: colKey.replace(/([A-Z])/g, ' $1').toUpperCase(),
                 dataIndex: colKey,
                 key: colKey,
-
-                sorter: (a, b) =>
-                    String(a[colKey] || "").localeCompare(String(b[colKey] || "")),
-
-                filters: uniqueValues.map(val => ({
+                sorter: (a, b) => String(a[colKey] || "").localeCompare(String(b[colKey] || "")),
+                filters: uniqueValues.slice(0, 50).map(val => ({
                     text: String(val),
                     value: val,
                 })),
-
                 filterSearch: true,
                 onFilter: (value, record) => record[colKey] === value,
             };
         });
 
-        // Only add Actions column if user is not a coder (view-only for coders)
         if (userRole !== 'coder') {
             generated.push({
                 title: "Actions",
                 key: "actions",
+                fixed: 'right',
+                width: 150,
                 render: (_, record) => (
                     <Space>
                         <Button
@@ -233,7 +264,6 @@ const MasterDataPage = () => {
                         >
                             Edit
                         </Button>
-
                         <Button
                             type="link"
                             danger
@@ -246,54 +276,21 @@ const MasterDataPage = () => {
                 ),
             });
         }
-
         setColumns(generated);
     };
 
-    // -------------------------------------------------------
-    // Search functionality
-    // -------------------------------------------------------
-    const onSearch = (value) => {
-        setSearchText(value);
-        // Reset to first page when searching
-        setPagination({
-            ...pagination,
-            current: 1,
-        });
-    };
-
-    // -------------------------------------------------------
-    // Handle table pagination change
-    // -------------------------------------------------------
-    const handleTableChange = (newPagination) => {
-        setPagination({
-            ...pagination,
-            ...newPagination,
-        });
-    };
-
-    // -------------------------------------------------------
-    // Filter data based on search
-    // -------------------------------------------------------
-    const getFilteredData = () => {
-        if (!searchText) return tableData;
-
-        return tableData.filter((record) => {
-            return Object.keys(record).some((key) =>
-                String(record[key] || "")
-                    .toLowerCase()
-                    .includes(searchText.toLowerCase())
-            );
-        });
-    };
-
-    // -------------------------------------------------------
-    // Add / Edit Modal
-    // -------------------------------------------------------
     const openAddModal = () => {
         setEditRecord(null);
         setAddMode(true);
         form.resetFields();
+        // Set defaults for Vendor Master
+        if (activeTab === "Vendor_Master") {
+            form.setFieldsValue({
+                "GST / Use Tax Eligibility Configuration": "Eligible",
+                "TDS/Withhold Tax Applicability Configuration": "No",
+                "Workflow Applicability Configuration": "Yes"
+            });
+        }
         setIsModalVisible(true);
     };
 
@@ -305,34 +302,27 @@ const MasterDataPage = () => {
     };
 
     const handleSave = async () => {
-        const values = form.getFieldsValue();
-
         try {
+            const values = await form.validateFields();
+            const collectionName = activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`;
+
             if (addMode) {
-                await masterDataService.addRow(
-                    selectedSheet.collection_name,
-                    values
-                );
+                await masterDataService.addRow(collectionName, values);
                 message.success("Row added");
             } else {
-                await masterDataService.editRow(
-                    selectedSheet.collection_name,
-                    editRecord.key,
-                    values
-                );
+                await masterDataService.editRow(collectionName, editRecord.key, values);
                 message.success("Row updated");
             }
 
+
             setIsModalVisible(false);
-            loadSheetData(selectedSheet.collection_name);
-        } catch {
+            loadSheetData();
+        } catch (error) {
+            console.error(error);
             message.error("Failed to save row");
         }
     };
 
-    // -------------------------------------------------------
-    // Delete row
-    // -------------------------------------------------------
     const confirmDelete = (index) => {
         confirm({
             title: "Delete this row?",
@@ -341,12 +331,11 @@ const MasterDataPage = () => {
             okType: "danger",
             onOk: async () => {
                 try {
-                    await masterDataService.deleteRow(
-                        selectedSheet.collection_name,
-                        index
-                    );
+                    const collectionName = activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`;
+                    await masterDataService.deleteRow(collectionName, index);
                     message.success("Row deleted");
-                    loadSheetData(selectedSheet.collection_name);
+
+                    loadSheetData();
                 } catch {
                     message.error("Failed to delete row");
                 }
@@ -354,137 +343,179 @@ const MasterDataPage = () => {
         });
     };
 
-    // Get filtered data
-    const filteredData = getFilteredData();
+    const filteredData = useMemo(() => {
+        if (!searchText) return tableData;
+        return tableData.filter((record) =>
+            Object.keys(record).some((key) =>
+                String(record[key] || "").toLowerCase().includes(searchText.toLowerCase())
+            )
+        );
+    }, [tableData, searchText]);
+
+    const renderUploadView = () => (
+        <div style={{ padding: '60px 0', textAlign: 'center' }}>
+            <Dragger
+                beforeUpload={handleFileUpload}
+                showUploadList={false}
+                accept=".xls,.xlsx,.csv"
+                style={{ background: '#fafafa', borderRadius: 8, padding: 40 }}
+            >
+                <p className="ant-upload-drag-icon">
+                    <InboxOutlined style={{ color: '#1890ff' }} />
+                </p>
+                <p className="ant-upload-text">Click or drag file to this area to upload {activeTab.replace(/_/g, " ")}</p>
+                <p className="ant-upload-hint">Support for .xls, .xlsx, .csv files.</p>
+            </Dragger>
+        </div>
+    );
 
     return (
         <div style={{ padding: "24px" }}>
-            <Card style={{ minHeight: "80vh" }}>
-                {loading && (
-                    <div
-                        style={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: "100%",
-                            height: "100%",
-                            background: "rgba(255, 255, 255, 0.6)",
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            zIndex: 9999
-                        }}
-                    >
-                        <Spin size="large" />
-                    </div>
-                )}
-
-
-                {/* ROW 1: FILE TABS & ADD BUTTON */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <div style={{ flex: 1, marginRight: 20 }}>
-                        <Tabs
-                            activeKey={selectedFile?._id}
-                            onChange={(fileId) =>
-                                setSelectedFile(files.find((f) => f._id === fileId))
-                            }
-                            items={files.map((file) => ({
-                                key: file._id,
-                                label: file.file_name,
-                            }))}
-                            style={{ marginBottom: 0 }}
-                        />
-                    </div>
-                    {(
+            <Card className="master-data-card" style={{ minHeight: "80vh", borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                    <Title level={4} style={{ margin: 0 }}>Master Data Management</Title>
+                    {columns.length > 0 && (
                         <Space>
-                            <Upload
-                                beforeUpload={handleFileUpload}
-                                showUploadList={false}
-                                accept=".xls,.xlsx,.csv"
-                            >
-                                <Button type="primary" icon={<UploadOutlined />}>Upload File</Button>
+                            <Search
+                                placeholder="Search table..."
+                                allowClear
+                                onChange={(e) => setSearchText(e.target.value)}
+                                style={{ width: 250 }}
+                            />
+                            <Upload beforeUpload={handleFileUpload} showUploadList={false} accept=".xls,.xlsx,.csv">
+                                <Button icon={<UploadOutlined />}>Re-upload</Button>
                             </Upload>
-                            
-                            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
-                                Add Row
-                            </Button>
-
-                            {selectedFile && (
-                                <Button
-                                    danger
-                                    icon={<DeleteOutlined />}
-                                    onClick={() => handleFileDelete(selectedFile._id)}
-                                >
-                                    Delete File
-                                </Button>
-                            )}
-
+                            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>Add Row</Button>
+                            <Button danger icon={<DeleteOutlined />} onClick={handleTabDelete}>Clear Tab</Button>
                         </Space>
                     )}
                 </div>
 
-                {/* ROW 2: SHEET TABS & SEARCH BOX */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                    <div style={{ flex: 1, marginRight: 20 }}>
-                        {sheets.length > 0 && (
-                            <Tabs
-                                activeKey={selectedSheet?.sheet_name}
-                                onChange={(name) =>
-                                    setSelectedSheet(
-                                        sheets.find((s) => s.sheet_name === name)
-                                    )
-                                }
-                                items={sheets.map((sheet) => ({
-                                    key: sheet.sheet_name,
-                                    label: sheet.sheet_name.replace(/_/g, " "),
-                                }))}
-                                style={{ marginBottom: 0 }}
-                            />
-                        )}
-                    </div>
-                    <Search
-                        placeholder="Search"
-                        allowClear
-                        onSearch={onSearch}
-                        onChange={(e) => onSearch(e.target.value)}
-                        style={{ width: 300 }}
-                    />
-                </div>
-
-                {/* TABLE */}
-                <Table
-                    columns={columns}
-                    dataSource={filteredData}
-                    pagination={{
-                        ...pagination,
-                        total: filteredData.length,
-                    }}
-                    onChange={handleTableChange}
-                    scroll={{ x: "max-content", y: "calc(100vh - 380px)" }}
-                    className="master-data-table invoices-table"
+                <Tabs
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
+                    items={MASTER_TABS.map(tab => ({
+                        key: tab.key,
+                        label: tab.label
+                    }))}
+                    className="master-data-tabs"
                 />
 
-                {/* EDIT MODAL */}
+                {!loading && tabStatus[activeTab]?.sheets?.length > 1 && (
+                    <Tabs
+                        size="small"
+                        type="card"
+                        activeKey={activeSubTab?.collection_name}
+                        onChange={(key) => setActiveSubTab(tabStatus[activeTab].sheets.find(s => s.collection_name === key))}
+                        items={tabStatus[activeTab].sheets.map(s => ({
+                            key: s.collection_name,
+                            label: s.name
+                        }))}
+                        style={{ marginBottom: 16 }}
+                    />
+                )}
+
+
+                {loading ? (
+                    <div style={{ textAlign: 'center', padding: '100px' }}><Spin size="large" /></div>
+                ) : (
+                    <>
+                        {columns.length > 0 ? (
+                            <Table
+                                columns={columns}
+                                dataSource={filteredData}
+                                pagination={{
+                                    ...pagination,
+                                    current: pagination.current,
+                                    total: filteredData.length,
+                                    onChange: (page, pageSize) => setPagination({ ...pagination, current: page, pageSize })
+                                }}
+                                scroll={{ x: "max-content", y: "calc(100vh - 400px)" }}
+                                className="master-data-table"
+                            />
+                        ) : (
+                            renderUploadView()
+                        )}
+                    </>
+                )}
+
                 <Modal
-                    title={addMode ? "Add Row" : "Edit Row"}
+                    title={addMode ? `Add to ${activeTab.replace(/_/g, " ")}` : `Edit Row`}
                     open={isModalVisible}
                     onCancel={() => setIsModalVisible(false)}
                     onOk={handleSave}
                     okText="Save"
+                    width={activeTab === "Vendor_Master" ? 700 : 520}
                 >
-                    <Form form={form} layout="vertical">
-                        {/* If editing, show fields based on record. If adding, show fields based on columns */}
-                        {(addMode ? columns : Object.keys(editRecord || {})).map((key) => {
-                            // Handle both column object (add mode) and key string (edit mode)
-                            const fieldKey = addMode ? key.key : key;
-                            if (fieldKey === "key" || fieldKey === "actions") return null;
+                    <Form form={form} layout="vertical" initialValues={editRecord}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+                            {columns.filter(c => c.key !== 'actions').map((col) => {
+                                const fieldKey = col.key;
 
-                            return (
-                                <Form.Item key={fieldKey} label={fieldKey} name={fieldKey}>
-                                    <Input />
-                                </Form.Item>
-                            );
-                        })}
+                                // Specialized rendering for Vendor Master configuration fields
+                                if (activeTab === "Vendor_Master") {
+                                    if (fieldKey === "GST / Use Tax Eligibility Configuration") {
+                                        return (
+                                            <Form.Item key={fieldKey} label={fieldKey} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
+                                                <Select options={[{ value: 'Eligible', label: 'Eligible' }, { value: 'Ineligible', label: 'Ineligible' }]} />
+                                            </Form.Item>
+                                        );
+                                    }
+                                    if (fieldKey === "TDS/Withhold Tax Applicability Configuration") {
+                                        return (
+                                            <Form.Item key={fieldKey} label={fieldKey} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
+                                                <Select options={[{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }]} />
+                                            </Form.Item>
+                                        );
+                                    }
+                                    if (fieldKey === "Workflow Applicability Configuration") {
+                                        return (
+                                            <Form.Item key={fieldKey} label={fieldKey} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
+                                                <Select options={[{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }]} />
+                                            </Form.Item>
+                                        );
+                                    }
+                                    if (fieldKey === "TDS Percentage") {
+                                        const isApplicable = tdsApplicable === "Yes";
+                                        return (
+                                            <Form.Item key={fieldKey} label={fieldKey} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
+                                                <Select
+                                                    disabled={!isApplicable}
+                                                    options={tdsRates.map(r => ({
+                                                        value: r["TDS Percentage"] || r["Percentage"] || r["Rate"] || r["TDS Rate"],
+                                                        label: r["TDS Percentage"] || r["Percentage"] || r["Rate"] || r["TDS Rate"]
+                                                    }))}
+                                                />
+                                            </Form.Item>
+                                        );
+                                    }
+
+
+                                    if (fieldKey === "TDS Section Code and Description") {
+                                        const isApplicable = tdsApplicable === "Yes";
+                                        return (
+                                            <Form.Item key={fieldKey} label={fieldKey} name={fieldKey} style={{ width: '100%' }}>
+                                                <Select
+                                                    disabled={!isApplicable}
+                                                    options={tdsRates.map(r => ({
+                                                        value: r["Section Code"] || r["Description"] || r["Code"] || r["Section"],
+                                                        label: `${r["Section Code"] || r["Section"] || ""} - ${r["Description"] || r["Nature of Payment"] || ""}`
+                                                    }))}
+                                                />
+                                            </Form.Item>
+                                        );
+                                    }
+
+
+                                }
+
+                                return (
+                                    <Form.Item key={fieldKey} label={col.title} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
+                                        <Input />
+                                    </Form.Item>
+                                );
+                            })}
+                        </div>
                     </Form>
                 </Modal>
             </Card>

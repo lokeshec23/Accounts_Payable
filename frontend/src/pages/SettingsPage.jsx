@@ -147,81 +147,78 @@ const SettingsPage = () => {
         setLoadingMasterData(true);
         const files = await masterDataService.getFiles();
 
-        const targetFile = files.find(
-          (f) => f.file_name?.trim() === "AP_CA Inc_Invoice_Codification"
-        );
+        const findCollection = (tabName, keyword) => {
+          const f = files.find(item => item.tab_name === tabName);
+          if (f && f.sheets && f.sheets.length > 0) {
+            if (keyword) {
+              const sheet = f.sheets.find(s =>
+                s.name.toLowerCase().includes(keyword.toLowerCase())
+              );
+              if (sheet) return sheet.collection_name;
+            }
+            return f.sheets[0].collection_name;
+          }
+          return `master_data_${tabName}`;
+        };
 
-        if (!targetFile) {
-          console.error(
-            "Master file 'AP_CA Inc_Invoice_Codification' not found"
-          );
-          return;
-        }
 
-        const sheets = await masterDataService.getSheets(targetFile._id);
+        const getFieldLoose = (obj, searchFields) => {
+          if (!obj) return null;
+          const keys = Object.keys(obj);
+          for (const field of searchFields) {
+            if (obj[field] !== undefined && obj[field] !== null) return obj[field];
+            const foundKey = keys.find(k =>
+              k.toLowerCase().replace(/[^a-z0-9]/g, '') === field.toLowerCase().replace(/[^a-z0-9]/g, '')
+            );
+            if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null) return obj[foundKey];
+          }
+          return null;
+        };
 
-        // Load GL
-        const glSheet = sheets.find((s) => s.sheet_name === "GL");
-        if (glSheet) {
-          const rows = await masterDataService.getSheetData(
-            glSheet.collection_name
-          );
-          const gl = rows.map((row) => {
-            const acc =
-              row["Account number"] || row["account_number"] || row["Code"];
-            const title = row["Title"] || row["Name"] || row["Description"];
-            return {
-              value: `${acc} - ${title}`,
-              label: `${acc} - ${title}`,
-            };
-          });
-          setGlOptions(gl);
-        }
+        const [glRows, vendorRows] = await Promise.all([
+          masterDataService.getSheetData(findCollection("Line_Items", "GL")).catch(() => []),
+          masterDataService.getSheetData(findCollection("Vendor_Master")).catch(() => [])
+        ]);
 
-        // Load Vendors
-        const vendorSheet = sheets.find((s) =>
-          [
-            "Vendor",
-            "Vendor_Master",
-            "Vendor Master",
-            "Customer_Master",
-            "Vendor_Info",
-          ].includes(s.sheet_name)
-        );
 
-        if (vendorSheet) {
-          const rows = await masterDataService.getSheetData(
-            vendorSheet.collection_name
-          );
+        // Load GL Options
+        const gl = glRows.map((row) => {
+          const acc = getFieldLoose(row, ["Account number", "account_number", "Code", "GL Code", "AccountNumber", "GLCode"]);
+          const title = getFieldLoose(row, ["Title", "Name", "Description", "GLName", "AccountName"]);
+          return {
+            value: acc && title ? `${acc} - ${title}` : (acc || title || ""),
+            label: acc && title ? `${acc} - ${title}` : (acc || title || ""),
+          };
+        }).filter(opt => opt.value);
+        setGlOptions(gl);
 
-          const vendors = rows
-            .map((row, index) => {
-              const name =
-                row["VENDOR_NAME"] ||
-                row["Vendor_Name"] ||
-                row["Vendor name"] ||
-                row["Name"] ||
-                row["vendor_name"] ||
-                row["vendorName"] ||
-                row["CUSTOMER_NAME"];
+        // Load Vendor Options
+        const vendors = vendorRows.map((row, index) => {
+          const name = getFieldLoose(row, ["VENDOR_NAME", "Vendor Name", "VendorName", "Name", "vendor_name", "vendorName", "CUSTOMER_NAME", "Customer Name"]);
 
-              if (!name) return null;
+          if (!name) return null;
 
-              return {
-                value: `${name}__${index}`,
-                label: name,
-              };
-            })
-            .filter(Boolean);
+          return {
+            value: name,
+            label: name,
+          };
+        }).filter(Boolean);
 
-          setVendorOptions(vendors);
-        }
+
+        // De-duplicate vendors
+        const uniqueVendors = Array.from(new Set(vendors.map(v => v.value)))
+          .map(name => vendors.find(v => v.value === name));
+
+        setVendorOptions(uniqueVendors);
+
       } catch (error) {
         console.error("Error fetching master data:", error);
       } finally {
         setLoadingMasterData(false);
       }
     };
+
+
 
     fetchMasterData();
   }, []);
@@ -274,8 +271,8 @@ const SettingsPage = () => {
       const symbol = match
         ? match.symbol
         : record.currency === "INR"
-        ? "₹"
-        : "$";
+          ? "₹"
+          : "$";
       deleteLabel = `Amount Range: ${symbol}${record.min_amount} - ${symbol}${record.max_amount}`;
     } else if (type === "vendor") {
       deleteLabel = `Vendor: ${record.vendorName}`;
@@ -373,8 +370,8 @@ const SettingsPage = () => {
         const symbol = match
           ? match.symbol
           : record.currency === "INR"
-          ? "₹"
-          : "$";
+            ? "₹"
+            : "$";
         return `${symbol}${val?.toLocaleString() || 0}`;
       },
     },
@@ -391,8 +388,8 @@ const SettingsPage = () => {
         const symbol = match
           ? match.symbol
           : record.currency === "INR"
-          ? "₹"
-          : "$";
+            ? "₹"
+            : "$";
         return `${symbol}${val?.toLocaleString() || 0}`;
       },
     },
@@ -410,42 +407,42 @@ const SettingsPage = () => {
     // Only show actions if user is not a coder
     ...(userRole !== "coder"
       ? [
-          {
-            title: "Actions",
-            key: "actions",
-            render: (_, record) => (
-              <Space size="middle">
-                <span
-                  style={{
-                    color: "#1677ff",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                  onClick={() => handleEdit(record, "amount")}
-                >
-                  <EditOutlined />
-                  Edit
-                </span>
+        {
+          title: "Actions",
+          key: "actions",
+          render: (_, record) => (
+            <Space size="middle">
+              <span
+                style={{
+                  color: "#1677ff",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onClick={() => handleEdit(record, "amount")}
+              >
+                <EditOutlined />
+                Edit
+              </span>
 
-                <span
-                  style={{
-                    color: "#ff4d4f",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                  onClick={() => handleDelete(record, "amount")}
-                >
-                  <DeleteOutlined />
-                  Delete
-                </span>
-              </Space>
-            ),
-          },
-        ]
+              <span
+                style={{
+                  color: "#ff4d4f",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onClick={() => handleDelete(record, "amount")}
+              >
+                <DeleteOutlined />
+                Delete
+              </span>
+            </Space>
+          ),
+        },
+      ]
       : []),
   ];
 
@@ -459,42 +456,42 @@ const SettingsPage = () => {
     // Only show actions if user is not a coder
     ...(userRole !== "coder"
       ? [
-          {
-            title: "Actions",
-            key: "actions",
-            render: (_, record) => (
-              <Space size="middle">
-                <span
-                  style={{
-                    color: "#1677ff",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                  onClick={() => handleEdit(record, "vendor")}
-                >
-                  <EditOutlined />
-                  Edit
-                </span>
+        {
+          title: "Actions",
+          key: "actions",
+          render: (_, record) => (
+            <Space size="middle">
+              <span
+                style={{
+                  color: "#1677ff",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onClick={() => handleEdit(record, "vendor")}
+              >
+                <EditOutlined />
+                Edit
+              </span>
 
-                <span
-                  style={{
-                    color: "#ff4d4f",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                  onClick={() => handleDelete(record, "vendor")}
-                >
-                  <DeleteOutlined />
-                  Delete
-                </span>
-              </Space>
-            ),
-          },
-        ]
+              <span
+                style={{
+                  color: "#ff4d4f",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onClick={() => handleDelete(record, "vendor")}
+              >
+                <DeleteOutlined />
+                Delete
+              </span>
+            </Space>
+          ),
+        },
+      ]
       : []),
   ];
 
@@ -508,42 +505,42 @@ const SettingsPage = () => {
     // Only show actions if user is not a coder
     ...(userRole !== "coder"
       ? [
-          {
-            title: "Actions",
-            key: "actions",
-            render: (_, record) => (
-              <Space size="middle">
-                <span
-                  style={{
-                    color: "#1677ff",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                  onClick={() => handleEdit(record, "gl")}
-                >
-                  <EditOutlined />
-                  Edit
-                </span>
+        {
+          title: "Actions",
+          key: "actions",
+          render: (_, record) => (
+            <Space size="middle">
+              <span
+                style={{
+                  color: "#1677ff",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onClick={() => handleEdit(record, "gl")}
+              >
+                <EditOutlined />
+                Edit
+              </span>
 
-                <span
-                  style={{
-                    color: "#ff4d4f",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                  onClick={() => handleDelete(record, "gl")}
-                >
-                  <DeleteOutlined />
-                  Delete
-                </span>
-              </Space>
-            ),
-          },
-        ]
+              <span
+                style={{
+                  color: "#ff4d4f",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onClick={() => handleDelete(record, "gl")}
+              >
+                <DeleteOutlined />
+                Delete
+              </span>
+            </Space>
+          ),
+        },
+      ]
       : []),
   ];
 
@@ -553,42 +550,42 @@ const SettingsPage = () => {
     { title: "Code", dataIndex: "code", key: "code" },
     ...(userRole !== "coder"
       ? [
-          {
-            title: "Actions",
-            key: "actions",
-            render: (_, record) => (
-              <Space size="middle">
-                <span
-                  style={{
-                    color: "#1677ff",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                  onClick={() => handleEdit(record, "currency")}
-                >
-                  <EditOutlined />
-                  Edit
-                </span>
+        {
+          title: "Actions",
+          key: "actions",
+          render: (_, record) => (
+            <Space size="middle">
+              <span
+                style={{
+                  color: "#1677ff",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onClick={() => handleEdit(record, "currency")}
+              >
+                <EditOutlined />
+                Edit
+              </span>
 
-                <span
-                  style={{
-                    color: "#ff4d4f",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                  onClick={() => handleDelete(record, "currency")}
-                >
-                  <DeleteOutlined />
-                  Delete
-                </span>
-              </Space>
-            ),
-          },
-        ]
+              <span
+                style={{
+                  color: "#ff4d4f",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onClick={() => handleDelete(record, "currency")}
+              >
+                <DeleteOutlined />
+                Delete
+              </span>
+            </Space>
+          ),
+        },
+      ]
       : []),
   ];
 
@@ -748,15 +745,14 @@ const SettingsPage = () => {
       </Card>
 
       <Modal
-        title={`Add/Edit ${
-          modalType === "amount"
-            ? "Amount"
-            : modalType === "vendor"
+        title={`Add/Edit ${modalType === "amount"
+          ? "Amount"
+          : modalType === "vendor"
             ? "Vendor"
             : modalType === "gl"
-            ? "GL"
-            : "Currency"
-        } Rule`}
+              ? "GL"
+              : "Currency"
+          } Rule`}
         open={isModalVisible}
         onOk={handleSave}
         onCancel={() => setIsModalVisible(false)}

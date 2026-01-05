@@ -202,30 +202,50 @@ const CodingReviewPage = () => {
                 setLoadingMasterData(true);
 
                 const files = await masterDataService.getFiles();
+                const findCollection = (tabName, keyword) => {
+                    const f = files.find(item => item.tab_name === tabName);
+                    if (f && f.sheets && f.sheets.length > 0) {
+                        if (keyword) {
+                            const sheet = f.sheets.find(s =>
+                                s.name.toLowerCase().includes(keyword.toLowerCase())
+                            );
+                            if (sheet) return sheet.collection_name;
+                        }
+                        return f.sheets[0].collection_name;
+                    }
+                    return `master_data_${tabName}`;
+                };
 
-                // Only this file should be used
-                const targetFile = files.find(
-                    f => f.file_name?.trim() === "AP_CA Inc_Invoice_Codification"
-                );
 
-                if (!targetFile) {
-                    message.error("Master file 'AP_CA Inc_Invoice_Codification' not found");
-                    return;
-                }
+                const getFieldLoose = (obj, searchFields) => {
+                    if (!obj) return null;
+                    const keys = Object.keys(obj);
+                    for (const field of searchFields) {
+                        if (obj[field] !== undefined && obj[field] !== null) return obj[field];
+                        const foundKey = keys.find(k =>
+                            k.toLowerCase().replace(/[^a-z0-9]/g, '') === field.toLowerCase().replace(/[^a-z0-9]/g, '')
+                        );
+                        if (foundKey && obj[foundKey] !== undefined && obj[foundKey] !== null) return obj[foundKey];
+                    }
+                    return null;
+                };
 
-                const sheets = await masterDataService.getSheets(targetFile._id);
-
-                // Helper to fetch & format
-                const loadSheet = async (sheetName, formatter) => {
-                    const sheet = sheets.find(s => s.sheet_name === sheetName);
-                    if (!sheet) return [];
-                    const rows = await masterDataService.getSheetData(sheet.collection_name);
-
-                    return rows.map((row, i) => ({
-                        value: formatter(row),
-                        label: formatter(row),
-                        key: i
-                    }));
+                // Helper to fetch & format from a specific collection
+                const loadCollection = async (collectionName, formatter) => {
+                    try {
+                        const rows = await masterDataService.getSheetData(collectionName);
+                        if (!rows || rows.length === 0) return [];
+                        return rows.map((row, i) => {
+                            const val = formatter(row);
+                            return {
+                                value: val,
+                                label: val,
+                                key: `${collectionName}_${i}`
+                            };
+                        }).filter(opt => opt.value);
+                    } catch (e) {
+                        return [];
+                    }
                 };
 
                 const [
@@ -236,34 +256,39 @@ const CodingReviewPage = () => {
                     item,
                     currData
                 ] = await Promise.all([
-                    loadSheet("GL", row => {
-                        const acc = row["Account number"] || row["account_number"] || row["Code"];
-                        const title = row["Title"] || row["Name"] || row["Description"];
-                        return `${acc} - ${title}`;
+                    // Look in Line_Items or Entity_Master for these options
+                    loadCollection(findCollection("Line_Items", "GL"), row => {
+                        const acc = getFieldLoose(row, ["Account number", "account_number", "Code", "GL Code", "AccountNumber", "GLCode"]);
+                        const title = getFieldLoose(row, ["Title", "Name", "Description", "GLName", "AccountName"]);
+                        return acc && title ? `${acc} - ${title}` : (acc || title || "");
                     }),
-                    loadSheet("LOB", row => {
-                        const id = row["LOB ID"];
-                        const name = row["Name"];
-                        return `${id} - ${name}`;
+                    loadCollection(findCollection("Line_Items", "LOB"), row => {
+                        const id = getFieldLoose(row, ["LOB ID", "LOBID", "LOB", "LineOfBusiness"]);
+                        const name = getFieldLoose(row, ["Name", "LOB Name", "LOBName", "Description"]);
+                        return id && name ? `${id} - ${name}` : (id || name || "");
                     }),
-                    loadSheet("Department", row => {
-                        const id = row["Department ID"] || row["ID"];
-                        const name = row["Department name"] || row["Department Name"] || row["Name"];
-                        return `${id} - ${name}`;
+                    loadCollection(findCollection("Line_Items", "Department"), row => {
+                        const id = getFieldLoose(row, ["Department ID", "DeptID", "ID", "Dept", "DepartmentCode"]);
+                        const name = getFieldLoose(row, ["Department name", "Department Name", "DeptName", "Name"]);
+                        return id && name ? `${id} - ${name}` : (id || name || "");
                     }),
-                    loadSheet("Customer_Master", row => {
-                        const id = row["CUSTOMER_ID"] || row["Customer ID"];
-                        const name = row["CUSTOMER_NAME"] || row["Customer Name"];
-                        return `${id} - ${name}`;
+                    loadCollection(findCollection("Line_Items", "Customer"), row => {
+                        const id = getFieldLoose(row, ["VENDOR_ID", "Vendor ID", "VendorID", "Customer_Id"]);
+                        const name = getFieldLoose(row, ["VENDOR_NAME", "Vendor Name", "VendorName", "Name", "CustomerName", "CUSTOMER_NAME"]);
+                        return id && name ? `${id} - ${name}` : (id || name || "");
                     }),
-                    loadSheet("Item", row => {
-                        const id = row["Item ID"];
-                        const name = row["Name"];
-                        return `${id} - ${name}`;
+                    loadCollection(findCollection("Line_Items", "Item"), row => {
+                        const id = getFieldLoose(row, ["Item ID", "ItemID", "ID", "ItemCode"]);
+                        const name = getFieldLoose(row, ["Name", "Item Name", "ItemName", "Description"]);
+                        return id && name ? `${id} - ${name}` : (id || name || "");
                     }),
                     currencyService.getCurrencies()
                 ]);
 
+
+
+
+                // Fallback: If options are still empty, try the old logic briefly or just use what we have
                 setGlOptions(gl);
                 setLobOptions(lob);
                 setDeptOptions(dept);
@@ -282,6 +307,7 @@ const CodingReviewPage = () => {
         fetchMasterData();
     }, []);
     // ⭐⭐⭐ END UPDATED BLOCK ⭐⭐⭐
+
 
     // Extract line items
     useEffect(() => {
