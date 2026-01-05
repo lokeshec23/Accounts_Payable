@@ -81,7 +81,9 @@
     background: white;
 }
 
-.invoices-table .ant-table-thead>tr>th {
+.invoices-table .ant-table-thead>tr>th,
+.approvals-table .ant-table-thead>tr>th,
+.master-data-table .ant-table-thead>tr>th {
     background: #1e5a7d !important;
     color: white !important;
     font-weight: 600;
@@ -93,20 +95,34 @@
     /* Enforce Inter */
 }
 
-.invoices-table .ant-table-thead>tr>th::before {
+.invoices-table .ant-table-thead>tr>th::before,
+.approvals-table .ant-table-thead>tr>th::before,
+.master-data-table .ant-table-thead>tr>th::before {
     display: none !important;
 }
 
 
 .invoices-table .ant-table-column-sorter,
-.invoices-table .ant-table-filter-trigger {
+.invoices-table .ant-table-filter-trigger,
+.approvals-table .ant-table-column-sorter,
+.approvals-table .ant-table-filter-trigger,
+.master-data-table .ant-table-column-sorter,
+.master-data-table .ant-table-filter-trigger {
     color: white !important;
 }
 
 .invoices-table .ant-table-column-sorter-up.active,
 .invoices-table .ant-table-column-sorter-down.active,
 .invoices-table .ant-table-filter-trigger.active,
-.invoices-table .ant-table-filter-trigger-container-open .ant-table-filter-trigger {
+.invoices-table .ant-table-filter-trigger-container-open .ant-table-filter-trigger,
+.approvals-table .ant-table-column-sorter-up.active,
+.approvals-table .ant-table-column-sorter-down.active,
+.approvals-table .ant-table-filter-trigger.active,
+.approvals-table .ant-table-filter-trigger-container-open .ant-table-filter-trigger,
+.master-data-table .ant-table-column-sorter-up.active,
+.master-data-table .ant-table-column-sorter-down.active,
+.master-data-table .ant-table-filter-trigger.active,
+.master-data-table .ant-table-filter-trigger-container-open .ant-table-filter-trigger {
     color: #ffd666 !important;
 }
 
@@ -287,7 +303,7 @@
 
 /* Main Layout Tabs Styling */
 .main-tabs .ant-tabs-tab {
-    font-family: 'Jura', sans-serif !important;
+    font-family: 'Inter', sans-serif !important;
     font-size: 16px !important;
     font-weight: 500 !important;
     color: #666;

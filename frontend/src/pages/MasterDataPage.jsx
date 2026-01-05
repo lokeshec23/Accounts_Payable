@@ -13,8 +13,10 @@ import {
     Form,
     Upload,
     Select,
-    Empty
+    Empty,
+    Switch
 } from "antd";
+
 import {
     PlusOutlined,
     EditOutlined,
@@ -236,7 +238,8 @@ const MasterDataPage = () => {
             )];
 
             return {
-                title: colKey.replace(/([A-Z])/g, ' $1').toUpperCase(),
+                title: colKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+
                 dataIndex: colKey,
                 key: colKey,
                 sorter: (a, b) => String(a[colKey] || "").localeCompare(String(b[colKey] || "")),
@@ -370,7 +373,8 @@ const MasterDataPage = () => {
     );
 
     return (
-        <div style={{ padding: "24px" }}>
+        <div style={{ padding: "24px", fontFamily: "'Inter', sans-serif" }}>
+
             <Card className="master-data-card" style={{ minHeight: "80vh", borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                     <Title level={4} style={{ margin: 0 }}>Master Data Management</Title>
@@ -431,7 +435,7 @@ const MasterDataPage = () => {
                                     onChange: (page, pageSize) => setPagination({ ...pagination, current: page, pageSize })
                                 }}
                                 scroll={{ x: "max-content", y: "calc(100vh - 400px)" }}
-                                className="master-data-table"
+                                className="master-data-table invoices-table"
                             />
                         ) : (
                             renderUploadView()
@@ -456,25 +460,50 @@ const MasterDataPage = () => {
                                 if (activeTab === "Vendor_Master") {
                                     if (fieldKey === "GST / Use Tax Eligibility Configuration") {
                                         return (
-                                            <Form.Item key={fieldKey} label={fieldKey} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
-                                                <Select options={[{ value: 'Eligible', label: 'Eligible' }, { value: 'Ineligible', label: 'Ineligible' }]} />
+                                            <Form.Item
+                                                key={fieldKey}
+                                                label={fieldKey}
+                                                name={fieldKey}
+                                                style={{ width: 'calc(50% - 8px)' }}
+                                                valuePropName="checked"
+                                                getValueProps={(value) => ({ checked: value === 'Eligible' })}
+                                                getValueFromEvent={(val) => (val ? 'Eligible' : 'Ineligible')}
+                                            >
+                                                <Switch checkedChildren="Eligible" unCheckedChildren="Ineligible" />
                                             </Form.Item>
                                         );
                                     }
                                     if (fieldKey === "TDS/Withhold Tax Applicability Configuration") {
                                         return (
-                                            <Form.Item key={fieldKey} label={fieldKey} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
-                                                <Select options={[{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }]} />
+                                            <Form.Item
+                                                key={fieldKey}
+                                                label={fieldKey}
+                                                name={fieldKey}
+                                                style={{ width: 'calc(50% - 8px)' }}
+                                                valuePropName="checked"
+                                                getValueProps={(value) => ({ checked: value === 'Yes' })}
+                                                getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
+                                            >
+                                                <Switch checkedChildren="Yes" unCheckedChildren="No" />
                                             </Form.Item>
                                         );
                                     }
                                     if (fieldKey === "Workflow Applicability Configuration") {
                                         return (
-                                            <Form.Item key={fieldKey} label={fieldKey} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
-                                                <Select options={[{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }]} />
+                                            <Form.Item
+                                                key={fieldKey}
+                                                label={fieldKey}
+                                                name={fieldKey}
+                                                style={{ width: 'calc(50% - 8px)' }}
+                                                valuePropName="checked"
+                                                getValueProps={(value) => ({ checked: value === 'Yes' })}
+                                                getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
+                                            >
+                                                <Switch checkedChildren="Yes" unCheckedChildren="No" />
                                             </Form.Item>
                                         );
                                     }
+
                                     if (fieldKey === "TDS Percentage") {
                                         const isApplicable = tdsApplicable === "Yes";
                                         return (
