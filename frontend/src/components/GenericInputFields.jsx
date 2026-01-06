@@ -22,7 +22,8 @@ import {
     CheckCircleOutlined,
     CloseCircleOutlined,
     RollbackOutlined,
-    SendOutlined
+    SendOutlined,
+    DownloadOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { invoiceService, codingService, workflowService, masterDataService } from '../services/api';
@@ -398,6 +399,50 @@ const GenericInputFields = ({
         const updated = [...codingLineItems];
         updated[index][field] = value;
         setCodingLineItems(updated);
+    };
+
+    const exportToExcel = () => {
+        if (!codingLineItems || codingLineItems.length === 0) {
+            message.warning('No line items to export');
+            return;
+        }
+
+        // Define columns to export - matching the coding columns logic
+        const headers = [
+            'S.No', 'Description', 'Line Type', 'Quantity', 'Unit Price',
+            'Net Amount', 'GL Code', 'LOB', 'Department', 'Customer', 'Item'
+        ];
+
+        // Map data to array of arrays
+        const data = codingLineItems.map((item, index) => [
+            index + 1,
+            `"${item.description || ''}"`,
+            item.line_type || 'Expense',
+            item.quantity,
+            item.unit_price,
+            item.net_amount,
+            item.gl_code,
+            item.lob,
+            item.department,
+            item.customer,
+            item.item
+        ]);
+
+        // Create CSV content
+        const csvContent = [
+            headers.join(','),
+            ...data.map(row => row.join(','))
+        ].join('\n');
+
+        // Create blob and trigger download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `invoice_line_items_${invoiceDisplayId || 'export'}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     // ---------- save invoice data (extracted_data) ----------
@@ -1653,7 +1698,24 @@ const GenericInputFields = ({
                     />
                 </Panel>
 
-                <Panel header="Line Items" key="lineitems">
+                <Panel
+                    header={
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Line Items</span>
+                            <Button
+                                icon={<DownloadOutlined />}
+                                size="small"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    exportToExcel();
+                                }}
+                            >
+                                Export to Excel
+                            </Button>
+                        </div>
+                    }
+                    key="lineitems"
+                >
                     <Table
                         key={getCurrencySymbol()}
                         columns={[

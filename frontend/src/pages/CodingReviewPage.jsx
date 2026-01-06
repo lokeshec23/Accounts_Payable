@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin, Checkbox, Tabs } from 'antd';
 const { Panel } = Collapse;
-import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined, RollbackOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined, RollbackOutlined, DownloadOutlined } from '@ant-design/icons';
 import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
 import WorkflowTab from '../components/WorkflowTab';
 import { invoiceService, codingService, masterDataService, approvalService, workflowService, currencyService } from '../services/api';
@@ -274,7 +274,7 @@ const CodingReviewPage = () => {
                     }),
                     loadCollection(findCollection("Line_Items", "Customer"), row => {
                         const id = getFieldLoose(row, ["VENDOR_ID", "Vendor ID", "VendorID", "Customer_Id"]);
-                        const name = getFieldLoose(row, ["VENDOR_NAME", "Vendor Name", "VendorName", "Name", "CustomerName", "CUSTOMER_NAME"]);
+                        const name = getFieldLoose(row, ["VENDOR_NAME", "Vendor Name", "VendorName", "CustomerName", "CUSTOMER_NAME"]);
                         return id && name ? `${id} - ${name}` : (id || name || "");
                     }),
                     loadCollection(findCollection("Line_Items", "Item"), row => {
@@ -607,16 +607,10 @@ const CodingReviewPage = () => {
 
     const handleRecall = async () => {
         try {
-            console.log('Recall invoked for invoice:', invoiceData);
             setSaving(true);
-            if (!invoiceData?.id) {
-                throw new Error('Invoice ID missing');
-            }
-            // Backend now handles clearing validation_results automatically
-            console.log('Updating status to waiting_coding...');
-            const response = await invoiceService.updateInvoiceStatus(invoiceData.id, 'waiting_coding', 'Recalled by user');
-            console.log('Recall response:', response);
-            message.success('Invoice recalled successfully!');
+            await invoiceService.recallInvoice(invoiceData.id);
+            message.success('Invoice recalled successfully');
+            // Optimistically update status
             navigate('/coding');
         } catch (error) {
             console.error('Error recalling invoice:', error);
@@ -624,6 +618,50 @@ const CodingReviewPage = () => {
         } finally {
             setSaving(false);
         }
+    };
+
+    const exportToExcel = () => {
+        if (!codingLineItems || codingLineItems.length === 0) {
+            message.warning('No line items to export');
+            return;
+        }
+
+        // Define columns to export
+        const headers = [
+            'S.No', 'Description', 'Line Type', 'Quantity', 'Unit Price',
+            'Net Amount', 'GL Code', 'LOB', 'Department', 'Customer', 'Item'
+        ];
+
+        // Map data to array of arrays
+        const data = codingLineItems.map(item => [
+            item.s_no,
+            `"${item.description || ''}"`, // Quote descriptions to handle commas
+            item.line_type,
+            item.quantity,
+            item.unit_price,
+            item.net_amount,
+            item.gl_code,
+            item.lob,
+            item.department,
+            item.customer,
+            item.item
+        ]);
+
+        // Create CSV content
+        const csvContent = [
+            headers.join(','),
+            ...data.map(row => row.join(','))
+        ].join('\n');
+
+        // Create blob and trigger download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `coding_line_items_${invoiceData?.invoiceId || 'export'}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
 
@@ -1224,7 +1262,24 @@ const CodingReviewPage = () => {
                                             />
                                         </Panel>
 
-                                        <Panel header="Line Items" key="lineitems">
+                                        <Panel
+                                            header={
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span>Line Items</span>
+                                                    <Button
+                                                        icon={<DownloadOutlined />}
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            exportToExcel();
+                                                        }}
+                                                    >
+                                                        Export to Excel
+                                                    </Button>
+                                                </div>
+                                            }
+                                            key="lineitems"
+                                        >
                                             <Table
                                                 columns={lineItemColumns}
                                                 dataSource={codingLineItems.map((item, index) => ({ ...item, key: index }))}
