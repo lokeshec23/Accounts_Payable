@@ -431,6 +431,7 @@ const CodingReviewPage = () => {
         } else {
             // Header fields
             const map = {
+                'vendor_id': data.vendor_info?.vendor_id,
                 'vendor_name': data.vendor_info?.name,
                 'invoice_id': data.invoice_details?.invoice_number,
                 'total_amount': data.amounts?.total_invoice_amount,
@@ -559,7 +560,7 @@ const CodingReviewPage = () => {
                 invoice_id: invoiceData.id,
                 header_coding: headerCoding,
                 line_items: cleanedLineItems,
-                vendor_name: invoiceData?.vendorName || ''
+                vendor_name: invoiceData?.vendorName || '',
             });
 
             // Send to approval using new approval service
@@ -631,10 +632,20 @@ const CodingReviewPage = () => {
     // Table definitions
     const headerColumns = [
         {
+            title: 'Vendor ID',
+            dataIndex: 'vendor_id',
+            key: 'vendor_id',
+            width: '15%',
+            render: (text) => (
+                <Input value={text} disabled style={disabledStyle} />
+            )
+        },
+
+        {
             title: 'Vendor Name',
             dataIndex: 'vendor_name',
             key: 'vendor_name',
-            width: '18%',
+            width: '15%',
             render: (text) => (
                 <div
                     onMouseEnter={() => setHoveredKey('vendor_name')}
@@ -649,7 +660,7 @@ const CodingReviewPage = () => {
             title: 'Invoice ID',
             dataIndex: 'invoice_id',
             key: 'invoice_id',
-            width: '18%',
+            width: '15%',
             render: (text) => (
                 <div
                     onMouseEnter={() => setHoveredKey('invoice_id')}
@@ -664,7 +675,7 @@ const CodingReviewPage = () => {
             title: 'Total Amount',
             dataIndex: 'total_amount',
             key: 'total_amount',
-            width: '18%',
+            width: '15%',
             render: (text) => (
                 <div
                     onMouseEnter={() => setHoveredKey('total_amount')}
@@ -684,7 +695,7 @@ const CodingReviewPage = () => {
             title: 'Amount Due',
             dataIndex: 'amount_due',
             key: 'amount_due',
-            width: '18%',
+            width: '15%',
             render: (text) => (
                 <div
                     onMouseEnter={() => setHoveredKey('amount_due')}
@@ -703,7 +714,7 @@ const CodingReviewPage = () => {
             title: 'Due Date',
             dataIndex: 'due_date',
             key: 'due_date',
-            width: '18%',
+            width: '15%',
             render: (text) => (
                 <div
                     onMouseEnter={() => setHoveredKey('due_date')}
@@ -715,20 +726,12 @@ const CodingReviewPage = () => {
             )
         },
         {
-            title: 'Header Coding',
-            dataIndex: 'header_coding',
-            key: 'header_coding',
-            width: '18%',
-            render: () => (
-                <Input
-                    value={headerCoding}
-                    onChange={(e) => handleHeaderCodingChange(e.target.value)}
-                    placeholder="Enter header coding"
-                    rows={1}
-                    autoSize={{ minRows: 1, maxRows: 4 }}
-                    style={{ ...disabledStyle, width: '100%' }}
-                    disabled={isApproved || isRejected || userRole === 'approver' || disableEditing}
-                />
+            title: 'Memo',
+            dataIndex: 'memo',
+            key: 'memo',
+            width: '15%',
+            render: (text) => (
+                <Input value={text} disabled style={disabledStyle} />
 
             )
         }
@@ -737,12 +740,16 @@ const CodingReviewPage = () => {
     const headerDataSource = [
         {
             key: '1',
+            vendor_id: invoiceData?.vendorId ||
+            invoiceData?.rawData?.extracted_data?.vendor_info?.vendor_id?.value ||
+            invoiceData?.rawData?.extracted_data?.vendor_info?.vendor_id ||
+            '',
             vendor_name: invoiceData?.vendorName || '',
             invoice_id: invoiceData?.invoiceId || '',
             total_amount: invoiceData?.rawData?.extracted_data?.amounts?.total_invoice_amount?.value || '',
             amount_due: invoiceData?.rawData?.extracted_data?.amounts?.amount_due?.value || '',
             due_date: invoiceData?.rawData?.extracted_data?.invoice_details?.due_date?.value || '',
-            header_coding: headerCoding
+            memo: invoiceData?.rawData?.extracted_data?.additional_info?.memo?.value || '',
         }
     ];
 
