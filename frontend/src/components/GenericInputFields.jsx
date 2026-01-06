@@ -25,7 +25,7 @@ import {
     SendOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { invoiceService, codingService, workflowService } from '../services/api';
+import { invoiceService, codingService, workflowService, masterDataService } from '../services/api';
 import { authService } from '../services/auth';
 import WorkflowTab from './WorkflowTab';
 
@@ -59,6 +59,12 @@ const GenericInputFields = ({
 
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState(readOnly ? '3' : '1');
+
+    // Vendor Master Data state
+    const [vendorMasterData, setVendorMasterData] = useState([]);
+    const [selectedVendorDetails, setSelectedVendorDetails] = useState(null);
+    const [vendorId, setVendorId] = useState('');
+    const [memo, setMemo] = useState('');
 
     // Status & validation info
     const [invoiceStatus, setInvoiceStatus] = useState(initialStatus);
@@ -177,7 +183,87 @@ const GenericInputFields = ({
                 })
             );
         }
+        // Initialize new fields from data
+        setVendorId(extractValue(data?.extracted_data?.vendor_info?.vendor_id) || '');
+        setMemo(extractValue(data?.extracted_data?.additional_info?.memo) || '');
+
     }, [data, extractionData, originalData]);
+
+    // ---------- Load Vendor Master Data ----------
+    useEffect(() => {
+        const loadVendorMaster = async () => {
+            try {
+                // 1. Get file metadata to find Vendor_Master collection
+                const files = await masterDataService.getFiles();
+                const vendorMasterFile = files.find(f => f.tab_name === 'Vendor_Master');
+
+                if (vendorMasterFile && vendorMasterFile.sheets && vendorMasterFile.sheets.length > 0) {
+                    const collectionName = vendorMasterFile.sheets[0].collection_name;
+                    // 2. Fetch the data
+                    const rows = await masterDataService.getSheetData(collectionName);
+                    setVendorMasterData(rows);
+                }
+            } catch (error) {
+                console.error("Failed to load Vendor Master data", error);
+            }
+        };
+        loadVendorMaster();
+    }, []);
+
+    // ---------- Vendor Logic & Due Date Calculation ----------
+    useEffect(() => {
+        const vendorName = extractValue(formData['Vendor Name']);
+        if (vendorName && vendorMasterData.length > 0) {
+            // Find vendor
+            const match = vendorMasterData.find(v =>
+                String(v['Vendor Name'] || '').toLowerCase().trim() === String(vendorName).toLowerCase().trim()
+            );
+            setSelectedVendorDetails(match || null);
+
+            // Auto-populate Vendor ID if available and not set
+            if (match && match['Vendor ID'] && !vendorId) {
+                setVendorId(match['Vendor ID']);
+            }
+            // Auto-populate Payment Terms if available and not set
+            if (match && match['Payment Terms'] && !extractValue(formData['Payment Terms'])) {
+                handleInputChange('Payment Terms', match['Payment Terms']);
+            }
+
+        } else {
+            setSelectedVendorDetails(null);
+        }
+    }, [formData['Vendor Name'], vendorMasterData]);
+
+    useEffect(() => {
+        const calculateDueDate = () => {
+            const invoiceDateStr = extractValue(formData['Invoice Date']);
+            const paymentTermsStr = extractValue(formData['Payment Terms']);
+
+            if (!invoiceDateStr || !paymentTermsStr) return;
+
+            // Avoid overriding if user manually set it? 
+            // Requirement says "Logic Updates: Calculate Due Date..." 
+            // We'll update it if it's different, or perhaps only if not set? 
+            // Let's update it reactively but maybe be careful. 
+            // Actually, usually users want auto-calc.
+
+            const invoiceDate = dayjs(invoiceDateStr);
+            if (!invoiceDate.isValid()) return;
+
+            // Parsing "Net 30", "30 Days", "30", etc.
+            const match = String(paymentTermsStr).match(/(\d+)/);
+            if (match) {
+                const days = parseInt(match[0], 10);
+                const newDueDate = invoiceDate.add(days, 'day').format('YYYY-MM-DD');
+
+                const currentDueDate = extractValue(formData['Due Date']);
+                if (currentDueDate !== newDueDate) {
+                    handleInputChange('Due Date', newDueDate);
+                }
+            }
+        };
+        calculateDueDate();
+    }, [formData['Invoice Date'], formData['Payment Terms']]);
 
     // ---------- load saved coding ----------
     useEffect(() => {
@@ -416,6 +502,12 @@ const GenericInputFields = ({
                     'vendor_info.website',
                     extractValue(formData['Vendor Website (if applicable)'])
                 );
+            // Save Vendor ID
+            safeUpdate(
+                updatedExtractedData,
+                'vendor_info.vendor_id',
+                vendorId
+            );
 
             // -------- Client Info --------
             const clientFields = [
@@ -489,6 +581,12 @@ const GenericInputFields = ({
                     'additional_info.company_registration_number'
                 ]
             ];
+            // Save Memo
+            safeUpdate(
+                updatedExtractedData,
+                'additional_info.memo',
+                memo
+            );
             additionalFields.forEach(([label, path]) => {
                 if (formData[label] !== undefined) {
                     safeUpdate(updatedExtractedData, path, extractValue(formData[label]));
@@ -792,7 +890,7 @@ const GenericInputFields = ({
             );
         }
 
-        if (field.includes('Notes') || field.includes('Terms')) {
+        if (field.includes('Notes')) {
             return (
                 <div
                     onMouseEnter={() => setHoveredKey && setHoveredKey(field)}
@@ -1064,27 +1162,92 @@ const GenericInputFields = ({
                             gap: '12px'
                         }}
                     >
-                        {[
-                            ['Vendor Name', 'Vendor Name'],
-                            ['Invoice Number', 'Invoice Number'],
-                            ['Invoice Date', 'Invoice Date'],
-                            ['Due Date', 'Due Date'],
-                            ['Amount Due', 'Amount Due'],
-                            ['Payment Terms', 'Payment Terms']
-                        ].map(([label, key]) => (
-                            <div
-                                key={key}
-                                style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: '200px 1fr',
-                                    gap: '16px',
-                                    alignItems: 'center'
-                                }}
-                            >
-                                <div style={{ fontWeight: 500 }}>{label}:</div>
-                                <div>{renderFieldInput(key, formData[key])}</div>
-                            </div>
-                        ))}
+                        {/* Vendor Name */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '200px 1fr',
+                            gap: '16px',
+                            alignItems: 'center'
+                        }}>
+                            <div style={{ fontWeight: 500 }}>Vendor Name:</div>
+                            <div>{renderFieldInput('Vendor Name', formData['Vendor Name'])}</div>
+                        </div>
+
+                        {/* Vendor ID */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '200px 1fr',
+                            gap: '16px',
+                            alignItems: 'center'
+                        }}>
+                            <div style={{ fontWeight: 500 }}>Vendor ID:</div>
+                            <Input
+                                value={vendorId}
+                                onChange={(e) => setVendorId(e.target.value)}
+                                disabled={disableInputs}
+                                style={disabledStyle}
+                            />
+                        </div>
+
+                        {/* Invoice Number */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '200px 1fr',
+                            gap: '16px',
+                            alignItems: 'center'
+                        }}>
+                            <div style={{ fontWeight: 500 }}>Invoice Number:</div>
+                            <div>{renderFieldInput('Invoice Number', formData['Invoice Number'])}</div>
+                        </div>
+
+                        {/* Invoice Date */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '200px 1fr',
+                            gap: '16px',
+                            alignItems: 'center'
+                        }}>
+                            <div style={{ fontWeight: 500 }}>Invoice Date:</div>
+                            <div>{renderFieldInput('Invoice Date', formData['Invoice Date'])}</div>
+                        </div>
+
+                        {/* Due Date */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '200px 1fr',
+                            gap: '16px',
+                            alignItems: 'center'
+                        }}>
+                            <div style={{ fontWeight: 500 }}>Due Date:</div>
+                            <div>{renderFieldInput('Due Date', formData['Due Date'])}</div>
+                        </div>
+
+                        {/* Payment Terms */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '200px 1fr',
+                            gap: '16px',
+                            alignItems: 'center',
+                        }}>
+                            <div style={{ fontWeight: 500 }}>Payment Terms:</div>
+                            <div>{renderFieldInput('Payment Terms', formData['Payment Terms'])}</div>
+                        </div>
+
+                        {/* Memo */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '200px 1fr',
+                            gap: '16px',
+                            alignItems: 'center'
+                        }}>
+                            <div style={{ fontWeight: 500 }}>Memo:</div>
+                            <Input
+                                value={memo}
+                                onChange={(e) => setMemo(e.target.value)}
+                                disabled={disableInputs}
+                                style={disabledStyle}
+                            />
+                        </div>
 
                         <div
                             style={{
@@ -1096,15 +1259,6 @@ const GenericInputFields = ({
                         >
                             <div style={{ fontWeight: 500 }}>Currency:</div>
                             <div>
-                                {/* <Select
-                                    style={{ width: '100%' }}
-                                    defaultValue="USD"
-                                    options={[
-                                        { value: 'USD', label: '$ USD' },
-                                        { value: 'INR', label: '₹ INR' }
-                                    ]}
-                                    disabled={disableInputs}
-                                /> */}
                                 {renderFieldInput('Invoice Currency', formData['Invoice Currency'])}
                             </div>
                         </div>
@@ -1125,6 +1279,43 @@ const GenericInputFields = ({
                                 )}
                             </div>
                         </div>
+
+                        {/* Vendor Details Section (Read-Only) */}
+                        {selectedVendorDetails && (
+                            <div style={{
+                                marginTop: '16px',
+                                padding: '12px',
+                                background: '#f0f5ff',
+                                borderRadius: '6px',
+                                border: '1px solid #adc6ff'
+                            }}>
+                                <div style={{ fontWeight: 600, color: '#1d39c4', marginBottom: '8px' }}>
+                                    Vendor Master Details
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
+                                    <div>
+                                        <span style={{ color: '#595959' }}>GST / Use Tax:</span><br />
+                                        <strong>{selectedVendorDetails['GST / Use Tax Eligibility Configuration'] || 'N/A'}</strong>
+                                    </div>
+                                    <div>
+                                        <span style={{ color: '#595959' }}>TDS Applicability:</span><br />
+                                        <strong>{selectedVendorDetails['TDS/Withhold Tax Applicability Configuration'] || 'N/A'}</strong>
+                                    </div>
+                                    {selectedVendorDetails['TDS/Withhold Tax Applicability Configuration'] === 'Yes' && (
+                                        <>
+                                            <div>
+                                                <span style={{ color: '#595959' }}>TDS %:</span><br />
+                                                <strong>{selectedVendorDetails['TDS Percentage'] || 'N/A'}</strong>
+                                            </div>
+                                            <div>
+                                                <span style={{ color: '#595959' }}>TDS Section:</span><br />
+                                                <strong>{selectedVendorDetails['TDS Section Code and Description'] || 'N/A'}</strong>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </Panel>
 
@@ -1416,6 +1607,12 @@ const GenericInputFields = ({
                                 width: '15%'
                             },
                             {
+                                title: 'Payment Terms',
+                                dataIndex: 'paymentTerms',
+                                key: 'paymentTerms',
+                                width: '15%'
+                            },
+                            {
                                 title: 'Header Coding',
                                 dataIndex: 'headerCoding',
                                 key: 'headerCoding',
@@ -1446,6 +1643,8 @@ const GenericInputFields = ({
                                     '',
                                 dueDate:
                                     formData['Due Date']?.value || formData['Due Date'] || '',
+                                paymentTerms:
+                                    formData['Payment Terms']?.value || formData['Payment Terms'] || '',
                                 headerCoding: ''
                             }
                         ]}
