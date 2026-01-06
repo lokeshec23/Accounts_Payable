@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Upload, Button, message } from "antd";
+import { Upload, Button, message, Modal } from "antd";
 import { UploadOutlined, InboxOutlined, FolderOpenOutlined } from "@ant-design/icons";
 import { invoiceService } from "../services/api";
 import Dragger from "antd/es/upload/Dragger";
@@ -59,7 +59,7 @@ const InvoicePage = () => {
 
             messageApi.open({
                 type: "success",
-                content: `${response.count} invoice(s) processed successfully!`,
+                content: `${response.count} invoice${response.count > 1 ? 's' : ''} processed successfully!`,
                 key: "uploading"
             });
 
@@ -73,11 +73,30 @@ const InvoicePage = () => {
 
         } catch (error) {
             console.error("Upload failed:", error);
-            messageApi.open({
-                type: "error",
-                content: "Upload failed",
-                key: "uploading"
-            });
+            console.log("Error Response:", error.response);
+            console.log("Error Status:", error.response?.status);
+            console.log("Error Detail:", error.response?.data?.detail);
+
+            messageApi.destroy("uploading");
+
+            // Check if it's a duplicate invoice error (400 status)
+            if (error.response?.status === 400 && error.response?.data?.detail) {
+                // Show detailed error message for duplicates
+                Modal.error({
+                    title: 'Duplicate Invoice Detected',
+                    content: error.response.data.detail,
+                    width: 600,
+                });
+                messageApi.error("Upload failed: Duplicate Invoice Detected");
+            } else {
+                // Generic error message for other failures
+                // DEBUG: Show full error details in toast
+                const errorMsg = error.response?.data?.detail ?
+                    (typeof error.response.data.detail === 'object' ? JSON.stringify(error.response.data.detail) : error.response.data.detail)
+                    : (error.message || "Unknown error");
+
+                messageApi.error(`Error (${error.response?.status || 'No Status'}): ${errorMsg}`);
+            }
 
         } finally {
             setLoading(false);

@@ -185,6 +185,12 @@ export const masterDataService = {
     return response.data;
   },
 
+  // 9️⃣ Embedding Search
+  async searchVendor(vendorName) {
+    const response = await api.post("/master/search-vendor", { vendor_name: vendorName });
+    return response.data;
+  },
+
 };
 
 // Workflow service methods

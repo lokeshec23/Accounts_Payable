@@ -143,10 +143,17 @@ const GenericInputFields = ({
     useEffect(() => {
         const items = data?.items || data?.LineItems || [];
 
-        setFormData({
+        // Prioritize official vendor name from master (at root level)
+        const initialFormData = {
             ...extractionData,
             LineItems: items
-        });
+        };
+
+        if (data?.vendor_name) {
+            initialFormData['Vendor Name'] = { value: data.vendor_name };
+        }
+
+        setFormData(initialFormData);
         setLineItems(items);
 
         setInvoiceStatus(originalData?.status || 'waiting_approval');
@@ -183,8 +190,10 @@ const GenericInputFields = ({
                 })
             );
         }
+
         // Initialize new fields from data
-        setVendorId(extractValue(data?.extracted_data?.vendor_info?.vendor_id) || '');
+        // Prioritize root-level vendor_id from master data
+        setVendorId(data?.vendor_id || extractValue(data?.extracted_data?.vendor_info?.vendor_id) || '');
         setMemo(extractValue(data?.extracted_data?.additional_info?.memo) || '');
 
     }, [data, extractionData, originalData]);
@@ -195,13 +204,26 @@ const GenericInputFields = ({
             try {
                 // 1. Get file metadata to find Vendor_Master collection
                 const files = await masterDataService.getFiles();
-                const vendorMasterFile = files.find(f => f.tab_name === 'Vendor_Master');
+                console.log("DEBUG: All Master Files:", files);
+
+                // Try multiple common names
+                const vendorMasterFile = files.find(f =>
+                    f.tab_name === 'Vendor_Master' ||
+                    f.tab_name === 'Vendor Master' ||
+                    f.tab_name === 'Vendors' ||
+                    f.tab_name === 'Vendor'
+                );
 
                 if (vendorMasterFile && vendorMasterFile.sheets && vendorMasterFile.sheets.length > 0) {
+                    console.log("DEBUG: Found Master File:", vendorMasterFile.tab_name);
                     const collectionName = vendorMasterFile.sheets[0].collection_name;
                     // 2. Fetch the data
                     const rows = await masterDataService.getSheetData(collectionName);
+                    console.log("DEBUG: Loaded rows:", rows.length);
+                    if (rows.length > 0) console.log("DEBUG: Keys:", Object.keys(rows[0]));
                     setVendorMasterData(rows);
+                } else {
+                    console.warn("DEBUG: No Vendor Master file found");
                 }
             } catch (error) {
                 console.error("Failed to load Vendor Master data", error);
@@ -211,28 +233,95 @@ const GenericInputFields = ({
     }, []);
 
     // ---------- Vendor Logic & Due Date Calculation ----------
+    // Normalization helper (matches backend logic)
+    const normalizeVendor = (name) => {
+        if (!name) return "";
+        let text = String(name).toLowerCase();
+        // Replace multiplication sign with x
+        text = text.replace(/×/g, "x");
+        // Remove common suffixes
+        text = text.replace(/\b(pvt|private|ltd|limited|inc|llp|corp|corporation)\b/g, "");
+        // Remove non-alpha-numeric characters (keep spaces)
+        text = text.replace(/[^a-z0-9 ]/g, " ");
+        // Collapse multiple spaces
+        text = text.replace(/\s+/g, " ").trim();
+        return text;
+    };
+
+    // ---------- Vendor Logic & Due Date Calculation ----------
     useEffect(() => {
         const vendorName = extractValue(formData['Vendor Name']);
-        if (vendorName && vendorMasterData.length > 0) {
-            // Find vendor
-            const match = vendorMasterData.find(v =>
-                String(v['Vendor Name'] || '').toLowerCase().trim() === String(vendorName).toLowerCase().trim()
-            );
-            setSelectedVendorDetails(match || null);
 
-            // Auto-populate Vendor ID if available and not set
-            if (match && match['Vendor ID'] && !vendorId) {
-                setVendorId(match['Vendor ID']);
-            }
-            // Auto-populate Payment Terms if available and not set
-            if (match && match['Payment Terms'] && !extractValue(formData['Payment Terms'])) {
-                handleInputChange('Payment Terms', match['Payment Terms']);
+        if (vendorName) console.log("DEBUG: Checking Vendor Name:", vendorName);
+
+        if (vendorName && vendorMasterData.length > 0) {
+            const normalizedInput = normalizeVendor(vendorName);
+            console.log("DEBUG: Normalized Input:", normalizedInput);
+
+            // Helper to apply match to form
+            const applyMatch = (match) => {
+                setSelectedVendorDetails(match);
+
+                // Auto-populate Vendor ID if available and not set
+                const matchedId = match['Vendor ID'] || match['VendorID'] || match['vendor_id'] || match['VENDOR_ID'];
+
+                if (matchedId && !vendorId) {
+                    console.log("DEBUG: Setting Vendor ID:", matchedId);
+                    setVendorId(matchedId);
+                }
+
+                // Auto-correct Vendor Name if needed
+                const officialName = match['Vendor Name'] || match['VendorName'] || match['Name'] || match['VENDOR_NAME'];
+                if (officialName && officialName !== vendorName) {
+                    console.log("DEBUG: Auto-correcting Vendor Name to:", officialName);
+                    // Update form data with official name
+                    handleInputChange('Vendor Name', officialName);
+                }
+
+                // Auto-populate Payment Terms if available and not set
+                if (match['Payment Terms'] && !extractValue(formData['Payment Terms'])) {
+                    handleInputChange('Payment Terms', match['Payment Terms']);
+                }
+            };
+
+            // 1. Exact/Normalized Match (Local)
+            const exactMatch = vendorMasterData.find(v => {
+                const masterName = v['Vendor Name'] || v['VendorName'] || v['Name'];
+                const normalizedMaster = normalizeVendor(masterName);
+                if (normalizedMaster === normalizedInput) {
+                    console.log("DEBUG: Exact Match Found!", v);
+                    return true;
+                }
+                return false;
+            });
+
+            if (exactMatch) {
+                applyMatch(exactMatch);
+            } else {
+                // 2. API Embedding Search (Fallback)
+                console.log("DEBUG: No exact match, attempting AI embedding search...");
+                const searchAsync = async () => {
+                    try {
+                        const result = await masterDataService.searchVendor(vendorName);
+                        if (result && result.match) {
+                            console.log("DEBUG: AI Match Found:", result.match, "Score:", result.score);
+                            applyMatch(result.match);
+                        } else {
+                            console.log("DEBUG: No AI match found.");
+                            setSelectedVendorDetails(null);
+                        }
+                    } catch (err) {
+                        console.error("DEBUG: Error searching vendor:", err);
+                        setSelectedVendorDetails(null);
+                    }
+                };
+                searchAsync();
             }
 
         } else {
             setSelectedVendorDetails(null);
         }
-    }, [formData['Vendor Name'], vendorMasterData]);
+    }, [formData['Vendor Name'], vendorMasterData, vendorId]);
 
     useEffect(() => {
         const calculateDueDate = () => {
@@ -1292,24 +1381,24 @@ const GenericInputFields = ({
                                 <div style={{ fontWeight: 600, color: '#1d39c4', marginBottom: '8px' }}>
                                     Vendor Master Details
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
-                                    <div>
-                                        <span style={{ color: '#595959' }}>GST / Use Tax:</span><br />
-                                        <strong>{selectedVendorDetails['GST / Use Tax Eligibility Configuration'] || 'N/A'}</strong>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', fontSize: '13px' }}>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
+                                        <span style={{ color: '#595959', minWidth: '120px' }}>GST / Use Tax:</span>
+                                        <strong style={{ fontSize: '14px' }}>{selectedVendorDetails['GST / Use Tax Eligibility Configuration'] || 'N/A'}</strong>
                                     </div>
-                                    <div>
-                                        <span style={{ color: '#595959' }}>TDS Applicability:</span><br />
-                                        <strong>{selectedVendorDetails['TDS/Withhold Tax Applicability Configuration'] || 'N/A'}</strong>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
+                                        <span style={{ color: '#595959', minWidth: '120px' }}>TDS Applicability:</span>
+                                        <strong style={{ fontSize: '14px' }}>{selectedVendorDetails['TDS/Withhold Tax Applicability Configuration'] || 'N/A'}</strong>
                                     </div>
                                     {selectedVendorDetails['TDS/Withhold Tax Applicability Configuration'] === 'Yes' && (
                                         <>
-                                            <div>
-                                                <span style={{ color: '#595959' }}>TDS %:</span><br />
-                                                <strong>{selectedVendorDetails['TDS Percentage'] || 'N/A'}</strong>
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
+                                                <span style={{ color: '#595959', minWidth: '120px' }}>TDS %:</span>
+                                                <strong style={{ fontSize: '14px' }}>{selectedVendorDetails['TDS Percentage'] || 'N/A'}</strong>
                                             </div>
-                                            <div>
-                                                <span style={{ color: '#595959' }}>TDS Section:</span><br />
-                                                <strong>{selectedVendorDetails['TDS Section Code and Description'] || 'N/A'}</strong>
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
+                                                <span style={{ color: '#595959', minWidth: '120px' }}>TDS Section:</span>
+                                                <strong style={{ fontSize: '14px' }}>{selectedVendorDetails['TDS Section Code and Description'] || 'N/A'}</strong>
                                             </div>
                                         </>
                                     )}

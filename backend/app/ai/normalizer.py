@@ -31,8 +31,9 @@ def normalize_vendor(name: str) -> str:
         return ""
 
     text = name.lower()
+    text = text.replace("×", "x")
     text = re.sub(r"(pvt|private|ltd|limited|inc|llp|corp|corporation)", "", text)
-    text = re.sub(r"[^a-z ]", " ", text)
+    text = re.sub(r"[^a-z0-9 ]", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
 
     return text
