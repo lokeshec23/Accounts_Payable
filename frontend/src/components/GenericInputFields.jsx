@@ -1364,7 +1364,24 @@ const GenericInputFields = ({
                     </div>
                 </Panel>
 
-                <Panel header="Line Items" key="lineitems">
+                <Panel
+                    header={
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Line Items</span>
+                            <Button
+                                icon={<DownloadOutlined />}
+                                size="small"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    exportToExcel();
+                                }}
+                            >
+                                Export to Excel
+                            </Button>
+                        </div>
+                    }
+                    key="lineitems"
+                >
                     <Table
                         key={getCurrencySymbol()}
                         columns={lineItemColumns}
@@ -1525,7 +1542,25 @@ const GenericInputFields = ({
                     'Service period end'
                 ])}
 
-                <Panel header="Line Items" key="Line Items">
+                <Panel
+                    header={
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Line Items</span>
+                            <Button
+                                icon={<DownloadOutlined />}
+                                size="small"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    exportToExcel();
+                                }}
+                            >
+                                Export to Excel
+                            </Button>
+                        </div>
+                    }
+                    key="Line Items"
+                >
+
                     <Table
                         key={getCurrencySymbol()}
                         columns={lineItemColumns}
