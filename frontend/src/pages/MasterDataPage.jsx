@@ -545,19 +545,38 @@ const MasterDataPage = () => {
                                     if (fieldKey === "TDS Section Code and Description") {
                                         const isApplicable = tdsApplicable === "Yes";
                                         return (
-                                            <Form.Item key={fieldKey} label={fieldKey} name={fieldKey} style={{ width: '100%' }}>
+                                            <Form.Item
+                                                key={fieldKey}
+                                                label={fieldKey}
+                                                name={fieldKey}
+                                                style={{ width: '100%' }}
+                                            >
                                                 <Select
                                                     disabled={!isApplicable}
-                                                    options={tdsRates.map(r => ({
-                                                        value: r["Section Code"] || r["Description"] || r["Code"] || r["Section"],
-                                                        label: `${r["Section Code"] || r["Section"] || ""} - ${r["Description"] || r["Nature of Payment"] || ""}`
-                                                    }))}
+                                                    options={tdsRates.map(r => {
+                                                        const code = r["Section"] || r["Code"] || "";
+                                                        const desc = r["Description"] || r["Nature of Payment"] || "";
+                                                        const combined = `${code} - ${desc}`;
+
+                                                        return {
+                                                            value: combined,   // ✅ THIS gets stored in DB
+                                                            label: combined
+                                                        };
+                                                    })}
                                                     onChange={(value) => {
-                                                        const matched = tdsRates.find(r =>
-                                                            (r["Section Code"] || r["Description"] || r["Code"] || r["Section"]) === value
-                                                        );
+                                                        const matched = tdsRates.find(r => {
+                                                            const code = r["Section"] || r["Code"] || "";
+                                                            const desc = r["Description"] || r["Nature of Payment"] || "";
+                                                            return `${code} - ${desc}` === value;
+                                                        });
+
                                                         if (matched) {
-                                                            const rateValue = matched["TDS Percentage"] || matched["Percentage"] || matched["Rate"] || matched["TDS Rate"];
+                                                            const rateValue =
+                                                                matched["TDS Percentage"] ||
+                                                                matched["Percentage"] ||
+                                                                matched["Rate"] ||
+                                                                matched["TDS Rate"];
+
                                                             if (rateValue) {
                                                                 form.setFieldValue("TDS Percentage", rateValue);
                                                             }
@@ -565,6 +584,7 @@ const MasterDataPage = () => {
                                                     }}
                                                 />
                                             </Form.Item>
+
                                         );
                                     }
 
