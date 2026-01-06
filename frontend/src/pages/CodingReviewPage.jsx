@@ -314,6 +314,7 @@ const CodingReviewPage = () => {
         if (invoiceData?.rawData?.extracted_data?.Items?.value) {
             const items = invoiceData.rawData.extracted_data.Items.value.map((item, index) => ({
                 key: index,
+                original_index: index,
                 s_no: index + 1,
                 description: item.description?.value || '',
                 line_type: 'Expense',
@@ -345,12 +346,12 @@ const CodingReviewPage = () => {
                 if (response) {
                     setHeaderCoding(response.header_coding || '');
                     if (response.line_items && Array.isArray(response.line_items)) {
-                        setCodingLineItems(prev =>
-                            prev.map((item, index) => ({
-                                ...item,
-                                ...response.line_items[index]
-                            }))
-                        );
+                        setCodingLineItems(response.line_items.map((item, index) => ({
+                            ...item,
+                            key: index,
+                            s_no: item.s_no || index + 1,
+                            original_index: item.original_index ?? -1
+                        })));
                     }
                 }
             } catch (error) {
@@ -456,6 +457,13 @@ const CodingReviewPage = () => {
         const newItems = [...codingLineItems];
         newItems[index][field] = value;
 
+        // Auto-calculate Net Amount if Quantity or Unit Price changes
+        if (field === 'quantity' || field === 'unit_price') {
+            const qty = parseFloat(field === 'quantity' ? value : newItems[index].quantity) || 0;
+            const price = parseFloat(field === 'unit_price' ? value : newItems[index].unit_price) || 0;
+            newItems[index].net_amount = (qty * price).toFixed(2);
+        }
+
         // If the row is selected (checked), apply the value to all other selected rows
         if (selectedRowKeys.includes(index) && ['gl_code', 'lob', 'department', 'customer', 'item'].includes(field)) {
             // Apply to all other selected rows (excluding the current one)
@@ -467,6 +475,25 @@ const CodingReviewPage = () => {
         }
 
         setCodingLineItems(newItems);
+    };
+
+    const handleAddLineItem = () => {
+        const newItem = {
+            key: codingLineItems.length,
+            s_no: codingLineItems.length + 1,
+            original_index: -1, // New item
+            description: '',
+            line_type: 'Expense',
+            quantity: 1,
+            unit_price: 0,
+            net_amount: 0,
+            gl_code: '',
+            lob: '',
+            department: '',
+            customer: '',
+            item: ''
+        };
+        setCodingLineItems([...codingLineItems, newItem]);
     };
 
     const handleDeleteLineItem = (index) => {
@@ -518,7 +545,8 @@ const CodingReviewPage = () => {
                 lob: String(item.lob || ''),
                 department: String(item.department || ''),
                 customer: String(item.customer || ''),
-                item: String(item.item || '')
+                item: String(item.item || ''),
+                original_index: item.original_index ?? -1
             }));
 
             await codingService.saveCoding({
@@ -552,7 +580,8 @@ const CodingReviewPage = () => {
                 lob: String(item.lob || ''),
                 department: String(item.department || ''),
                 customer: String(item.customer || ''),
-                item: String(item.item || '')
+                item: String(item.item || ''),
+                original_index: item.original_index ?? -1
             }));
 
             // Save coding first - this ensures "Send for Approval" triggers a save
@@ -741,9 +770,9 @@ const CodingReviewPage = () => {
         {
             key: '1',
             vendor_id: invoiceData?.vendorId ||
-            invoiceData?.rawData?.extracted_data?.vendor_info?.vendor_id?.value ||
-            invoiceData?.rawData?.extracted_data?.vendor_info?.vendor_id ||
-            '',
+                invoiceData?.rawData?.extracted_data?.vendor_info?.vendor_id?.value ||
+                invoiceData?.rawData?.extracted_data?.vendor_info?.vendor_id ||
+                '',
             vendor_name: invoiceData?.vendorName || '',
             invoice_id: invoiceData?.invoiceId || '',
             total_amount: invoiceData?.rawData?.extracted_data?.amounts?.total_invoice_amount?.value || '',
@@ -790,7 +819,13 @@ const CodingReviewPage = () => {
                     onMouseLeave={() => setHoveredKey(null)}
                     style={{ width: '100%' }}
                 >
-                    <Input value={text} disabled placeholder="Description" style={disabledStyle} />
+                    <Input
+                        value={text}
+                        onChange={(e) => handleCodingLineItemChange(index, 'description', e.target.value)}
+                        disabled={disableEditing}
+                        placeholder="Description"
+                        style={disableEditing ? disabledStyle : {}}
+                    />
                 </div>
             )
         },
@@ -836,9 +871,9 @@ const CodingReviewPage = () => {
                 >
                     <InputNumber
                         value={codingLineItems[index]?.quantity ?? ''}
-                        readOnly
-                        controls={false}
-                        className="readonly-input-number"
+                        onChange={(value) => handleCodingLineItemChange(index, 'quantity', value)}
+                        disabled={disableEditing}
+                        style={disableEditing ? disabledStyle : {}}
                     />
 
                 </div>
@@ -858,14 +893,14 @@ const CodingReviewPage = () => {
                 >
                     <InputNumber
                         value={codingLineItems[index]?.unit_price ?? ''}
+                        onChange={(value) => handleCodingLineItemChange(index, 'unit_price', value)}
                         formatter={(value) =>
                             value
                                 ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
                                 : ''
                         }
-                        readOnly
-                        controls={false}
-                        className="readonly-input-number"
+                        disabled={disableEditing}
+                        style={disableEditing ? disabledStyle : { width: '100%' }}
                     />
 
                 </div>
@@ -885,14 +920,14 @@ const CodingReviewPage = () => {
                 >
                     <InputNumber
                         value={codingLineItems[index]?.net_amount ?? ''}
+                        onChange={(value) => handleCodingLineItemChange(index, 'net_amount', value)}
                         formatter={(value) =>
                             value
                                 ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
                                 : ''
                         }
-                        readOnly
-                        controls={false}
-                        className="readonly-input-number"
+                        disabled={disableEditing}
+                        style={disableEditing ? disabledStyle : { width: '100%' }}
                     />
 
                 </div>
@@ -1197,6 +1232,16 @@ const CodingReviewPage = () => {
                                                 scroll={{ x: 'max-content' }}
                                                 size="small"
                                             />
+                                            {!disableEditing && (
+                                                <Button
+                                                    type="dashed"
+                                                    onClick={handleAddLineItem}
+                                                    style={{ width: '100%', marginTop: '8px' }}
+                                                    icon={<SendOutlined rotate={-90} />} // Or any plus icon
+                                                >
+                                                    Add Line Item
+                                                </Button>
+                                            )}
                                         </Panel>
                                     </Collapse>
                                 )

@@ -14,6 +14,7 @@ class LineItemCoding(BaseModel):
     department: Optional[str] = None
     customer: Optional[str] = None
     item: Optional[str] = None
+    original_index: Optional[int] = None
 
 class CodingBase(BaseModel):
     invoice_id: str

@@ -278,9 +278,81 @@ async def create_or_update_coding(
     for code, total in summary_map.items():
         gl_summary.append({"gl_code": code, "total_amount": total})
     
+    # ---------------------------------------------------------
+    # 🔄 SYNC TO EXTRACTED DATA (Reflect in Invoice Review)
+    # ---------------------------------------------------------
+    
+    # ---------------------------------------------------------
+    # 🔄 SYNC TO EXTRACTED DATA (Reflect in Invoice Review)
+    # ---------------------------------------------------------
+    
+    # Get current extraction or initialize
+    extracted_data = invoice.get("extracted_data") or {}
+    
+    # Ensure Items structure exists
+    if "Items" not in extracted_data:
+        extracted_data["Items"] = {"value": []}
+    elif not isinstance(extracted_data["Items"], dict):
+        extracted_data["Items"] = {"value": []}
+    
+    if "value" not in extracted_data["Items"] or not isinstance(extracted_data["Items"]["value"], list):
+        extracted_data["Items"]["value"] = []
+
+    
+    # helper for constructing extracted item structure
+    def create_extracted_item(coding_item):
+        return {
+            "description": {"value": coding_item.description, "confidence": 1.0},
+            "quantity": {"value": coding_item.quantity, "confidence": 1.0},
+            "unit_price": {"value": coding_item.unit_price, "confidence": 1.0},
+            "amount": {"value": coding_item.net_amount, "confidence": 1.0},
+            "item_code": {"value": coding_item.item, "confidence": 1.0},
+            "unit_of_measure": {"value": None},
+            "discount": {"value": None},
+            "tax_rate": {"value": None},
+            "tax_amount": {"value": None}, 
+            "gross_amount": {"value": None}
+        }
+
+    original_items = extracted_data["Items"]["value"]
+    new_items_list = []
+
+    for item in coding_data.line_items:
+        # If original_index is valid, use original item as base
+        if item.original_index is not None and 0 <= item.original_index < len(original_items):
+            base_item = original_items[item.original_index]
+            # Update values
+            if "description" not in base_item: base_item["description"] = {}
+            base_item["description"]["value"] = item.description
+            
+            if "quantity" not in base_item: base_item["quantity"] = {}
+            base_item["quantity"]["value"] = item.quantity
+            
+            if "unit_price" not in base_item: base_item["unit_price"] = {}
+            base_item["unit_price"]["value"] = item.unit_price
+            
+            if "amount" not in base_item: base_item["amount"] = {}
+            base_item["amount"]["value"] = item.net_amount
+
+            if "item_code" not in base_item: base_item["item_code"] = {}
+            base_item["item_code"]["value"] = item.item
+
+            new_items_list.append(base_item)
+        else:
+            # Create new
+            new_items_list.append(create_extracted_item(item))
+    
+    # Update extracted data in memory
+    extracted_data["Items"]["value"] = new_items_list
+
     db.invoices.update_one(
         {"_id": ObjectId(coding_data.invoice_id)},
-        {"$set": {"gl_summary": gl_summary}}
+        {
+            "$set": {
+                "gl_summary": gl_summary,
+                "extracted_data": extracted_data
+            }
+        }
     )
 
     # Determine current cycle
