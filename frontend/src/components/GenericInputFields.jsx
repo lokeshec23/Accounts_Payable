@@ -1011,27 +1011,27 @@ const GenericInputFields = ({
                 </div>
             )
         },
-        {
-            title: 'Item Code',
-            dataIndex: 'ItemCode',
-            key: 'ItemCode',
-            width: 120,
-            render: (val, record, index) => (
-                <div
-                    onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_ItemCode`)}
-                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
-                >
-                    <Input
-                        value={extractValue(val)}
-                        onChange={(e) =>
-                            handleLineItemChange(index, 'ItemCode', e.target.value)
-                        }
-                        disabled={disableInputs}
-                        style={disabledStyle}
-                    />
-                </div>
-            )
-        },
+        // {
+        //     title: 'Item Code',
+        //     dataIndex: 'ItemCode',
+        //     key: 'ItemCode',
+        //     width: 120,
+        //     render: (val, record, index) => (
+        //         <div
+        //             onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_ItemCode`)}
+        //             onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+        //         >
+        //             <Input
+        //                 value={extractValue(val)}
+        //                 onChange={(e) =>
+        //                     handleLineItemChange(index, 'ItemCode', e.target.value)
+        //                 }
+        //                 disabled={disableInputs}
+        //                 style={disabledStyle}
+        //             />
+        //         </div>
+        //     )
+        // },
         {
             title: 'Qty',
             dataIndex: 'Quantity',
@@ -1053,27 +1053,27 @@ const GenericInputFields = ({
                 </div>
             )
         },
-        {
-            title: 'Unit',
-            dataIndex: 'UnitOfMeasure',
-            key: 'UnitOfMeasure',
-            width: 80,
-            render: (val, record, index) => (
-                <div
-                    onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_UnitOfMeasure`)}
-                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
-                >
-                    <Input
-                        value={extractValue(val)}
-                        onChange={(e) =>
-                            handleLineItemChange(index, 'UnitOfMeasure', e.target.value)
-                        }
-                        disabled={disableInputs}
-                        style={disabledStyle}
-                    />
-                </div>
-            )
-        },
+        // {
+        //     title: 'Unit',
+        //     dataIndex: 'UnitOfMeasure',
+        //     key: 'UnitOfMeasure',
+        //     width: 80,
+        //     render: (val, record, index) => (
+        //         <div
+        //             onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_UnitOfMeasure`)}
+        //             onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+        //         >
+        //             <Input
+        //                 value={extractValue(val)}
+        //                 onChange={(e) =>
+        //                     handleLineItemChange(index, 'UnitOfMeasure', e.target.value)
+        //                 }
+        //                 disabled={disableInputs}
+        //                 style={disabledStyle}
+        //             />
+        //         </div>
+        //     )
+        // },
         {
             title: 'Unit Price',
             dataIndex: 'UnitPrice',
