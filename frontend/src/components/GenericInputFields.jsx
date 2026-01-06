@@ -184,8 +184,8 @@ const GenericInputFields = ({
             );
         }
         // Initialize new fields from data
-        setVendorId(extractValue(data?.extracted_data?.vendor_info?.vendor_id) || '');
-        setMemo(extractValue(data?.extracted_data?.additional_info?.memo) || '');
+        setVendorId(extractValue(originalData?.extracted_data?.vendor_info?.vendor_id) || '');
+        setMemo(extractValue(originalData?.extracted_data?.additional_info?.memo) || '');
 
     }, [data, extractionData, originalData]);
 
