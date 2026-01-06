@@ -69,6 +69,17 @@ const MasterDataPage = () => {
     const tdsApplicable = Form.useWatch("TDS/Withhold Tax Applicability Configuration", form);
 
 
+    // Effect to clear TDS fields when TDS is set to "No"
+    useEffect(() => {
+        if (tdsApplicable === "No") {
+            form.setFieldsValue({
+                "TDS Percentage": null,
+                "TDS Section Code and Description": null
+            });
+        }
+    }, [tdsApplicable, form]);
+
+
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
@@ -514,6 +525,17 @@ const MasterDataPage = () => {
                                                         value: r["TDS Percentage"] || r["Percentage"] || r["Rate"] || r["TDS Rate"],
                                                         label: r["TDS Percentage"] || r["Percentage"] || r["Rate"] || r["TDS Rate"]
                                                     }))}
+                                                    onChange={(value) => {
+                                                        const matched = tdsRates.find(r =>
+                                                            (r["TDS Percentage"] || r["Percentage"] || r["Rate"] || r["TDS Rate"]) === value
+                                                        );
+                                                        if (matched) {
+                                                            const descValue = matched["Section Code"] || matched["Description"] || matched["Code"] || matched["Section"];
+                                                            if (descValue) {
+                                                                form.setFieldValue("TDS Section Code and Description", descValue);
+                                                            }
+                                                        }
+                                                    }}
                                                 />
                                             </Form.Item>
                                         );
@@ -530,6 +552,17 @@ const MasterDataPage = () => {
                                                         value: r["Section Code"] || r["Description"] || r["Code"] || r["Section"],
                                                         label: `${r["Section Code"] || r["Section"] || ""} - ${r["Description"] || r["Nature of Payment"] || ""}`
                                                     }))}
+                                                    onChange={(value) => {
+                                                        const matched = tdsRates.find(r =>
+                                                            (r["Section Code"] || r["Description"] || r["Code"] || r["Section"]) === value
+                                                        );
+                                                        if (matched) {
+                                                            const rateValue = matched["TDS Percentage"] || matched["Percentage"] || matched["Rate"] || matched["TDS Rate"];
+                                                            if (rateValue) {
+                                                                form.setFieldValue("TDS Percentage", rateValue);
+                                                            }
+                                                        }
+                                                    }}
                                                 />
                                             </Form.Item>
                                         );
