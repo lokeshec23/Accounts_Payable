@@ -1251,16 +1251,7 @@ const GenericInputFields = ({
                             gap: '12px'
                         }}
                     >
-                        {/* Vendor Name */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '200px 1fr',
-                            gap: '16px',
-                            alignItems: 'center'
-                        }}>
-                            <div style={{ fontWeight: 500 }}>Vendor Name:</div>
-                            <div>{renderFieldInput('Vendor Name', formData['Vendor Name'])}</div>
-                        </div>
+
 
                         {/* Vendor ID */}
                         <div style={{
@@ -1276,6 +1267,17 @@ const GenericInputFields = ({
                                 disabled={disableInputs}
                                 style={disabledStyle}
                             />
+                        </div>
+
+                        {/* Vendor Name */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '200px 1fr',
+                            gap: '16px',
+                            alignItems: 'center'
+                        }}>
+                            <div style={{ fontWeight: 500 }}>Vendor Name:</div>
+                            <div>{renderFieldInput('Vendor Name', formData['Vendor Name'])}</div>
                         </div>
 
                         {/* Invoice Number */}
