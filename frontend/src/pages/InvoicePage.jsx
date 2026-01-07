@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Upload, Button, message } from "antd";
+import { Upload, Button, message, Modal } from "antd";
 import { UploadOutlined, InboxOutlined, FolderOpenOutlined } from "@ant-design/icons";
 import { invoiceService } from "../services/api";
 import Dragger from "antd/es/upload/Dragger";
@@ -57,27 +57,77 @@ const InvoicePage = () => {
 
             const response = await invoiceService.uploadInvoices(fileList);
 
-            messageApi.open({
-                type: "success",
-                content: `${response.count} invoice(s) processed successfully!`,
-                key: "uploading"
-            });
+            const processedCount = response.count || 0;
+            const failedCount = response.failed?.length || 0;
 
-            if (response.count === 1) {
-                navigate("/invoice/review", { state: { invoice: response.invoices[0] } });
-            } else {
-                navigate("/dashboard");
+            if (failedCount > 0) {
+                // Show a list of failures
+                const failureItems = response.failed.map(f => (
+                    <div key={f.filename} style={{ marginBottom: 8 }}>
+                        <strong>{f.filename}:</strong> {f.reason}
+                    </div>
+                ));
+
+                Modal.error({
+                    title: 'Upload Results',
+                    content: (
+                        <div>
+                            {processedCount > 0 && <p style={{ color: 'green' }}>✓ {processedCount} successfully processed.</p>}
+                            <p style={{ color: 'red' }}>✗ {failedCount} failed:</p>
+                            <div style={{ maxHeight: 300, overflow: 'auto' }}>
+                                {failureItems}
+                            </div>
+                        </div>
+                    ),
+                    width: 600,
+                });
+            }
+
+            if (processedCount > 0) {
+                messageApi.open({
+                    type: "success",
+                    content: `${processedCount} invoice${processedCount > 1 ? 's' : ''} processed successfully!`,
+                    key: "uploading"
+                });
+
+                if (processedCount === 1 && failedCount === 0) {
+                    navigate("/invoice/review", { state: { invoice: response.invoices[0] } });
+                } else {
+                    // If multiple files or some failures, go to dashboard to see results
+                    navigate("/dashboard");
+                }
+            } else if (failedCount > 0) {
+                messageApi.destroy("uploading");
             }
 
             setFileList([]);
 
         } catch (error) {
             console.error("Upload failed:", error);
-            messageApi.open({
-                type: "error",
-                content: "Upload failed",
-                key: "uploading"
-            });
+            console.log("Error Response:", error.response);
+            console.log("Error Status:", error.response?.status);
+            console.log("Error Detail:", error.response?.data?.detail);
+
+            messageApi.destroy("uploading");
+
+            // Check if it's a duplicate invoice error (400 status)
+            if (error.response?.status === 400 && error.response?.data?.detail) {
+                // Show detailed error message for duplicates
+                Modal.error({
+                    title: 'Duplicate Invoice Detected',
+                    content: error.response.data.detail,
+                    width: 600,
+                });
+                messageApi.error("Duplicate Invoice Detected");
+            } else {
+                // Generic error message for other failures
+                // DEBUG: Show full error details in toast
+                const errorMsg = error.response?.data?.detail ?
+                    (typeof error.response.data.detail === 'object' ? JSON.stringify(error.response.data.detail) : error.response.data.detail)
+                    : (error.message || "Unknown error");
+
+                messageApi.error(`Error (${error.response?.status || 'No Status'}): ${errorMsg}`);
+            }
 
         } finally {
             setLoading(false);

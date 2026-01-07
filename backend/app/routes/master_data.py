@@ -9,7 +9,38 @@ from fastapi import Depends
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
 
+from app.ai.embeddings import embed_text
+from app.ai.similarity import cosine_similarity
+from app.ai.normalizer import normalize_vendor
+from pydantic import BaseModel
+
 router = APIRouter(tags=["Master Data"])
+
+class SearchVendorRequest(BaseModel):
+    vendor_name: str
+
+@router.post("/search-vendor")
+def search_vendor(
+    request: SearchVendorRequest,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    Search for a vendor in the active Vendor Master list using embedding similarity.
+    """
+    db = get_database()
+    
+    
+    # Use shared robust matcher
+    from app.ai.vector_matcher import find_best_vendor_match
+    
+    result = find_best_vendor_match(db, request.vendor_name)
+    
+    if result and result["match"]:
+        # Match found (Exact, Embedding, or Text)
+        return {"match": result["match"], "score": result["score"], "method": result["method"]}
+        
+    return {"match": None, "score": 0.0, "method": "none"}
+
 
 
 @router.get("/files")

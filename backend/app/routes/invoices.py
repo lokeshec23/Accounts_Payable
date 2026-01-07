@@ -24,11 +24,23 @@ async def upload_invoices(
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
+    from app.ai.duplicate_detector import (
+        extract_vendor_and_invoice_number,
+        get_vendor_id_from_master
+    )
+    from app.utils.invoice_registry import check_registry_duplicate, register_invoice
+    
     db = get_database()
     upload_dir = "uploads"
     os.makedirs(upload_dir, exist_ok=True)
 
+    duplicates = []  # Track duplicate files
+    saved_invoices = []  # Track successfully uploaded invoices
+    failed_uploads = []  # Track failed uploads
+
     async def _process_single_file(file: UploadFile):
+        clean_name = file.filename.replace("\\", "/").split("/")[-1]
+        file_path = None
         try:
             # ---- CLEAN FILENAME ----
             clean_name = file.filename.replace("\\", "/").split("/")[-1]
@@ -39,6 +51,33 @@ async def upload_invoices(
             contents = await file.read()
             with open(file_path, "wb") as f:
                 f.write(contents)
+
+            # ---- DUPLICATE DETECTION (BEFORE EXTRACTION) ----
+            extracted_vendor_name, invoice_number = extract_vendor_and_invoice_number(file_path)
+            print(f"DEBUG_UPLOAD: Quick Extracted - Vendor: '{extracted_vendor_name}', Invoice #: '{invoice_number}'")
+            
+            if extracted_vendor_name and invoice_number:
+                # Get vendor ID and OFFICIAL vendor name from master
+                vendor_id, official_vendor_name = get_vendor_id_from_master(db, extracted_vendor_name)
+                print(f"DEBUG_UPLOAD: Resolved Master - ID: '{vendor_id}', Name: '{official_vendor_name}'")
+                
+                if vendor_id:
+                    # Fast O(1) duplicate check using registry
+                    existing_invoice = check_registry_duplicate(db, vendor_id, invoice_number, entity)
+                    print(f"DEBUG_UPLOAD: Registry Check Result: {existing_invoice.get('_id') if existing_invoice else 'None'}")
+                    
+                    if existing_invoice:
+                        # Duplicate found - cleanup file and return info
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                        uploaded_date = existing_invoice.get("uploaded_at")
+                        date_str = uploaded_date.strftime("%Y-%m-%d %H:%M") if uploaded_date else "N/A"
+                        
+                        return {
+                            "success": False,
+                            "filename": clean_name,
+                            "reason": f"Duplicate: Vendor '{official_vendor_name}', Invoice #{invoice_number} (Uploaded {date_str})"
+                        }
 
             # ---- CREATE DB RECORD ----
             invoice_data = InvoiceCreate(
@@ -60,6 +99,14 @@ async def upload_invoices(
                 "timestamp": datetime.utcnow(),
                 "comment": None
             }]
+            
+            # Add vendor_id, official vendor name, and invoice_number if available
+            if extracted_vendor_name and invoice_number:
+                vendor_id, official_vendor_name = get_vendor_id_from_master(db, extracted_vendor_name)
+                if vendor_id:
+                    invoice_dict["vendor_id"] = vendor_id
+                    invoice_dict["vendor_name"] = official_vendor_name  # Official name from master
+                    invoice_dict["invoice_number"] = invoice_number
 
             result = db.invoices.insert_one(invoice_dict)
             invoice_id = str(result.inserted_id)
@@ -74,8 +121,54 @@ async def upload_invoices(
                 "confidence_score": extraction.get("metadata", {}).get("confidence_score", "low"),
                 "processed_at": datetime.utcnow()
             }
+            
+            # Update vendor_id and vendor_name from full extraction if not already set
+            extracted_data = extraction.get("extracted_data", {})
+            if not invoice_dict.get("vendor_id"):
+                # Try to get vendor name from full extraction
+                vendor_info = extracted_data.get("vendor_info", {})
+                extracted_vendor = vendor_info.get("name", {}).get("value")
+                if extracted_vendor:
+                    vendor_id, official_vendor_name = get_vendor_id_from_master(db, extracted_vendor)
+                    if vendor_id:
+                        update_data["vendor_id"] = vendor_id
+                        update_data["vendor_name"] = official_vendor_name
+            
+            if not invoice_dict.get("invoice_number"):
+                # Try to get invoice number from extraction
+                invoice_details = extracted_data.get("invoice_details", {})
+                extracted_invoice_num = invoice_details.get("invoice_number", {}).get("value")
+                if extracted_invoice_num:
+                    update_data["invoice_number"] = extracted_invoice_num
 
             db.invoices.update_one({"_id": result.inserted_id}, {"$set": update_data})
+
+            # ---- POST-EXTRACTION DUPLICATE CHECK (Fallback) ----
+            # If quick extraction failed, check for duplicates after full extraction
+            final_vendor_id = update_data.get("vendor_id") or invoice_dict.get("vendor_id")
+            final_invoice_number = update_data.get("invoice_number") or invoice_dict.get("invoice_number")
+            
+            if final_vendor_id and final_invoice_number:
+                # Check if this combination already exists (excluding current invoice)
+                existing_duplicate = check_registry_duplicate(db, final_vendor_id, final_invoice_number, entity)
+                
+                if existing_duplicate and str(existing_duplicate.get("_id")) != invoice_id:
+                    # Duplicate found AFTER extraction - cleanup and return info
+                    print(f"DEBUG_UPLOAD: POST-EXTRACTION duplicate found! Vendor: {final_vendor_id}, Invoice#: {final_invoice_number}")
+                    
+                    db.invoices.delete_one({"_id": result.inserted_id})
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                    
+                    uploaded_date = existing_duplicate.get("uploaded_at")
+                    date_str = uploaded_date.strftime("%Y-%m-%d %H:%M") if uploaded_date else "N/A"
+                    
+                    return {
+                        "success": False,
+                        "filename": clean_name,
+                        "reason": f"Duplicate (Full): Vendor {update_data.get('vendor_name', final_vendor_id)}, Invoice #{final_invoice_number} (Uploaded {date_str})"
+                    }
+
 
             # ---- CREATE WORKFLOW STEP: PROCESSED ----
             workflow_step = {
@@ -91,29 +184,67 @@ async def upload_invoices(
             }
             db.workflow_steps.insert_one(workflow_step)
 
+            # ---- REGISTER IN FAST LOOKUP REGISTRY ----
+            # Get final vendor_id and invoice_number (may have been updated from full extraction)
+            final_vendor_id = update_data.get("vendor_id") or invoice_dict.get("vendor_id")
+            final_invoice_number = update_data.get("invoice_number") or invoice_dict.get("invoice_number")
+            
+            if final_vendor_id and final_invoice_number:
+                register_invoice(
+                    db,
+                    vendor_id=final_vendor_id,
+                    invoice_number=final_invoice_number,
+                    entity=entity,
+                    invoice_id=invoice_id,
+                    uploaded_by=current_user.username
+                )
+                print(f"DEBUG_UPLOAD: Registered in registry - ID: {final_vendor_id}, Invoice#: {final_invoice_number}")
+
+
             # ---- PREPARE JSON SAFE RESPONSE ----
             invoice_dict.update(update_data)
             invoice_dict["id"] = invoice_id
             invoice_dict.pop("_id", None)
-            return invoice_dict
+            
+            # Convert datetime objects to ISO strings for JSON serialization
+            for key, value in invoice_dict.items():
+                if isinstance(value, datetime):
+                    invoice_dict[key] = value.isoformat()
+                elif isinstance(value, list):
+                    # Handle lists (like status_history)
+                    for i, item in enumerate(value):
+                        if isinstance(item, dict):
+                            for k, v in item.items():
+                                if isinstance(v, datetime):
+                                    value[i][k] = v.isoformat()
+            
+            return {"success": True, "data": invoice_dict}
 
         except Exception as e:
+            if file_path and os.path.exists(file_path):
+                os.remove(file_path)
             import traceback
             print(f"❌ ERROR processing file {file.filename}: {e}")
             traceback.print_exc()
-            return None
+            return {"success": False, "filename": clean_name, "reason": str(e)}
 
     # Run processing tasks concurrently
     tasks = [_process_single_file(file) for file in files]
     results = await asyncio.gather(*tasks)
 
-    # Filter out failures
-    saved_invoices = [res for res in results if res is not None]
+    # Handle results
+    for res in results:
+        if res["success"]:
+            saved_invoices.append(res["data"])
+        else:
+            failed_uploads.append({"filename": res["filename"], "reason": res["reason"]})
 
     return {
         "count": len(saved_invoices),
-        "invoices": saved_invoices
+        "invoices": saved_invoices,
+        "failed": failed_uploads
     }
+
 
 @router.get("/", response_model=List[InvoiceResponse])
 async def get_invoices(
@@ -462,5 +593,9 @@ async def delete_invoice(
         raise HTTPException(status_code=404, detail="Invoice not found")
 
     db.invoices.delete_one({"_id": ObjectId(invoice_id)})
+    
+    # Remove from registry
+    from app.utils.invoice_registry import remove_from_registry
+    remove_from_registry(db, invoice_id)
 
     return {"message": "Invoice deleted successfully"}

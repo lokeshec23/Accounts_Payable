@@ -47,16 +47,16 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     };
 
     useEffect(() => {
-                const storedUser = localStorage.getItem('user');
-                if (storedUser) {
-                    try {
-                        const user = JSON.parse(storedUser);
-                        setUserRole(user.role || '');
-                    } catch (e) {
-                        setUserRole('');
-                    }
-                }
-            }, []);
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser);
+                setUserRole(user.role || '');
+            } catch (e) {
+                setUserRole('');
+            }
+        }
+    }, []);
 
     useEffect(() => {
         leftWidthRef.current = leftWidth;
@@ -178,7 +178,9 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                 doc_type: 'invoice',
                 extraction_json,
                 items,
-                original_data: extractedData
+                original_data: extractedData,
+                vendor_name: invoiceData.vendor_name,
+                vendor_id: invoiceData.vendor_id
             });
         }
     }, [invoiceData]);
