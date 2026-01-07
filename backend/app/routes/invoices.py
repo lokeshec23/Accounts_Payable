@@ -36,8 +36,11 @@ async def upload_invoices(
 
     duplicates = []  # Track duplicate files
     saved_invoices = []  # Track successfully uploaded invoices
+    failed_uploads = []  # Track failed uploads
 
     async def _process_single_file(file: UploadFile):
+        clean_name = file.filename.replace("\\", "/").split("/")[-1]
+        file_path = None
         try:
             # ---- CLEAN FILENAME ----
             clean_name = file.filename.replace("\\", "/").split("/")[-1]
@@ -64,15 +67,17 @@ async def upload_invoices(
                     print(f"DEBUG_UPLOAD: Registry Check Result: {existing_invoice.get('_id') if existing_invoice else 'None'}")
                     
                     if existing_invoice:
-                        # Duplicate found - cleanup file and THROW ERROR
-                        os.remove(file_path)
+                        # Duplicate found - cleanup file and return info
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
                         uploaded_date = existing_invoice.get("uploaded_at")
                         date_str = uploaded_date.strftime("%Y-%m-%d %H:%M") if uploaded_date else "N/A"
                         
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Duplicate invoice detected: '{clean_name}' - Vendor: {official_vendor_name} (ID: {vendor_id}), Invoice Number: {invoice_number}. This invoice was already uploaded on {date_str}."
-                        )
+                        return {
+                            "success": False,
+                            "filename": clean_name,
+                            "reason": f"Duplicate: Vendor '{official_vendor_name}', Invoice #{invoice_number} (Uploaded {date_str})"
+                        }
 
             # ---- CREATE DB RECORD ----
             invoice_data = InvoiceCreate(
@@ -148,23 +153,21 @@ async def upload_invoices(
                 existing_duplicate = check_registry_duplicate(db, final_vendor_id, final_invoice_number, entity)
                 
                 if existing_duplicate and str(existing_duplicate.get("_id")) != invoice_id:
-                    # Duplicate found AFTER extraction - cleanup and raise error
+                    # Duplicate found AFTER extraction - cleanup and return info
                     print(f"DEBUG_UPLOAD: POST-EXTRACTION duplicate found! Vendor: {final_vendor_id}, Invoice#: {final_invoice_number}")
                     
-                    # Delete the invoice we just created
                     db.invoices.delete_one({"_id": result.inserted_id})
-                    
-                    # Delete the uploaded file
                     if os.path.exists(file_path):
                         os.remove(file_path)
                     
                     uploaded_date = existing_duplicate.get("uploaded_at")
                     date_str = uploaded_date.strftime("%Y-%m-%d %H:%M") if uploaded_date else "N/A"
                     
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Duplicate invoice detected: '{clean_name}' - Vendor: {update_data.get('vendor_name', final_vendor_id)} (ID: {final_vendor_id}), Invoice Number: {final_invoice_number}. This invoice was already uploaded on {date_str}."
-                    )
+                    return {
+                        "success": False,
+                        "filename": clean_name,
+                        "reason": f"Duplicate (Full): Vendor {update_data.get('vendor_name', final_vendor_id)}, Invoice #{final_invoice_number} (Uploaded {date_str})"
+                    }
 
 
             # ---- CREATE WORKFLOW STEP: PROCESSED ----
@@ -215,32 +218,31 @@ async def upload_invoices(
                                 if isinstance(v, datetime):
                                     value[i][k] = v.isoformat()
             
-            return invoice_dict
+            return {"success": True, "data": invoice_dict}
 
-        except HTTPException:
-            # Re-raise HTTPException for duplicate detection
-            raise
         except Exception as e:
+            if file_path and os.path.exists(file_path):
+                os.remove(file_path)
             import traceback
             print(f"❌ ERROR processing file {file.filename}: {e}")
             traceback.print_exc()
-            return None
+            return {"success": False, "filename": clean_name, "reason": str(e)}
 
     # Run processing tasks concurrently
     tasks = [_process_single_file(file) for file in files]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    results = await asyncio.gather(*tasks)
 
-    # Handle results and exceptions
+    # Handle results
     for res in results:
-        if isinstance(res, HTTPException):
-            # If any file is duplicate, raise the exception immediately
-            raise res
-        elif res is not None:
-            saved_invoices.append(res)
+        if res["success"]:
+            saved_invoices.append(res["data"])
+        else:
+            failed_uploads.append({"filename": res["filename"], "reason": res["reason"]})
 
     return {
         "count": len(saved_invoices),
-        "invoices": saved_invoices
+        "invoices": saved_invoices,
+        "failed": failed_uploads
     }
 
 

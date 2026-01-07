@@ -57,16 +57,47 @@ const InvoicePage = () => {
 
             const response = await invoiceService.uploadInvoices(fileList);
 
-            messageApi.open({
-                type: "success",
-                content: `${response.count} invoice${response.count > 1 ? 's' : ''} processed successfully!`,
-                key: "uploading"
-            });
+            const processedCount = response.count || 0;
+            const failedCount = response.failed?.length || 0;
 
-            if (response.count === 1) {
-                navigate("/invoice/review", { state: { invoice: response.invoices[0] } });
-            } else {
-                navigate("/dashboard");
+            if (failedCount > 0) {
+                // Show a list of failures
+                const failureItems = response.failed.map(f => (
+                    <div key={f.filename} style={{ marginBottom: 8 }}>
+                        <strong>{f.filename}:</strong> {f.reason}
+                    </div>
+                ));
+
+                Modal.error({
+                    title: 'Upload Results',
+                    content: (
+                        <div>
+                            {processedCount > 0 && <p style={{ color: 'green' }}>✓ {processedCount} successfully processed.</p>}
+                            <p style={{ color: 'red' }}>✗ {failedCount} failed:</p>
+                            <div style={{ maxHeight: 300, overflow: 'auto' }}>
+                                {failureItems}
+                            </div>
+                        </div>
+                    ),
+                    width: 600,
+                });
+            }
+
+            if (processedCount > 0) {
+                messageApi.open({
+                    type: "success",
+                    content: `${processedCount} invoice${processedCount > 1 ? 's' : ''} processed successfully!`,
+                    key: "uploading"
+                });
+
+                if (processedCount === 1 && failedCount === 0) {
+                    navigate("/invoice/review", { state: { invoice: response.invoices[0] } });
+                } else {
+                    // If multiple files or some failures, go to dashboard to see results
+                    navigate("/dashboard");
+                }
+            } else if (failedCount > 0) {
+                messageApi.destroy("uploading");
             }
 
             setFileList([]);
@@ -87,7 +118,7 @@ const InvoicePage = () => {
                     content: error.response.data.detail,
                     width: 600,
                 });
-                messageApi.error("Upload failed: Duplicate Invoice Detected");
+                messageApi.error("Duplicate Invoice Detected");
             } else {
                 // Generic error message for other failures
                 // DEBUG: Show full error details in toast

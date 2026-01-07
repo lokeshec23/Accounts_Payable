@@ -41,6 +41,8 @@ app.include_router(currency.router, prefix="/api/currency", tags=["Currencies"])
 
 from app.database.bootstrap import bootstrap_admin
 from app.database.migration import migrate_users_role_status
+from app.ai.vector_matcher import get_cached_vendors
+from app.database.mongodb import get_database
 
 @app.on_event("startup")
 async def startup_event():

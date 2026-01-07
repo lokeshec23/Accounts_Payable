@@ -115,9 +115,9 @@ def extract_vendor_and_invoice_number(file_path: str) -> Tuple[Optional[str], Op
             logger.error("No operation location in response headers")
             return None, None
         
-        # Poll for results (simplified, max 30 seconds)
+        # Poll for results (simplified, max 60 seconds)
         import time
-        max_attempts = 30
+        max_attempts = 60
         for attempt in range(max_attempts):
             time.sleep(1)
             result_response = requests.get(
