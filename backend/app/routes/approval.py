@@ -66,6 +66,8 @@ async def send_to_approval(
         requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, currency=currency, entity=entity)
         
         extra_fields["required_approvers"] = requirement_data["required"]
+        extra_fields["assigned_approvers"] = requirement_data.get("assigned_approvers", [])
+        extra_fields["workflow_type"] = requirement_data.get("workflow_type")
         extra_fields["approver_breakdown"] = requirement_data["breakdown"]
 
     # Update invoice status

@@ -56,21 +56,24 @@ const ApprovalsPage = () => {
                 currency: invoice.extracted_data?.invoice_details?.currency?.value || 'USD'
             }));
 
-           const filteredData = transformedData.filter((item) => {
-    const approvedBy = item.rawData.approved_by || [];
+            const filteredData = transformedData.filter((item) => {
+                const invoice = item.rawData;
+                const approvedBy = invoice.approved_by || [];
+                const assignedApprovers = invoice.assigned_approvers || [];
+                const currentLevel = invoice.current_approver_level || 1;
+                const hasApproved = approvedBy.some((a) => {
+                    const email = typeof a === 'string' ? a : a?.email;
+                    return email === storedUser.email;
+                });
 
-    const hasApproved = approvedBy.some((a) => {
-        if (typeof a === 'string') {
-            return a === storedUser.email;
-        }
-        if (typeof a === 'object') {
-            return a.email === storedUser.email;
-        }
-        return false;
-    });
+                if (item.status !== 'waiting_approval' || hasApproved) return false;
 
-    return item.status === 'waiting_approval' && !hasApproved;
-});
+                if (assignedApprovers.length > 0) {
+                    const currentLevelEmail = assignedApprovers[currentLevel - 1];
+                    return storedUser.email === currentLevelEmail;
+                }
+                return true;
+            });
 
 
             setAllApprovalInvoices(filteredData);
@@ -184,8 +187,8 @@ const ApprovalsPage = () => {
             render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                const match = currencies.find(c => 
-                    c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+                const match = currencies.find(c =>
+                    c.code?.toUpperCase() === record.currency?.toUpperCase() ||
                     c.name?.toLowerCase() === record.currency?.toLowerCase()
                 );
                 const symbol = match ? match.symbol : (record.currency === 'INR' ? '₹' : '$');
@@ -202,8 +205,8 @@ const ApprovalsPage = () => {
             render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                const match = currencies.find(c => 
-                    c.code?.toUpperCase() === record.currency?.toUpperCase() || 
+                const match = currencies.find(c =>
+                    c.code?.toUpperCase() === record.currency?.toUpperCase() ||
                     c.name?.toLowerCase() === record.currency?.toLowerCase()
                 );
                 const symbol = match ? match.symbol : (record.currency === 'INR' ? '₹' : '$');

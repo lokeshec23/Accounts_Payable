@@ -104,181 +104,131 @@ def get_invoice_total_from_invoice(db, invoice_id: str):
 
 def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None, invoice_data: dict = None, currency: str = "USD", entity: str = None):
     """
-    Get the required approver count with detailed breakdown.
-    Logic: MAX(Vendor_Rule_Count, Amount_Rule_Count, GL_Rule_Count)
+    Get the required approvers based on new Workflow Redesign.
     
-    If no vendor rule exists: Default to 4 (High risk default).
-    If no amount rule exists: 0 (No requirement from amount).
-    If no GL rule exists: 0.
+    Logic:
+    1. Try VendorWorkflow match.
+    2. If not found, try CodificationWorkflow match (using LOB/Dept from coding).
+    3. If not found, fallback to Default approver count.
     
     Returns:
     {
         "required": int,
-        "breakdown": {
-            "vendor": {"count": int, "name": str},
-            "amount": {"count": int, "value": float},
-            "gl": {"count": int, "codes": List[str]}
-        }
+        "assigned_approvers": List[str],
+        "workflow_type": str,
+        "breakdown": { ... }
     }
     """
     
     # 0. Check for persisted values on the invoice
     if invoice_data and "required_approvers" in invoice_data and invoice_data["required_approvers"] is not None:
-        print(f"DEBUG: returning PERSISTED approver count: {invoice_data['required_approvers']}")
         return {
             "required": invoice_data["required_approvers"],
-            "breakdown": invoice_data.get("approver_breakdown", {
-                "vendor": {"count": 0, "name": vendor_name},
-                "amount": {"count": 0, "value": amount, "currency": currency},
-                "gl": {"count": 0, "codes": []},
-                "note": "Loaded from persisted invoice data"
-            })
+            "assigned_approvers": invoice_data.get("assigned_approvers", []),
+            "workflow_type": invoice_data.get("workflow_type", "persisted"),
+            "breakdown": invoice_data.get("approver_breakdown", {})
         }
 
-    # 1. Vendor Based Count
-    vendor_count = 0 # Will verify below
+    assigned_approvers = []
+    workflow_found = False
+    workflow_type = None
     
-    # Check default config first
-    default_query = {}
-    if entity:
-        default_query["entity"] = entity
+    # 1. Try Vendor Based Workflow
+    if vendor_name and entity:
+        vendor_workflow = db.vendor_workflows.find_one({
+            "vendor_name": vendor_name.strip(),
+            "entity": entity
+        })
         
-    default_config = db.approver_default.find_one(default_query)
-    
-    # Fallback if specific entity default not found, try generic? 
-    # Or strict? Let's assume strict for now, or fallback to ANY if desired, but request implies strict entity separation.
-    # If not found for entity, maybe fallback to no-entity default?
-    if not default_config and entity:
-         default_config = db.approver_default.find_one({"entity": {"$exists": False}})
+        if vendor_workflow:
+            workflow_found = True
+            workflow_type = "vendor"
+            # Mandatory 1, 2, 3
+            assigned_approvers = [
+                vendor_workflow.get("mandatory_approver_1"),
+                vendor_workflow.get("mandatory_approver_2"),
+                vendor_workflow.get("mandatory_approver_3")
+            ]
+            
+            # Threshold Approver (4th)
+            threshold_amt = vendor_workflow.get("amount_threshold")
+            threshold_appr = vendor_workflow.get("threshold_approver")
+            if threshold_appr and amount is not None and threshold_amt is not None:
+                if amount >= threshold_amt:
+                    assigned_approvers.append(threshold_appr)
+            
+            # Optional Approver (5th)
+            optional_appr = vendor_workflow.get("optional_approver")
+            if optional_appr:
+                assigned_approvers.append(optional_appr)
 
-    # If still no config, fallback to hardcoded 4
-    default_count = default_config.get("default_approver_count", 2) if default_config else 2
-    
-    if vendor_name:
-        # Try finding by vendor_name (snake_case)
-        query = {"vendor_name": vendor_name.strip()}
-        if entity:
-            query["entity"] = entity
-            
-        config = db.approver_number.find_one(query)
-        
-        # If not found, try vendorName (camelCase)
-        if not config:
-            query = {"vendorName": vendor_name.strip()}
-            if entity:
-                query["entity"] = entity
-            config = db.approver_number.find_one(query)
-            
-        if config:
-            if "approver_count" in config:
-                vendor_count = config["approver_count"]
-            elif "approverCount" in config:
-                vendor_count = config["approverCount"]
-    
-    # If no vendor specific rule found, use default
-    if vendor_count == 0:
-        vendor_count = default_count
-    
-    # 2. Amount Based Count
-    amount_count = 0
-    if amount is not None:
-        # Find all rules that might apply (where start of range is <= amount)
-        # AND currency matches (or rule has no currency, assume USD default or legacy)
-        # Actually, if we want strict, we should match.
-        
-        query = {
-            "min_amount": {"$lte": amount}
-        }
-        
-        # Add entity filter
-        if entity:
-            query["entity"] = entity
-        
-        if currency:
-             query["$or"] = [
-                 {"currency": currency},
-                 {"currency": {"$exists": False}}, # Legacy support
-                 {"currency": None}
-             ]
-        
-        candidates = list(db.approver_amount.find(query))
-        
-        for rule in candidates:
-            max_amt = rule.get("max_amount")
-            # Match if no upper limit (max_amt is None) OR amount is within limit
-            if max_amt is None or max_amt >= amount:
-                rule_count = rule.get("approver_count", 0)
-                # If multiple rules match, take the one requiring MOST approvers
-                if rule_count > amount_count:
-                    amount_count = rule_count
-        
-        if amount_count == 0:
-            amount_count = default_count
-    
-    # 3. GL Based Count
-    gl_count = 0
-    matched_gls = []
-    
-    if invoice_id:
-        # Fetch coding data for this invoice to get GL codes
+    # 2. Try Codification Based Workflow if no vendor match
+    if not workflow_found and invoice_id and entity:
+        # Fetch coding data to get LOB and Dept ID
         coding = db.coding.find_one({"invoice_id": invoice_id})
         if coding and "line_items" in coding:
-            # Extract unique GL codes from line items
-            gl_codes = set()
+            # For simplicity, we match against the first line item with LOB/Dept
             for item in coding["line_items"]:
-                code = item.get("gl_code")
-                if code:
-                    gl_codes.add(code)
-            
-            # Check rules for each GL code
-            for code in gl_codes:
-                code_clean = str(code).strip()
-                # GL rules are stored with "glTitle" (e.g. "12345 - Expense")
-                # We need to match exact strings from coding
+                lob = item.get("lob")
+                dept = item.get("department_id")
                 
-                gl_query = {"glTitle": code_clean}
-                if entity:
-                    gl_query["entity"] = entity
+                if lob and dept:
+                    cod_workflow = db.codification_workflows.find_one({
+                        "lob": lob,
+                        "department_id": dept,
+                        "entity": entity
+                    })
                     
-                rule = db.approver_gl.find_one(gl_query)
-                
-                # If not found, try matching just the code part (assuming "Code - Description" format)
-                if not rule and " - " in code_clean:
-                    parts = code_clean.split(" - ", 1)
-                    # Try matching code (prefix)
-                    short_code = parts[0].strip()
-                    gl_query_short = {"glTitle": short_code}
-                    if entity:
-                        gl_query_short["entity"] = entity
-                    rule = db.approver_gl.find_one(gl_query_short)
-                    
-                    # If still not found, try matching description (suffix)
-                    if not rule and len(parts) > 1:
-                        description = parts[1].strip()
-                        gl_query_desc = {"glTitle": description}
-                        if entity:
-                             gl_query_desc["entity"] = entity
-                        rule = db.approver_gl.find_one(gl_query_desc)
-                
-                if rule:
-                    count = rule.get("approverCount", rule.get("approver_count", 0))
-                    if count > gl_count:
-                        gl_count = count
-                    matched_gls.append(code)
-            
-            if gl_count == 0:
-                gl_count = default_count
+                    if cod_workflow:
+                        workflow_found = True
+                        workflow_type = "codification"
+                        assigned_approvers = [
+                            cod_workflow.get("mandatory_approver_1"),
+                            cod_workflow.get("mandatory_approver_2"),
+                            cod_workflow.get("mandatory_approver_3")
+                        ]
+                        
+                        # Threshold
+                        threshold_amt = cod_workflow.get("amount_threshold")
+                        threshold_appr = cod_workflow.get("threshold_approver")
+                        if threshold_appr and amount is not None and threshold_amt is not None:
+                            if amount >= threshold_amt:
+                                assigned_approvers.append(threshold_appr)
+                        
+                        # Optional
+                        optional_appr = cod_workflow.get("optional_approver")
+                        if optional_appr:
+                            assigned_approvers.append(optional_appr)
+                        break
 
-    # 4. Return Maximum Requirement with Breakdown
-    max_count = max(vendor_count, amount_count, gl_count)
+    # 3. Fallback to Default Count
+    if not workflow_found:
+        workflow_type = "default"
+        default_query = {"entity": entity} if entity else {}
+        default_config = db.approver_default.find_one(default_query)
+        if not default_config and entity:
+            default_config = db.approver_default.find_one({"entity": {"$exists": False}})
+        
+        required_count = default_config.get("default_approver_count", 2) if default_config else 2
+        # For default, we don't have assigned individuals yet, so we just return count
+        # and maybe an empty or placeholder list
+        return {
+            "required": required_count,
+            "assigned_approvers": [],
+            "workflow_type": "default",
+            "breakdown": {"default": required_count}
+        }
+
+    # Filter out None or empty approvers
+    assigned_approvers = [a for a in assigned_approvers if a]
     
     return {
-        "required": max_count,
+        "required": len(assigned_approvers),
+        "assigned_approvers": assigned_approvers,
+        "workflow_type": workflow_type,
         "breakdown": {
-            "vendor": {"count": vendor_count, "name": vendor_name},
-            "amount": {"count": amount_count, "value": amount, "currency": currency},
-            "gl": {"count": gl_count, "codes": matched_gls},
-            "default": default_count
+            "workflow_id": str(vendor_workflow["_id"]) if workflow_type == "vendor" else str(cod_workflow["_id"]) if workflow_type == "codification" else None,
+            "type": workflow_type
         }
     }
 
