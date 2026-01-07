@@ -358,7 +358,6 @@ async def get_lobs(
                 col_name = sheet.get("collection_name")
                 if not col_name: continue
                 
-                print(f"[DEBUG] Scanning collection for LOB: {col_name}")
                 chunks = list(db[col_name].find())
                 for chunk in chunks:
                     for row in chunk.get("rows", []):
@@ -420,7 +419,6 @@ async def get_departments(
                 col_name = sheet.get("collection_name")
                 if not col_name: continue
                 
-                print(f"[DEBUG] Scanning collection for Dept: {col_name}")
                 chunks = list(db[col_name].find())
                 for chunk in chunks:
                     for row in chunk.get("rows", []):
