@@ -18,7 +18,8 @@
     "react-pdf": "^10.2.0",
     "react-plotly.js": "^2.6.0",
     "react-plotlyjs": "^0.4.4",
-    "react-router-dom": "^7.9.6"
+    "react-router-dom": "^7.9.6",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

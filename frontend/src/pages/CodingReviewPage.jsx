@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin, Checkbox, Tabs } from 'antd';
 const { Panel } = Collapse;
-import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined, RollbackOutlined, DownloadOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined, RollbackOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { read, utils } from 'xlsx';
 import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
 import WorkflowTab from '../components/WorkflowTab';
 import { invoiceService, codingService, masterDataService, approvalService, workflowService, currencyService } from '../services/api';
@@ -306,8 +307,6 @@ const CodingReviewPage = () => {
 
         fetchMasterData();
     }, []);
-    // ⭐⭐⭐ END UPDATED BLOCK ⭐⭐⭐
-
 
     // Extract line items
     useEffect(() => {
@@ -618,6 +617,77 @@ const CodingReviewPage = () => {
         } finally {
             setSaving(false);
         }
+    };
+
+
+    // Import from Excel
+    const handleImportExcel = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const bstr = evt.target.result;
+            const wb = read(bstr, { type: 'binary' });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            const data = utils.sheet_to_json(ws);
+
+            if (!data || data.length === 0) {
+                message.error('No data found in the uploaded file');
+                return;
+            }
+
+            // Map imported data to line items
+            // Expected headers: S.No, Description, Line Type, Quantity, Unit Price, Net Amount, GL Code, LOB, Department, Customer, Item
+            // Flexible matching for headers
+            const getVal = (row, keys) => {
+                for (const k of keys) {
+                    if (row[k] !== undefined) return row[k];
+                }
+                return '';
+            };
+
+            const startIdx = codingLineItems.length;
+
+            const newItems = data.map((row, index) => {
+                const qty = parseFloat(getVal(row, ['Quantity', 'quantity', 'Qty'])) || 0;
+                const price = parseFloat(getVal(row, ['Unit Price', 'unit_price', 'Price'])) || 0;
+                // Calculate net amount if not provided, or take provided
+                let net = parseFloat(getVal(row, ['Net Amount', 'net_amount', 'Amount'])) || 0;
+                if (net === 0 && qty !== 0 && price !== 0) {
+                    net = qty * price;
+                }
+
+                return {
+                    key: startIdx + index,
+                    s_no: startIdx + index + 1,
+                    original_index: -1,
+                    description: String(getVal(row, ['Description', 'description']) || ''),
+                    line_type: String(getVal(row, ['Line Type', 'line_type', 'Type']) || 'Expense'),
+                    quantity: qty,
+                    unit_price: price,
+                    net_amount: parseFloat(net.toFixed(2)),
+                    gl_code: String(getVal(row, ['GL Code', 'gl_code', 'GL']) || ''),
+                    lob: String(getVal(row, ['LOB', 'lob']) || ''),
+                    department: String(getVal(row, ['Department', 'department', 'Dept']) || ''),
+                    customer: String(getVal(row, ['Customer', 'customer']) || ''),
+                    item: String(getVal(row, ['Item', 'item']) || '')
+                };
+            });
+
+            const combinedItems = [...codingLineItems, ...newItems];
+            setCodingLineItems(combinedItems);
+
+            // Select ONLY the new items
+            setSelectedRowKeys(newItems.map(item => item.key));
+
+            message.success(`Imported ${newItems.length} line items (appended)`);
+
+            // Clear the input so same file can be selected again if needed
+            e.target.value = '';
+        };
+        reader.readAsBinaryString(file);
     };
 
     const exportToExcel = () => {
@@ -1264,22 +1334,61 @@ const CodingReviewPage = () => {
 
                                         <Panel
                                             header={
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <span>Line Items</span>
-                                                    <Button
-                                                        icon={<DownloadOutlined />}
-                                                        size="small"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            exportToExcel();
+                                                <div
+                                                    style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        width: '100%',
+                                                    }}
+                                                >
+                                                    {/* LEFT: Title */}
+                                                    <span style={{ fontWeight: 500 }}>Line Items</span>
+
+                                                    {/* RIGHT: Buttons grouped */}
+                                                    <div
+                                                        style={{
+                                                            display: 'flex',
+                                                            gap: '8px',
+                                                            alignItems: 'center',
                                                         }}
                                                     >
-                                                        Export to Excel
-                                                    </Button>
+                                                        <Button
+                                                            icon={<DownloadOutlined />}
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                exportToExcel();
+                                                            }}
+                                                        >
+                                                            Export to Excel
+                                                        </Button>
+
+                                                        <Button
+                                                            icon={<UploadOutlined />}
+                                                            size="small"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                document.getElementById('import-excel-input').click();
+                                                            }}
+                                                            disabled={disableEditing}
+                                                        >
+                                                            Import from Excel
+                                                        </Button>
+
+                                                        <input
+                                                            type="file"
+                                                            id="import-excel-input"
+                                                            accept=".xlsx, .xls, .csv"
+                                                            style={{ display: 'none' }}
+                                                            onChange={handleImportExcel}
+                                                        />
+                                                    </div>
                                                 </div>
                                             }
                                             key="lineitems"
                                         >
+
                                             <Table
                                                 columns={lineItemColumns}
                                                 dataSource={codingLineItems.map((item, index) => ({ ...item, key: index }))}

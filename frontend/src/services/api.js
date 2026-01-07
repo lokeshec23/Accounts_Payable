@@ -99,6 +99,10 @@ export const invoiceService = {
       responseType: 'blob'
     });
     return URL.createObjectURL(response.data);
+  },
+
+  async recallInvoice(invoiceId, comment = null) {
+    return this.updateInvoiceStatus(invoiceId, 'waiting_coding', comment);
   }
 };
 
