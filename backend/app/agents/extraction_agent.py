@@ -478,6 +478,9 @@ Extract and return ALL available information in this EXACT JSON format:
         "surcharges": number or null,
         "total_tax_amount": number or null,
         "tax_type_breakdown": "string or null",
+        "CGST": number or null,
+        "SGST": number or null,
+        "IGST": number or null,
         "withholding_tax": number or null,
         "total_invoice_amount": number or null,
         "amount_paid": number or null,
@@ -579,6 +582,9 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
                 "shipping_handling_fees": None,
                 "surcharges": None,
                 "tax_type_breakdown": None,
+                "CGST": None,
+                "SGST": None,
+                "IGST": None,
                 "withholding_tax": None,
                 "amount_paid": None,
             },
@@ -692,7 +698,10 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
             ("amounts", "total_invoice_amount"),
             ("amounts", "amount_due"),
             ("amounts", "subtotal"),
-            ("amounts", "previous_unpaid_balance")
+            ("amounts", "previous_unpaid_balance"),
+            ("amounts", "CGST"),
+            ("amounts", "SGST"),
+            ("amounts", "IGST")
         ]
 
         for section, field in amount_fields:

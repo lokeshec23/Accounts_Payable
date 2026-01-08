@@ -96,12 +96,17 @@ def extract_vendor_and_invoice_number(file_path: str) -> Tuple[Optional[str], Op
         return None, None
     
     try:
+        logger.info(f"Starting quick extraction for: {file_path}")
+        
         # Read the file
         with open(file_path, "rb") as f:
             file_content = f.read()
         
+        logger.info(f"File size: {len(file_content)} bytes")
+        
         # Call Azure Document Intelligence with prebuilt-invoice model
-        analyze_url = f"{AZURE_DI_ENDPOINT}/formrecognizer/documentModels/prebuilt-invoice:analyze?api-version=2024-11-30"
+        # Using stable API version 2023-07-31
+        analyze_url = f"{AZURE_DI_ENDPOINT}/formrecognizer/documentModels/prebuilt-invoice:analyze?api-version=2023-07-31"
         
         headers = {
             "Content-Type": "application/pdf",
@@ -109,54 +114,114 @@ def extract_vendor_and_invoice_number(file_path: str) -> Tuple[Optional[str], Op
         }
         
         # Start analysis
-        response = requests.post(analyze_url, headers=headers, data=file_content)
-        response.raise_for_status()
+        logger.info(f"Sending POST request to Azure DI: {analyze_url}")
+        try:
+            response = requests.post(analyze_url, headers=headers, data=file_content, timeout=30)
+            logger.info(f"Azure DI POST response status: {response.status_code}")
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Azure DI POST request failed: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Response status: {e.response.status_code}")
+                logger.error(f"Response content: {e.response.text[:500]}")
+            return None, None
         
         # Get operation location
         operation_location = response.headers.get("Operation-Location")
         if not operation_location:
             logger.error("No operation location in response headers")
+            logger.error(f"Available headers: {list(response.headers.keys())}")
             return None, None
+        
+        logger.info(f"Operation location: {operation_location}")
         
         # Poll for results (simplified, max 60 seconds)
         import time
         max_attempts = 60
         for attempt in range(max_attempts):
             time.sleep(1)
-            result_response = requests.get(
-                operation_location,
-                headers={"Ocp-Apim-Subscription-Key": AZURE_DI_KEY}
-            )
-            result_response.raise_for_status()
-            result = result_response.json()
             
-            if result.get("status") == "succeeded":
+            try:
+                result_response = requests.get(
+                    operation_location,
+                    headers={"Ocp-Apim-Subscription-Key": AZURE_DI_KEY},
+                    timeout=10
+                )
+                result_response.raise_for_status()
+                result = result_response.json()
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Error polling results (attempt {attempt + 1}): {e}")
+                continue
+            
+            status = result.get("status")
+            logger.debug(f"Polling attempt {attempt + 1}: status={status}")
+            
+            if status == "succeeded":
                 # Extract vendor name and invoice number
                 vendor_name = None
                 invoice_number = None
                 
-                if "analyzeResult" in result and "documents" in result["analyzeResult"]:
-                    for doc in result["analyzeResult"]["documents"]:
-                        fields = doc.get("fields", {})
+                if "analyzeResult" in result:
+                    logger.debug(f"analyzeResult keys: {list(result['analyzeResult'].keys())}")
+                    
+                    if "documents" in result["analyzeResult"]:
+                        logger.info(f"Found {len(result['analyzeResult']['documents'])} document(s)")
                         
-                        # Get vendor name
-                        if "VendorName" in fields:
-                            vendor_name = fields["VendorName"].get("content") or fields["VendorName"].get("valueString")
-                        
-                        # Get invoice number
-                        if "InvoiceId" in fields:
-                            invoice_number = fields["InvoiceId"].get("content") or fields["InvoiceId"].get("valueString")
+                        for doc in result["analyzeResult"]["documents"]:
+                            fields = doc.get("fields", {})
+                            logger.debug(f"Available fields: {list(fields.keys())}")
+                            
+                            # Try multiple field name variations for vendor
+                            for vendor_field in ["VendorName", "vendorName", "Vendor", "SupplierName"]:
+                                if vendor_field in fields:
+                                    field_data = fields[vendor_field]
+                                    vendor_name = (
+                                        field_data.get("content") or 
+                                        field_data.get("valueString") or 
+                                        field_data.get("value")
+                                    )
+                                    if vendor_name:
+                                        logger.info(f"✓ Found vendor via field '{vendor_field}': {vendor_name}")
+                                        break
+                            
+                            # Try multiple field name variations for invoice number
+                            for invoice_field in ["InvoiceId", "invoiceId", "InvoiceNumber", "DocumentId"]:
+                                if invoice_field in fields:
+                                    field_data = fields[invoice_field]
+                                    invoice_number = (
+                                        field_data.get("content") or 
+                                        field_data.get("valueString") or 
+                                        field_data.get("value")
+                                    )
+                                    if invoice_number:
+                                        logger.info(f"✓ Found invoice# via field '{invoice_field}': {invoice_number}")
+                                        break
+                            
+                            # If we found both, break
+                            if vendor_name and invoice_number:
+                                break
+                    else:
+                        logger.warning("No 'documents' found in analyzeResult")
+                else:
+                    logger.warning("No 'analyzeResult' found in response")
                 
-                logger.info(f"Quick extraction completed: vendor={vendor_name}, invoice={invoice_number}")
+                if vendor_name or invoice_number:
+                    logger.info(f"✅ Quick extraction completed: vendor={vendor_name}, invoice={invoice_number}")
+                else:
+                    logger.warning("⚠️ Quick extraction completed but no vendor/invoice found")
+                    
                 return vendor_name, invoice_number
             
-            elif result.get("status") == "failed":
-                logger.error(f"Azure DI analysis failed: {result.get('error')}")
+            elif status == "failed":
+                error_info = result.get("error", {})
+                logger.error(f"❌ Azure DI analysis failed: {error_info}")
                 return None, None
         
-        logger.warning("Quick extraction timed out")
+        logger.warning("⏱️ Quick extraction timed out after 60 seconds")
         return None, None
         
     except Exception as e:
-        logger.error(f"Error during quick extraction: {e}")
+        logger.error(f"❌ Error during quick extraction: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return None, None

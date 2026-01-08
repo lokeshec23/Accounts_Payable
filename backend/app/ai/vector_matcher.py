@@ -123,7 +123,40 @@ def find_best_vendor_match(
         logger.info(f"Exact match found (Cached): {v_name}")
         return {"match": match_row, "score": 1.0, "method": "exact"}
 
-    # 3. Embedding Match
+    # 3. Text Similarity (Fuzzy Match) - Moved up for performance
+    logger.info("Checking text similarity...")
+    best_text_score = 0
+    best_text_match = None
+    
+    for row in vendors:
+        v_name = row.get("Vendor Name") or row.get("VendorName") or row.get("Name") or row.get("VENDOR_NAME")
+        if not v_name: continue
+        
+        norm_name = normalize_vendor(str(v_name))
+        
+        # Optimization: Length filter
+        if abs(len(norm_name) - len(normalized_input)) > 5:
+            continue
+            
+        similarity = SequenceMatcher(None, normalized_input, norm_name).ratio()
+        
+        if similarity > best_text_score:
+            best_text_score = similarity
+            best_text_match = row
+            
+    if best_text_score >= threshold_text:
+        logger.info(f"Text similarity match: {best_text_match.get('VENDOR_NAME', 'Unknown')} (Score: {best_text_score})")
+        return {"match": best_text_match, "score": best_text_score, "method": "text_similarity"}
+
+    # 4. Embedding Match (Semantic) - Fallback, expensive!
+    # Only run if dataset is small or we really need it.
+    if len(vendors) > 20: 
+        logger.warning(f"Skipping embedding match due to large dataset size ({len(vendors)} vendors). Relying on text similarity.")
+        # Return best text match if it exists (even if below threshold, maybe?) 
+        # Or just return None if strictly below threshold.
+        # Let's return the best text match if it's decent (> 0.4) as a "guess" but strictly it respects threshold_text above.
+        return {"match": None, "score": best_text_score, "method": "none"}
+        
     best_score = 0
     best_match = None
     
@@ -153,30 +186,5 @@ def find_best_vendor_match(
             logger.info(f"Embedding match: {best_match.get('VENDOR_NAME', 'Unknown')} (Score: {best_score})")
             return {"match": best_match, "score": best_score, "method": "embedding"}
 
-    # 4. Text Similarity Fallback
-    logger.info("Falling back to text similarity...")
-    best_text_score = 0
-    best_text_match = None
-    
-    for row in vendors:
-        v_name = row.get("Vendor Name") or row.get("VendorName") or row.get("Name") or row.get("VENDOR_NAME")
-        if not v_name: continue
-        
-        norm_name = normalize_vendor(str(v_name))
-        
-        # Optimization: Length filter
-        if abs(len(norm_name) - len(normalized_input)) > 5:
-            continue
-            
-        similarity = SequenceMatcher(None, normalized_input, norm_name).ratio()
-        
-        if similarity > best_text_score:
-            best_text_score = similarity
-            best_text_match = row
-            
-    if best_text_score >= threshold_text:
-        logger.info(f"Text similarity match: {best_text_match.get('VENDOR_NAME', 'Unknown')} (Score: {best_text_score})")
-        return {"match": best_text_match, "score": best_text_score, "method": "text_similarity"}
-        
     logger.info(f"No match found. Best candidate was '{best_text_match.get('VENDOR_NAME') if best_text_match else 'None'}' (Text: {best_text_score})")
     return {"match": None, "score": max(best_score, best_text_score), "method": "none"}
