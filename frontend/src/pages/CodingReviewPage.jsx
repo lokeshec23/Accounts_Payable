@@ -88,32 +88,6 @@ const CodingReviewPage = () => {
     const [completedApproversCount, setCompletedApproversCount] = useState(0);
 
     const getCurrencySymbol = () => {
-        const raw =
-            invoiceData?.currency ||
-            invoiceData?.rawData?.extracted_data?.invoice_details?.currency?.value ||
-            'USD';
-
-        // Normalize value safely
-        const val = typeof raw === 'string'
-            ? raw
-            : typeof raw === 'object' && raw !== null
-                ? raw.value || raw.code || ''
-                : '';
-
-        const normalized = val.toString().trim().toUpperCase();
-
-        const match = currencies.find(c =>
-            c.code?.toUpperCase() === normalized ||
-            c.name?.toUpperCase() === normalized
-        );
-
-        if (match) return match.symbol;
-
-        // Fallbacks
-        if (normalized.includes('INR') || normalized.includes('RUPEE')) return '₹';
-        if (normalized.includes('EUR')) return '€';
-        if (normalized.includes('GBP') || normalized.includes('POUND')) return '£';
-
         return '$';
     };
 
@@ -125,35 +99,7 @@ const CodingReviewPage = () => {
     };
 
     useEffect(() => {
-        if (!invoiceData) return;
-
-        const val =
-            invoiceData?.currency ||
-            invoiceData?.rawData?.extracted_data?.invoice_details?.currency?.value ||
-            'USD';
-
-        // Try to match symbol from loaded currencies
-        const match = currencies.find(
-            c =>
-                c.code?.toUpperCase() === val?.toUpperCase() ||
-                c.name?.toLowerCase() === val?.toLowerCase()
-        );
-
-        if (match) {
-            setCurrencySymbol(match.symbol);
-        } else {
-            // IMMEDIATE Fallbacks if currencies aren't loaded yet
-            const search = val.toLowerCase();
-            if (search.includes('inr') || search.includes('rupee')) {
-                setCurrencySymbol('₹');
-            } else if (search.includes('eur')) {
-                setCurrencySymbol('€');
-            } else if (search.includes('gbp') || search.includes('pound')) {
-                setCurrencySymbol('£');
-            } else {
-                setCurrencySymbol('$');
-            }
-        }
+        setCurrencySymbol('$');
     }, [invoiceData, currencies]);
 
 
@@ -848,6 +794,15 @@ const CodingReviewPage = () => {
             )
         },
         {
+            title: 'Exch. Rate',
+            dataIndex: 'exchange_rate',
+            key: 'exchange_rate',
+            width: '10%',
+            render: (text) => (
+                <Input value={text} disabled style={disabledStyle} />
+            )
+        },
+        {
             title: 'Due Date',
             dataIndex: 'due_date',
             key: 'due_date',
@@ -885,6 +840,7 @@ const CodingReviewPage = () => {
             invoice_id: invoiceData?.invoiceId || '',
             total_amount: invoiceData?.rawData?.extracted_data?.amounts?.total_invoice_amount?.value || '',
             amount_due: invoiceData?.rawData?.extracted_data?.amounts?.amount_due?.value || '',
+            exchange_rate: invoiceData?.exchange_rate || invoiceData?.rawData?.exchange_rate || '',
             due_date: invoiceData?.rawData?.extracted_data?.invoice_details?.due_date?.value || '',
             memo: invoiceData?.rawData?.extracted_data?.additional_info?.memo?.value || '',
         }
@@ -1002,12 +958,8 @@ const CodingReviewPage = () => {
                     <InputNumber
                         value={codingLineItems[index]?.unit_price ?? ''}
                         onChange={(value) => handleCodingLineItemChange(index, 'unit_price', value)}
-                        formatter={(value) =>
-                            value
-                                ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                                : ''
-                        }
                         disabled={disableEditing}
+                        prefix="$"
                         style={disableEditing ? disabledStyle : { width: '100%' }}
                     />
 
@@ -1029,12 +981,8 @@ const CodingReviewPage = () => {
                     <InputNumber
                         value={codingLineItems[index]?.net_amount ?? ''}
                         onChange={(value) => handleCodingLineItemChange(index, 'net_amount', value)}
-                        formatter={(value) =>
-                            value
-                                ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                                : ''
-                        }
                         disabled={disableEditing}
+                        prefix="$"
                         style={disableEditing ? disabledStyle : { width: '100%' }}
                     />
 
@@ -1443,7 +1391,7 @@ const CodingReviewPage = () => {
                                                     }}>
                                                         <span style={{ fontWeight: '600', fontSize: '15px' }}>{item.gl_code}</span>
                                                         <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#1890ff' }}>
-                                                            {getCurrencySymbol()} {parseFloat(item.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            {getCurrencySymbol()} {parseFloat(item.total_amount).toFixed(2)}
                                                         </span>
                                                     </div>
                                                 ));
@@ -1475,7 +1423,7 @@ const CodingReviewPage = () => {
                                                         }}>
                                                             <span style={{ fontWeight: '600', fontSize: '15px' }}>{glCode}</span>
                                                             <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#1890ff' }}>
-                                                                {getCurrencySymbol()} {total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                {getCurrencySymbol()} {total.toFixed(2)}
                                                             </span>
                                                         </div>
                                                     ));
@@ -1496,7 +1444,7 @@ const CodingReviewPage = () => {
                                                     }}>
                                                         <span style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>Total Amount:</span>
                                                         <span style={{ fontSize: '24px', fontWeight: 'bold', color: 'white' }}>
-                                                            {getCurrencySymbol()} {headerTotalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            {getCurrencySymbol()} {headerTotalAmount.toFixed(2)}
                                                         </span>
                                                     </div>
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

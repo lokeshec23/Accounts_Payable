@@ -66,6 +66,7 @@ const GenericInputFields = ({
     const [selectedVendorDetails, setSelectedVendorDetails] = useState(null);
     const [vendorId, setVendorId] = useState('');
     const [memo, setMemo] = useState('');
+    const [exchangeRate, setExchangeRate] = useState(null);
 
     // Status & validation info
     const [invoiceStatus, setInvoiceStatus] = useState(initialStatus);
@@ -92,21 +93,6 @@ const GenericInputFields = ({
         originalData?.invoiceId;
 
     const getCurrencySymbol = () => {
-        const val = extractValue(formData['Invoice Currency']) || 'USD';
-
-        // Robust matching against code OR name
-        const match = currencies.find(c =>
-            c.code?.toUpperCase() === val?.toUpperCase() ||
-            c.name?.toLowerCase() === val?.toLowerCase()
-        );
-
-        if (match) return match.symbol;
-
-        // Fallbacks
-        const search = val?.toString().toLowerCase() || '';
-        if (search.includes('inr') || search.includes('rupee')) return '₹';
-        if (search.includes('euro') || search.includes('eur')) return '€';
-
         return '$';
     };
 
@@ -195,6 +181,7 @@ const GenericInputFields = ({
         // Initialize new fields from data
         setVendorId(extractValue(data?.extracted_data?.vendor_info?.vendor_id) || '');
         setMemo(extractValue(data?.extracted_data?.additional_info?.memo) || '');
+        setExchangeRate(originalData?.exchange_rate || null);
 
     }, [data, extractionData, originalData]);
 
@@ -782,6 +769,7 @@ const GenericInputFields = ({
             }
 
             await invoiceService.updateInvoice(invoiceId, {
+                exchange_rate: exchangeRate,
                 extracted_data: updatedExtractedData
             });
 
@@ -945,9 +933,13 @@ const GenericInputFields = ({
         const stringValue = extractValue(value);
 
         if (
-            field.includes('Amount') ||
-            field.includes('Price') ||
-            field.includes('Total')
+            field.toLowerCase().includes('amount') ||
+            field.toLowerCase().includes('price') ||
+            field.toLowerCase().includes('total') ||
+            field.toLowerCase().includes('subtotal') ||
+            field.toLowerCase().includes('tax') ||
+            field.toLowerCase().includes('fees') ||
+            field.toLowerCase().includes('surcharges')
         ) {
             const cleanValue = stringValue?.toString().replace(/[^\d.-]/g, '');
             const numValue = parseFloat(cleanValue);
@@ -963,20 +955,7 @@ const GenericInputFields = ({
                         value={isNaN(numValue) ? null : numValue}
                         onChange={(val) => handleInputChange(field, val)}
                         step={0.01}
-                        formatter={(value) =>
-                            value !== null && value !== undefined && value !== ''
-                                ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                                : ''
-                        }
-                        parser={(value) => {
-                            const allSymbols = [...new Set([
-                                ...currencies.map(c => c.symbol),
-                                '$', '₹', '€', '£', '¥'
-                            ])].filter(Boolean);
-                            const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                            const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
-                            return value.replace(pattern, '');
-                        }}
+                        prefix="$"
                         disabled={readOnly}
                     />
                 </div>
@@ -1179,18 +1158,7 @@ const GenericInputFields = ({
                             handleLineItemChange(index, 'UnitPrice', value)
                         }
                         step={0.01}
-                        formatter={(value) =>
-                            value ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
-                        }
-                        parser={(value) => {
-                            const allSymbols = [...new Set([
-                                ...currencies.map(c => c.symbol),
-                                '$', '₹', '€', '£', '¥'
-                            ])].filter(Boolean);
-                            const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                            const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
-                            return value.replace(pattern, '');
-                        }}
+                        prefix="$"
                         disabled={readOnly}
                     />
                 </div>
@@ -1213,18 +1181,7 @@ const GenericInputFields = ({
                             handleLineItemChange(index, 'Discount', value)
                         }
                         step={0.01}
-                        formatter={(value) =>
-                            value ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
-                        }
-                        parser={(value) => {
-                            const allSymbols = [...new Set([
-                                ...currencies.map(c => c.symbol),
-                                '$', '₹', '€', '£', '¥'
-                            ])].filter(Boolean);
-                            const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                            const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
-                            return value.replace(pattern, '');
-                        }}
+                        prefix="$"
                         disabled={readOnly}
                     />
                 </div>
@@ -1247,18 +1204,7 @@ const GenericInputFields = ({
                             handleLineItemChange(index, 'NetAmount', value)
                         }
                         step={0.01}
-                        formatter={(value) =>
-                            value ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
-                        }
-                        parser={(value) => {
-                            const allSymbols = [...new Set([
-                                ...currencies.map(c => c.symbol),
-                                '$', '₹', '€', '£', '¥'
-                            ])].filter(Boolean);
-                            const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                            const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
-                            return value.replace(pattern, '');
-                        }}
+                        prefix="$"
                         disabled={readOnly}
                     />
                 </div>
@@ -1414,6 +1360,29 @@ const GenericInputFields = ({
                                 )}
                             </div>
                         </div>
+
+                        {extractValue(formData['Invoice Currency']) !== 'USD' && (
+                            <div
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '200px 1fr',
+                                    gap: '16px',
+                                    alignItems: 'center',
+                                    marginTop: '8px'
+                                }}
+                            >
+                                <div style={{ fontWeight: 500 }}>Exchange Rate:</div>
+                                <div>
+                                    <InputNumber
+                                        style={{ width: '100%', ...disabledStyle }}
+                                        value={exchangeRate}
+                                        onChange={(val) => setExchangeRate(val)}
+                                        placeholder="Enter exchange rate"
+                                        disabled={disableInputs}
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         {/* Vendor Details Section (Read-Only) */}
                         {selectedVendorDetails && (
@@ -1574,18 +1543,41 @@ const GenericInputFields = ({
                 }}
             >
                 {fields.map((field) => (
-                    <div
-                        key={field}
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns: '350px 1fr',
-                            gap: '16px',
-                            alignItems: 'center'
-                        }}
-                    >
-                        <div style={{ fontWeight: 500 }}>{field}:</div>
-                        <div>{renderFieldInput(field, formData[field])}</div>
-                    </div>
+                    <React.Fragment key={field}>
+                        <div
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns: '350px 1fr',
+                                gap: '16px',
+                                alignItems: 'center'
+                            }}
+                        >
+                            <div style={{ fontWeight: 500 }}>{field}:</div>
+                            <div>{renderFieldInput(field, formData[field])}</div>
+                        </div>
+                        {field === 'Invoice Currency' && extractValue(formData['Invoice Currency']) !== 'USD' && (
+                            <div
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '350px 1fr',
+                                    gap: '16px',
+                                    alignItems: 'center',
+                                    marginTop: '4px'
+                                }}
+                            >
+                                <div style={{ fontWeight: 500 }}>Exchange Rate:</div>
+                                <div>
+                                    <InputNumber
+                                        style={{ width: '100%', ...disabledStyle }}
+                                        value={exchangeRate}
+                                        onChange={(val) => setExchangeRate(val)}
+                                        placeholder="Enter exchange rate"
+                                        disabled={disableInputs}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </React.Fragment>
                 ))}
             </div>
         </Panel>
@@ -1911,18 +1903,13 @@ const GenericInputFields = ({
                                 render: (text, record, index) => (
                                     <InputNumber
                                         value={codingLineItems[index]?.unit_price || 0}
-                                        formatter={(value) =>
-                                            value
-                                                ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                                                : ''
-                                        }
-                                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
                                         onChange={(value) =>
                                             handleCodingLineItemChange(index, 'unit_price', value)
                                         }
                                         style={{ width: '100%', ...disabledStyle }}
                                         min={0}
                                         precision={2}
+                                        prefix="$"
                                         disabled={disableInputs}
                                     />
                                 )
@@ -1935,18 +1922,13 @@ const GenericInputFields = ({
                                 render: (text, record, index) => (
                                     <InputNumber
                                         value={codingLineItems[index]?.net_amount || 0}
-                                        formatter={(value) =>
-                                            value
-                                                ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                                                : ''
-                                        }
-                                        parser={(value) => value.replace(new RegExp(`[${getCurrencySymbol()}\\s,]*`, 'g'), '')}
                                         onChange={(value) =>
                                             handleCodingLineItemChange(index, 'net_amount', value)
                                         }
                                         style={{ width: '100%', ...disabledStyle }}
                                         min={0}
                                         precision={2}
+                                        prefix="$"
                                         disabled={disableInputs}
                                     />
                                 )

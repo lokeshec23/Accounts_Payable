@@ -244,7 +244,7 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
                     c.code?.toUpperCase() === val?.toUpperCase() ||
                     c.name?.toLowerCase() === val?.toLowerCase()
                   );
-                  const symbol = match ? match.symbol : (val === 'INR' ? '₹' : '$');
+                  const symbol = '$';
                   return `${symbol}`;
                 })()}{workflowData.approver_breakdown.amount.value}):
                 {workflowData.approver_breakdown.amount.count}

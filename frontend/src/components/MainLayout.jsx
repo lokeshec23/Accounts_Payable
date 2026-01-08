@@ -213,11 +213,7 @@ const MainLayout = () => {
             render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                const match = currencies.find(c => 
-                    c.code?.toUpperCase() === record.currency?.toUpperCase() || 
-                    c.name?.toLowerCase() === record.currency?.toLowerCase()
-                );
-                const symbol = match ? match.symbol : (record.currency === 'INR' ? '₹' : '$');
+                const symbol = '$';
                 const cleanVal = strVal.replace(/[$,₹,€]/g, '').trim();
                 return `${symbol}${cleanVal}`;
             },
@@ -231,11 +227,7 @@ const MainLayout = () => {
             render: (val, record) => {
                 if (!val) return '-';
                 const strVal = val.toString();
-                const match = currencies.find(c => 
-                    c.code?.toUpperCase() === record.currency?.toUpperCase() || 
-                    c.name?.toLowerCase() === record.currency?.toLowerCase()
-                );
-                const symbol = match ? match.symbol : (record.currency === 'INR' ? '₹' : '$');
+                const symbol = '$';
                 const cleanVal = strVal.replace(/[$,₹,€]/g, '').trim();
                 return `${symbol}${cleanVal}`;
             },
