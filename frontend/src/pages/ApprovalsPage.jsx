@@ -63,14 +63,14 @@ const ApprovalsPage = () => {
                 const currentLevel = invoice.current_approver_level || 1;
                 const hasApproved = approvedBy.some((a) => {
                     const email = typeof a === 'string' ? a : a?.email;
-                    return email === storedUser.email;
+                    return (email || '').toLowerCase() === (storedUser?.email || '').toLowerCase();
                 });
 
                 if (item.status !== 'waiting_approval' || hasApproved) return false;
 
                 if (assignedApprovers.length > 0) {
                     const currentLevelEmail = assignedApprovers[currentLevel - 1];
-                    return storedUser.email === currentLevelEmail;
+                    return (storedUser?.email || '').toLowerCase() === (currentLevelEmail || '').toLowerCase();
                 }
                 return true;
             });
