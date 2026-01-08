@@ -19,7 +19,6 @@ const formatDate = (date) => {
     return `${year}-${month}-${day}`;
 };
 
-const { RangePicker } = DatePicker;
 const { Option } = Select;
 
 const DelegationManager = ({ isAdmin = false, onUpdate }) => {
@@ -70,11 +69,20 @@ const DelegationManager = ({ isAdmin = false, onUpdate }) => {
                 return `${year}-${month}-${day}`;
             };
 
+            const startDate = toLocalDateString(values.start_date);
+            const endDate = toLocalDateString(values.end_date);
+
+            if (new Date(startDate) > new Date(endDate)) {
+                message.error('End date cannot be before start date');
+                setLoading(false);
+                return;
+            }
+
             const payload = {
                 original_approver: values.original_approver,
                 substitute_approver: values.substitute_approver,
-                start_date: toLocalDateString(values.dates[0]),
-                end_date: toLocalDateString(values.dates[1]),
+                start_date: startDate,
+                end_date: endDate,
             };
             await delegationService.createDelegation(payload);
             message.success('Delegation created successfully');
@@ -185,11 +193,18 @@ const DelegationManager = ({ isAdmin = false, onUpdate }) => {
                         </Select>
                     </Form.Item>
                     <Form.Item
-                        name="dates"
-                        label="Date Range"
+                        name="start_date"
+                        label="Start Date"
                         rules={[{ required: true }]}
                     >
-                        <RangePicker />
+                        <DatePicker style={{ width: 150 }} />
+                    </Form.Item>
+                    <Form.Item
+                        name="end_date"
+                        label="End Date"
+                        rules={[{ required: true }]}
+                    >
+                        <DatePicker style={{ width: 150 }} />
                     </Form.Item>
                     <Form.Item label=" ">
                         <Button type="primary" htmlType="submit" loading={loading}>
