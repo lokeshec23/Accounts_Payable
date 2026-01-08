@@ -933,13 +933,15 @@ const GenericInputFields = ({
         const stringValue = extractValue(value);
 
         if (
-            field.toLowerCase().includes('amount') ||
-            field.toLowerCase().includes('price') ||
-            field.toLowerCase().includes('total') ||
-            field.toLowerCase().includes('subtotal') ||
-            field.toLowerCase().includes('tax') ||
-            field.toLowerCase().includes('fees') ||
-            field.toLowerCase().includes('surcharges')
+            (field.toLowerCase().includes('amount') ||
+                field.toLowerCase().includes('price') ||
+                field.toLowerCase().includes('total') ||
+                field.toLowerCase().includes('subtotal') ||
+                field.toLowerCase().includes('tax') ||
+                field.toLowerCase().includes('fees') ||
+                field.toLowerCase().includes('surcharges')) &&
+            !field.toLowerCase().includes('id') &&
+            !field.toLowerCase().includes('tin')
         ) {
             const cleanValue = stringValue?.toString().replace(/[^\d.-]/g, '');
             const numValue = parseFloat(cleanValue);
