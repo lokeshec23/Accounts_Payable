@@ -150,6 +150,32 @@ const GenericInputFields = ({
             LineItems: items
         };
 
+        // Map nested LLM-extracted tax fields to root formData keys
+        if (extractionData?.amounts) {
+            if (extractionData.amounts.CGST) initialFormData['CGST'] = extractionData.amounts.CGST;
+            if (extractionData.amounts.SGST) initialFormData['SGST'] = extractionData.amounts.SGST;
+            if (extractionData.amounts.IGST) initialFormData['IGST'] = extractionData.amounts.IGST;
+        }
+
+        // Helper to parse breakdown string if individual fields are missing
+        const breakdownField = 'Tax Type Breakdown (VAT/GST/PST/IGST etc.)';
+        const breakdownValue = extractValue(initialFormData[breakdownField]);
+
+        if (breakdownValue && typeof breakdownValue === 'string') {
+            const pattern = /(CGST|SGST|IGST)[\s:]*([\d,.]+)/gi;
+            let match;
+            while ((match = pattern.exec(breakdownValue)) !== null) {
+                const type = match[1].toUpperCase();
+                const Amount = match[2];
+                if (!initialFormData[type] || !initialFormData[type].value) {
+                    initialFormData[type] = {
+                        value: parseFloat(Amount.replace(/,/g, '')),
+                        source: 'parsed_breakdown'
+                    };
+                }
+            }
+        }
+
         if (data?.vendor_name) {
             initialFormData['Vendor Name'] = { value: data.vendor_name };
         }
@@ -186,7 +212,8 @@ const GenericInputFields = ({
                         lob: '',
                         department: '',
                         customer: '',
-                        item: ''
+                        item: '',
+                        original_index: index
                     };
                 })
             );
@@ -509,37 +536,167 @@ const GenericInputFields = ({
     useEffect(() => {
         if (!lineItems?.length) return;
 
-        setCodingLineItems((prevCoding) =>
-            lineItems.map((item, index) => {
-                const existing = prevCoding[index] || {};
+        setCodingLineItems((prevCoding) => {
+            const newCoding = [];
+            let currentSNo = 1;
+
+            // 1. Separate 'Base' items from previously generated/synced 'System' items
+            // This prevents duplicate generation loops when syncing back to extraction Items
+            const pureBaseItemsWithIndex = lineItems
+                .map((item, idx) => ({ item, idx }))
+                .filter(({ item }) => {
+                    const desc = (extractValue(item.Description) || item.description || '').toString();
+                    return !desc.startsWith('GST for item') && !desc.startsWith('TDS Deduction');
+                });
+
+            pureBaseItemsWithIndex.forEach(({ item, idx }) => {
+                // Find existing base item in Coding tab to preserve user edits (GL code, etc.)
+                const existingBase = prevCoding.find(pc =>
+                    pc.original_index === idx &&
+                    !pc.description?.startsWith('GST for item')
+                );
+
                 const extractedUnitPrice = extractValue(item.UnitPrice);
                 const extractedNetAmount = extractValue(item.NetAmount);
 
                 const unitPrice = parseCurrencyValue(
-                    extractedUnitPrice || extractValue(item.unit_price)
+                    extractedUnitPrice || extractValue(item.unit_price) || item.unit_price
                 );
                 const netAmount = parseCurrencyValue(
                     extractedNetAmount ||
                     extractValue(item.amount) ||
-                    extractValue(item.net_amount)
+                    extractValue(item.net_amount) ||
+                    item.amount ||
+                    item.net_amount
                 );
 
-                return {
-                    s_no: index + 1,
-                    description: extractValue(item.Description) || '',
-                    line_type: existing.line_type || 'Expense',
-                    quantity: parseFloat(extractValue(item.Quantity)) || 0,
+                const baseLine = {
+                    s_no: currentSNo++,
+                    description: extractValue(item.Description) || item.description || '',
+                    line_type: existingBase?.line_type || 'Expense',
+                    quantity: parseFloat(extractValue(item.Quantity) || item.quantity) || 0,
                     unit_price: unitPrice,
                     net_amount: netAmount,
-                    gl_code: existing.gl_code || '',
-                    lob: existing.lob || '',
-                    department: existing.department || '',
-                    customer: existing.customer || '',
-                    item: existing.item || ''
+                    gl_code: existingBase?.gl_code || '',
+                    lob: existingBase?.lob || '',
+                    department: existingBase?.department || '',
+                    customer: existingBase?.customer || '',
+                    item: existingBase?.item || '',
+                    original_index: idx
                 };
-            })
-        );
-    }, [lineItems]);
+                newCoding.push(baseLine);
+            });
+
+            // --- Single Aggregated GST Line Logic ---
+            // Calculate total tax from all extracted items
+            const totalTaxAmount = pureBaseItemsWithIndex.reduce((sum, { item }) => {
+                const t = parseCurrencyValue(
+                    extractValue(item.TaxAmount) ||
+                    extractValue(item.tax_amount) ||
+                    item.TaxAmount ||
+                    item.tax_amount
+                );
+                return sum + t;
+            }, 0) +
+                parseCurrencyValue(extractValue(formData['CGST'])) +
+                parseCurrencyValue(extractValue(formData['SGST'])) +
+                parseCurrencyValue(extractValue(formData['IGST']));
+
+            const gstDesc = 'Total GST';
+            const existingGST = prevCoding.find(pc => pc.description === gstDesc);
+
+            const isEligible = selectedVendorDetails?.['GST / Use Tax Eligibility Configuration']?.toString().trim() === 'Eligible';
+
+            // For ineligible, inherit from the first base line, or keep existing edit
+            let gstGL = existingGST?.gl_code || '';
+            if (!gstGL) {
+                gstGL = isEligible ? 'GST_INPUT' : (newCoding[0]?.gl_code || '');
+            } else if (!isEligible && newCoding.length > 0 && existingGST.gl_code === newCoding[0].gl_code) {
+                // specific check: if it was auto-inherited, update it if the parent changed? 
+                // Simpler: if ineligible and no manual override, sync with first line
+                gstGL = newCoding[0]?.gl_code || '';
+            }
+
+            newCoding.push({
+                s_no: currentSNo++,
+                description: gstDesc,
+                line_type: 'Tax',
+                quantity: 1,
+                unit_price: totalTaxAmount,
+                net_amount: totalTaxAmount,
+                gl_code: gstGL,
+                lob: newCoding[0]?.lob || '',
+                department: newCoding[0]?.department || '',
+                customer: newCoding[0]?.customer || '',
+                item: newCoding[0]?.item || '',
+                original_index: -2 // Special index for global GST
+            });
+
+            // --- TDS Line Logic ---
+            const findTDSValue = (keys) => {
+                if (!selectedVendorDetails) return null;
+                const matchKey = Object.keys(selectedVendorDetails).find(k => {
+                    const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
+                    return keys.some(target => normK === target.toLowerCase().replace(/[\s_\\\-]/g, ''));
+                });
+                return matchKey ? selectedVendorDetails[matchKey] : null;
+            };
+
+            const tdsApplicabilityVal = findTDSValue([
+                'TDS/Withhold Tax Applicability Configuration',
+                'TDS Applicability',
+                'TDS Applicable',
+                'Withholding Tax Applicable'
+            ]);
+
+            const isTDSApplicable = tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes';
+
+            if (isTDSApplicable) {
+                const tdsRateVal = findTDSValue([
+                    'TDS Percentage',
+                    'Percentage',
+                    'Rate',
+                    'TDS Rate',
+                    'Withholding Rate'
+                ]) || '0';
+
+                const tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
+
+                // Subtotal calculation (only base expense lines)
+                const subtotal = newCoding.reduce((sum, line) => {
+                    const isGst = line.description?.startsWith('GST for item');
+                    return isGst ? sum : sum + line.net_amount;
+                }, 0);
+
+                const tdsAmount = (subtotal * tdsRate) / 100;
+
+                if (tdsAmount > 0) {
+                    const tdsDesc = `TDS Deduction (${tdsRate}%)`;
+                    const existingTDS = prevCoding.find(pc =>
+                        pc.description?.startsWith('TDS Deduction') ||
+                        pc.original_index === -1
+                    );
+
+                    newCoding.push({
+                        s_no: currentSNo++,
+                        description: tdsDesc,
+                        line_type: 'Liability',
+                        quantity: 1,
+                        unit_price: -tdsAmount,
+                        net_amount: -tdsAmount,
+                        gl_code: existingTDS?.gl_code || 'TDS_PAYABLE',
+                        lob: '',
+                        department: '',
+                        customer: '',
+                        item: '',
+                        original_index: -1
+                    });
+                }
+            }
+
+            return newCoding;
+        });
+    }, [lineItems, selectedVendorDetails, formData]);
 
     // ---------- generic handlers ----------
     const handleInputChange = (field, value) => {
@@ -578,16 +735,58 @@ const GenericInputFields = ({
     };
 
     const handleDeleteLineItem = (index) => {
-        setLineItems((prev) => prev.filter((_, i) => i !== index));
-        setCodingLineItems((prev) => prev.filter((_, i) => i !== index));
+        // Find if it's a generated line (GST/TDS) or base line
+        const codingItem = codingLineItems[index];
+
+        if (codingItem && codingItem.original_index !== undefined && codingItem.original_index >= 0) {
+            // If it's a base line, deleting it removes the entire extracted line and its derivatives
+            // If it's a GST line, we should probably warn or just delete the parent? 
+            // Better: If user deletes a GST line in coding, they might just want it gone.
+            // But our useEffect will put it back if lineItems.TaxAmount > 0.
+            // So we should probably update lineItems to remove tax.
+
+            const isGst = codingItem.description?.startsWith('GST for item');
+            if (isGst) {
+                // Remove tax from original line
+                const updatedLines = [...lineItems];
+                updatedLines[codingItem.original_index].TaxAmount = { value: 0 };
+                setLineItems(updatedLines);
+            } else {
+                // Remove the entire line
+                setLineItems((prev) => prev.filter((_, i) => i !== codingItem.original_index));
+            }
+        } else {
+            // Global adjustment like TDS or manual line not linked to extraction
+            setCodingLineItems((prev) => prev.filter((_, i) => i !== index));
+        }
     };
 
     const handleHeaderCodingChange = (value) => setHeaderCoding(value);
 
     const handleCodingLineItemChange = (index, field, value) => {
         const updated = [...codingLineItems];
-        updated[index][field] = value;
+        const item = updated[index];
+        item[field] = value;
         setCodingLineItems(updated);
+
+        // Sync back to lineItems if it's a base field being edited in Coding tab
+        if (item.original_index !== undefined && item.original_index >= 0 && !item.description?.startsWith('GST for item')) {
+            const map = {
+                'net_amount': 'NetAmount',
+                'description': 'Description',
+                'quantity': 'Quantity',
+                'unit_price': 'UnitPrice'
+            };
+            const lineField = map[field];
+            if (lineField) {
+                const updatedLineItems = [...lineItems];
+                const targetLine = updatedLineItems[item.original_index];
+                if (targetLine) {
+                    targetLine[lineField] = { ...targetLine[lineField], value };
+                    setLineItems(updatedLineItems);
+                }
+            }
+        }
     };
 
     const exportToExcel = () => {
@@ -1366,6 +1565,40 @@ const GenericInputFields = ({
             )
         },
         {
+            title: 'Tax Amt',
+            dataIndex: 'TaxAmount',
+            key: 'TaxAmount',
+            width: 100,
+            render: (val, record, index) => (
+                <div
+                    onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_TaxAmount`)}
+                    onMouseLeave={() => setHoveredKey && setHoveredKey(null)}
+                >
+                    <InputNumber
+                        style={{ width: '100%', ...disabledStyle }}
+                        value={parseCurrencyValue(extractValue(val))}
+                        onChange={(value) =>
+                            handleLineItemChange(index, 'TaxAmount', value)
+                        }
+                        step={0.01}
+                        formatter={(value) =>
+                            value ? `${getCurrencySymbol()} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+                        }
+                        parser={(value) => {
+                            const allSymbols = [...new Set([
+                                ...currencies.map(c => c.symbol),
+                                '$', '₹', '€', '£', '¥'
+                            ])].filter(Boolean);
+                            const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const pattern = new RegExp(`[${allSymbols.map(escapeRegex).join('')}\\s,]*`, 'g');
+                            return value.replace(pattern, '');
+                        }}
+                        disabled={readOnly}
+                    />
+                </div>
+            )
+        },
+        {
             title: 'Action',
             key: 'action',
             width: 80,
@@ -1519,6 +1752,27 @@ const GenericInputFields = ({
                             </div>
                         </div>
 
+                        {/* Tax Breakdowns */}
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px',
+                            marginTop: '8px'
+                        }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
+                                <div style={{ fontWeight: 500 }}>CGST:</div>
+                                <div>{renderFieldInput('CGST', formData['CGST'])}</div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
+                                <div style={{ fontWeight: 500 }}>SGST:</div>
+                                <div>{renderFieldInput('SGST', formData['SGST'])}</div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
+                                <div style={{ fontWeight: 500 }}>IGST:</div>
+                                <div>{renderFieldInput('IGST', formData['IGST'])}</div>
+                            </div>
+                        </div>
+
                         {/* Vendor Details Section (Read-Only) */}
                         {selectedVendorDetails && (
                             <div style={{
@@ -1593,10 +1847,97 @@ const GenericInputFields = ({
                     <Table
                         key={getCurrencySymbol()}
                         columns={lineItemColumns}
-                        dataSource={lineItems.map((item, index) => ({
-                            ...item,
-                            key: index
-                        }))}
+                        dataSource={(() => {
+                            const data = [];
+                            lineItems.forEach((item, index) => {
+                                // Add Base Item
+                                data.push({
+                                    ...item,
+                                    key: `item_${index}`
+                                });
+                            });
+
+                            // --- Single Aggregated GST Row for Quick View ---
+                            const totalTaxAmount = lineItems.reduce((sum, item) => {
+                                const t = parseCurrencyValue(
+                                    extractValue(item.TaxAmount) ||
+                                    extractValue(item.tax_amount) ||
+                                    item.TaxAmount ||
+                                    item.tax_amount
+                                );
+                                return sum + t;
+                            }, 0) +
+                                parseCurrencyValue(extractValue(formData['CGST'])) +
+                                parseCurrencyValue(extractValue(formData['SGST'])) +
+                                parseCurrencyValue(extractValue(formData['IGST']));
+
+                            // Always display Total GST row
+                            data.push({
+                                key: 'gst_total',
+                                Description: { value: 'Total GST' },
+                                Quantity: { value: 1 },
+                                UnitPrice: { value: totalTaxAmount },
+                                NetAmount: { value: totalTaxAmount },
+                                TaxAmount: { value: 0 },
+                                Discount: { value: 0 },
+                                isSystemRow: true
+                            });
+
+                            // Dynamic TDS Row for Quick View Display
+                            const findTDSValue = (keys) => {
+                                if (!selectedVendorDetails) return null;
+                                const matchKey = Object.keys(selectedVendorDetails).find(k => {
+                                    const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
+                                    return keys.some(target => normK === target.toLowerCase().replace(/[\s_\\\-]/g, ''));
+                                });
+                                return matchKey ? selectedVendorDetails[matchKey] : null;
+                            };
+
+                            const tdsApplicabilityVal = findTDSValue([
+                                'TDS/Withhold Tax Applicability Configuration',
+                                'TDS Applicability',
+                                'TDS Applicable',
+                                'Withholding Tax Applicable'
+                            ]);
+
+                            if (tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes') {
+                                const tdsRateVal = findTDSValue([
+                                    'TDS Percentage',
+                                    'Percentage',
+                                    'Rate',
+                                    'TDS Rate',
+                                    'Withholding Rate'
+                                ]) || '0';
+                                const tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
+
+                                const subtotal = lineItems.reduce((sum, item) => {
+                                    const net = parseCurrencyValue(
+                                        extractValue(item.NetAmount) ||
+                                        extractValue(item.amount) ||
+                                        extractValue(item.net_amount) ||
+                                        item.amount ||
+                                        item.net_amount
+                                    );
+                                    return sum + net;
+                                }, 0);
+
+                                const tdsAmount = (subtotal * tdsRate) / 100;
+
+                                if (tdsAmount > 0) {
+                                    data.push({
+                                        key: 'TDS_PREVIEW',
+                                        Description: { value: `TDS Deduction (${tdsRate}%)` },
+                                        Quantity: { value: 1 },
+                                        UnitPrice: { value: -tdsAmount },
+                                        NetAmount: { value: -tdsAmount },
+                                        TaxAmount: { value: 0 },
+                                        Discount: { value: 0 },
+                                        isSystemRow: true // flag for styling or disabling actions
+                                    });
+                                }
+                            }
+                            return data;
+                        })()}
                         pagination={false}
                         scroll={{ x: 'max-content' }}
                         size="small"
@@ -1614,7 +1955,7 @@ const GenericInputFields = ({
                     )}
                 </Panel>
             </Collapse>
-        </div>
+        </div >
     );
 
     const glSummaryTab = (
@@ -1796,6 +2137,9 @@ const GenericInputFields = ({
                 {renderFieldGroup('Taxes', [
                     'Total Tax Amount',
                     'Tax Type Breakdown (VAT/GST/PST/IGST etc.)',
+                    'CGST',
+                    'SGST',
+                    'IGST',
                     'Withholding Tax'
                 ])}
 
