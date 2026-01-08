@@ -57,7 +57,6 @@ async def create_vendor_workflow(
             detail=f"Workflow already exists for vendor '{workflow.vendor_id}'"
         )
     
-    print(f"[DEBUG] Creating vendor workflow for {workflow.vendor_id} entity {entity}")
     workflow_dict = workflow.dict()
     workflow_dict["entity"] = entity
     workflow_dict["created_at"] = datetime.utcnow()
@@ -136,20 +135,16 @@ async def get_workflow_vendors(
 ):
     """Get all vendors with workflow_applicable = 'Yes' from Vendor Master"""
     db = get_database()
-    print("[DEBUG] Fetching workflow vendors...")
     
     # 1. Targeted search for Vendor_Master tab
     meta = db.excel_files.find_one({"tab_name": "Vendor_Master"})
     if not meta or "sheets" not in meta or not meta["sheets"]:
-        print("[DEBUG] No Vendor_Master metadata found")
         return []
     
     vendor_collection = meta["sheets"][0].get("collection_name")
     if not vendor_collection:
-        print("[DEBUG] No collection name for Vendor_Master")
         return []
     
-    print(f"[DEBUG] Loading from collection: {vendor_collection}")
     chunks = list(db[vendor_collection].find())
     
     workflow_vendors = []
@@ -198,7 +193,6 @@ async def get_workflow_vendors(
             unique_vendors.append(v)
             seen.add(v["value"])
     
-    print(f"[DEBUG] Found {len(unique_vendors)} unique vendors (including ID variants)")
     return unique_vendors
 
 
@@ -248,7 +242,6 @@ async def create_codification_workflow(
             detail=f"Workflow already exists for LOB '{workflow.lob}' and Department '{workflow.department_id}'"
         )
     
-    print(f"[DEBUG] Creating codification workflow for LOB {workflow.lob} Dept {workflow.department_id} entity {entity}")
     workflow_dict = workflow.dict()
     workflow_dict["entity"] = entity
     workflow_dict["created_at"] = datetime.utcnow()
@@ -343,8 +336,7 @@ async def get_lobs(
 ):
     """Get all unique LOBs from master data using flexible matching (same as CodingReview)"""
     db = get_database()
-    print("[DEBUG] Fetching LOBs with flexible matching...")
-    
+
     lobs = {}
     files = list(db.excel_files.find())
     
@@ -396,7 +388,6 @@ async def get_lobs(
                             # We use lob_id as the value for the workflow rule
                             lobs[lob_id] = label
     
-    print(f"[DEBUG] Found {len(lobs)} LOBs")
     return [{"value": vid, "label": lbl} for vid, lbl in sorted(lobs.items())]
 
 
@@ -406,7 +397,6 @@ async def get_departments(
 ):
     """Get all unique Department IDs from master data using flexible matching (same as CodingReview)"""
     db = get_database()
-    print("[DEBUG] Fetching Departments with flexible matching...")
     
     departments = {}
     files = list(db.excel_files.find())
@@ -456,7 +446,6 @@ async def get_departments(
                             label = f"{dept_id} - {dept_name}" if dept_name else dept_id
                             departments[dept_id] = label
     
-    print(f"[DEBUG] Found {len(departments)} Departments")
     return [{"value": did, "label": lbl} for did, lbl in sorted(departments.items())]
 
 
@@ -468,7 +457,6 @@ async def get_approvers(
 ):
     """Get all users who can act as approvers (Strict: role='approver' and status='active')"""
     db = get_database()
-    print("[DEBUG] Fetching active approvers...")
     
     approvers = list(db.users.find({
         "role": "approver",
@@ -484,5 +472,4 @@ async def get_approvers(
                 "label": f"{approver.get('username', email.split('@')[0])} ({email})"
             })
     
-    print(f"[DEBUG] Found {len(entity_approvers)} active approvers")
     return entity_approvers

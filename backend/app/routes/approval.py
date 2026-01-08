@@ -50,14 +50,12 @@ async def send_to_approval(
     
     # 1. Check if we already have a locked value (Strict Persistence)
     if invoice.get("required_approvers") is not None:
-        print(f"DEBUG: [approval.py] Keeping persisted approver count: {invoice['required_approvers']}")
         # Ensure these are preserved (implicitly done by not adding them to set if not needed, 
         # but for clarity/completeness and in case of any weird mongo behavior, we can set them again or just skip)
         # Actually, if we just don't touch them, they persist.
         pass
     else:
         # 2. Calculate fresh if not set
-        print("DEBUG: [approval.py] Calculating FRESH approver count")
         from app.routes.workflow import get_vendor_data_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
         
         vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
@@ -92,7 +90,7 @@ async def send_to_approval(
 
 
     # -------------------------------------------------------------
-    # ✅ INSERT "CODING COMPLETED" STEP HERE (Moved from coding.py)
+    #   INSERT "CODING COMPLETED" STEP HERE (Moved from coding.py)
     # -------------------------------------------------------------
     # We define the start of the current cycle based on the last time it was in "reworked" or "waiting_coding"
     status_history = invoice.get("status_history", [])

@@ -91,7 +91,6 @@ def get_invoice_total_from_invoice(db, invoice_id: str):
                 
             return None
         except Exception as e:
-            print(f"DEBUG: Error parsing amount '{val}': {e}")
             return None
 
     # Check new nested structure first
@@ -148,8 +147,7 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
     # Check Vendor Eligibility from Master Data
     vendor_eligible = False
     v_name_resolved, v_id_resolved = get_vendor_data_from_invoice(db, invoice_id) if invoice_id else (vendor_name, None)
-    
-    print(f"DEBUG: [get_required_approver_count] Input Vendor: '{vendor_name}', Resolved Name: '{v_name_resolved}', ID: '{v_id_resolved}', Entity: '{entity}'")
+ 
     
     if v_name_resolved:
         # 1. Targeted search for Vendor_Master tab (Matches workflow_config.py)
@@ -202,7 +200,6 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
                         else:
                             print(f"DEBUG: Vendor found but NOT workflow eligible. Value: '{workflow_applicable}'")
     
-    print(f"DEBUG: vendor_eligible result: {vendor_eligible}")
 
     # 1. Try Vendor Based Workflow (Only if ELIGIBLE)
     if vendor_eligible and v_name_resolved and entity:
@@ -213,19 +210,17 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
         else:
             workflow_query["vendor_name"] = v_name_resolved.strip()
             
-        print(f"DEBUG: Searching vendor_workflows with {workflow_query}")
         vendor_workflow = db.vendor_workflows.find_one(workflow_query)
         
         # Fallback to name if ID match failed but ID was provided
         if not vendor_workflow and v_id_resolved:
-            print(f"DEBUG: ID match failed, falling back to name: {v_name_resolved}")
+            
             vendor_workflow = db.vendor_workflows.find_one({
                 "vendor_name": v_name_resolved.strip(),
                 "entity": entity
             })
         
         if vendor_workflow:
-            print(f"DEBUG: Found Vendor Workflow: {vendor_workflow.get('vendor_name')}")
             workflow_found = True
             workflow_type = "vendor"
             # Extract assigned approvers based on approver_count

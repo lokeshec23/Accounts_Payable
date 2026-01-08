@@ -151,7 +151,6 @@ async def upload_invoices(
                 
                 if existing_duplicate and str(existing_duplicate.get("_id")) != invoice_id:
                     # Duplicate found AFTER extraction - cleanup and return info
-                    print(f"DEBUG_UPLOAD: POST-EXTRACTION duplicate found! Vendor: {final_vendor_id}, Invoice#: {final_invoice_number}")
                     
                     db.invoices.delete_one({"_id": result.inserted_id})
                     if os.path.exists(file_path):
@@ -426,7 +425,7 @@ async def update_invoice_status(
             if h["status"] == InvoiceStatus.APPROVED
         )
 
-        # ✅ SEQUENTIAL ORDER ENFORCEMENT
+        # SEQUENTIAL ORDER ENFORCEMENT
         if assigned_approvers:
             if existing_approvals < len(assigned_approvers):
                 expected_email = assigned_approvers[existing_approvals].lower()
@@ -551,11 +550,9 @@ async def update_invoice(
     
     # Check if status is being updated to WAITING_APPROVAL in generic update
     if "status" in update_data and update_data["status"] == InvoiceStatus.WAITING_APPROVAL:
-        print(f"DEBUG: Generic update setting status to WAITING_APPROVAL for {invoice_id}")
         existing_req = invoice.get("required_approvers")
         
         if existing_req is not None:
-             print(f"DEBUG: Using persisted approver count (Generic Update): {existing_req}")
              # Ensure these are preserved/set if passed, implicitly they might be missing from update_data
              # If update_data doesn't have them, we don't need to add them if they are already in DB?
              # No, update_data overwrites. If we don't include them, update_one only sets what is in update_data.
@@ -564,7 +561,6 @@ async def update_invoice(
              # Actually, if the DB has them, we don't need to do anything.
              pass
         else:
-             print("DEBUG: Calculating FRESH approver count (Generic Update)")
              from app.routes.workflow import get_vendor_data_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
              
              vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
