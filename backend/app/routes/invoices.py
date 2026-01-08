@@ -56,8 +56,8 @@ async def upload_invoices(
             extracted_vendor_name, invoice_number = extract_vendor_and_invoice_number(file_path)
             
             if extracted_vendor_name and invoice_number:
-                # Get vendor ID and OFFICIAL vendor name from master
-                vendor_id, official_vendor_name = get_vendor_id_from_master(db, extracted_vendor_name)
+                # Get vendor ID, OFFICIAL vendor name, and line grouping config from master
+                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name)
                 
                 if vendor_id:
                     # Fast O(1) duplicate check using registry
@@ -98,12 +98,16 @@ async def upload_invoices(
             }]
             
             # Add vendor_id, official vendor name, and invoice_number if available
+            current_line_grouping = "No"
             if extracted_vendor_name and invoice_number:
-                vendor_id, official_vendor_name = get_vendor_id_from_master(db, extracted_vendor_name)
+                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name)
                 if vendor_id:
                     invoice_dict["vendor_id"] = vendor_id
                     invoice_dict["vendor_name"] = official_vendor_name  # Official name from master
                     invoice_dict["invoice_number"] = invoice_number
+                    current_line_grouping = line_grouping
+            
+            invoice_dict["line_grouping"] = current_line_grouping
 
             result = db.invoices.insert_one(invoice_dict)
             invoice_id = str(result.inserted_id)
@@ -126,10 +130,12 @@ async def upload_invoices(
                 vendor_info = extracted_data.get("vendor_info", {})
                 extracted_vendor = vendor_info.get("name", {}).get("value")
                 if extracted_vendor:
-                    vendor_id, official_vendor_name = get_vendor_id_from_master(db, extracted_vendor)
+                    vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor)
                     if vendor_id:
                         update_data["vendor_id"] = vendor_id
                         update_data["vendor_name"] = official_vendor_name
+                        update_data["line_grouping"] = line_grouping
+                        current_line_grouping = line_grouping
             
             if not invoice_dict.get("invoice_number"):
                 # Try to get invoice number from extraction
@@ -137,6 +143,48 @@ async def upload_invoices(
                 extracted_invoice_num = invoice_details.get("invoice_number", {}).get("value")
                 if extracted_invoice_num:
                     update_data["invoice_number"] = extracted_invoice_num
+
+            # ---- LINE GROUPING LOGIC ----
+            if current_line_grouping == "Yes":
+                if "Items" in extracted_data and "value" in extracted_data["Items"] and extracted_data["Items"]["value"]:
+                    items = extracted_data["Items"]["value"]
+                    first_item = items[0]
+                    
+                    aggregated_description = first_item.get("description", {}).get("value") or "Aggregated Items"
+                    total_quantity = 0.0
+                    total_unit_price = 0.0
+                    total_net_amount = 0.0
+                    
+                    def safe_to_float(v):
+                        if v is None: return 0.0
+                        if isinstance(v, (int, float)): return float(v)
+                        try:
+                            # Clean currency symbols and commas
+                            return float(str(v).replace('$', '').replace(',', '').strip())
+                        except:
+                            return 0.0
+
+                    for item in items:
+                        total_quantity += safe_to_float(item.get("quantity", {}).get("value"))
+                        total_unit_price += safe_to_float(item.get("unit_price", {}).get("value"))
+                        total_net_amount += safe_to_float(item.get("amount", {}).get("value"))
+                    
+                    # Create single aggregated line
+                    aggregated_item = {
+                        "description": {"value": aggregated_description, "source": "aggregation", "confidence": 1.0},
+                        "quantity": {"value": total_quantity, "source": "aggregation", "confidence": 1.0},
+                        "unit_price": {"value": total_unit_price, "source": "aggregation", "confidence": 1.0},
+                        "amount": {"value": total_net_amount, "source": "aggregation", "confidence": 1.0},
+                        "item_code": first_item.get("item_code", {"value": None}),
+                        "unit_of_measure": first_item.get("unit_of_measure", {"value": None}),
+                        "discount": {"value": 0.0},
+                        "tax_rate": {"value": 0.0},
+                        "tax_amount": {"value": 0.0},
+                        "gross_amount": {"value": total_net_amount}
+                    }
+                    
+                    extracted_data["Items"]["value"] = [aggregated_item]
+                    update_data["extracted_data"] = extracted_data
 
             db.invoices.update_one({"_id": result.inserted_id}, {"$set": update_data})
 

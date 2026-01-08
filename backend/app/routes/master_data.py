@@ -117,6 +117,8 @@ async def upload_master_file(
                     df["TDS Section Code and Description"] = ""
                 if "Workflow Applicability Configuration" not in df.columns:
                     df["Workflow Applicability Configuration"] = "Yes"
+                if "Line Grouping" not in df.columns:
+                    df["Line Grouping"] = "No"
             
             rows = df.to_dict(orient="records")
             

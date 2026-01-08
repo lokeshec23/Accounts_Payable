@@ -302,7 +302,8 @@ const MasterDataPage = () => {
             form.setFieldsValue({
                 "GST / Use Tax Eligibility Configuration": "Eligible",
                 "TDS/Withhold Tax Applicability Configuration": "No",
-                "Workflow Applicability Configuration": "Yes"
+                "Workflow Applicability Configuration": "Yes",
+                "Line Grouping": "No"
             });
         }
         setIsModalVisible(true);
@@ -500,6 +501,21 @@ const MasterDataPage = () => {
                                         );
                                     }
                                     if (fieldKey === "Workflow Applicability Configuration") {
+                                        return (
+                                            <Form.Item
+                                                key={fieldKey}
+                                                label={fieldKey}
+                                                name={fieldKey}
+                                                style={{ width: 'calc(50% - 8px)' }}
+                                                valuePropName="checked"
+                                                getValueProps={(value) => ({ checked: value === 'Yes' })}
+                                                getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
+                                            >
+                                                <Switch checkedChildren="Yes" unCheckedChildren="No" />
+                                            </Form.Item>
+                                        );
+                                    }
+                                    if (fieldKey === "Line Grouping") {
                                         return (
                                             <Form.Item
                                                 key={fieldKey}
