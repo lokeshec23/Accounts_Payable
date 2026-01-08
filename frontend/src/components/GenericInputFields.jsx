@@ -198,6 +198,81 @@ const GenericInputFields = ({
 
     }, [data, extractionData, originalData]);
 
+    // Reverse Lookup: When Vendor ID changes (e.g. manual entry), update Name and Terms
+    useEffect(() => {
+        // extractValue handles the object wrapper, returns string or number
+        const rawId = extractValue(formData['Vendor ID']);
+        // Normalize input: trim, stringify
+        const currentId = String(rawId || '').trim();
+
+        console.log("DEBUG: Vendor ID changed to:", currentId, "(Raw type:", typeof rawId, ")");
+
+        if (!currentId) return;
+
+        if (!vendorMasterData || vendorMasterData.length === 0) {
+            console.log("DEBUG: Exiting Vendor ID Lookup - Vendor Master Data empty or undefined");
+            return;
+        }
+
+        // DEBUG: Sample IDs from master data to see what we are matching against
+        const sampleIds = vendorMasterData.slice(0, 5).map(v => v['Vendor ID'] || v['VendorID'] || v['vendor_id'] || v['VENDOR_ID']);
+        console.log("DEBUG: Sample Master IDs:", sampleIds);
+
+        // Find match in master data with relaxed comparison
+        const match = vendorMasterData.find(v => {
+            const vId = v['Vendor ID'] || v['VendorID'] || v['vendor_id'] || v['VENDOR_ID'];
+            if (!vId) return false;
+
+            const sVid = String(vId).trim();
+
+            // 1. Direct match
+            if (sVid === currentId) return true;
+
+            // 2. Handle "123.0" vs "123" (Excel number artifact)
+            if (sVid.replace(/\.0+$/, '') === currentId.replace(/\.0+$/, '')) return true;
+
+            return false;
+        });
+
+        if (match) {
+            console.log("DEBUG: Vendor ID Match Found:", match);
+
+            // 1. Update Vendor Name if different
+            const officialName = match['Vendor Name'] || match['VendorName'] || match['Name'] || match['VENDOR_NAME'];
+            const currentName = String(extractValue(formData['Vendor Name']) || '').trim();
+
+            if (officialName && String(officialName).trim() !== currentName) {
+                console.log(`DEBUG: Updating Vendor Name from '${currentName}' to '${officialName}'`);
+                // Force update name
+                handleInputChange('Vendor Name', officialName);
+            } else {
+                console.log("DEBUG: Vendor Name already matches or is empty in master.");
+            }
+
+            // 2. Update Payment Terms if empty
+            // Reuse robust lookup logic
+            const ptKey = Object.keys(match).find(k => {
+                const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
+                return normK === 'paymentterms' ||
+                    normK === 'terms' ||
+                    normK === 'termsofpayment' ||
+                    normK === 'creditterms' ||
+                    normK === 'payterms' ||
+                    normK === 'pmtterms';
+            });
+            const paymentTerms = ptKey ? match[ptKey] : null;
+            const currentTerms = extractValue(formData['Payment Terms']);
+            const isCurrentEmpty = !currentTerms || String(currentTerms).trim() === '';
+
+            if (paymentTerms && isCurrentEmpty) {
+                console.log("DEBUG: Auto-populating Payment Terms from ID Match:", paymentTerms);
+                handleInputChange('Payment Terms', paymentTerms);
+            }
+        } else {
+            console.log("DEBUG: No match found for Vendor ID:", currentId);
+        }
+    }, [formData['Vendor ID'], vendorMasterData]); // Dependency on the raw value in formData
+
     // ---------- Load Vendor Master Data ----------
     useEffect(() => {
         const loadVendorMaster = async () => {
@@ -1333,7 +1408,10 @@ const GenericInputFields = ({
                             <div style={{ fontWeight: 500 }}>Vendor ID:</div>
                             <Input
                                 value={vendorId}
-                                onChange={(e) => setVendorId(e.target.value)}
+                                onChange={(e) => {
+                                    setVendorId(e.target.value);
+                                    handleInputChange('Vendor ID', e.target.value);
+                                }}
                                 disabled={disableInputs}
                                 style={disabledStyle}
                             />
@@ -1462,18 +1540,32 @@ const GenericInputFields = ({
                                         <span style={{ color: '#595959', minWidth: '120px' }}>TDS Applicability:</span>
                                         <strong style={{ fontSize: '14px' }}>{selectedVendorDetails['TDS/Withhold Tax Applicability Configuration'] || 'N/A'}</strong>
                                     </div>
-                                    {selectedVendorDetails['TDS/Withhold Tax Applicability Configuration'] === 'Yes' && (
-                                        <>
-                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
-                                                <span style={{ color: '#595959', minWidth: '120px' }}>TDS %:</span>
-                                                <strong style={{ fontSize: '14px' }}>{selectedVendorDetails['TDS Percentage'] || 'N/A'}</strong>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
-                                                <span style={{ color: '#595959', minWidth: '120px' }}>TDS Section:</span>
-                                                <strong style={{ fontSize: '14px' }}>{selectedVendorDetails['TDS Section Code and Description'] || 'N/A'}</strong>
-                                            </div>
-                                        </>
-                                    )}
+                                    {/* Robust check for "Yes" (case-insensitive) */}
+                                    {selectedVendorDetails['TDS/Withhold Tax Applicability Configuration'] &&
+                                        selectedVendorDetails['TDS/Withhold Tax Applicability Configuration'].toString().trim().toLowerCase() === 'yes' && (
+                                            <>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
+                                                    <span style={{ color: '#595959', minWidth: '120px' }}>TDS %:</span>
+                                                    <strong style={{ fontSize: '14px' }}>
+                                                        {selectedVendorDetails['TDS Percentage'] ||
+                                                            selectedVendorDetails['Percentage'] ||
+                                                            selectedVendorDetails['Rate'] ||
+                                                            selectedVendorDetails['TDS Rate'] ||
+                                                            'N/A'}
+                                                    </strong>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
+                                                    <span style={{ color: '#595959', minWidth: '120px' }}>TDS Section:</span>
+                                                    <strong style={{ fontSize: '14px' }}>
+                                                        {selectedVendorDetails['TDS Section Code and Description'] ||
+                                                            selectedVendorDetails['TDS Section'] ||
+                                                            selectedVendorDetails['Section'] ||
+                                                            selectedVendorDetails['Code'] ||
+                                                            'N/A'}
+                                                    </strong>
+                                                </div>
+                                            </>
+                                        )}
                                 </div>
                             </div>
                         )}
