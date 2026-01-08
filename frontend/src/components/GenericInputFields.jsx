@@ -279,8 +279,34 @@ const GenericInputFields = ({
                 }
 
                 // Auto-populate Payment Terms if available and not set
-                if (match['Payment Terms'] && !extractValue(formData['Payment Terms'])) {
-                    handleInputChange('Payment Terms', match['Payment Terms']);
+                console.log("DEBUG: applyMatch - Match Object Keys:", Object.keys(match));
+
+                // Robust case-insensitive lookup
+                const ptKey = Object.keys(match).find(k => {
+                    const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
+                    return normK === 'paymentterms' ||
+                        normK === 'terms' ||
+                        normK === 'termsofpayment' ||
+                        normK === 'creditterms' ||
+                        normK === 'payterms' ||
+                        normK === 'pmtterms';
+                });
+
+                const paymentTerms = ptKey ? match[ptKey] : null;
+
+                const currentTerms = extractValue(formData['Payment Terms']);
+                const isCurrentEmpty = !currentTerms || String(currentTerms).trim() === '';
+
+                console.log("DEBUG: applyMatch - Found Payment Terms Key:", ptKey, "Value:", paymentTerms);
+                console.log("DEBUG: applyMatch - Current Form Payment Terms:", currentTerms, "IsEmpty:", isCurrentEmpty);
+
+                if (paymentTerms && isCurrentEmpty) {
+                    console.log("DEBUG: Auto-populating Payment Terms from Master Data:", paymentTerms);
+                    handleInputChange('Payment Terms', paymentTerms);
+                } else if (!paymentTerms) {
+                    console.warn("DEBUG/WARNING: No Payment Terms found in Master Data for this vendor. Available keys:", Object.keys(match));
+                } else if (!isCurrentEmpty) {
+                    console.log("DEBUG: Payment Terms already present in form ('" + currentTerms + "'), skipping override.");
                 }
             };
 
