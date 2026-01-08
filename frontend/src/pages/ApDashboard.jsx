@@ -167,413 +167,407 @@ const ApDashboard = () => {
             title: "Amount",
             dataIndex: "total",
             width: 160,
-            render: (v) => `$${v.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            })}`,
+            render: (v) => `${v.toFixed(2)}`,
         },
     ];
 
     return (
         // <div className="ap-dashboard-shell">
-            <div className="ap-dashboard">
+        <div className="ap-dashboard">
 
-                {/* KPI CARDS */}
-                <Row gutter={20} className="ap-row">
-                    <Col xs={24} md={6}>
-                        <Card className="ap-kpi-card kpi-invoices">
-                            <div className="ap-kpi-inner">
-                                <div className="ap-kpi-icon-wrap">
-                                    <FileTextOutlined className="ap-kpi-icon icon-blue" />
-                                </div>
-                                <div>
-                                    <div className="ap-kpi-label">Total Invoices</div>
-                                    <div className="ap-kpi-value">{summary.total_invoices}</div>
+            {/* KPI CARDS */}
+            <Row gutter={20} className="ap-row">
+                <Col xs={24} md={6}>
+                    <Card className="ap-kpi-card kpi-invoices">
+                        <div className="ap-kpi-inner">
+                            <div className="ap-kpi-icon-wrap">
+                                <FileTextOutlined className="ap-kpi-icon icon-blue" />
+                            </div>
+                            <div>
+                                <div className="ap-kpi-label">Total Invoices</div>
+                                <div className="ap-kpi-value">{summary.total_invoices}</div>
+                            </div>
+                        </div>
+                    </Card>
+                </Col>
+
+                <Col xs={24} md={6}>
+                    <Card className="ap-kpi-card kpi-total-due">
+                        <div className="ap-kpi-inner">
+                            <div className="ap-kpi-icon-wrap">
+                                <DollarCircleOutlined className="ap-kpi-icon icon-green" />
+                            </div>
+                            <div>
+                                <div className="ap-kpi-label">Total Due</div>
+                                <div className="ap-kpi-value">
+                                    {summary.total_due.toFixed(2)}
                                 </div>
                             </div>
-                        </Card>
-                    </Col>
+                        </div>
+                    </Card>
+                </Col>
 
-                    <Col xs={24} md={6}>
-                        <Card className="ap-kpi-card kpi-total-due">
-                            <div className="ap-kpi-inner">
-                                <div className="ap-kpi-icon-wrap">
-                                    <DollarCircleOutlined className="ap-kpi-icon icon-green" />
-                                </div>
-                                <div>
-                                    <div className="ap-kpi-label">Total Due</div>
-                                    <div className="ap-kpi-value">
-                                        {`$${summary.total_due.toLocaleString(undefined, {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2,
-                                        })}`}
-                                    </div>
+                <Col xs={24} md={6}>
+                    <Card className="ap-kpi-card kpi-approved">
+                        <div className="ap-kpi-inner">
+                            <div className="ap-kpi-icon-wrap">
+                                <CheckCircleOutlined className="ap-kpi-icon icon-cyan" />
+                            </div>
+                            <div>
+                                <div className="ap-kpi-label">Approved</div>
+                                <div className="ap-kpi-value">{summary.approved}</div>
+                            </div>
+                        </div>
+                    </Card>
+                </Col>
+
+                <Col xs={24} md={6}>
+                    <Card className="ap-kpi-card kpi-pending">
+                        <div className="ap-kpi-inner">
+                            <div className="ap-kpi-icon-wrap">
+                                <ClockCircleOutlined className="ap-kpi-icon icon-orange" />
+                            </div>
+                            <div>
+                                <div className="ap-kpi-label">Pending Approval</div>
+                                <div className="ap-kpi-value">
+                                    {summary.waiting_approval}
                                 </div>
                             </div>
-                        </Card>
-                    </Col>
+                        </div>
+                    </Card>
+                </Col>
+            </Row>
 
-                    <Col xs={24} md={6}>
-                        <Card className="ap-kpi-card kpi-approved">
-                            <div className="ap-kpi-inner">
-                                <div className="ap-kpi-icon-wrap">
-                                    <CheckCircleOutlined className="ap-kpi-icon icon-cyan" />
-                                </div>
-                                <div>
-                                    <div className="ap-kpi-label">Approved</div>
-                                    <div className="ap-kpi-value">{summary.approved}</div>
-                                </div>
-                            </div>
-                        </Card>
-                    </Col>
-
-                    <Col xs={24} md={6}>
-                        <Card className="ap-kpi-card kpi-pending">
-                            <div className="ap-kpi-inner">
-                                <div className="ap-kpi-icon-wrap">
-                                    <ClockCircleOutlined className="ap-kpi-icon icon-orange" />
-                                </div>
-                                <div>
-                                    <div className="ap-kpi-label">Pending Approval</div>
-                                    <div className="ap-kpi-value">
-                                        {summary.waiting_approval}
-                                    </div>
-                                </div>
-                            </div>
-                        </Card>
-                    </Col>
-                </Row>
-
-                {/* AGING + STATUS CHARTS */}
-                <Row gutter={20} className="ap-row">
-                    {/* Aging */}
-                    <Col xs={24} md={14}>
-                        <Card
-                            className="ap-chart-card"
-                            title={<span className="ap-card-title">Payable Aging Analysis</span>}
-                        >
-                            <Plot
-                                data={[
-                                    {
-                                        x: agingLabels,
-                                        y: agingValues,
-                                        type: "bar",
-                                        marker: {
-                                            color: agingBarColors,
-                                            line: {
-                                                width: 1.5,
-                                                color: 'rgba(59, 124, 255, 0.9)'
-                                            },
+            {/* AGING + STATUS CHARTS */}
+            <Row gutter={20} className="ap-row">
+                {/* Aging */}
+                <Col xs={24} md={14}>
+                    <Card
+                        className="ap-chart-card"
+                        title={<span className="ap-card-title">Payable Aging Analysis</span>}
+                    >
+                        <Plot
+                            data={[
+                                {
+                                    x: agingLabels,
+                                    y: agingValues,
+                                    type: "bar",
+                                    marker: {
+                                        color: agingBarColors,
+                                        line: {
+                                            width: 1.5,
+                                            color: 'rgba(59, 124, 255, 0.9)'
                                         },
-                                        hovertemplate: '<b>%{x} days</b><br>$%{y:,.2f}<extra></extra>',
                                     },
-                                ]}
-                                layout={{
-                                    autosize: true,
-                                    margin: { t: 24, r: 10, b: 60, l: 50 },
-                                    xaxis: {
-                                        title: "Aging (days)",
-                                        gridcolor: 'rgba(234, 236, 240, 0.5)',
-                                        tickfont: { size: 12 },
-                                        fixedrange: true,
-                                    },
-                                    yaxis: {
-                                        title: "Amount ($)",
-                                        gridcolor: 'rgba(234, 236, 240, 0.5)',
-                                        tickformat: '$,.0f',
-                                        tickfont: { size: 12 },
-                                        fixedrange: true,
-                                    },
-                                    plot_bgcolor: 'rgba(0,0,0,0)',
-                                    paper_bgcolor: 'rgba(0,0,0,0)',
-                                    hoverlabel: {
-                                        bgcolor: '#1d2939',
-                                        font: { color: 'white', size: 12 }
-                                    },
-                                    dragmode: false,
-                                    hovermode: 'closest',
-                                }}
-                                className="ap-chart"
-                                useResizeHandler
-                                config={{
-                                    displayModeBar: false,
-                                    displaylogo: false,
-                                    scrollZoom: false,
-                                }}
-                            />
-                        </Card>
-                    </Col>
+                                    hovertemplate: '<b>%{x} days</b><br>%{y:.2f}<extra></extra>',
+                                },
+                            ]}
+                            layout={{
+                                autosize: true,
+                                margin: { t: 24, r: 10, b: 60, l: 50 },
+                                xaxis: {
+                                    title: "Aging (days)",
+                                    gridcolor: 'rgba(234, 236, 240, 0.5)',
+                                    tickfont: { size: 12 },
+                                    fixedrange: true,
+                                },
+                                yaxis: {
+                                    title: "Amount",
+                                    gridcolor: 'rgba(234, 236, 240, 0.5)',
+                                    tickformat: '.0f',
+                                    tickfont: { size: 12 },
+                                    fixedrange: true,
+                                },
+                                plot_bgcolor: 'rgba(0,0,0,0)',
+                                paper_bgcolor: 'rgba(0,0,0,0)',
+                                hoverlabel: {
+                                    bgcolor: '#1d2939',
+                                    font: { color: 'white', size: 12 }
+                                },
+                                dragmode: false,
+                                hovermode: 'closest',
+                            }}
+                            className="ap-chart"
+                            useResizeHandler
+                            config={{
+                                displayModeBar: false,
+                                displaylogo: false,
+                                scrollZoom: false,
+                            }}
+                        />
+                    </Card>
+                </Col>
 
-                    {/* Status */}
-                    <Col xs={24} md={10}>
-                        <Card
-                            className="ap-chart-card"
-                            title={<span className="ap-card-title">Invoice Status Breakdown</span>}
-                        >
-                           <Plot
-  data={[
-    {
-      labels: statusLabels,
-      values: statusValues,
-      type: "pie",
-      hole: 0.4, // Smaller hole to make room for text
-      marker: {
-        colors: statusPieColors,
-        line: { width: 1.5, color: "white" },
-      },
-      textinfo: "percent",
-      textposition: "inside", // Percentages inside slices
-      textfont: {
-        size: 9,
-        family: "'Inter', sans-serif",
-        color: "white", // White text for better contrast
-      },
-      hovertemplate:
-        "<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>",
-      pull: statusLabels.map(() => 0.01), // Smaller pull effect
-    },
-  ]}
-  layout={{
-    autosize: true,
-    height: 260, // Even smaller
-    margin: { t: 10, r: 10, b: 10, l: 10 }, // Minimal margins
-    showlegend: true,
-    legend: {
-      orientation: "v",
-      x: 1.02,  // Closer to chart
-      xanchor: "left",
-      y: 0.5,
-      font: { 
-        size: 12,  // Very small legend
-        family: "'Inter', sans-serif"
-      },
-    },
-    plot_bgcolor: "rgba(0,0,0,0)",
-    paper_bgcolor: "rgba(0,0,0,0)",
-    hoverlabel: {
-      bgcolor: "#1d2939",
-      font: { color: "white", size: 12 },
-    },
-    dragmode: false,
-    hovermode: "closest",
-  }}
-  className="ap-chart"
-  useResizeHandler
-  style={{ width: '100%', height: '260px' }}
-  config={{
-    displayModeBar: false,
-    displaylogo: false,
-  }}
-/>
-                        </Card>
-                    </Col>
-                </Row>
+                {/* Status */}
+                <Col xs={24} md={10}>
+                    <Card
+                        className="ap-chart-card"
+                        title={<span className="ap-card-title">Invoice Status Breakdown</span>}
+                    >
+                        <Plot
+                            data={[
+                                {
+                                    labels: statusLabels,
+                                    values: statusValues,
+                                    type: "pie",
+                                    hole: 0.4, // Smaller hole to make room for text
+                                    marker: {
+                                        colors: statusPieColors,
+                                        line: { width: 1.5, color: "white" },
+                                    },
+                                    textinfo: "percent",
+                                    textposition: "inside", // Percentages inside slices
+                                    textfont: {
+                                        size: 9,
+                                        family: "'Inter', sans-serif",
+                                        color: "white", // White text for better contrast
+                                    },
+                                    hovertemplate:
+                                        "<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>",
+                                    pull: statusLabels.map(() => 0.01), // Smaller pull effect
+                                },
+                            ]}
+                            layout={{
+                                autosize: true,
+                                height: 260, // Even smaller
+                                margin: { t: 10, r: 10, b: 10, l: 10 }, // Minimal margins
+                                showlegend: true,
+                                legend: {
+                                    orientation: "v",
+                                    x: 1.02,  // Closer to chart
+                                    xanchor: "left",
+                                    y: 0.5,
+                                    font: {
+                                        size: 12,  // Very small legend
+                                        family: "'Inter', sans-serif"
+                                    },
+                                },
+                                plot_bgcolor: "rgba(0,0,0,0)",
+                                paper_bgcolor: "rgba(0,0,0,0)",
+                                hoverlabel: {
+                                    bgcolor: "#1d2939",
+                                    font: { color: "white", size: 12 },
+                                },
+                                dragmode: false,
+                                hovermode: "closest",
+                            }}
+                            className="ap-chart"
+                            useResizeHandler
+                            style={{ width: '100%', height: '260px' }}
+                            config={{
+                                displayModeBar: false,
+                                displaylogo: false,
+                            }}
+                        />
+                    </Card>
+                </Col>
+            </Row>
 
-                {/* VENDOR BAR CHARTS */}
-                <Row gutter={20} className="ap-row">
-                    {/* COUNT */}
-                    <Col xs={24} md={12}>
-                        <Card
-                            className="ap-chart-card"
-                            title={
-                                <Space align="center" size={12}>
-                                    <span className="ap-card-title">
-                                        Invoices by Vendor (Count)
-                                    </span>
-                                    <Button
-                                        size="small"
-                                        className="ap-pill-button"
-                                        onClick={() =>
-                                            setSortVendorCountAsc((prev) => !prev)
-                                        }
-                                    >
-                                        {sortVendorCountAsc ? "Asc" : "Desc"}
-                                    </Button>
-                                    <select
-                                        value={vendorCountLimit}
-                                        onChange={(e) =>
-                                            setVendorCountLimit(Number(e.target.value))
-                                        }
-                                        className="ap-select-inline"
-                                    >
-                                        <option value={5}>Top 5</option>
-                                        <option value={10}>Top 10</option>
-                                        <option value={15}>Top 15</option>
-                                        <option value={20}>Top 20</option>
-                                    </select>
-                                </Space>
-                            }
-                        >
-                            <Plot
-                                data={[
-                                    {
-                                        x: vendorCount.map((v) => v.vendor),
-                                        y: vendorCount.map((v) => v.count),
-                                        type: "bar",
-                                        marker: {
-                                            color: vendorCountColors,
-                                            line: {
-                                                color: 'rgba(139, 92, 246, 0.9)',
-                                                width: 1.5
-                                            },
+            {/* VENDOR BAR CHARTS */}
+            <Row gutter={20} className="ap-row">
+                {/* COUNT */}
+                <Col xs={24} md={12}>
+                    <Card
+                        className="ap-chart-card"
+                        title={
+                            <Space align="center" size={12}>
+                                <span className="ap-card-title">
+                                    Invoices by Vendor (Count)
+                                </span>
+                                <Button
+                                    size="small"
+                                    className="ap-pill-button"
+                                    onClick={() =>
+                                        setSortVendorCountAsc((prev) => !prev)
+                                    }
+                                >
+                                    {sortVendorCountAsc ? "Asc" : "Desc"}
+                                </Button>
+                                <select
+                                    value={vendorCountLimit}
+                                    onChange={(e) =>
+                                        setVendorCountLimit(Number(e.target.value))
+                                    }
+                                    className="ap-select-inline"
+                                >
+                                    <option value={5}>Top 5</option>
+                                    <option value={10}>Top 10</option>
+                                    <option value={15}>Top 15</option>
+                                    <option value={20}>Top 20</option>
+                                </select>
+                            </Space>
+                        }
+                    >
+                        <Plot
+                            data={[
+                                {
+                                    x: vendorCount.map((v) => v.vendor),
+                                    y: vendorCount.map((v) => v.count),
+                                    type: "bar",
+                                    marker: {
+                                        color: vendorCountColors,
+                                        line: {
+                                            color: 'rgba(139, 92, 246, 0.9)',
+                                            width: 1.5
                                         },
-                                        hovertemplate: '<b>%{x}</b><br>Count: %{y}<extra></extra>',
                                     },
-                                ]}
-                                layout={{
-                                    autosize: true,
-                                    margin: { t: 24, r: 10, b: 100, l: 50 },
-                                    xaxis: {
-                                        tickangle: -45,
-                                        gridcolor: 'rgba(234, 236, 240, 0.5)',
-                                        tickfont: { size: 12 },
-                                        fixedrange: true,
-                                    },
-                                    yaxis: {
-                                        title: "Count",
-                                        gridcolor: 'rgba(234, 236, 240, 0.5)',
-                                        tickfont: { size: 12 },
-                                        fixedrange: true,
-                                    },
-                                    plot_bgcolor: 'rgba(0,0,0,0)',
-                                    paper_bgcolor: 'rgba(0,0,0,0)',
-                                    hoverlabel: {
-                                        bgcolor: '#1d2939',
-                                        font: { color: 'white', size: 12 }
-                                    },
-                                    dragmode: false,
-                                }}
-                                className="ap-chart"
-                                useResizeHandler
-                                config={{
-                                    displayModeBar: false,
-                                    displaylogo: false,
-                                }}
-                            />
-                        </Card>
-                    </Col>
+                                    hovertemplate: '<b>%{x}</b><br>Count: %{y}<extra></extra>',
+                                },
+                            ]}
+                            layout={{
+                                autosize: true,
+                                margin: { t: 24, r: 10, b: 100, l: 50 },
+                                xaxis: {
+                                    tickangle: -45,
+                                    gridcolor: 'rgba(234, 236, 240, 0.5)',
+                                    tickfont: { size: 12 },
+                                    fixedrange: true,
+                                },
+                                yaxis: {
+                                    title: "Count",
+                                    gridcolor: 'rgba(234, 236, 240, 0.5)',
+                                    tickfont: { size: 12 },
+                                    fixedrange: true,
+                                },
+                                plot_bgcolor: 'rgba(0,0,0,0)',
+                                paper_bgcolor: 'rgba(0,0,0,0)',
+                                hoverlabel: {
+                                    bgcolor: '#1d2939',
+                                    font: { color: 'white', size: 12 }
+                                },
+                                dragmode: false,
+                            }}
+                            className="ap-chart"
+                            useResizeHandler
+                            config={{
+                                displayModeBar: false,
+                                displaylogo: false,
+                            }}
+                        />
+                    </Card>
+                </Col>
 
-                    {/* AMOUNT */}
-                    <Col xs={24} md={12}>
-                        <Card
-                            className="ap-chart-card"
-                            title={
-                                <Space align="center" size={12}>
-                                    <span className="ap-card-title">
-                                        Invoices by Vendor (Amount)
-                                    </span>
-                                    <Button
-                                        size="small"
-                                        className="ap-pill-button"
-                                        onClick={() =>
-                                            setSortVendorAmtAsc((prev) => !prev)
-                                        }
-                                    >
-                                        {sortVendorAmtAsc ? "Asc" : "Desc"}
-                                    </Button>
-                                    <select
-                                        value={vendorAmountLimit}
-                                        onChange={(e) =>
-                                            setVendorAmountLimit(Number(e.target.value))
-                                        }
-                                        className="ap-select-inline"
-                                    >
-                                        <option value={5}>Top 5</option>
-                                        <option value={10}>Top 10</option>
-                                        <option value={15}>Top 15</option>
-                                        <option value={20}>Top 20</option>
-                                    </select>
-                                </Space>
-                            }
-                        >
-                            <Plot
-                                data={[
-                                    {
-                                        x: vendorAmount.map((v) => v.vendor),
-                                        y: vendorAmount.map((v) => v.amount),
-                                        type: "bar",
-                                        marker: {
-                                            color: vendorAmountColors,
-                                            line: {
-                                                color: 'rgba(16, 185, 129, 0.9)',
-                                                width: 1.5
-                                            },
+                {/* AMOUNT */}
+                <Col xs={24} md={12}>
+                    <Card
+                        className="ap-chart-card"
+                        title={
+                            <Space align="center" size={12}>
+                                <span className="ap-card-title">
+                                    Invoices by Vendor (Amount)
+                                </span>
+                                <Button
+                                    size="small"
+                                    className="ap-pill-button"
+                                    onClick={() =>
+                                        setSortVendorAmtAsc((prev) => !prev)
+                                    }
+                                >
+                                    {sortVendorAmtAsc ? "Asc" : "Desc"}
+                                </Button>
+                                <select
+                                    value={vendorAmountLimit}
+                                    onChange={(e) =>
+                                        setVendorAmountLimit(Number(e.target.value))
+                                    }
+                                    className="ap-select-inline"
+                                >
+                                    <option value={5}>Top 5</option>
+                                    <option value={10}>Top 10</option>
+                                    <option value={15}>Top 15</option>
+                                    <option value={20}>Top 20</option>
+                                </select>
+                            </Space>
+                        }
+                    >
+                        <Plot
+                            data={[
+                                {
+                                    x: vendorAmount.map((v) => v.vendor),
+                                    y: vendorAmount.map((v) => v.amount),
+                                    type: "bar",
+                                    marker: {
+                                        color: vendorAmountColors,
+                                        line: {
+                                            color: 'rgba(16, 185, 129, 0.9)',
+                                            width: 1.5
                                         },
-                                        hovertemplate: '<b>%{x}</b><br>$%{y:,.2f}<extra></extra>',
                                     },
-                                ]}
-                                layout={{
-                                    autosize: true,
-                                    margin: { t: 24, r: 10, b: 100, l: 50 },
-                                    xaxis: {
-                                        tickangle: -45,
-                                        gridcolor: 'rgba(234, 236, 240, 0.5)',
-                                        tickfont: { size: 12 },
-                                        fixedrange: true,
-                                    },
-                                    yaxis: {
-                                        title: "Amount ($)",
-                                        gridcolor: 'rgba(234, 236, 240, 0.5)',
-                                        tickformat: '$,.0f',
-                                        tickfont: { size: 12 },
-                                        fixedrange: true,
-                                    },
-                                    plot_bgcolor: 'rgba(0,0,0,0)',
-                                    paper_bgcolor: 'rgba(0,0,0,0)',
-                                    hoverlabel: {
-                                        bgcolor: '#1d2939',
-                                        font: { color: 'white', size: 12 }
-                                    },
-                                    dragmode: false,
-                                }}
-                                className="ap-chart"
-                                useResizeHandler
-                                config={{
-                                    displayModeBar: false,
-                                    displaylogo: false,
-                                }}
-                            />
-                        </Card>
-                    </Col>
-                </Row>
+                                    hovertemplate: '<b>%{x}</b><br>%{y:.2f}<extra></extra>',
+                                },
+                            ]}
+                            layout={{
+                                autosize: true,
+                                margin: { t: 24, r: 10, b: 100, l: 50 },
+                                xaxis: {
+                                    tickangle: -45,
+                                    gridcolor: 'rgba(234, 236, 240, 0.5)',
+                                    tickfont: { size: 12 },
+                                    fixedrange: true,
+                                },
+                                yaxis: {
+                                    title: "Amount",
+                                    gridcolor: 'rgba(234, 236, 240, 0.5)',
+                                    tickformat: '.0f',
+                                    tickfont: { size: 12 },
+                                    fixedrange: true,
+                                },
+                                plot_bgcolor: 'rgba(0,0,0,0)',
+                                paper_bgcolor: 'rgba(0,0,0,0)',
+                                hoverlabel: {
+                                    bgcolor: '#1d2939',
+                                    font: { color: 'white', size: 12 }
+                                },
+                                dragmode: false,
+                            }}
+                            className="ap-chart"
+                            useResizeHandler
+                            config={{
+                                displayModeBar: false,
+                                displaylogo: false,
+                            }}
+                        />
+                    </Card>
+                </Col>
+            </Row>
 
-                {/* TOP VENDORS TABLE */}
-                <Row gutter={20} className="ap-row">
-                    <Col xs={24}>
-                        <Card
-                            className="ap-table-card"
-                            title={
-                                <Space align="center" size={12}>
-                                    <span className="ap-card-title">Top Vendors by Amount</span>
-                                    <Button
-                                        size="small"
-                                        className="ap-pill-button"
-                                        onClick={() => setSortTopVendorAsc((prev) => !prev)}
-                                    >
-                                        {sortTopVendorAsc ? "Asc" : "Desc"}
-                                    </Button>
-                                    <select
-                                        value={topLimit}
-                                        onChange={(e) => setTopLimit(Number(e.target.value))}
-                                        className="ap-select-inline"
-                                    >
-                                        <option value={5}>Top 5</option>
-                                        <option value={10}>Top 10</option>
-                                        <option value={15}>Top 15</option>
-                                        <option value={20}>Top 20</option>
-                                    </select>
-                                </Space>
-                            }
-                        >
-                            <Table
-                                dataSource={topVendorRows}
-                                columns={topVendorColumns}
-                                pagination={{ pageSize: 5 }}
-                            />
-                        </Card>
-                    </Col>
-                </Row>
-            </div>
+            {/* TOP VENDORS TABLE */}
+            <Row gutter={20} className="ap-row">
+                <Col xs={24}>
+                    <Card
+                        className="ap-table-card"
+                        title={
+                            <Space align="center" size={12}>
+                                <span className="ap-card-title">Top Vendors by Amount</span>
+                                <Button
+                                    size="small"
+                                    className="ap-pill-button"
+                                    onClick={() => setSortTopVendorAsc((prev) => !prev)}
+                                >
+                                    {sortTopVendorAsc ? "Asc" : "Desc"}
+                                </Button>
+                                <select
+                                    value={topLimit}
+                                    onChange={(e) => setTopLimit(Number(e.target.value))}
+                                    className="ap-select-inline"
+                                >
+                                    <option value={5}>Top 5</option>
+                                    <option value={10}>Top 10</option>
+                                    <option value={15}>Top 15</option>
+                                    <option value={20}>Top 20</option>
+                                </select>
+                            </Space>
+                        }
+                    >
+                        <Table
+                            dataSource={topVendorRows}
+                            columns={topVendorColumns}
+                            pagination={{ pageSize: 5 }}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+        </div>
         // </div>
     );
 };

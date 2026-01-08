@@ -50,22 +50,22 @@ async def send_to_approval(
     
     # 1. Check if we already have a locked value (Strict Persistence)
     if invoice.get("required_approvers") is not None:
-        print(f"DEBUG: [approval.py] Keeping persisted approver count: {invoice['required_approvers']}")
         # Ensure these are preserved (implicitly done by not adding them to set if not needed, 
         # but for clarity/completeness and in case of any weird mongo behavior, we can set them again or just skip)
         # Actually, if we just don't touch them, they persist.
         pass
     else:
         # 2. Calculate fresh if not set
-        print("DEBUG: [approval.py] Calculating FRESH approver count")
-        from app.routes.workflow import get_vendor_name_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
+        from app.routes.workflow import get_vendor_data_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
         
-        vendor_name = get_vendor_name_from_invoice(db, invoice_id)
+        vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
         total_amount = get_invoice_total_from_invoice(db, invoice_id)
         currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
         requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, currency=currency, entity=entity)
         
         extra_fields["required_approvers"] = requirement_data["required"]
+        extra_fields["assigned_approvers"] = requirement_data.get("assigned_approvers", [])
+        extra_fields["workflow_type"] = requirement_data.get("workflow_type")
         extra_fields["approver_breakdown"] = requirement_data["breakdown"]
 
     # Update invoice status
@@ -90,7 +90,7 @@ async def send_to_approval(
 
 
     # -------------------------------------------------------------
-    # ✅ INSERT "CODING COMPLETED" STEP HERE (Moved from coding.py)
+    #   INSERT "CODING COMPLETED" STEP HERE (Moved from coding.py)
     # -------------------------------------------------------------
     # We define the start of the current cycle based on the last time it was in "reworked" or "waiting_coding"
     status_history = invoice.get("status_history", [])

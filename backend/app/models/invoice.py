@@ -28,7 +28,10 @@ class InvoiceBase(BaseModel):
     approver_breakdown: Optional[Dict[str, Any]] = None
     entity: Optional[str] = None
     approved_by: Optional[List[str]] = []
+    assigned_approvers: Optional[List[str]] = []
+    current_approver_level: Optional[int] = 1
     gl_summary: Optional[List[Dict[str, Any]]] = None
+    exchange_rate: Optional[float] = None
 
 class InvoiceCreate(InvoiceBase):
     pass
@@ -38,6 +41,7 @@ class InvoiceUpdate(BaseModel):
     status: Optional[InvoiceStatus] = None
     status_history: Optional[List[Dict[str, Any]]] = None
     validation_results: Optional[Dict[str, Any]] = None
+    exchange_rate: Optional[float] = None
 
 class Invoice(InvoiceBase):
     id: str

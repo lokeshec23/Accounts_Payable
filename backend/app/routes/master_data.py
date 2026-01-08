@@ -117,6 +117,8 @@ async def upload_master_file(
                     df["TDS Section Code and Description"] = ""
                 if "Workflow Applicability Configuration" not in df.columns:
                     df["Workflow Applicability Configuration"] = "Yes"
+                if "Line Grouping" not in df.columns:
+                    df["Line Grouping"] = "No"
             
             rows = df.to_dict(orient="records")
             
@@ -225,6 +227,45 @@ def get_entities(
     entities = []
     for chunk in chunks:
         entities.extend(chunk.get("rows", []))
+
+    # --- AUTO-CREATE DEFAULT ENTITY IF NONE EXISTS ---
+    if not entities:
+        from datetime import datetime
+        print("DEBUG: No entities found. Creating Default Entity.")
+        
+        default_entity = {
+            "Entity Name": "Default Entity",
+            "Entity No": "1",
+            "EntityId": "1"
+        }
+        
+        # 1. Define Collection
+        default_collection = "master_data_Entity_Master_default"
+        
+        # 2. Insert Data
+        db[default_collection].delete_many({}) 
+        db[default_collection].insert_one({
+             "chunk_index": 0,
+             "rows": [default_entity]
+        })
+        
+        # 3. Update/Create Metadata
+        db.excel_files.update_one(
+            {"tab_name": "Entity_Master"},
+            {"$set": {
+                "file_name": "auto_generated_default",
+                "uploaded_at": datetime.utcnow(),
+                "uploaded_by": "system",
+                "status": "active",
+                "sheets": [{
+                    "name": "Default",
+                    "collection_name": default_collection
+                }]
+            }},
+            upsert=True
+        )
+        
+        entities = [default_entity]
 
     return entities
 

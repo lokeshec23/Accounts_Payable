@@ -39,12 +39,15 @@ def get_vendor_id_from_master(db, vendor_name: str) -> Tuple[Optional[str], Opti
         # Get official valid name
         official_name = match.get("Vendor Name") or match.get("VendorName") or match.get("Name") or match.get("VENDOR_NAME")
         
+        # Get Line Grouping
+        line_grouping = match.get("Line Grouping") or "No"
+
         if vendor_id:
              logger.info(f"Duplicate Detector: Matched '{vendor_name}' -> '{official_name}' (ID: {vendor_id}) via {result['method']}")
-             return str(vendor_id), str(official_name)
+             return str(vendor_id), str(official_name), str(line_grouping)
              
     logger.warning(f"Duplicate Detector: No match found for '{vendor_name}'")
-    return None, None
+    return None, None, "No"
 
 
 def check_duplicate_invoice(db, vendor_id: str, invoice_number: str, entity: str) -> Optional[Dict]:

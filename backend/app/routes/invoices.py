@@ -54,17 +54,14 @@ async def upload_invoices(
 
             # ---- DUPLICATE DETECTION (BEFORE EXTRACTION) ----
             extracted_vendor_name, invoice_number = extract_vendor_and_invoice_number(file_path)
-            print(f"DEBUG_UPLOAD: Quick Extracted - Vendor: '{extracted_vendor_name}', Invoice #: '{invoice_number}'")
             
             if extracted_vendor_name and invoice_number:
-                # Get vendor ID and OFFICIAL vendor name from master
-                vendor_id, official_vendor_name = get_vendor_id_from_master(db, extracted_vendor_name)
-                print(f"DEBUG_UPLOAD: Resolved Master - ID: '{vendor_id}', Name: '{official_vendor_name}'")
+                # Get vendor ID, OFFICIAL vendor name, and line grouping config from master
+                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name)
                 
                 if vendor_id:
                     # Fast O(1) duplicate check using registry
                     existing_invoice = check_registry_duplicate(db, vendor_id, invoice_number, entity)
-                    print(f"DEBUG_UPLOAD: Registry Check Result: {existing_invoice.get('_id') if existing_invoice else 'None'}")
                     
                     if existing_invoice:
                         # Duplicate found - cleanup file and return info
@@ -101,12 +98,16 @@ async def upload_invoices(
             }]
             
             # Add vendor_id, official vendor name, and invoice_number if available
+            current_line_grouping = "No"
             if extracted_vendor_name and invoice_number:
-                vendor_id, official_vendor_name = get_vendor_id_from_master(db, extracted_vendor_name)
+                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name)
                 if vendor_id:
                     invoice_dict["vendor_id"] = vendor_id
                     invoice_dict["vendor_name"] = official_vendor_name  # Official name from master
                     invoice_dict["invoice_number"] = invoice_number
+                    current_line_grouping = line_grouping
+            
+            invoice_dict["line_grouping"] = current_line_grouping
 
             result = db.invoices.insert_one(invoice_dict)
             invoice_id = str(result.inserted_id)
@@ -129,10 +130,12 @@ async def upload_invoices(
                 vendor_info = extracted_data.get("vendor_info", {})
                 extracted_vendor = vendor_info.get("name", {}).get("value")
                 if extracted_vendor:
-                    vendor_id, official_vendor_name = get_vendor_id_from_master(db, extracted_vendor)
+                    vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor)
                     if vendor_id:
                         update_data["vendor_id"] = vendor_id
                         update_data["vendor_name"] = official_vendor_name
+                        update_data["line_grouping"] = line_grouping
+                        current_line_grouping = line_grouping
             
             if not invoice_dict.get("invoice_number"):
                 # Try to get invoice number from extraction
@@ -140,6 +143,48 @@ async def upload_invoices(
                 extracted_invoice_num = invoice_details.get("invoice_number", {}).get("value")
                 if extracted_invoice_num:
                     update_data["invoice_number"] = extracted_invoice_num
+
+            # ---- LINE GROUPING LOGIC ----
+            if current_line_grouping == "Yes":
+                if "Items" in extracted_data and "value" in extracted_data["Items"] and extracted_data["Items"]["value"]:
+                    items = extracted_data["Items"]["value"]
+                    first_item = items[0]
+                    
+                    aggregated_description = first_item.get("description", {}).get("value") or "Aggregated Items"
+                    total_quantity = 0.0
+                    total_unit_price = 0.0
+                    total_net_amount = 0.0
+                    
+                    def safe_to_float(v):
+                        if v is None: return 0.0
+                        if isinstance(v, (int, float)): return float(v)
+                        try:
+                            # Clean currency symbols and commas
+                            return float(str(v).replace('$', '').replace(',', '').strip())
+                        except:
+                            return 0.0
+
+                    for item in items:
+                        total_quantity += safe_to_float(item.get("quantity", {}).get("value"))
+                        total_unit_price += safe_to_float(item.get("unit_price", {}).get("value"))
+                        total_net_amount += safe_to_float(item.get("amount", {}).get("value"))
+                    
+                    # Create single aggregated line
+                    aggregated_item = {
+                        "description": {"value": aggregated_description, "source": "aggregation", "confidence": 1.0},
+                        "quantity": {"value": total_quantity, "source": "aggregation", "confidence": 1.0},
+                        "unit_price": {"value": total_unit_price, "source": "aggregation", "confidence": 1.0},
+                        "amount": {"value": total_net_amount, "source": "aggregation", "confidence": 1.0},
+                        "item_code": first_item.get("item_code", {"value": None}),
+                        "unit_of_measure": first_item.get("unit_of_measure", {"value": None}),
+                        "discount": {"value": 0.0},
+                        "tax_rate": {"value": 0.0},
+                        "tax_amount": {"value": 0.0},
+                        "gross_amount": {"value": total_net_amount}
+                    }
+                    
+                    extracted_data["Items"]["value"] = [aggregated_item]
+                    update_data["extracted_data"] = extracted_data
 
             db.invoices.update_one({"_id": result.inserted_id}, {"$set": update_data})
 
@@ -154,7 +199,6 @@ async def upload_invoices(
                 
                 if existing_duplicate and str(existing_duplicate.get("_id")) != invoice_id:
                     # Duplicate found AFTER extraction - cleanup and return info
-                    print(f"DEBUG_UPLOAD: POST-EXTRACTION duplicate found! Vendor: {final_vendor_id}, Invoice#: {final_invoice_number}")
                     
                     db.invoices.delete_one({"_id": result.inserted_id})
                     if os.path.exists(file_path):
@@ -198,8 +242,6 @@ async def upload_invoices(
                     invoice_id=invoice_id,
                     uploaded_by=current_user.username
                 )
-                print(f"DEBUG_UPLOAD: Registered in registry - ID: {final_vendor_id}, Invoice#: {final_invoice_number}")
-
 
             # ---- PREPARE JSON SAFE RESPONSE ----
             invoice_dict.update(update_data)
@@ -335,7 +377,7 @@ async def update_invoice_status(
     status_history = invoice.get("status_history", [])
 
     # =====================================================
-    # 1️⃣ FIND CURRENT APPROVAL CYCLE (AFTER LAST REWORK)
+    # FIND CURRENT APPROVAL CYCLE (AFTER LAST REWORK)
     # =====================================================
     last_rework_index = -1
     for i in range(len(status_history) - 1, -1, -1):
@@ -350,43 +392,76 @@ async def update_invoice_status(
     )
 
     # =====================================================
-    # 2️⃣ BLOCK DOUBLE ACTION IN SAME CYCLE
+    # BLOCK DOUBLE ACTION IN SAME CYCLE (SOPHISTICATED CHECK)
     # =====================================================
-    already_acted = any(
-        h["user"] == approver_name and
-        h["status"] in [
-            InvoiceStatus.APPROVED,
-            InvoiceStatus.REJECTED,
-            InvoiceStatus.REWORKED
-        ]
+    
+    # We need to know which approvers are assigned to fetch delegation
+    from app.routes.workflow import (
+        get_vendor_data_from_invoice,
+        get_required_approver_count,
+        get_invoice_total_from_invoice
+    )
+    vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
+    total_amount = get_invoice_total_from_invoice(db, invoice_id)
+    currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
+    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice, currency=currency, entity=invoice.get("entity"))
+    assigned_approvers = requirement_data.get("assigned_approvers", [])
+    
+    existing_approvals = sum(1 for h in current_cycle_history if h["status"] == InvoiceStatus.APPROVED)
+    
+    # Who is the EXPECTED approver right now?
+    expected_email = None
+    if assigned_approvers and existing_approvals < len(assigned_approvers):
+        expected_email = assigned_approvers[existing_approvals].lower()
+
+    # Is the current user the expected approver OR their active substitute?
+    is_authorized = False
+    if expected_email:
+        if current_user.email.lower() == expected_email:
+            is_authorized = True
+        else:
+            from app.models.delegation import check_active_delegation
+            substitutes = check_active_delegation(db, expected_email, invoice.get("entity"))
+            if current_user.email.lower() in substitutes:
+                is_authorized = True
+
+    # Modified "already acted" check: 
+    # Only block if they ALREADY acted for the CURRENT level in this cycle.
+    # Since we create a workflow_step every time, we can check how many actions the user took vs their assignments.
+    # However, a simpler way: If they are the AUTHORIZED person for the CURRENT level, let them act, 
+    # even if they acted for a previous level.
+    
+    already_acted_for_this_level = any(
+        h["user"] == approver_name and 
+        h.get("approver_level") == existing_approvals + 1 and # We should ideally track level in history
+        h["status"] in [InvoiceStatus.APPROVED, InvoiceStatus.REJECTED, InvoiceStatus.REWORKED]
         for h in current_cycle_history
     )
 
-    if already_acted and status in [
-        InvoiceStatus.APPROVED,
-        InvoiceStatus.REJECTED,
-        InvoiceStatus.REWORKED
-    ]:
-        raise HTTPException(
+    # If they are NOT authorized for this turn, or they already acted FOR THIS TURN, block them.
+    # BUT if they are authorized for THIS turn, even if they acted for a PREVIOUS turn, allow.
+    if already_acted_for_this_level and status in [InvoiceStatus.APPROVED, InvoiceStatus.REJECTED, InvoiceStatus.REWORKED]:
+         raise HTTPException(
             status_code=400,
-            detail=f"User {approver_name} has already taken action in this approval cycle."
+            detail=f"User {approver_name} has already taken action for this level."
         )
 
     # =====================================================
-    # 3️⃣ PREPARE STATUS ENTRY
+    # PREPARE STATUS ENTRY
     # =====================================================
     new_status_entry = {
         "status": status,
         "user": approver_name,
         "timestamp": timestamp,
-        "comment": comment
+        "comment": comment,
+        "approver_level": existing_approvals + 1 if status in [InvoiceStatus.APPROVED, InvoiceStatus.REJECTED, InvoiceStatus.REWORKED] else None
     }
 
     main_status = InvoiceStatus.WAITING_APPROVAL
     extra_fields = {}
 
     # =====================================================
-    # 4️⃣ WAITING_CODING (RECALL)
+    #  WAITING_CODING (RECALL)
     # =====================================================
     if status == InvoiceStatus.WAITING_CODING:
         main_status = InvoiceStatus.WAITING_CODING
@@ -406,22 +481,16 @@ async def update_invoice_status(
         return {"message": "Status updated", "main_status": main_status}
 
     # =====================================================
-    # 5️⃣ REJECT / REWORK
+    # REJECT / REWORK
     # =====================================================
-    if status in [InvoiceStatus.REJECTED, InvoiceStatus.REWORKED]:
-        main_status = status
-
-    # =====================================================
-    # 6️⃣ APPROVAL LOGIC (CYCLE AWARE)
-    # =====================================================
-    elif status == InvoiceStatus.APPROVED:
+    if status in [InvoiceStatus.REJECTED, InvoiceStatus.REWORKED, InvoiceStatus.APPROVED]:
         from app.routes.workflow import (
-            get_vendor_name_from_invoice,
+            get_vendor_data_from_invoice,
             get_required_approver_count,
             get_invoice_total_from_invoice
         )
 
-        vendor_name = get_vendor_name_from_invoice(db, invoice_id)
+        vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
         total_amount = get_invoice_total_from_invoice(db, invoice_id)
         currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
 
@@ -429,23 +498,33 @@ async def update_invoice_status(
             db, vendor_name, total_amount, invoice_id, invoice_data=invoice, currency=currency, entity=invoice.get("entity")
         )
         required_approvers = requirement_data["required"]
+        assigned_approvers = requirement_data.get("assigned_approvers", [])
 
-        # ✅ COUNT ONLY CURRENT CYCLE APPROVALS
-        approvals = sum(
+        # COUNT ONLY CURRENT CYCLE APPROVALS
+        existing_approvals = sum(
             1 for h in current_cycle_history
             if h["status"] == InvoiceStatus.APPROVED
-        ) + 1  # include current approval
+        )
 
-        if approvals >= required_approvers:
-            main_status = InvoiceStatus.APPROVED
+        # SEQUENTIAL ORDER ENFORCEMENT
+        if assigned_approvers:
+            if not is_authorized: # Use the is_authorized flag we calculated above
+                 raise HTTPException(
+                    status_code=403,
+                    detail=f"Only {expected_email} (or their active substitute) can take action at this level."
+                )
+
+        if status == InvoiceStatus.APPROVED:
+            approvals = existing_approvals + 1
+            if approvals >= required_approvers:
+                main_status = InvoiceStatus.APPROVED
+            else:
+                main_status = InvoiceStatus.WAITING_APPROVAL
         else:
-            main_status = InvoiceStatus.WAITING_APPROVAL
+            main_status = status
 
     # =====================================================
-    # 7️⃣ SAVE INVOICE
-    # =====================================================
-    # =====================================================
-    # 7️⃣ SAVE INVOICE
+    # SAVE INVOICE
     # =====================================================
     
     # Per-Approver Visibility Logic
@@ -467,9 +546,13 @@ async def update_invoice_status(
 
     # Add specific operator for approved_by
     if status == InvoiceStatus.APPROVED:
-         update_query["$addToSet"] = {"approved_by": current_user.email}
+        update_query["$addToSet"] = {"approved_by": current_user.email}
+        # Sequential: Increment current_approver_level if not final approval
+        if main_status == InvoiceStatus.WAITING_APPROVAL:
+            update_query["$set"]["current_approver_level"] = approvals + 1
     elif status in [InvoiceStatus.REJECTED, InvoiceStatus.REWORKED, InvoiceStatus.WAITING_CODING]:
-         update_query["$set"]["approved_by"] = []
+        update_query["$set"]["approved_by"] = []
+        update_query["$set"]["current_approver_level"] = 1
 
     db.invoices.update_one(
         {"_id": ObjectId(invoice_id)},
@@ -477,14 +560,14 @@ async def update_invoice_status(
     )
 
     # =====================================================
-    # 8️⃣ CREATE WORKFLOW STEP (RESET AFTER REWORK)
+    # CREATE WORKFLOW STEP (RESET AFTER REWORK)
     # =====================================================
     if status in [
         InvoiceStatus.APPROVED,
         InvoiceStatus.REJECTED,
         InvoiceStatus.REWORKED
     ]:
-        # ✅ COUNT APPROVERS IN *CURRENT CYCLE ONLY*
+        #COUNT APPROVERS IN *CURRENT CYCLE ONLY*
         cycle_approvals = [
             h for h in current_cycle_history
             if h["status"] == InvoiceStatus.APPROVED
@@ -546,11 +629,9 @@ async def update_invoice(
     
     # Check if status is being updated to WAITING_APPROVAL in generic update
     if "status" in update_data and update_data["status"] == InvoiceStatus.WAITING_APPROVAL:
-        print(f"DEBUG: Generic update setting status to WAITING_APPROVAL for {invoice_id}")
         existing_req = invoice.get("required_approvers")
         
         if existing_req is not None:
-             print(f"DEBUG: Using persisted approver count (Generic Update): {existing_req}")
              # Ensure these are preserved/set if passed, implicitly they might be missing from update_data
              # If update_data doesn't have them, we don't need to add them if they are already in DB?
              # No, update_data overwrites. If we don't include them, update_one only sets what is in update_data.
@@ -559,10 +640,9 @@ async def update_invoice(
              # Actually, if the DB has them, we don't need to do anything.
              pass
         else:
-             print("DEBUG: Calculating FRESH approver count (Generic Update)")
-             from app.routes.workflow import get_vendor_name_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
+             from app.routes.workflow import get_vendor_data_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
              
-             vendor_name = get_vendor_name_from_invoice(db, invoice_id)
+             vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
              total_amount = get_invoice_total_from_invoice(db, invoice_id)
              currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
              requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, currency=currency, entity=invoice.get("entity"))

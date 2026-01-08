@@ -343,4 +343,76 @@ export const currencyService = {
   }
 };
 
+// Workflow Configuration service methods
+export const workflowConfigService = {
+  // Vendor Workflow
+  async getVendorWorkflows() {
+    const response = await api.get('/workflow-config/vendor');
+    return response.data;
+  },
+  async createVendorWorkflow(data) {
+    const response = await api.post('/workflow-config/vendor', data);
+    return response.data;
+  },
+  async updateVendorWorkflow(id, data) {
+    const response = await api.put(`/workflow-config/vendor/${id}`, data);
+    return response.data;
+  },
+  async deleteVendorWorkflow(id) {
+    const response = await api.delete(`/workflow-config/vendor/${id}`);
+    return response.data;
+  },
+  async getWorkflowVendors() {
+    const response = await api.get('/workflow-config/vendor/vendors');
+    return response.data;
+  },
+
+  // Codification Workflow
+  async getCodificationWorkflows() {
+    const response = await api.get('/workflow-config/codification');
+    return response.data;
+  },
+  async createCodificationWorkflow(data) {
+    const response = await api.post('/workflow-config/codification', data);
+    return response.data;
+  },
+  async updateCodificationWorkflow(id, data) {
+    const response = await api.put(`/workflow-config/codification/${id}`, data);
+    return response.data;
+  },
+  async deleteCodificationWorkflow(id) {
+    const response = await api.delete(`/workflow-config/codification/${id}`);
+    return response.data;
+  },
+  async getLOBs() {
+    const response = await api.get('/workflow-config/codification/lobs');
+    return response.data;
+  },
+  async getDepartments() {
+    const response = await api.get('/workflow-config/codification/departments');
+    return response.data;
+  },
+
+  // Approvers
+  async getApprovers() {
+    const response = await api.get('/workflow-config/approvers');
+    return response.data;
+  },
+};
+
+export const delegationService = {
+  async getDelegations() {
+    const response = await api.get('/delegation/');
+    return response.data;
+  },
+  async createDelegation(data) {
+    const response = await api.post('/delegation/', data);
+    return response.data;
+  },
+  async revertDelegation(id) {
+    const response = await api.delete(`/delegation/${id}`);
+    return response.data;
+  }
+};
+
 export default api;

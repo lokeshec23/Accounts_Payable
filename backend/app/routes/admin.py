@@ -17,7 +17,6 @@ def get_current_admin(current_user: UserResponse = Depends(get_current_user)):
     # Assuming role is stored in UserResponse (which it is now)
     # Check both "admin" role and specific usernames as fallback for bootstrapping
     # Check admin role
-    print(f"[DEBUG] Admin check - User: {current_user.username}, Role: {current_user.role}")
     if current_user.role != "admin": 
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -53,7 +52,7 @@ async def update_user_role(
 ):
     db = get_database()
 
-    # ✅ Load global settings correctly
+    #  Load global settings correctly
     settings = db.global_settings.find_one({"_id": "app_settings"})
     if not settings:
         raise HTTPException(status_code=500, detail="Global settings not found")
@@ -61,21 +60,21 @@ async def update_user_role(
     allowed_roles = settings.get("roles", [])
     allowed_statuses = settings.get("statuses", [])
 
-    # ✅ Validate role
+    # Validate role
     if update_data.role not in allowed_roles:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid role: {update_data.role}"
         )
 
-    # ✅ Validate status
+    # Validate status
     if update_data.status not in allowed_statuses:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid status: {update_data.status}"
         )
 
-    # 🔒 Prevent admin removing own admin role
+    # Prevent admin removing own admin role
     if str(current_user.id) == user_id and update_data.role != "admin":
         raise HTTPException(
             status_code=400,

@@ -45,6 +45,9 @@ class WorkflowHistoryResponse(BaseModel):
     invoice_id: str
     vendor_name: Optional[str] = None
     required_approvers: int
+    assigned_approvers: Optional[list[str]] = None
+    current_approver_level: Optional[int] = 1
     current_status: Optional[str] = None
     approver_breakdown: Optional[dict] = None
+    delegations: Optional[dict[str, list[str]]] = None
     steps: list[WorkflowStepResponse]

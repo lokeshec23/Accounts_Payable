@@ -62,10 +62,11 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
       approved: { color: 'green', text: 'Approved' },
       rejected: { color: 'red', text: 'Rejected' },
       pending: { color: 'gold', text: 'Pending' },
+      queued: { color: 'default', text: 'Queued' },
       reworked: { color: 'purple', text: 'Reworked' }
     };
     const cfg = map[status] || { color: 'default', text: status };
-    return <Tag color={cfg.color}>{cfg.text}</Tag>;
+    return <Tag color={cfg.color}>{cfg.text.toUpperCase()}</Tag>;
   };
 
   const getPendingStepName = (n) => {
@@ -147,12 +148,19 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
       const type = `approver_${i}`;
       if (existingApprovers.has(type)) continue;
 
+      const assignedUser = workflowData.assigned_approvers?.[i - 1];
+      const delegationsForUser = workflowData.delegations?.[(assignedUser || '').toLowerCase()] || [];
+      const delegateInfo = delegationsForUser.length > 0 ? ` (Delegated to ${delegationsForUser.join(', ')})` : '';
+
+      const isWaitingApproval = (workflowData.current_status || workflowData.status) === 'waiting_approval';
+      const isActuallyPending = i === startFrom && isWaitingApproval;
+
       steps.push({
         id: `pending_${i}`,
         step_type: type,
-        status: 'pending',
+        status: isActuallyPending ? 'pending' : 'queued',
         step_name: getPendingStepName(i),
-        user: 'Pending',
+        user: (assignedUser || 'Pending') + delegateInfo,
         timestamp: null
       });
     }
@@ -178,17 +186,17 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
             </div>
 
             <div className="workflow-step-details">
-              {step.status !== 'pending' ? (
-                <>
-                  <div><UserOutlined /> <strong>{step.user}</strong></div>
-                  <div>{formatDateTimeIST(step.timestamp)}</div>
-                </>
-              ) : (
-                <em style={{ color: '#999' }}>
-                  {step.step_type === 'coding'
-                    ? 'Waiting for coding'
-                    : 'Waiting for approval'}
-                </em>
+              <div><UserOutlined /> <strong>{step.user}</strong></div>
+              {step.timestamp && <div>{formatDateTimeIST(step.timestamp)}</div>}
+              {step.status === 'queued' && (
+                <div style={{ fontSize: '12px', color: '#999' }}>
+                  {step.step_type?.startsWith('approver_') && !['processed', 'waiting_coding'].includes(workflowData.current_status || workflowData.status)
+                    ? 'Waiting for previous approval'
+                    : 'Waiting for previous steps'}
+                </div>
+              )}
+              {step.status === 'pending' && step.step_type?.startsWith('approver_') && (
+                <div style={{ fontSize: '12px', color: '#faad14' }}>Action required</div>
               )}
             </div>
 
@@ -239,7 +247,7 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
                     c.code?.toUpperCase() === val?.toUpperCase() ||
                     c.name?.toLowerCase() === val?.toLowerCase()
                   );
-                  const symbol = match ? match.symbol : (val === 'INR' ? '₹' : '$');
+                  const symbol = '$';
                   return `${symbol}`;
                 })()}{workflowData.approver_breakdown.amount.value}):
                 {workflowData.approver_breakdown.amount.count}
