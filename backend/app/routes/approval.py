@@ -58,9 +58,9 @@ async def send_to_approval(
     else:
         # 2. Calculate fresh if not set
         print("DEBUG: [approval.py] Calculating FRESH approver count")
-        from app.routes.workflow import get_vendor_name_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
+        from app.routes.workflow import get_vendor_data_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
         
-        vendor_name = get_vendor_name_from_invoice(db, invoice_id)
+        vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
         total_amount = get_invoice_total_from_invoice(db, invoice_id)
         currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
         requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, currency=currency, entity=entity)

@@ -2138,13 +2138,20 @@ const GenericInputFields = ({
 
     const isRestrictedUser = restrictedUsers.has(currentUsername);
 
+    // ✅ SEQUENTIAL TURN CALCULATION
+    const cycleApprovalsCount = currentCycleHistory.filter(h => h.status === 'approved').length;
+    const assignedApprovers = workflowData?.assigned_approvers || [];
+    const isSequential = assignedApprovers.length > 0;
+    const isMyTurn = !isSequential || (assignedApprovers[cycleApprovalsCount]?.toLowerCase() === currentUser?.email?.toLowerCase());
+
     // Disable buttons ONLY based on status_history, NOT main status:
     // 1. Current user has already acted, OR
     // 2. Someone has rejected/reworked (stops the process)
     // 3. User is restricted (Performed Processed or Coding)
-    const approveDisabled = currentUserHasActed || isRestrictedUser;
-    const rejectDisabled = currentUserHasActed || isRestrictedUser;
-    const reworkDisabled = currentUserHasActed || isRestrictedUser;
+    // 4. Sequential check: Only assigned approver at current level can act
+    const approveDisabled = currentUserHasActed || isRestrictedUser || !isMyTurn;
+    const rejectDisabled = currentUserHasActed || isRestrictedUser || !isMyTurn;
+    const reworkDisabled = currentUserHasActed || isRestrictedUser || !isMyTurn;
 
 
     const renderStatusTag = () => {

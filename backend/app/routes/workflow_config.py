@@ -47,17 +47,17 @@ async def create_vendor_workflow(
     
     # Check if workflow already exists for this vendor and entity
     existing = db.vendor_workflows.find_one({
-        "vendor_name": workflow.vendor_name,
+        "vendor_id": workflow.vendor_id,
         "entity": entity
     })
     
     if existing:
         raise HTTPException(
             status_code=400,
-            detail=f"Workflow already exists for vendor '{workflow.vendor_name}'"
+            detail=f"Workflow already exists for vendor '{workflow.vendor_id}'"
         )
     
-    print(f"[DEBUG] Creating vendor workflow for {workflow.vendor_name} entity {entity}")
+    print(f"[DEBUG] Creating vendor workflow for {workflow.vendor_id} entity {entity}")
     workflow_dict = workflow.dict()
     workflow_dict["entity"] = entity
     workflow_dict["created_at"] = datetime.utcnow()
@@ -181,13 +181,16 @@ async def get_workflow_vendors(
                 is_applicable = str(workflow_applicable).strip().lower() == "yes"
                 if is_applicable:
                     label = f"{vendor_id} - {vendor_name}" if vendor_id else str(vendor_name)
+                    # Use a unique value: ID-Name if ID exists, else just Name
+                    unique_val = f"{vendor_id}|{vendor_name}" if vendor_id else str(vendor_name)
                     workflow_vendors.append({
                         "id": str(vendor_id) if vendor_id else "",
-                        "value": str(vendor_name),
-                        "label": label
+                        "value": unique_val,
+                        "label": label,
+                        "vendor_name": str(vendor_name) # Explicitly keep raw name
                     })
     
-    # Remove duplicates
+    # Remove duplicates based on unique_val
     unique_vendors = []
     seen = set()
     for v in workflow_vendors:
@@ -195,7 +198,7 @@ async def get_workflow_vendors(
             unique_vendors.append(v)
             seen.add(v["value"])
     
-    print(f"[DEBUG] Found {len(unique_vendors)} unique vendors")
+    print(f"[DEBUG] Found {len(unique_vendors)} unique vendors (including ID variants)")
     return unique_vendors
 
 

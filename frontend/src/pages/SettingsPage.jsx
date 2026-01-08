@@ -171,6 +171,13 @@ const SettingsPage = () => {
       else if (record.threshold_approver) recordToEdit.approver_count = 4;
       else recordToEdit.approver_count = 3;
     }
+    // Ensure unique value for select if vendor_id exists
+    if (recordToEdit.vendor_id && recordToEdit.vendor_name) {
+      recordToEdit.vendor_unique_val = `${recordToEdit.vendor_id}|${recordToEdit.vendor_name}`;
+    } else {
+      recordToEdit.vendor_unique_val = recordToEdit.vendor_name;
+    }
+
     form.setFieldsValue(recordToEdit);
     setIsModalVisible(true);
   };
@@ -253,7 +260,13 @@ const SettingsPage = () => {
       dataIndex: "vendor_name",
       key: "vendor_name",
       render: (val, record) => {
-        const vendor = workflowVendors.find(v => v.value === val);
+        // Try looking up by ID + Name first
+        const uniqueKey = record.vendor_id ? `${record.vendor_id}|${val}` : val;
+        let vendor = workflowVendors.find(v => v.value === uniqueKey);
+        // Fallback to ID if uniqueKey didn't match (for older data)
+        if (!vendor && record.vendor_id) {
+          vendor = workflowVendors.find(v => v.id === record.vendor_id);
+        }
         return vendor ? vendor.label : (record.vendor_id ? `${record.vendor_id} - ${val}` : val);
       }
     },
@@ -416,18 +429,25 @@ const SettingsPage = () => {
     <>
       {modalType === "vendor-workflow" && (
         <>
-          <Form.Item name="vendor_name" label="Vendor Name" rules={[{ required: true }]}>
+          <Form.Item name="vendor_unique_val" label="Vendor Name" rules={[{ required: true }]}>
             <Select
               showSearch
+              optionFilterProp="label"
               options={workflowVendors}
               disabled={!!editingRecord}
               onChange={(val) => {
                 const vendor = workflowVendors.find(v => v.value === val);
-                if (vendor) form.setFieldsValue({ vendor_id: vendor.id });
+                if (vendor) {
+                  form.setFieldsValue({
+                    vendor_id: vendor.id,
+                    vendor_name: vendor.vendor_name
+                  });
+                }
               }}
             />
           </Form.Item>
           <Form.Item name="vendor_id" noStyle><Input type="hidden" /></Form.Item>
+          <Form.Item name="vendor_name" noStyle><Input type="hidden" /></Form.Item>
         </>
       )}
       {modalType === "codification-workflow" && (
