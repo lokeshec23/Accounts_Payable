@@ -354,14 +354,24 @@ async def get_workflow_history(
         step["id"] = str(step["_id"])
         step_list.append(WorkflowStepResponse(**step))
     
+    # 🆕 Fetch Active Delegations for assigned approvers
+    delegations_map = {}
+    from app.models.delegation import check_active_delegation
+    assigned_approvers = requirement_data.get("assigned_approvers", [])
+    for approver_email in assigned_approvers:
+        substitutes = check_active_delegation(db, approver_email, entity)
+        if substitutes:
+            delegations_map[approver_email.lower()] = substitutes
+
     return WorkflowHistoryResponse(
         invoice_id=invoice_id,
         vendor_name=vendor_name,
         required_approvers=required_approvers,
-        assigned_approvers=requirement_data.get("assigned_approvers", []),
+        assigned_approvers=assigned_approvers,
         current_approver_level=invoice.get("current_approver_level", 1),
         current_status=invoice.get("status"),
         approver_breakdown=approver_breakdown,
+        delegations=delegations_map,
         steps=step_list
     )
 
@@ -395,10 +405,37 @@ async def create_workflow_step(
         approver_users = [step["user"] for step in existing_approvers]
         
         if step_data.user in approver_users:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"User {step_data.user} has already approved/rejected this invoice. Approvers must be unique."
+            # 🆕 RELAXED CHECK FOR DELEGATION
+            # If the user is an active substitute for the CURRENTLY EXPECTED approver, allow it.
+            current_level = (invoice.get("current_approver_level") or 1)
+            # Need requirement_data to find expected_email
+            from app.routes.workflow import (
+                get_vendor_data_from_invoice,
+                get_required_approver_count,
+                get_invoice_total_from_invoice
             )
+            vendor_name, _ = get_vendor_data_from_invoice(db, step_data.invoice_id)
+            total_amount = get_invoice_total_from_invoice(db, step_data.invoice_id)
+            currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
+            
+            req_data = get_required_approver_count(
+                db, vendor_name, total_amount, step_data.invoice_id, invoice_data=invoice, currency=currency, entity=entity
+            )
+            assigned = req_data.get("assigned_approvers", [])
+            
+            is_delegate = False
+            if current_level <= len(assigned):
+                expected_email = assigned[current_level - 1].lower()
+                from app.models.delegation import check_active_delegation
+                substitutes = check_active_delegation(db, expected_email, entity)
+                if current_user.email.lower() in substitutes:
+                    is_delegate = True
+
+            if not is_delegate:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"User {step_data.user} has already approved/rejected this invoice. Approvers must be unique."
+                )
     
     # Create the workflow step
     step_dict = step_data.dict()
@@ -453,10 +490,20 @@ async def get_approver_status(
             "comment": step.get("comment")
         })
     
+    # 🆕 Fetch Active Delegations for assigned approvers
+    delegations_map = {}
+    from app.models.delegation import check_active_delegation
+    assigned_approvers = requirement_data.get("assigned_approvers", [])
+    for approver_email in assigned_approvers:
+        substitutes = check_active_delegation(db, approver_email, entity)
+        if substitutes:
+            delegations_map[approver_email.lower()] = substitutes
+
     return {
         "invoice_id": invoice_id,
         "vendor_name": vendor_name,
         "required_approvers": required_approvers,
         "completed_approvers": len(approvers),
-        "approvers": approvers
+        "approvers": approvers,
+        "delegations": delegations_map
     }

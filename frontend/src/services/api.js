@@ -400,4 +400,19 @@ export const workflowConfigService = {
   },
 };
 
+export const delegationService = {
+  async getDelegations() {
+    const response = await api.get('/delegation/');
+    return response.data;
+  },
+  async createDelegation(data) {
+    const response = await api.post('/delegation/', data);
+    return response.data;
+  },
+  async revertDelegation(id) {
+    const response = await api.delete(`/delegation/${id}`);
+    return response.data;
+  }
+};
+
 export default api;

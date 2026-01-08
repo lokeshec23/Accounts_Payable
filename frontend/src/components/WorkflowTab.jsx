@@ -149,6 +149,9 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
       if (existingApprovers.has(type)) continue;
 
       const assignedUser = workflowData.assigned_approvers?.[i - 1];
+      const delegationsForUser = workflowData.delegations?.[(assignedUser || '').toLowerCase()] || [];
+      const delegateInfo = delegationsForUser.length > 0 ? ` (Delegated to ${delegationsForUser.join(', ')})` : '';
+
       const isWaitingApproval = (workflowData.current_status || workflowData.status) === 'waiting_approval';
       const isActuallyPending = i === startFrom && isWaitingApproval;
 
@@ -157,7 +160,7 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
         step_type: type,
         status: isActuallyPending ? 'pending' : 'queued',
         step_name: getPendingStepName(i),
-        user: assignedUser || 'Pending',
+        user: (assignedUser || 'Pending') + delegateInfo,
         timestamp: null
       });
     }

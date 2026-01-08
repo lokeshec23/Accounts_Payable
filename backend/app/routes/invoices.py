@@ -392,26 +392,58 @@ async def update_invoice_status(
     )
 
     # =====================================================
-    # BLOCK DOUBLE ACTION IN SAME CYCLE
+    # BLOCK DOUBLE ACTION IN SAME CYCLE (SOPHISTICATED CHECK)
     # =====================================================
-    already_acted = any(
-        h["user"] == approver_name and
-        h["status"] in [
-            InvoiceStatus.APPROVED,
-            InvoiceStatus.REJECTED,
-            InvoiceStatus.REWORKED
-        ]
+    
+    # We need to know which approvers are assigned to fetch delegation
+    from app.routes.workflow import (
+        get_vendor_data_from_invoice,
+        get_required_approver_count,
+        get_invoice_total_from_invoice
+    )
+    vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
+    total_amount = get_invoice_total_from_invoice(db, invoice_id)
+    currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
+    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice, currency=currency, entity=invoice.get("entity"))
+    assigned_approvers = requirement_data.get("assigned_approvers", [])
+    
+    existing_approvals = sum(1 for h in current_cycle_history if h["status"] == InvoiceStatus.APPROVED)
+    
+    # Who is the EXPECTED approver right now?
+    expected_email = None
+    if assigned_approvers and existing_approvals < len(assigned_approvers):
+        expected_email = assigned_approvers[existing_approvals].lower()
+
+    # Is the current user the expected approver OR their active substitute?
+    is_authorized = False
+    if expected_email:
+        if current_user.email.lower() == expected_email:
+            is_authorized = True
+        else:
+            from app.models.delegation import check_active_delegation
+            substitutes = check_active_delegation(db, expected_email, invoice.get("entity"))
+            if current_user.email.lower() in substitutes:
+                is_authorized = True
+
+    # Modified "already acted" check: 
+    # Only block if they ALREADY acted for the CURRENT level in this cycle.
+    # Since we create a workflow_step every time, we can check how many actions the user took vs their assignments.
+    # However, a simpler way: If they are the AUTHORIZED person for the CURRENT level, let them act, 
+    # even if they acted for a previous level.
+    
+    already_acted_for_this_level = any(
+        h["user"] == approver_name and 
+        h.get("approver_level") == existing_approvals + 1 and # We should ideally track level in history
+        h["status"] in [InvoiceStatus.APPROVED, InvoiceStatus.REJECTED, InvoiceStatus.REWORKED]
         for h in current_cycle_history
     )
 
-    if already_acted and status in [
-        InvoiceStatus.APPROVED,
-        InvoiceStatus.REJECTED,
-        InvoiceStatus.REWORKED
-    ]:
-        raise HTTPException(
+    # If they are NOT authorized for this turn, or they already acted FOR THIS TURN, block them.
+    # BUT if they are authorized for THIS turn, even if they acted for a PREVIOUS turn, allow.
+    if already_acted_for_this_level and status in [InvoiceStatus.APPROVED, InvoiceStatus.REJECTED, InvoiceStatus.REWORKED]:
+         raise HTTPException(
             status_code=400,
-            detail=f"User {approver_name} has already taken action in this approval cycle."
+            detail=f"User {approver_name} has already taken action for this level."
         )
 
     # =====================================================
@@ -421,7 +453,8 @@ async def update_invoice_status(
         "status": status,
         "user": approver_name,
         "timestamp": timestamp,
-        "comment": comment
+        "comment": comment,
+        "approver_level": existing_approvals + 1 if status in [InvoiceStatus.APPROVED, InvoiceStatus.REJECTED, InvoiceStatus.REWORKED] else None
     }
 
     main_status = InvoiceStatus.WAITING_APPROVAL
@@ -475,13 +508,11 @@ async def update_invoice_status(
 
         # SEQUENTIAL ORDER ENFORCEMENT
         if assigned_approvers:
-            if existing_approvals < len(assigned_approvers):
-                expected_email = assigned_approvers[existing_approvals].lower()
-                if current_user.email.lower() != expected_email:
-                    raise HTTPException(
-                        status_code=403,
-                        detail=f"Only {expected_email} can take action at this level."
-                    )
+            if not is_authorized: # Use the is_authorized flag we calculated above
+                 raise HTTPException(
+                    status_code=403,
+                    detail=f"Only {expected_email} (or their active substitute) can take action at this level."
+                )
 
         if status == InvoiceStatus.APPROVED:
             approvals = existing_approvals + 1

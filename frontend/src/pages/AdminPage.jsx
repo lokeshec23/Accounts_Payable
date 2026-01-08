@@ -17,8 +17,10 @@ import {
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
+  SwapOutlined,
 } from "@ant-design/icons";
 import { adminService } from "../services/api";
+import DelegationManager from "../components/DelegationManager";
 import { useGlobalSettings } from "../context/GlobalSettingsContext";
 
 const { Title } = Typography;
@@ -306,62 +308,62 @@ const AdminPage = () => {
         <Tabs
           items={[
             {
-  key: "1",
-  label: "User Management",
-  children: (
-    <>
-      <Table
-        columns={userColumns}
-        dataSource={users}
-        rowKey="id"
-        loading={loadingUsers}
-      />
+              key: "1",
+              label: "User Management",
+              children: (
+                <>
+                  <Table
+                    columns={userColumns}
+                    dataSource={users}
+                    rowKey="id"
+                    loading={loadingUsers}
+                  />
 
-      {/* ✅ EDIT USER MODAL (ADD HERE) */}
-      <Modal
-        title="Edit User"
-        open={userModalOpen}
-        onOk={handleSaveUser}
-        onCancel={() => {
-          setUserModalOpen(false);
-          setEditingUser(null);
-          userForm.resetFields();
-        }}
-        destroyOnClose
-      >
-        <Form form={userForm} layout="vertical">
-          <Form.Item
-            name="role"
-            label="Role"
-            rules={[{ required: true, message: "Select role" }]}
-          >
-            <Select>
-              {settings.roles.map((r) => (
-                <Option key={r} value={r}>
-                  {r.toUpperCase()}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
+                  {/* ✅ EDIT USER MODAL (ADD HERE) */}
+                  <Modal
+                    title="Edit User"
+                    open={userModalOpen}
+                    onOk={handleSaveUser}
+                    onCancel={() => {
+                      setUserModalOpen(false);
+                      setEditingUser(null);
+                      userForm.resetFields();
+                    }}
+                    destroyOnClose
+                  >
+                    <Form form={userForm} layout="vertical">
+                      <Form.Item
+                        name="role"
+                        label="Role"
+                        rules={[{ required: true, message: "Select role" }]}
+                      >
+                        <Select>
+                          {settings.roles.map((r) => (
+                            <Option key={r} value={r}>
+                              {r.toUpperCase()}
+                            </Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
 
-          <Form.Item
-            name="status"
-            label="Status"
-            rules={[{ required: true, message: "Select status" }]}
-          >
-            <Select>
-              {settings.statuses.map((s) => (
-                <Option key={s} value={s}>
-                  {s.toUpperCase()}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
-    </>
-  ),
-},
+                      <Form.Item
+                        name="status"
+                        label="Status"
+                        rules={[{ required: true, message: "Select status" }]}
+                      >
+                        <Select>
+                          {settings.statuses.map((s) => (
+                            <Option key={s} value={s}>
+                              {s.toUpperCase()}
+                            </Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+                    </Form>
+                  </Modal>
+                </>
+              ),
+            },
 
             {
               key: "2",
@@ -403,6 +405,11 @@ const AdminPage = () => {
                   </Card>
                 </>
               ),
+            },
+            {
+              key: "3",
+              label: "Delegations",
+              children: <DelegationManager isAdmin={true} onUpdate={() => { }} />,
             },
           ]}
         />
@@ -467,6 +474,7 @@ const AdminPage = () => {
           </Form.Item>
         </Form>
       </Modal>
+
     </div>
   );
 };

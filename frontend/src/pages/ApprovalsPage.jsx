@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDateTimeIST } from '../utils/dateUtils';
-import { Table, Button, Tag, Space, Modal, message, Input, Tooltip } from 'antd';
+import { Table, Button, Tag, Space, Modal, message, Input, Tooltip, Tabs } from 'antd';
 import {
     EyeOutlined,
     DeleteOutlined,
-    ExclamationCircleOutlined
+    ExclamationCircleOutlined,
+    SwapOutlined
 } from '@ant-design/icons';
-import { invoiceService, currencyService } from '../services/api';
+import { invoiceService, currencyService, delegationService } from '../services/api';
+import DelegationManager from '../components/DelegationManager';
 
 const { confirm } = Modal;
 
@@ -21,56 +23,88 @@ const ApprovalsPage = () => {
 
     // Global search term for approvals table
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeDelegations, setActiveDelegations] = useState([]);
 
     // Fetch invoices (full dataset, no manual slicing)
     const fetchInvoices = async () => {
         try {
             setLoading(true);
 
+            const delegations = await delegationService.getDelegations();
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+
+            const active = delegations.filter(d => {
+                const start = new Date(d.start_date);
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(d.end_date);
+                end.setHours(0, 0, 0, 0);
+
+                return d.substitute_approver.toLowerCase() === storedUser?.email?.toLowerCase() &&
+                    now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
+            }).map(d => d.original_approver.toLowerCase());
+
+            setActiveDelegations(active);
+
             const response = await invoiceService.getInvoices(0, 1000);
             const invoicesArray = Array.isArray(response) ? response : [];
 
-            const transformedData = invoicesArray.map((invoice) => ({
-                key: invoice._id || invoice.id,
-                id: invoice._id || invoice.id,
-                filename: invoice.original_filename || invoice.filename || 'N/A',
-                vendorName: invoice.extracted_data?.vendor_info?.name?.value || 'N/A',
-                invoiceId: invoice.extracted_data?.invoice_details?.invoice_number?.value || 'N/A',
-                totalAmount: invoice.extracted_data?.amounts?.total_invoice_amount?.value || '',
-                amountDue: invoice.extracted_data?.amounts?.amount_due?.value || '',
+            const transformedData = invoicesArray.map((invoice) => {
+                const currentLevel = invoice.current_approver_level || 1;
+                const assignedApprovers = invoice.assigned_approvers || [];
+                const currentLevelEmail = (assignedApprovers[currentLevel - 1] || '').toLowerCase();
+                const isWaiting = invoice.status === 'waiting_approval';
 
-                lastUpdated: formatDateTimeIST(invoice.processed_at || invoice.uploaded_at),
+                const isActiveDelegate = active.includes(currentLevelEmail);
 
-                uploadedBy: invoice.uploaded_by || 'Unknown',
-
-                status: invoice.status || 'pending',
-
-                approverName: invoice.validation_results?.approver_name || '—',
-
-                approvalTime: invoice.validation_results?.approval_timestamp
-                    ? formatDateTimeIST(invoice.validation_results.approval_timestamp)
-                    : '—',
-
-                approverComment: invoice.validation_results?.approver_comment || '',
-                rawData: invoice,
-                currency: invoice.extracted_data?.invoice_details?.currency?.value || 'USD'
-            }));
+                return {
+                    key: invoice._id || invoice.id,
+                    id: invoice._id || invoice.id,
+                    filename: invoice.original_filename || invoice.filename || 'N/A',
+                    vendorName: invoice.extracted_data?.vendor_info?.name?.value || 'N/A',
+                    invoiceId: invoice.extracted_data?.invoice_details?.invoice_number?.value || 'N/A',
+                    totalAmount: invoice.extracted_data?.amounts?.total_invoice_amount?.value || '',
+                    amountDue: invoice.extracted_data?.amounts?.amount_due?.value || '',
+                    lastUpdated: formatDateTimeIST(invoice.processed_at || invoice.uploaded_at),
+                    uploadedBy: invoice.uploaded_by || 'Unknown',
+                    status: invoice.status || 'pending',
+                    // Logic update: for waiting invoices, show expected approver with delegation info
+                    approverName: isWaiting
+                        ? (currentLevelEmail || 'Pending') + (isActiveDelegate ? ' (Delegated)' : '')
+                        : (invoice.validation_results?.approver_name || '—'),
+                    approvalTime: invoice.validation_results?.approval_timestamp
+                        ? formatDateTimeIST(invoice.validation_results.approval_timestamp)
+                        : '—',
+                    approverComment: invoice.validation_results?.approver_comment || '',
+                    rawData: invoice,
+                    currency: invoice.extracted_data?.invoice_details?.currency?.value || 'USD',
+                    currentLevelEmail,
+                    isActiveDelegate
+                };
+            });
 
             const filteredData = transformedData.filter((item) => {
-                const invoice = item.rawData;
-                const approvedBy = invoice.approved_by || [];
-                const assignedApprovers = invoice.assigned_approvers || [];
-                const currentLevel = invoice.current_approver_level || 1;
+                const invoiceRec = item.rawData;
+                const approvedBy = invoiceRec.approved_by || [];
+                const assignedApprovers = invoiceRec.assigned_approvers || [];
+                const currentLevel = invoiceRec.current_approver_level || 1;
                 const hasApproved = approvedBy.some((a) => {
                     const email = typeof a === 'string' ? a : a?.email;
                     return (email || '').toLowerCase() === (storedUser?.email || '').toLowerCase();
                 });
 
-                if (item.status !== 'waiting_approval' || hasApproved) return false;
+                const currentLevelEmail = item.currentLevelEmail;
+                const userEmail = (storedUser?.email || '').toLowerCase();
+                const isDesignatedApprover = userEmail === currentLevelEmail;
+                const isActiveDelegate = active.includes(currentLevelEmail); // Use active from local scope!
+
+                // If user has already approved, they can only see it again if they are the DESIGNATED approver OR ACTIVE DELEGATE for the current level
+                if (hasApproved && !isDesignatedApprover && !isActiveDelegate) return false;
+
+                if (item.status !== 'waiting_approval') return false;
 
                 if (assignedApprovers.length > 0) {
-                    const currentLevelEmail = assignedApprovers[currentLevel - 1];
-                    return (storedUser?.email || '').toLowerCase() === (currentLevelEmail || '').toLowerCase();
+                    return isDesignatedApprover || isActiveDelegate;
                 }
                 return true;
             });
@@ -340,16 +374,16 @@ const ApprovalsPage = () => {
         },
     ];
 
-    return (
-        <div style={{ padding: '24px' }}>
-            {/* Global search above approvals table */}
-            <div className="table-toolbar">
+    const ApprovalsTable = () => (
+        <>
+            <div className="table-toolbar" style={{ marginBottom: 16 }}>
                 <Input
                     placeholder="Search approvals..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     allowClear
                     className="table-search-input"
+                    style={{ width: 300 }}
                 />
             </div>
 
@@ -366,6 +400,25 @@ const ApprovalsPage = () => {
                 bordered
                 className="invoices-table approvals-table"
             />
+        </>
+    );
+
+    const items = [
+        {
+            key: '1',
+            label: 'Unapproved Invoices',
+            children: <ApprovalsTable />,
+        },
+        {
+            key: '2',
+            label: 'Change Approver (Delegation)',
+            children: <DelegationManager isAdmin={false} onUpdate={fetchInvoices} />,
+        },
+    ];
+
+    return (
+        <div style={{ padding: '24px' }}>
+            <Tabs defaultActiveKey="1" items={items} />
         </div>
     );
 };

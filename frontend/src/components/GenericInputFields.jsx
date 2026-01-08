@@ -13,7 +13,8 @@ import {
     Checkbox,
     message,
     Space,
-    Tag
+    Tag,
+    Typography
 } from 'antd';
 import {
     PlusOutlined,
@@ -2126,16 +2127,30 @@ const GenericInputFields = ({
     const cycleApprovalsCount = currentCycleHistory.filter(h => h.status === 'approved').length;
     const assignedApprovers = workflowData?.assigned_approvers || [];
     const isSequential = assignedApprovers.length > 0;
-    const isMyTurn = !isSequential || (assignedApprovers[cycleApprovalsCount]?.toLowerCase() === currentUser?.email?.toLowerCase());
+
+    const currentExpectedApprover = assignedApprovers[cycleApprovalsCount]?.toLowerCase();
+    const myEmail = currentUser?.email?.toLowerCase();
+
+    // Check if current user is an active delegate for the expected approver
+    const isActiveDelegateForCurrentTurn = currentExpectedApprover &&
+        workflowData?.delegations?.[currentExpectedApprover]?.some(
+            delegateEmail => delegateEmail.toLowerCase() === myEmail
+        );
+
+    const isMyTurn = !isSequential || (currentExpectedApprover === myEmail) || isActiveDelegateForCurrentTurn;
 
     // Disable buttons ONLY based on status_history, NOT main status:
-    // 1. Current user has already acted, OR
+    // 1. Current user has already acted (EXCEPT if they are acting as a delegate for a new level), OR
     // 2. Someone has rejected/reworked (stops the process)
     // 3. User is restricted (Performed Processed or Coding)
     // 4. Sequential check: Only assigned approver at current level can act
-    const approveDisabled = currentUserHasActed || isRestrictedUser || !isMyTurn;
-    const rejectDisabled = currentUserHasActed || isRestrictedUser || !isMyTurn;
-    const reworkDisabled = currentUserHasActed || isRestrictedUser || !isMyTurn;
+
+    // Relax currentUserHasActed if it's my turn (primary or delegate)
+    const effectiveAlreadyActed = currentUserHasActed && !isMyTurn;
+
+    const approveDisabled = effectiveAlreadyActed || isRestrictedUser || !isMyTurn;
+    const rejectDisabled = effectiveAlreadyActed || isRestrictedUser || !isMyTurn;
+    const reworkDisabled = effectiveAlreadyActed || isRestrictedUser || !isMyTurn;
 
 
     const renderStatusTag = () => {
