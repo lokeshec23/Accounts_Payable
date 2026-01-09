@@ -207,8 +207,32 @@ const GenericInputFields = ({
         }
 
         // Initialize new fields from data
-        setVendorId(extractValue(data?.extracted_data?.vendor_info?.vendor_id) || '');
-        setMemo(extractValue(data?.extracted_data?.additional_info?.memo) || '');
+        // Check multiple locations for vendor_id:
+        // 1. data.vendor_id (passed from InvoiceReview -> formattedData)
+        // 2. data.extracted_data... (fallback)
+        // 3. originalData.vendor_id (database object root)
+        // 4. originalData.extracted_data... (database object extraction)
+        const savedVendorId =
+            data?.vendor_id ||
+            extractValue(data?.extracted_data?.vendor_info?.vendor_id) ||
+            originalData?.vendor_id ||
+            extractValue(originalData?.extracted_data?.vendor_info?.vendor_id) ||
+            '';
+
+        console.log("DEBUG: Initializing Vendor ID from:", savedVendorId);
+        setVendorId(savedVendorId);
+
+        if (savedVendorId) {
+            handleInputChange('Vendor ID', savedVendorId);
+        }
+
+        // Initialize memo from originalData or data
+        const savedMemo =
+            extractValue(data?.extracted_data?.additional_info?.memo) ||
+            extractValue(originalData?.extracted_data?.additional_info?.memo) ||
+            '';
+
+        setMemo(savedMemo);
         setExchangeRate(originalData?.exchange_rate || null);
 
     }, [data, extractionData, originalData]);
@@ -439,36 +463,75 @@ const GenericInputFields = ({
         }
     }, [formData['Vendor Name'], vendorMasterData, vendorId]);
 
+    const extractNetDays = (terms) => {
+        if (!terms) return null;
+
+        const text = String(terms).toLowerCase();
+
+        // Handle "due on receipt"
+        if (text.includes('receipt')) return 0;
+
+        // Match numbers like: Net 30, 30 days, 30
+        const match = text.match(/(\d+)/);
+        return match ? parseInt(match[1], 10) : null;
+    };
+
+    const getVendorPaymentTerms = (vendor) => {
+        if (!vendor) return null;
+
+        const key = Object.keys(vendor).find(k => {
+            const norm = k.toLowerCase().replace(/[\s_\\\-]/g, '');
+            return (
+                norm === 'paymentterms' ||
+                norm === 'termsofpayment' ||
+                norm === 'creditterms' ||
+                norm === 'payterms'
+            );
+        });
+
+        return key ? vendor[key] : null;
+    };
+
+
     useEffect(() => {
-        const calculateDueDate = () => {
-            const invoiceDateStr = extractValue(formData['Invoice Date']);
-            const paymentTermsStr = extractValue(formData['Payment Terms']);
+        const invoiceDateStr = extractValue(formData['Invoice Date']);
+        if (!invoiceDateStr) return;
 
-            if (!invoiceDateStr || !paymentTermsStr) return;
+        const invoiceDate = dayjs(invoiceDateStr);
+        if (!invoiceDate.isValid()) return;
 
-            // Avoid overriding if user manually set it? 
-            // Requirement says "Logic Updates: Calculate Due Date..." 
-            // We'll update it if it's different, or perhaps only if not set? 
-            // Let's update it reactively but maybe be careful. 
-            // Actually, usually users want auto-calc.
+        const extractedTerms = extractValue(formData['Payment Terms']);
+        let days = extractNetDays(extractedTerms);
 
-            const invoiceDate = dayjs(invoiceDateStr);
-            if (!invoiceDate.isValid()) return;
+        // Fallback to Vendor Master if terms are invalid
+        if (days === null && selectedVendorDetails) {
+            const vendorTerms = getVendorPaymentTerms(selectedVendorDetails);
+            days = extractNetDays(vendorTerms);
 
-            // Parsing "Net 30", "30 Days", "30", etc.
-            const match = String(paymentTermsStr).match(/(\d+)/);
-            if (match) {
-                const days = parseInt(match[0], 10);
-                const newDueDate = invoiceDate.add(days, 'day').format('YYYY-MM-DD');
-
-                const currentDueDate = extractValue(formData['Due Date']);
-                if (currentDueDate !== newDueDate) {
-                    handleInputChange('Due Date', newDueDate);
-                }
+            // Auto-fill payment terms from vendor if missing/invalid
+            if (vendorTerms && (!extractedTerms || days !== null)) {
+                handleInputChange('Payment Terms', vendorTerms);
             }
-        };
-        calculateDueDate();
-    }, [formData['Invoice Date'], formData['Payment Terms']]);
+        }
+
+        // Still invalid → do nothing
+        if (days === null) return;
+
+        const newDueDate = invoiceDate
+            .add(days, 'day')
+            .format('YYYY-MM-DD');
+
+        const currentDueDate = extractValue(formData['Due Date']);
+
+        if (currentDueDate !== newDueDate) {
+            handleInputChange('Due Date', newDueDate);
+        }
+    }, [
+        formData['Invoice Date'],
+        formData['Payment Terms'],
+        selectedVendorDetails
+    ]);
+
 
     // ---------- load saved coding ----------
     useEffect(() => {
