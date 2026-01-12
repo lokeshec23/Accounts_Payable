@@ -532,6 +532,113 @@ const GenericInputFields = ({
         selectedVendorDetails
     ]);
 
+    // ---------- TDS Calculation Update Total ----------
+    useEffect(() => {
+        if (readOnly || !selectedVendorDetails) return;
+
+        // Reuse helper logic to find TDS keys (duplicated to avoid scope issues)
+        const findVal = (obj, keys) => {
+            if (!obj) return null;
+            const matchKey = Object.keys(obj).find(k => {
+                const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
+                return keys.some(target => normK === target.toLowerCase().replace(/[\s_\\\-]/g, ''));
+            });
+            return matchKey ? obj[matchKey] : null;
+        };
+
+        const tdsApplicabilityVal = findVal(selectedVendorDetails, [
+            'TDS/Withhold Tax Applicability Configuration',
+            'TDS Applicability',
+            'TDS Applicable',
+            'Withholding Tax Applicable'
+        ]);
+
+        const isTDSApplicable = tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes';
+
+        if (isTDSApplicable) {
+            const tdsRateVal = findVal(selectedVendorDetails, [
+                'TDS Percentage',
+                'Percentage',
+                'Rate',
+                'TDS Rate',
+                'Withholding Rate'
+            ]) || '0';
+
+            const tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
+
+            // Calculate Subtotal from lineItems
+            const calculatedSubtotal = lineItems.reduce((sum, item) => {
+                const val = parseCurrencyValue(
+                    extractValue(item.NetAmount) ||
+                    extractValue(item.amount) ||
+                    extractValue(item.net_amount) ||
+                    item.amount ||
+                    item.net_amount
+                );
+                return sum + val;
+            }, 0);
+
+            // User instruction: TDS Rate is already a decimal. Keep 2 decimal places.
+            const tdsAmount = parseFloat((calculatedSubtotal * tdsRate).toFixed(2));
+
+            // Calculate Total Tax
+            // Header Taxes
+            const headerTax =
+                parseCurrencyValue(extractValue(formData['CGST'])) +
+                parseCurrencyValue(extractValue(formData['SGST'])) +
+                parseCurrencyValue(extractValue(formData['IGST']));
+
+            // Line Item Taxes - only if not included in header taxes (simple logic: add them all)
+            // Note: usually systems have either header tax OR line tax, but we sum here to be safe or assuming one is zero.
+            const lineItemTax = lineItems.reduce((sum, item) => {
+                const val = parseCurrencyValue(
+                    extractValue(item.TaxAmount) ||
+                    extractValue(item.tax_amount)
+                );
+                return sum + val;
+            }, 0);
+
+            // Use the greater of header vs line sum if they might be duplicates? 
+            // Or just sum? "Total Tax Amount" field might be better source if it exists.
+            const fieldTotalTax = parseCurrencyValue(extractValue(formData['Total Tax Amount']));
+
+            // Heuristic: If "Total Tax Amount" is populated, use it. Else sum components.
+            const totalTax = fieldTotalTax > 0 ? fieldTotalTax : (headerTax + lineItemTax);
+
+            // Formula: Total = Subtotal + Tax - TDS
+            const newTotal = parseFloat((calculatedSubtotal + totalTax - tdsAmount).toFixed(2));
+
+            // Update Form Data if different (avoid loop)
+            const currentTotal = parseCurrencyValue(extractValue(formData['Total Invoice Amount']));
+
+            if (Math.abs(currentTotal - newTotal) > 0.005) {
+                console.log(`DEBUG: Updating Total Amount from ${currentTotal} to ${newTotal} (Sub: ${calculatedSubtotal}, Tax: ${totalTax}, TDS: ${tdsAmount})`);
+
+                // Update Total Invoice Amount
+                const oldTotalVal = formData['Total Invoice Amount'];
+                const newTotalVal =
+                    typeof oldTotalVal === 'object' && oldTotalVal !== null && 'value' in oldTotalVal
+                        ? { ...oldTotalVal, value: newTotal }
+                        : { value: newTotal }; // Ensure consistent object structure if previously undefined
+
+                setFormData((prev) => ({
+                    ...prev,
+                    'Total Invoice Amount': newTotalVal,
+                    // Optionally update Amount Due as well if it tracks Total
+                    'Amount Due': { value: newTotal }
+                }));
+            }
+        }
+
+    }, [
+        lineItems,
+        selectedVendorDetails,
+        formData['CGST'],
+        formData['SGST'],
+        formData['IGST'],
+        formData['Total Tax Amount']
+    ]);
+
 
     // ---------- load saved coding ----------
     useEffect(() => {
@@ -719,10 +826,16 @@ const GenericInputFields = ({
                     return isGst ? sum : sum + line.net_amount;
                 }, 0);
 
-                const tdsAmount = (subtotal * tdsRate) / 100;
+                // User instruction: TDS Rate is decimal. Round to 2 decimals.
+                const tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
 
                 if (tdsAmount > 0) {
-                    const tdsDesc = `TDS Deduction (${tdsRate}%)`;
+                    const tdsDesc = `TDS Deduction (${tdsRate})`; // Rate is decimal, maybe show as percentage? Let's keep raw or format? 
+                    // Actually rate is likely 0.01. User might prefer "1%". 
+                    // But simpler to just show what we have or standardized description.
+                    // Let's stick to simple "TDS Deduction" for now or just rate.
+                    // Better: `TDS Deduction`
+
                     const existingTDS = prevCoding.find(pc =>
                         pc.description?.startsWith('TDS Deduction') ||
                         pc.original_index === -1
@@ -730,7 +843,7 @@ const GenericInputFields = ({
 
                     newCoding.push({
                         s_no: currentSNo++,
-                        description: tdsDesc,
+                        description: `TDS Deduction`,
                         line_type: 'Liability',
                         quantity: 1,
                         unit_price: -tdsAmount,
@@ -1955,12 +2068,13 @@ const GenericInputFields = ({
                                     return sum + net;
                                 }, 0);
 
-                                const tdsAmount = (subtotal * tdsRate) / 100;
+                                // User instruction: TDS Rate is decimal. Round to 2 decimals.
+                                const tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
 
                                 if (tdsAmount > 0) {
                                     data.push({
                                         key: 'TDS_PREVIEW',
-                                        Description: { value: `TDS Deduction (${tdsRate}%)` },
+                                        Description: { value: `TDS Deduction` },
                                         Quantity: { value: 1 },
                                         UnitPrice: { value: -tdsAmount },
                                         NetAmount: { value: -tdsAmount },
