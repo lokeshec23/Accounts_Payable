@@ -292,12 +292,7 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
     # 3. Fallback to Default Count
     if not workflow_found:
         workflow_type = "default"
-        default_query = {"entity": entity} if entity else {}
-        default_config = db.approver_default.find_one(default_query)
-        if not default_config and entity:
-            default_config = db.approver_default.find_one({"entity": {"$exists": False}})
-        
-        required_count = default_config.get("default_approver_count", 3) if default_config else 3
+        required_count = 3
         return {
             "required": required_count,
             "assigned_approvers": [],
