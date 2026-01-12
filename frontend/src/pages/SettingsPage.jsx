@@ -22,7 +22,6 @@ import {
   ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import {
-  approverConfigService,
   masterDataService,
   currencyService,
   workflowConfigService,
@@ -41,7 +40,6 @@ const SettingsPage = () => {
   const [departments, setDepartments] = useState([]);
 
   const [currencies, setCurrencies] = useState([]);
-  const [defaultConfig, setDefaultConfig] = useState(null);
   const [loading, setLoading] = useState(false);
   const [userRole, setUserRole] = useState("");
 
@@ -105,7 +103,7 @@ const SettingsPage = () => {
       const [
         vendorWorkflowData,
         codificationWorkflowData,
-        defaultData,
+
         currencyData,
         approversData,
         vendorsData,
@@ -114,7 +112,6 @@ const SettingsPage = () => {
       ] = await Promise.all([
         workflowConfigService.getVendorWorkflows(),
         workflowConfigService.getCodificationWorkflows(),
-        approverConfigService.getDefaultConfig(),
         currencyService.getCurrencies(),
         workflowConfigService.getApprovers(),
         workflowConfigService.getWorkflowVendors(),
@@ -124,7 +121,6 @@ const SettingsPage = () => {
 
       setVendorWorkflows(vendorWorkflowData);
       setCodificationWorkflows(codificationWorkflowData);
-      setDefaultConfig(defaultData);
       setCurrencies(currencyData);
       setApprovers(approversData);
       setWorkflowVendors(vendorsData);
@@ -371,33 +367,6 @@ const SettingsPage = () => {
     }] : []),
   ];
 
-  const renderDefaultSettings = () => (
-    <div style={{ padding: "20px 0" }}>
-      <Text type="secondary" style={{ display: "block", marginBottom: "20px" }}>
-        Default number of approvers when no specific rules match.
-      </Text>
-      <Form
-        layout="inline"
-        onFinish={async (values) => {
-          try {
-            await approverConfigService.createOrUpdateDefaultConfig(values);
-            message.success("Default settings updated");
-            fetchRules();
-          } catch (err) {
-            message.error("Failed to update default settings");
-          }
-        }}
-        initialValues={defaultConfig}
-        key={defaultConfig?.updated_at || "loading"}
-      >
-        <Form.Item name="default_approver_count" label="Default Approvers" rules={[{ required: true }]}>
-          <InputNumber min={1} max={5} />
-        </Form.Item>
-        {userRole !== "coder" && <Form.Item><Button type="primary" htmlType="submit">Save</Button></Form.Item>}
-      </Form>
-    </div>
-  );
-
   const renderTabContent = (type, columns, data) => (
     <div style={{ padding: "20px 0" }}>
       <div style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end" }}>
@@ -419,7 +388,6 @@ const SettingsPage = () => {
   );
 
   const items = [
-    { key: "0", label: "Default Approvers", children: renderDefaultSettings() },
     { key: "1", label: "Vendor Based Workflow", children: renderTabContent("vendor-workflow", vendorWorkflowColumns, vendorWorkflows) },
     { key: "2", label: "Codification Based Workflow", children: renderTabContent("codification-workflow", codificationWorkflowColumns, codificationWorkflows) },
     { key: "3", label: "Currency", children: renderTabContent("currency", currencyColumns, currencies) },
