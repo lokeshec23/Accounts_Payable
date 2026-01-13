@@ -7,6 +7,7 @@ import {
     Input,
     InputNumber,
     Select,
+    AutoComplete,
     DatePicker,
     Table,
     Button,
@@ -66,6 +67,8 @@ const GenericInputFields = ({
     const [vendorMasterData, setVendorMasterData] = useState([]);
     const [selectedVendorDetails, setSelectedVendorDetails] = useState(null);
     const [vendorId, setVendorId] = useState('');
+    const [vendorIdOptions, setVendorIdOptions] = useState([]);
+    const [vendorNameOptions, setVendorNameOptions] = useState([]);
     const [memo, setMemo] = useState('');
     const [exchangeRate, setExchangeRate] = useState(null);
 
@@ -363,6 +366,8 @@ const GenericInputFields = ({
     };
 
     // ---------- Vendor Logic & Due Date Calculation ----------
+    const initialSearchDone = React.useRef(false);
+
     useEffect(() => {
         const vendorName = extractValue(formData['Vendor Name']);
 
@@ -379,9 +384,12 @@ const GenericInputFields = ({
                 // Auto-populate Vendor ID if available and not set
                 const matchedId = match['Vendor ID'] || match['VendorID'] || match['vendor_id'] || match['VENDOR_ID'];
 
-                if (matchedId && !vendorId) {
+                const currentFormId = extractValue(formData['Vendor ID']);
+                // Robust comparison (handle numbers vs strings)
+                if (matchedId && String(matchedId).trim() !== String(currentFormId || '').trim()) {
                     console.log("DEBUG: Setting Vendor ID:", matchedId);
                     setVendorId(matchedId);
+                    handleInputChange('Vendor ID', matchedId);
                 }
 
                 // Auto-correct Vendor Name if needed
@@ -438,30 +446,34 @@ const GenericInputFields = ({
             if (exactMatch) {
                 applyMatch(exactMatch);
             } else {
-                // 2. API Embedding Search (Fallback)
-                console.log("DEBUG: No exact match, attempting AI embedding search...");
-                const searchAsync = async () => {
-                    try {
-                        const result = await masterDataService.searchVendor(vendorName);
-                        if (result && result.match) {
-                            console.log("DEBUG: AI Match Found:", result.match, "Score:", result.score);
-                            applyMatch(result.match);
-                        } else {
-                            console.log("DEBUG: No AI match found.");
+                // 2. API Embedding Search (Fallback) - RUN ONCE ONLY
+                if (!initialSearchDone.current) {
+                    console.log("DEBUG: No exact match, attempting AI embedding search (One-time)...");
+                    initialSearchDone.current = true; // Mark as done before running to prevent duplicate calls
+
+                    const searchAsync = async () => {
+                        try {
+                            const result = await masterDataService.searchVendor(vendorName);
+                            if (result && result.match) {
+                                console.log("DEBUG: AI Match Found:", result.match, "Score:", result.score);
+                                applyMatch(result.match);
+                            } else {
+                                console.log("DEBUG: No AI match found.");
+                                setSelectedVendorDetails(null);
+                            }
+                        } catch (err) {
+                            console.error("DEBUG: Error searching vendor:", err);
                             setSelectedVendorDetails(null);
                         }
-                    } catch (err) {
-                        console.error("DEBUG: Error searching vendor:", err);
-                        setSelectedVendorDetails(null);
-                    }
-                };
-                searchAsync();
+                    };
+                    searchAsync();
+                }
             }
 
         } else {
             setSelectedVendorDetails(null);
         }
-    }, [formData['Vendor Name'], vendorMasterData, vendorId]);
+    }, [formData['Vendor Name'], vendorMasterData]);
 
     const extractNetDays = (terms) => {
         if (!terms) return null;
@@ -1405,6 +1417,54 @@ const GenericInputFields = ({
 
 
 
+    // ---------- Optimization Handlers ----------
+    const handleVendorIdSearch = (searchText) => {
+        if (!searchText || !vendorMasterData) {
+            setVendorIdOptions([]);
+            return;
+        }
+        const lowerSearch = searchText.toUpperCase();
+        // Extract unique IDs, filter, limit to 50
+        const matches = [];
+        const seen = new Set();
+
+        for (const v of vendorMasterData) {
+            if (matches.length >= 50) break;
+            const id = v['Vendor ID'] || v['VendorID'] || v['vendor_id'] || v['VENDOR_ID'];
+            if (id) {
+                const strId = String(id);
+                if (strId.toUpperCase().includes(lowerSearch) && !seen.has(strId)) {
+                    seen.add(strId);
+                    matches.push({ value: strId, label: strId, vendor: v });
+                }
+            }
+        }
+        setVendorIdOptions(matches);
+    };
+
+    const handleVendorNameSearch = (searchText) => {
+        if (!searchText || !vendorMasterData) {
+            setVendorNameOptions([]);
+            return;
+        }
+        const lowerSearch = searchText.toUpperCase();
+        const matches = [];
+        const seen = new Set();
+
+        for (const v of vendorMasterData) {
+            if (matches.length >= 50) break;
+            const name = v['Vendor Name'] || v['VendorName'] || v['Name'] || v['VENDOR_NAME'];
+            if (name) {
+                const strName = String(name);
+                if (strName.toUpperCase().includes(lowerSearch) && !seen.has(strName)) {
+                    seen.add(strName);
+                    matches.push({ value: strName, label: strName, vendor: v });
+                }
+            }
+        }
+        setVendorNameOptions(matches);
+    };
+
     // ---------- UI helpers ----------
     const renderFieldInput = (field, value) => {
         const stringValue = extractValue(value);
@@ -1764,12 +1824,31 @@ const GenericInputFields = ({
                             alignItems: 'center'
                         }}>
                             <div style={{ fontWeight: 500 }}>Vendor ID:</div>
-                            <Input
+                            <AutoComplete
                                 value={vendorId}
-                                onChange={(e) => {
-                                    setVendorId(e.target.value);
-                                    handleInputChange('Vendor ID', e.target.value);
+                                onChange={(val) => {
+                                    setVendorId(val);
+                                    handleInputChange('Vendor ID', val);
                                 }}
+                                onSearch={handleVendorIdSearch}
+                                onSelect={(val, option) => {
+                                    if (option.vendor) {
+                                        const vName = option.vendor['Vendor Name'] || option.vendor['VendorName'] || option.vendor['Name'] || option.vendor['VENDOR_NAME'];
+                                        if (vName) {
+                                            handleInputChange('Vendor Name', vName);
+                                        }
+                                        setSelectedVendorDetails(option.vendor);
+                                        // Trigger other logic if needed e.g. Payment Terms
+                                        const ptKey = Object.keys(option.vendor).find(k => {
+                                            const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
+                                            return normK === 'paymentterms' || normK === 'terms' || normK === 'termsofpayment';
+                                        });
+                                        if (ptKey && option.vendor[ptKey]) {
+                                            handleInputChange('Payment Terms', option.vendor[ptKey]);
+                                        }
+                                    }
+                                }}
+                                options={vendorIdOptions}
                                 disabled={disableInputs}
                                 style={disabledStyle}
                             />
@@ -1783,7 +1862,33 @@ const GenericInputFields = ({
                             alignItems: 'center'
                         }}>
                             <div style={{ fontWeight: 500 }}>Vendor Name:</div>
-                            <div>{renderFieldInput('Vendor Name', formData['Vendor Name'])}</div>
+                            <AutoComplete
+                                value={extractValue(formData['Vendor Name'])}
+                                onChange={(val) => handleInputChange('Vendor Name', val)}
+                                onSearch={handleVendorNameSearch}
+                                onSelect={(val, option) => {
+                                    handleInputChange('Vendor Name', val);
+                                    if (option.vendor) {
+                                        const vId = option.vendor['Vendor ID'] || option.vendor['VendorID'] || option.vendor['vendor_id'] || option.vendor['VENDOR_ID'];
+                                        if (vId) {
+                                            setVendorId(vId);
+                                            handleInputChange('Vendor ID', vId);
+                                        }
+                                        setSelectedVendorDetails(option.vendor);
+                                        // Trigger other logic if needed e.g. Payment Terms
+                                        const ptKey = Object.keys(option.vendor).find(k => {
+                                            const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
+                                            return normK === 'paymentterms' || normK === 'terms' || normK === 'termsofpayment';
+                                        });
+                                        if (ptKey && option.vendor[ptKey]) {
+                                            handleInputChange('Payment Terms', option.vendor[ptKey]);
+                                        }
+                                    }
+                                }}
+                                options={vendorNameOptions}
+                                disabled={disableInputs}
+                                style={{ width: '100%', ...disabledStyle }}
+                            />
                         </div>
 
                         {/* Invoice Number */}
