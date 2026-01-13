@@ -3,6 +3,7 @@ from typing import List
 from app.models.user import UserResponse
 from app.database.mongodb import get_database
 from app.auth.jwt import get_current_user
+from app.utils.settings import get_app_settings
 from bson.objectid import ObjectId
 from pydantic import BaseModel
 
@@ -53,9 +54,7 @@ async def update_user_role(
     db = get_database()
 
     #  Load global settings correctly
-    settings = db.global_settings.find_one({"_id": "app_settings"})
-    if not settings:
-        raise HTTPException(status_code=500, detail="Global settings not found")
+    settings = get_app_settings()
 
     allowed_roles = settings.get("roles", [])
     allowed_statuses = settings.get("statuses", [])
