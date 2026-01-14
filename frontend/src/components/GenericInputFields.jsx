@@ -781,7 +781,7 @@ const GenericInputFields = ({
                 line_type: 'Tax',
                 quantity: 1,
                 unit_price: totalTaxAmount,
-                net_amount: totalTaxAmount,
+                net_amount: formData['Total Tax Amount'],
                 gl_code: gstGL,
                 lob: newCoding[0]?.lob || '',
                 department: newCoding[0]?.department || '',
@@ -1995,6 +1995,7 @@ const GenericInputFields = ({
                         key={getCurrencySymbol()}
                         columns={lineItemColumns}
                         dataSource={(() => {
+
                             const data = [];
                             lineItems.forEach((item, index) => {
                                 // Add Base Item
@@ -2111,6 +2112,8 @@ const GenericInputFields = ({
             <h3 style={{ marginBottom: '16px', borderBottom: '2px solid #1890ff', paddingBottom: '8px', color: '#001529' }}>GL Distribution Summary</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {(() => {
+                    
+
                     // Use persisted summary if available, otherwise calculate from current line items
                     const persistedSummary = originalData?.gl_summary;
 
@@ -2171,8 +2174,9 @@ const GenericInputFields = ({
     );
 
     // ---------- All Fields (optimized, still same content) ----------
-    const renderFieldGroup = (title, fields) => (
-        <Panel header={title} key={title}>
+    const renderFieldGroup = (title, fields) => {
+
+        return (<Panel header={title} key={title}>
             <div
                 style={{
                     display: 'flex',
@@ -2219,7 +2223,8 @@ const GenericInputFields = ({
                 ))}
             </div>
         </Panel>
-    );
+        );
+    };
 
     const allFieldsTab = (
         <div style={{ padding: '10px 20px' }}>
