@@ -202,8 +202,17 @@ export const masterDataService = {
 
 // Workflow service methods
 export const workflowService = {
-  async getWorkflowHistory(invoiceId) {
-    const response = await api.get(`/workflow/${invoiceId}`);
+  getWorkflowHistory: async (id, vendorId = null, vendorName = null) => {
+    let url = `/workflow/${id}`;
+    const params = new URLSearchParams();
+    if (vendorId) params.append('preview_vendor_id', vendorId);
+    if (vendorName) params.append('preview_vendor_name', vendorName);
+
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+
+    const response = await api.get(url);
     return response.data;
   },
 

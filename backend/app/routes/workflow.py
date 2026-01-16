@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from typing import List
+from typing import List,Optional
 from app.models.workflow import (
     WorkflowStepCreate,
     WorkflowStepResponse,
@@ -109,14 +109,9 @@ def get_invoice_total_from_invoice(db, invoice_id: str):
             
     return None
 
-def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None, invoice_data: dict = None, currency: str = "USD", entity: str = None):
+def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None, invoice_data: dict = None, currency: str = "USD", entity: str = None, force_vendor_id: str = None, force_vendor_name: str = None):
     """
     Get the required approvers based on new Workflow Redesign.
-    
-    Logic:
-    1. Try VendorWorkflow match.
-    2. If not found, try CodificationWorkflow match (using LOB/Dept from coding).
-    3. If not found, fallback to Default approver count.
     
     Returns:
     {
@@ -127,8 +122,8 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
     }
     """
     
-    # 0. Check for persisted values on the invoice
-    if invoice_data and "required_approvers" in invoice_data and invoice_data["required_approvers"] is not None:
+    # 0. Check for persisted values on the invoice (SKIP if forcing preview)
+    if not force_vendor_name and not force_vendor_id and invoice_data and "required_approvers" in invoice_data and invoice_data["required_approvers"] is not None:
         persisted_assigned = invoice_data.get("assigned_approvers", [])
         if persisted_assigned and len(persisted_assigned) > 0:
             return {
@@ -146,7 +141,13 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
     
     # Check Vendor Eligibility from Master Data
     vendor_eligible = False
-    v_name_resolved, v_id_resolved = get_vendor_data_from_invoice(db, invoice_id) if invoice_id else (vendor_name, None)
+    
+    if force_vendor_name or force_vendor_id:
+         v_name_resolved = force_vendor_name
+         v_id_resolved = force_vendor_id
+    else:
+        v_name_resolved, v_id_resolved = get_vendor_data_from_invoice(db, invoice_id) if invoice_id else (vendor_name, None)
+
  
     
     if v_name_resolved:
@@ -317,10 +318,12 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
 @router.get("/{invoice_id}", response_model=WorkflowHistoryResponse)
 async def get_workflow_history(
     invoice_id: str,
+    preview_vendor_id: Optional[str] = None,
+    preview_vendor_name: Optional[str] = None,
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
-    """Get complete workflow history for an invoice"""
+    """Get complete workflow history for an invoice. Supports previewing workflow for unsaved vendor changes."""
     db = get_database()
     
     # Verify invoice exists AND belongs to entity
@@ -332,13 +335,51 @@ async def get_workflow_history(
     if invoice.get("entity") != entity:
         raise HTTPException(status_code=403, detail="Access denied to this entity's data")
     
-    # Get vendor name/ID and total amount
-    vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
+    # Get vendor name/ID (prefer preview, else fetch from DB)
+    if preview_vendor_name or preview_vendor_id:
+        vendor_name = preview_vendor_name
+        vendor_id = preview_vendor_id
+    else:
+        vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
+
     total_amount = get_invoice_total_from_invoice(db, invoice_id)
     currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
 
-    # Result is now a dict with breakdown
-    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice, currency=currency, entity=entity)
+    # Pass resolved vendor data to calculation
+    # We must modify `get_required_approver_count` to accept explicit vendor_id/name overrides if we want to be clean, 
+    # OR we can hack `get_required_approver_count` to take them.
+    # Actually, `get_required_approver_count` takes `vendor_name` as arg2.
+    # But it calculates `v_name_resolved, v_id_resolved` internally again!
+    # We should update `get_required_approver_count` to take optional overrides too.
+    
+    # Let's inspect get_required_approver_count signature:
+    # def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None, invoice_data: dict = None, currency: str = "USD", entity: str = None):
+    
+    # It takes `vendor_name`. But inside it calls `get_vendor_data_from_invoice(db, invoice_id)`.
+    # I need to update `get_required_approver_count` to respect the passed `vendor_name` if `invoice_id` is passed but we want to override.
+    
+    # Actually, let's look at `get_required_approver_count` implementation again.
+    # It does: `v_name_resolved, v_id_resolved = get_vendor_data_from_invoice(db, invoice_id) if invoice_id else (vendor_name, None)`
+    
+    # So if we pass `invoice_id`, it IGNORES the passed `vendor_name` argument! This is a bug for our use case.
+    # Fix: We will modify `get_required_approver_count` to verify if we want to FORCE the passed name/id.
+    
+    # However, simpler fix for now: Don't pass `invoice_id` to `get_required_approver_count` if we are in preview mode? 
+    # But `invoice_id` is needed for "Persisted values" check and "Codification workflow fallback" (fetching coding).
+    
+    # Best approach: Add `vendor_id` kwarg to `get_required_approver_count` and prioritize explicitly passed args.
+    
+    requirement_data = get_required_approver_count(
+        db, 
+        vendor_name, 
+        total_amount, 
+        invoice_id, 
+        invoice_data=invoice, 
+        currency=currency, 
+        entity=entity,
+        force_vendor_id=vendor_id, 
+        force_vendor_name=vendor_name
+    )
     required_approvers = requirement_data["required"]
     approver_breakdown = requirement_data["breakdown"]
     

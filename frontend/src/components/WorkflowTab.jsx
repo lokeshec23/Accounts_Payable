@@ -13,7 +13,7 @@ import { workflowService, currencyService } from '../services/api';
 import { formatDateTimeIST } from '../utils/dateUtils';
 import './WorkflowTab.css';
 
-const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
+const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId, previewVendorId, previewVendorName }) => {
   const [workflowData, setWorkflowData] = useState(null);
   const [currencies, setCurrencies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +21,7 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
   useEffect(() => {
     fetchWorkflowHistory();
     fetchCurrencies();
-  }, [invoiceId, refreshTrigger]);
+  }, [invoiceId, refreshTrigger, previewVendorId, previewVendorName]);
 
   const fetchCurrencies = async () => {
     try {
@@ -36,7 +36,8 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId }) => {
     if (!invoiceId) return;
     try {
       setLoading(true);
-      const data = await workflowService.getWorkflowHistory(invoiceId);
+      // Pass preview params to service
+      const data = await workflowService.getWorkflowHistory(invoiceId, previewVendorId, previewVendorName);
       setWorkflowData(data);
     } catch (err) {
       console.error(err);

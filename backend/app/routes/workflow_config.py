@@ -185,15 +185,7 @@ async def get_workflow_vendors(
                         "vendor_name": str(vendor_name) # Explicitly keep raw name
                     })
     
-    # Remove duplicates based on unique_val
-    unique_vendors = []
-    seen = set()
-    for v in workflow_vendors:
-        if v["value"] not in seen:
-            unique_vendors.append(v)
-            seen.add(v["value"])
-    
-    return unique_vendors
+    return workflow_vendors
 
 
 # ==================== CODIFICATION WORKFLOW ====================

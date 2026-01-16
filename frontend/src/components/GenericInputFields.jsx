@@ -1373,14 +1373,20 @@ const GenericInputFields = ({
             });
 
             // -------- Line Items --------
-            if (Array.isArray(lineItems)) {
+            // FIX: If grouping is enabled, we must save the ORIGINAL items to preserve data.
+            // If grouping is disabled, we save the current (potentially edited) lineItems.
+            const itemsToSave = (lineGrouping === 'Yes' && originalLineItems?.length > 0)
+                ? originalLineItems
+                : lineItems;
+
+            if (Array.isArray(itemsToSave)) {
                 if (!updatedExtractedData.Items) {
                     updatedExtractedData.Items = { value: [] };
                 }
 
                 const originalItems = updatedExtractedData.Items.value || [];
 
-                updatedExtractedData.Items.value = lineItems.map((item, index) => {
+                updatedExtractedData.Items.value = itemsToSave.map((item, index) => {
                     const originalItem = originalItems[index] || {};
                     return {
                         description: {
@@ -1607,8 +1613,8 @@ const GenericInputFields = ({
                 const display = `${id} - ${name}`;
 
                 if (
-                    display.toUpperCase().includes(searchText.toUpperCase()) &&
-                    !seen.has(id)
+                    display.toUpperCase().includes(searchText.toUpperCase())
+                    // && !seen.has(id) // USER REQUEST: Allow duplicates
                 ) {
                     seen.add(id);
                     matches.push({
@@ -1643,10 +1649,9 @@ const GenericInputFields = ({
                 const display = `${id} - ${name}`;
 
                 if (
-                    display.toUpperCase().includes(searchText.toUpperCase()) &&
-                    !seen.has(name)
+                    display.toUpperCase().includes(searchText.toUpperCase())
                 ) {
-                    seen.add(name);
+                    // seen.add(name); // Removed uniqueness check
                     matches.push({
                         value: String(name),        // only Vendor Name goes in input
                         label: display,             // VendorID - VendorName in dropdown
@@ -2990,6 +2995,8 @@ const GenericInputFields = ({
                     invoiceId={invoiceId}
                     invoiceDisplayId={invoiceDisplayId}
                     refreshTrigger={workflowRefreshTrigger}
+                    previewVendorId={extractValue(formData['Vendor ID'])}
+                    previewVendorName={extractValue(formData['Vendor Name'])}
                 />;
             default:
                 return quickViewTab;
