@@ -96,6 +96,10 @@ const GenericInputFields = ({
     const [approverComment, setApproverComment] = useState('');
     const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
 
+    // Duplicate Invoice State
+    const [isDuplicateError, setIsDuplicateError] = useState(false);
+    const [initialDuplicateNumber, setInitialDuplicateNumber] = useState(null);
+
     const invoiceDisplayId = originalData?.extracted_data?.invoice_details?.invoice_number?.value ||
         originalData?.extracted_data?.invoice_details?.invoice_id?.value ||
         originalData?.invoiceId;
@@ -103,6 +107,36 @@ const GenericInputFields = ({
     const getCurrencySymbol = () => {
         return '$';
     };
+
+    // ---------- Duplicate Check Logic ----------
+    useEffect(() => {
+        // Check if backend flagged this as a duplicate
+        const duplicateInfo = originalData?.duplicate_info || data?.duplicate_info;
+        if (duplicateInfo?.is_duplicate) {
+            setIsDuplicateError(true);
+            // Capture the number that caused duplication
+            const currentInvNum =
+                extractValue(data?.extracted_data?.invoice_details?.invoice_number) ||
+                extractValue(originalData?.extracted_data?.invoice_details?.invoice_number) ||
+                originalData?.invoice_number ||
+                '';
+            setInitialDuplicateNumber(String(currentInvNum));
+        }
+    }, [originalData, data]);
+
+    useEffect(() => {
+        // If it was a duplicate, validate if user has changed it
+        if (initialDuplicateNumber) {
+            const currentNum = extractValue(formData['Invoice Number']);
+            // If current number is different from the initial duplicate number, clear error
+            // Using loose comparison after trim for safety against whitespace diffs
+            if (String(currentNum || '').trim() !== String(initialDuplicateNumber || '').trim()) {
+                setIsDuplicateError(false);
+            } else {
+                setIsDuplicateError(true);
+            }
+        }
+    }, [formData['Invoice Number'], initialDuplicateNumber]);
 
     // ---------- helpers ----------
     const parseCurrencyValue = (value) => {
@@ -1943,7 +1977,14 @@ const GenericInputFields = ({
                             alignItems: 'center'
                         }}>
                             <div style={{ fontWeight: 500 }}>Invoice Number:</div>
-                            <div>{renderFieldInput('Invoice Number', formData['Invoice Number'])}</div>
+                            <div>
+                                {renderFieldInput('Invoice Number', formData['Invoice Number'])}
+                                {isDuplicateError && (
+                                    <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>
+                                        Duplicate Invoice Number. Please change it to proceed.
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Invoice Date */}
@@ -3111,7 +3152,7 @@ const GenericInputFields = ({
                             onClick={handleSendForCoding}
                             loading={saving}
                             size="default"
-                            disabled={disableInputs}
+                            disabled={disableInputs || isDuplicateError}
                         >
                             Send for Coding
                         </Button>

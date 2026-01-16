@@ -31,7 +31,11 @@ class InvoiceBase(BaseModel):
     assigned_approvers: Optional[List[str]] = []
     current_approver_level: Optional[int] = 1
     gl_summary: Optional[List[Dict[str, Any]]] = None
+    gl_summary: Optional[List[Dict[str, Any]]] = None
     exchange_rate: Optional[float] = None
+    vendor_id: Optional[str] = None
+    vendor_name: Optional[str] = None
+    invoice_number: Optional[str] = None
 
 class InvoiceCreate(InvoiceBase):
     pass
@@ -51,6 +55,7 @@ class Invoice(InvoiceBase):
     confidence_score: Optional[str] = None
     uploaded_at: datetime
     processed_at: Optional[datetime] = None
+    duplicate_info: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True

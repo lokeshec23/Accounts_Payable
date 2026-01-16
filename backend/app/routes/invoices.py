@@ -55,6 +55,7 @@ async def upload_invoices(
             # ---- DUPLICATE DETECTION (BEFORE EXTRACTION) ----
             extracted_vendor_name, invoice_number = extract_vendor_and_invoice_number(file_path)
             
+            duplicate_info = None
             if extracted_vendor_name and invoice_number:
                 # Get vendor ID, OFFICIAL vendor name, and line grouping config from master
                 vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name)
@@ -64,16 +65,14 @@ async def upload_invoices(
                     existing_invoice = check_registry_duplicate(db, vendor_id, invoice_number, entity)
                     
                     if existing_invoice:
-                        # Duplicate found - cleanup file and return info
-                        if os.path.exists(file_path):
-                            os.remove(file_path)
+                        # Duplicate found BUT allow upload with warning
                         uploaded_date = existing_invoice.get("uploaded_at")
                         date_str = uploaded_date.strftime("%Y-%m-%d %H:%M") if uploaded_date else "N/A"
                         
-                        return {
-                            "success": False,
-                            "filename": clean_name,
-                            "reason": f"Duplicate: Vendor '{official_vendor_name}', Invoice #{invoice_number} (Uploaded {date_str})"
+                        duplicate_info = {
+                             "is_duplicate": True,
+                             "reason": f"Duplicate: Vendor '{official_vendor_name}', Invoice #{invoice_number} (Uploaded {date_str})",
+                             "original_invoice_id": str(existing_invoice.get("_id"))
                         }
 
             # ---- CREATE DB RECORD ----
@@ -108,6 +107,8 @@ async def upload_invoices(
                     current_line_grouping = line_grouping
             
             invoice_dict["line_grouping"] = current_line_grouping
+            if duplicate_info:
+                invoice_dict["duplicate_info"] = duplicate_info
 
             result = db.invoices.insert_one(invoice_dict)
             invoice_id = str(result.inserted_id)
@@ -198,19 +199,14 @@ async def upload_invoices(
                 existing_duplicate = check_registry_duplicate(db, final_vendor_id, final_invoice_number, entity)
                 
                 if existing_duplicate and str(existing_duplicate.get("_id")) != invoice_id:
-                    # Duplicate found AFTER extraction - cleanup and return info
-                    
-                    db.invoices.delete_one({"_id": result.inserted_id})
-                    if os.path.exists(file_path):
-                        os.remove(file_path)
-                    
+                     # Duplicate found AFTER extraction - Flag it
                     uploaded_date = existing_duplicate.get("uploaded_at")
                     date_str = uploaded_date.strftime("%Y-%m-%d %H:%M") if uploaded_date else "N/A"
                     
-                    return {
-                        "success": False,
-                        "filename": clean_name,
-                        "reason": f"Duplicate (Full): Vendor {update_data.get('vendor_name', final_vendor_id)}, Invoice #{final_invoice_number} (Uploaded {date_str})"
+                    update_data["duplicate_info"] = {
+                         "is_duplicate": True,
+                         "reason": f"Duplicate (Full): Vendor {update_data.get('vendor_name', final_vendor_id)}, Invoice #{final_invoice_number} (Uploaded {date_str})",
+                         "original_invoice_id": str(existing_duplicate.get("_id"))
                     }
 
 
@@ -650,9 +646,13 @@ async def update_invoice(
              update_data["required_approvers"] = requirement_data["required"]
              update_data["approver_breakdown"] = requirement_data["breakdown"]
 
+    update_query = {"$set": update_data}
+    if "invoice_number" in update_data:
+        update_query["$unset"] = {"duplicate_info": ""}
+
     db.invoices.update_one(
         {"_id": ObjectId(invoice_id)},
-        {"$set": update_data}
+        update_query
     )
 
     updated_invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
