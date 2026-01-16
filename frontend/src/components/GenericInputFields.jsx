@@ -59,6 +59,7 @@ const GenericInputFields = ({
         LineItems: lineItemsFromData
     });
     const [lineItems, setLineItems] = useState(lineItemsFromData);
+    const skipNextVendorLookup = React.useRef(false);
 
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState(readOnly ? '3' : '1');
@@ -466,10 +467,18 @@ const GenericInputFields = ({
 
                 const currentFormId = extractValue(formData['Vendor ID']);
                 // Robust comparison (handle numbers vs strings)
-                if (matchedId && String(matchedId).trim() !== String(currentFormId || '').trim()) {
-                    console.log("DEBUG: Setting Vendor ID from match:", matchedId);
-                    setVendorId(matchedId);
-                    handleInputChange('Vendor ID', matchedId);
+                if (!skipNextVendorLookup.current) {
+                    if (
+                        matchedId &&
+                        String(matchedId).trim() !== String(currentFormId || '').trim()
+                    ) {
+                        console.log("DEBUG: Auto-setting Vendor ID:", matchedId);
+                        setVendorId(matchedId);
+                        handleInputChange('Vendor ID', matchedId);
+                    }
+                } else {
+                    console.log("DEBUG: Skipping Vendor ID auto-fill (user selected Vendor Name)");
+                    skipNextVendorLookup.current = false; // reset after one skip
                 }
 
                 // Auto-correct Vendor Name if needed
@@ -2054,6 +2063,7 @@ const GenericInputFields = ({
                                 onSearch={debouncedVendorIdSearch}
                                 onSelect={(val, option) => {
                                     if (option.vendor) {
+                                        skipNextVendorLookup.current = true; // 🔒 Fix: Prevent name change from reverting ID
                                         const vName = option.vendor['Vendor Name'] || option.vendor['VendorName'] || option.vendor['Name'] || option.vendor['VENDOR_NAME'];
                                         if (vName) {
                                             handleInputChange('Vendor Name', vName);
@@ -2079,23 +2089,25 @@ const GenericInputFields = ({
                             <AutoComplete
                                 value={extractValue(formData['Vendor Name'])}
                                 onChange={(val) => {
-                                    // Handle composite value if present
                                     const realName = val && val.includes('::') ? val.split('::')[0] : val;
                                     handleInputChange('Vendor Name', realName);
                                 }}
                                 onSearch={debouncedVendorNameSearch}
                                 onSelect={(val, option) => {
-                                    // Handle composite value
+                                    skipNextVendorLookup.current = true;   // 🔒 lock auto lookup
+
                                     const realName = val && val.includes('::') ? val.split('::')[0] : val;
                                     handleInputChange('Vendor Name', realName);
 
                                     if (option.vendor) {
-                                        const vId = option.vendor['Vendor ID'] || option.vendor['VendorID'] || option.vendor['vendor_id'] || option.vendor['VENDOR_ID'];
-                                        if (vId) {
-                                            setVendorId(vId);
-                                            handleInputChange('Vendor ID', vId);
-                                        }
-                                        // Use unified vendor change handler
+                                        const vId =
+                                            option.vendor['Vendor ID'] ||
+                                            option.vendor['VendorID'] ||
+                                            option.vendor['vendor_id'] ||
+                                            option.vendor['VENDOR_ID'];
+
+                                        setVendorId(vId);
+                                        handleInputChange('Vendor ID', vId);
                                         handleVendorChange(option.vendor);
                                     }
                                 }}
@@ -2103,6 +2115,7 @@ const GenericInputFields = ({
                                 disabled={disableInputs}
                                 style={{ width: '100%', ...disabledStyle }}
                             />
+
                         </div>
 
                         {/* Invoice Number */}
