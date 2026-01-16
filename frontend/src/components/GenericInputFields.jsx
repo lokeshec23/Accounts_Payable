@@ -1536,47 +1536,72 @@ const GenericInputFields = ({
             setVendorIdOptions([]);
             return;
         }
-        const lowerSearch = searchText.toUpperCase();
-        // Extract unique IDs, filter, limit to 50
+
         const matches = [];
         const seen = new Set();
 
         for (const v of vendorMasterData) {
             if (matches.length >= 50) break;
+
             const id = v['Vendor ID'] || v['VendorID'] || v['vendor_id'] || v['VENDOR_ID'];
-            if (id) {
-                const strId = String(id);
-                if (strId.toUpperCase().includes(lowerSearch) && !seen.has(strId)) {
-                    seen.add(strId);
-                    matches.push({ value: strId, label: strId, vendor: v });
+            const name = v['Vendor Name'] || v['VendorName'] || v['Name'] || v['VENDOR_NAME'];
+
+            if (id && name) {
+                const display = `${id} - ${name}`;
+
+                if (
+                    display.toUpperCase().includes(searchText.toUpperCase()) &&
+                    !seen.has(id)
+                ) {
+                    seen.add(id);
+                    matches.push({
+                        value: String(id),          // what fills the input
+                        label: display,             // what shows in dropdown
+                        vendor: v
+                    });
                 }
             }
         }
+
         setVendorIdOptions(matches);
     };
+
 
     const handleVendorNameSearch = (searchText) => {
         if (!searchText || !vendorMasterData) {
             setVendorNameOptions([]);
             return;
         }
-        const lowerSearch = searchText.toUpperCase();
+
         const matches = [];
         const seen = new Set();
 
         for (const v of vendorMasterData) {
             if (matches.length >= 50) break;
+
+            const id = v['Vendor ID'] || v['VendorID'] || v['vendor_id'] || v['VENDOR_ID'];
             const name = v['Vendor Name'] || v['VendorName'] || v['Name'] || v['VENDOR_NAME'];
-            if (name) {
-                const strName = String(name);
-                if (strName.toUpperCase().includes(lowerSearch) && !seen.has(strName)) {
-                    seen.add(strName);
-                    matches.push({ value: strName, label: strName, vendor: v });
+
+            if (id && name) {
+                const display = `${id} - ${name}`;
+
+                if (
+                    display.toUpperCase().includes(searchText.toUpperCase()) &&
+                    !seen.has(name)
+                ) {
+                    seen.add(name);
+                    matches.push({
+                        value: String(name),        // only Vendor Name goes in input
+                        label: display,             // VendorID - VendorName in dropdown
+                        vendor: v
+                    });
                 }
             }
         }
+
         setVendorNameOptions(matches);
     };
+
 
     // ---------- UI helpers ----------
     const renderFieldInput = (field, value) => {
