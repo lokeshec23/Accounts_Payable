@@ -245,8 +245,9 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
                 if optional_appr:
                     assigned_approvers.append(optional_appr)
 
-    # 2. Try Codification Based Workflow (Only if NOT ELIGIBLE)
-    if not vendor_eligible and not workflow_found and invoice_id and entity:
+    # 2. Try Codification Based Workflow (Fallback if no Vendor Workflow found)
+    # This allows "Workflow Eligible" vendors to use Codification rules if they don't have a specific Vendor Workflow
+    if not workflow_found and invoice_id and entity:
         # Fetch coding data to get LOB and Dept ID
         coding = db.coding.find_one({"invoice_id": invoice_id})
         if coding and "line_items" in coding:
