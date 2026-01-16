@@ -14,7 +14,7 @@ AZURE_DI_KEY = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY")
 
 from app.ai.vector_matcher import find_best_vendor_match
 
-def get_vendor_id_from_master(db, vendor_name: str, entity: str = None) -> Tuple[Optional[str], Optional[str], str]:
+def get_vendor_id_from_master(db, vendor_name: str, entity: str = None, vendor_address: str = None) -> Tuple[Optional[str], Optional[str], str]:
     """
     Normalize vendor name and lookup Vendor ID and official vendor name from Vendor_Master collection.
     Uses robust matching (Exact -> Embedding -> Text Similarity).
@@ -24,6 +24,7 @@ def get_vendor_id_from_master(db, vendor_name: str, entity: str = None) -> Tuple
         db: Database connection
         vendor_name: Raw vendor name from invoice
         entity: Entity identifier
+        vendor_address: Raw vendor address (optional, for logging/debugging)
         
     Returns:
         Tuple of (vendor_id, official_vendor_name, line_grouping)
