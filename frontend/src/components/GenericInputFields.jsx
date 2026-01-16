@@ -1594,6 +1594,16 @@ const GenericInputFields = ({
 
 
     // ---------- Optimization Handlers ----------
+
+    // Debounce utility
+    const debounce = (func, wait) => {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func(...args), wait);
+        };
+    };
+
     const handleVendorIdSearch = (searchText) => {
         if (!searchText || !vendorMasterData) {
             setVendorIdOptions([]);
@@ -1653,7 +1663,7 @@ const GenericInputFields = ({
                 ) {
                     // seen.add(name); // Removed uniqueness check
                     matches.push({
-                        value: String(name),        // only Vendor Name goes in input
+                        value: `${name}::${id}`,    // UNIQUE value to separate duplicates
                         label: display,             // VendorID - VendorName in dropdown
                         vendor: v
                     });
@@ -1663,6 +1673,17 @@ const GenericInputFields = ({
 
         setVendorNameOptions(matches);
     };
+
+    // Create debounced versions
+    const debouncedVendorIdSearch = React.useMemo(
+        () => debounce(handleVendorIdSearch, 300),
+        [vendorMasterData] // Re-create if master data changes
+    );
+
+    const debouncedVendorNameSearch = React.useMemo(
+        () => debounce(handleVendorNameSearch, 300),
+        [vendorMasterData] // Re-create if master data changes
+    );
 
 
     // ---------- UI helpers ----------
@@ -2030,7 +2051,7 @@ const GenericInputFields = ({
                                     setVendorId(val);
                                     handleInputChange('Vendor ID', val);
                                 }}
-                                onSearch={handleVendorIdSearch}
+                                onSearch={debouncedVendorIdSearch}
                                 onSelect={(val, option) => {
                                     if (option.vendor) {
                                         const vName = option.vendor['Vendor Name'] || option.vendor['VendorName'] || option.vendor['Name'] || option.vendor['VENDOR_NAME'];
@@ -2057,10 +2078,17 @@ const GenericInputFields = ({
                             <div style={{ fontWeight: 500 }}>Vendor Name:</div>
                             <AutoComplete
                                 value={extractValue(formData['Vendor Name'])}
-                                onChange={(val) => handleInputChange('Vendor Name', val)}
-                                onSearch={handleVendorNameSearch}
+                                onChange={(val) => {
+                                    // Handle composite value if present
+                                    const realName = val && val.includes('::') ? val.split('::')[0] : val;
+                                    handleInputChange('Vendor Name', realName);
+                                }}
+                                onSearch={debouncedVendorNameSearch}
                                 onSelect={(val, option) => {
-                                    handleInputChange('Vendor Name', val);
+                                    // Handle composite value
+                                    const realName = val && val.includes('::') ? val.split('::')[0] : val;
+                                    handleInputChange('Vendor Name', realName);
+
                                     if (option.vendor) {
                                         const vId = option.vendor['Vendor ID'] || option.vendor['VendorID'] || option.vendor['vendor_id'] || option.vendor['VENDOR_ID'];
                                         if (vId) {
