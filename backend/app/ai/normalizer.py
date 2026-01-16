@@ -53,9 +53,32 @@ def normalize_address(address: str) -> str:
         return ""
 
     text = address.lower()
-    # Remove common punctuation but keep numbers and letters
+    
+    # Standardize common abbreviations
+    abbreviations = {
+        r"\bst\b": "street",
+        r"\brd\b": "road",
+        r"\bln\b": "lane",
+        r"\bave\b": "avenue",
+        r"\bblvd\b": "boulevard",
+        r"\bdr\b": "drive",
+        r"\bct\b": "court",
+        r"\bpl\b": "place",
+        r"\bsq\b": "square",
+        r"\bste\b": "suite",
+        r"\bapt\b": "apartment",
+        r"\bno\b": "number",
+        r"\bp\.?o\.?\s*box\b": "pobox",
+        r"\bhwy\b": "highway",
+        r"\bpkwy\b": "parkway"
+    }
+    
+    for pattern, replacement in abbreviations.items():
+        text = re.sub(pattern, replacement, text)
+
+    # Remove all non-alphanumeric
     text = re.sub(r"[^a-z0-9 ]", " ", text)
-    # Collapse multiple spaces
+    # Collapse multiple spaces and strip
     text = re.sub(r"\s+", " ", text).strip()
 
     return text

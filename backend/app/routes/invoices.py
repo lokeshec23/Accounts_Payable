@@ -628,7 +628,9 @@ async def update_invoice(
         azure_vendor_name = invoice.get("azure_vendor_name")
         
         if azure_vendor_name and new_vendor_id and new_vendor_id != old_vendor_id:
-            from app.ai.normalizer import normalize_vendor
+            from app.ai.normalizer import normalize_vendor, normalize_address
+            
+            # Persist Name-based mapping
             norm_azure_name = normalize_vendor(azure_vendor_name)
             if norm_azure_name:
                 mapping = {
@@ -645,6 +647,27 @@ async def update_invoice(
                     {"$set": mapping},
                     upsert=True
                 )
+            
+            # Persist Address-based mapping if available
+            vendor_info = extracted_data.get("vendor_info", {})
+            azure_address = vendor_info.get("address", {}).get("value")
+            if azure_address:
+                norm_azure_addr = normalize_address(azure_address)
+                if norm_azure_addr:
+                    addr_mapping = {
+                        "extracted_address": azure_address,
+                        "extracted_address_normalized": norm_azure_addr,
+                        "vendor_id": new_vendor_id,
+                        "official_name": new_vendor_name or invoice.get("vendor_name"),
+                        "entity": invoice.get("entity"),
+                        "updated_at": datetime.utcnow(),
+                        "updated_by": current_user.username
+                    }
+                    db.vendor_metadata.update_one(
+                        {"extracted_address_normalized": norm_azure_addr, "entity": invoice.get("entity")},
+                        {"$set": addr_mapping},
+                        upsert=True
+                    )
                 # Also update top-level vendor fields in the invoice
                 update_data["vendor_id"] = new_vendor_id
                 if new_vendor_name:

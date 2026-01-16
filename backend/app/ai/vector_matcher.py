@@ -70,7 +70,21 @@ def get_cached_vendors(db) -> Tuple[List[Dict], Dict[str, Dict], Dict[str, Dict]
                 if norm:
                     lookup_map[norm] = row
             
+            # Address construction - handle split fields
             v_addr = row.get("Vendor Address") or row.get("VendorAddress") or row.get("Address") or row.get("VENDOR_ADDRESS")
+            if not v_addr:
+                # Try to construct from parts found in logs (ADDRESS_LINE1, CITY, etc.)
+                parts = [
+                    row.get("ADDRESS_LINE1") or row.get("Address1"),
+                    row.get("ADDRESS_LINE2") or row.get("Address2"),
+                    row.get("ADDRESS_LINE3") or row.get("Address3"),
+                    row.get("CITY") or row.get("City"),
+                    row.get("STATE_OR_TERITTORY") or row.get("STATE") or row.get("State"),
+                    row.get("ZIP_OR_POSTAL_CODE") or row.get("ZIP") or row.get("PostalCode") or row.get("ZipCode"),
+                    row.get("COUNTRY") or row.get("Country")
+                ]
+                v_addr = " ".join([str(p).strip() for p in parts if p]).strip()
+
             if v_addr:
                 norm_addr = normalize_address(str(v_addr))
                 if norm_addr:

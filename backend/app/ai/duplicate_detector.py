@@ -2,8 +2,9 @@ import os
 import logging
 from typing import Optional, Dict, Tuple
 from pymongo import ASCENDING
-from app.ai.normalizer import normalize_vendor
 import requests
+from app.ai.normalizer import normalize_vendor, normalize_address
+from app.ai.vector_matcher import find_best_vendor_match
 
 logger = logging.getLogger(__name__)
 
@@ -11,43 +12,54 @@ logger = logging.getLogger(__name__)
 AZURE_DI_ENDPOINT = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT")
 AZURE_DI_KEY = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY")
 
-
-from app.ai.vector_matcher import find_best_vendor_match
-
 def get_vendor_id_from_master(db, vendor_name: str, entity: str = None, vendor_address: str = None) -> Tuple[Optional[str], Optional[str], str]:
     """
-    Normalize vendor name and lookup Vendor ID and official vendor name from Vendor_Master collection.
+    Normalize vendor name and address, then lookup Vendor ID and official vendor name.
     Uses robust matching (Exact -> Embedding -> Text Similarity).
-    Also checks vendor_metadata for manual mappings.
+    Also checks vendor_metadata for manual mappings (both name and address based).
     
     Args:
         db: Database connection
         vendor_name: Raw vendor name from invoice
         entity: Entity identifier
-        vendor_address: Raw vendor address (optional, for logging/debugging)
+        vendor_address: Raw vendor address from invoice
         
     Returns:
         Tuple of (vendor_id, official_vendor_name, line_grouping)
     """
-    if not vendor_name:
+    if not vendor_name and not vendor_address:
         return None, None, "No"
         
-    normalized_name = normalize_vendor(vendor_name)
-    if not normalized_name:
-        return None, None, "No"
+    normalized_name = normalize_vendor(vendor_name) if vendor_name else None
+    normalized_address = normalize_address(vendor_address) if vendor_address else None
 
     # 1. Check vendor_metadata for manual mappings first
-    metadata_query = {"extracted_name_normalized": normalized_name}
-    if entity:
-        metadata_query["entity"] = entity
-        
-    mapping = db.vendor_metadata.find_one(metadata_query)
-    if mapping:
-        logger.info(f"Vendor Mapping: Found manual mapping for '{vendor_name}' -> '{mapping['official_name']}' (ID: {mapping['vendor_id']})")
-        return mapping["vendor_id"], mapping["official_name"], mapping.get("line_grouping", "No")
+    if normalized_name or normalized_address:
+        # Check by address first (Highest Priority)
+        if normalized_address:
+            addr_query = {"extracted_address_normalized": normalized_address}
+            if entity:
+                addr_query["entity"] = entity
+            
+            mapping = db.vendor_metadata.find_one(addr_query)
+            if mapping:
+                logger.info(f"Vendor Mapping: Found manual mapping for address '{vendor_address}' -> '{mapping['official_name']}' (ID: {mapping['vendor_id']})")
+                return mapping["vendor_id"], mapping["official_name"], mapping.get("line_grouping", "No")
+
+        # Then check by name
+        if normalized_name:
+            metadata_query = {"extracted_name_normalized": normalized_name}
+            if entity:
+                metadata_query["entity"] = entity
+            
+            mapping = db.vendor_metadata.find_one(metadata_query)
+            if mapping:
+                logger.info(f"Vendor Mapping: Found manual mapping for name '{vendor_name}' -> '{mapping['official_name']}' (ID: {mapping['vendor_id']})")
+                return mapping["vendor_id"], mapping["official_name"], mapping.get("line_grouping", "No")
 
     # 2. Proceed with robust matching if no manual mapping found
-    result = find_best_vendor_match(db, vendor_name)
+    # Pass both name and address to the matcher
+    result = find_best_vendor_match(db, vendor_name, vendor_address)
     
     if result and result["match"]:
         match = result["match"]

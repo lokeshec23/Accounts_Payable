@@ -406,7 +406,34 @@ const GenericInputFields = ({
     const normalizeAddress = (address) => {
         if (!address) return "";
         let text = String(address).toLowerCase();
-        // Remove common punctuation but keep numbers and letters
+
+        // Synchronized with backend abbreviations
+        const abbreviations = {
+            'st': 'street',
+            'rd': 'road',
+            'ln': 'lane',
+            'ave': 'avenue',
+            'blvd': 'boulevard',
+            'dr': 'drive',
+            'ct': 'court',
+            'pl': 'place',
+            'sq': 'square',
+            'ste': 'suite',
+            'apt': 'apartment',
+            'no': 'number',
+            'p.o. box': 'pobox',
+            'po box': 'pobox',
+            'hwy': 'highway',
+            'pkwy': 'parkway'
+        };
+
+        // Regex for word boundaries
+        Object.keys(abbreviations).forEach(abbrev => {
+            const regex = new RegExp(`\\b${abbrev.replace('.', '\\.')}\\b`, 'g');
+            text = text.replace(regex, abbreviations[abbrev]);
+        });
+
+        // Remove all non-alphanumeric (keep numbers and letters)
         text = text.replace(/[^a-z0-9 ]/g, " ");
         // Collapse multiple spaces
         text = text.replace(/\s+/g, " ").trim();
@@ -418,11 +445,15 @@ const GenericInputFields = ({
 
     useEffect(() => {
         const vendorName = extractValue(formData['Vendor Name']);
-        const vendorAddress = extractValue(formData.vendor_info?.address) ||
-            extractValue(extractionData.vendor_info?.address);
+        const vendorAddress = extractValue(formData['Vendor Address']) ||
+            extractValue(formData.vendor_info?.address) ||
+            extractValue(extractionData.vendor_info?.address) ||
+            extractValue(extractionData.vendor_address) ||
+            extractValue(data?.vendor_address);
 
-        if (vendorName) console.log("DEBUG: Checking Vendor Name:", vendorName);
-        if (vendorAddress) console.log("DEBUG: Checking Vendor Address:", vendorAddress);
+        if (vendorName) console.log("DEBUG: Checking Vendor Name Match for:", vendorName);
+        if (vendorAddress) console.log("DEBUG: Checking Vendor Address Match for:", vendorAddress);
+        else console.warn("DEBUG: No Vendor Address found in current data.");
 
         if ((vendorName || vendorAddress) && vendorMasterData.length > 0) {
             const normalizedNameInput = vendorName ? normalizeVendor(vendorName) : "";
@@ -436,16 +467,18 @@ const GenericInputFields = ({
                 const currentFormId = extractValue(formData['Vendor ID']);
                 // Robust comparison (handle numbers vs strings)
                 if (matchedId && String(matchedId).trim() !== String(currentFormId || '').trim()) {
-                    console.log("DEBUG: Setting Vendor ID:", matchedId);
+                    console.log("DEBUG: Setting Vendor ID from match:", matchedId);
                     setVendorId(matchedId);
                     handleInputChange('Vendor ID', matchedId);
                 }
 
                 // Auto-correct Vendor Name if needed
                 const officialName = match['Vendor Name'] || match['VendorName'] || match['Name'] || match['VENDOR_NAME'];
-                if (officialName && officialName !== vendorName) {
-                    console.log("DEBUG: Auto-correcting Vendor Name to:", officialName);
-                    // Update form data with official name
+                const currentName = String(vendorName || '').trim();
+
+                // If official name is different (ignoring case/spaces for comparison, or just trust master)
+                if (officialName && (normalizeVendor(officialName) !== normalizeVendor(currentName) || officialName !== currentName)) {
+                    console.log(`DEBUG: Auto-correcting Vendor Name from '${currentName}' to '${officialName}'`);
                     handleInputChange('Vendor Name', officialName);
                 }
 
@@ -457,10 +490,29 @@ const GenericInputFields = ({
             let bestLocalMatch = null;
             if (normalizedAddrInput) {
                 bestLocalMatch = vendorMasterData.find(v => {
-                    const masterAddr = v['Vendor Address'] || v['VendorAddress'] || v['Address'] || v['VENDOR_ADDRESS'];
-                    return masterAddr && normalizeAddress(masterAddr) === normalizedAddrInput;
+                    let masterAddr = v['Vendor Address'] || v['VendorAddress'] || v['Address'] || v['VENDOR_ADDRESS'];
+
+                    if (!masterAddr) {
+                        // Construct from parts
+                        const parts = [
+                            v['ADDRESS_LINE1'] || v['Address1'],
+                            v['ADDRESS_LINE2'] || v['Address2'],
+                            v['ADDRESS_LINE3'] || v['Address3'],
+                            v['CITY'] || v['City'],
+                            v['STATE_OR_TERITTORY'] || v['STATE'] || v['State'],
+                            v['ZIP_OR_POSTAL_CODE'] || v['ZIP'] || v['PostalCode'] || v['ZipCode'],
+                            v['COUNTRY'] || v['Country']
+                        ];
+                        masterAddr = parts.filter(p => p).map(p => String(p).trim()).join(" ").trim();
+                    }
+
+                    const normalizedMaster = masterAddr ? normalizeAddress(masterAddr) : "";
+
+                    // console.debug(`DEBUG: Comparing Addr: '${normalizedAddrInput}' vs Master: '${normalizedMaster}'`);
+                    return normalizedMaster === normalizedAddrInput;
                 });
                 if (bestLocalMatch) console.log("DEBUG: Exact Address Match Found (Local)!", bestLocalMatch);
+                else if (normalizedAddrInput) console.log("DEBUG: No Exact Address Match Found (Local) for:", normalizedAddrInput);
             }
 
             // 2. Exact Name Match (Local) - Second Priority
@@ -503,7 +555,12 @@ const GenericInputFields = ({
         } else {
             setSelectedVendorDetails(null);
         }
-    }, [formData['Vendor Name'], vendorMasterData]);
+    }, [
+        formData['Vendor Name'],
+        formData.vendor_info?.address,
+        extractionData.vendor_info?.address,
+        vendorMasterData
+    ]);
 
     const extractNetDays = (terms) => {
         if (!terms) return null;
