@@ -72,6 +72,10 @@ const GenericInputFields = ({
     const [memo, setMemo] = useState('');
     const [exchangeRate, setExchangeRate] = useState(null);
 
+    // Line Grouping state
+    const [lineGrouping, setLineGrouping] = useState('No');
+    const [originalLineItems, setOriginalLineItems] = useState([]);
+
     // Status & validation info
     const [invoiceStatus, setInvoiceStatus] = useState(initialStatus);
     const [validationInfo, setValidationInfo] = useState(
@@ -172,6 +176,7 @@ const GenericInputFields = ({
 
         setFormData(initialFormData);
         setLineItems(items);
+        setOriginalLineItems(items); // Store original items for grouping/ungrouping
 
         setInvoiceStatus(originalData?.status || 'waiting_approval');
         setValidationInfo(originalData?.validation_results || {});
@@ -379,8 +384,6 @@ const GenericInputFields = ({
 
             // Helper to apply match to form
             const applyMatch = (match) => {
-                setSelectedVendorDetails(match);
-
                 // Auto-populate Vendor ID if available and not set
                 const matchedId = match['Vendor ID'] || match['VendorID'] || match['vendor_id'] || match['VENDOR_ID'];
 
@@ -400,36 +403,8 @@ const GenericInputFields = ({
                     handleInputChange('Vendor Name', officialName);
                 }
 
-                // Auto-populate Payment Terms if available and not set
-                console.log("DEBUG: applyMatch - Match Object Keys:", Object.keys(match));
-
-                // Robust case-insensitive lookup
-                const ptKey = Object.keys(match).find(k => {
-                    const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
-                    return normK === 'paymentterms' ||
-                        normK === 'terms' ||
-                        normK === 'termsofpayment' ||
-                        normK === 'creditterms' ||
-                        normK === 'payterms' ||
-                        normK === 'pmtterms';
-                });
-
-                const paymentTerms = ptKey ? match[ptKey] : null;
-
-                const currentTerms = extractValue(formData['Payment Terms']);
-                const isCurrentEmpty = !currentTerms || String(currentTerms).trim() === '';
-
-                console.log("DEBUG: applyMatch - Found Payment Terms Key:", ptKey, "Value:", paymentTerms);
-                console.log("DEBUG: applyMatch - Current Form Payment Terms:", currentTerms, "IsEmpty:", isCurrentEmpty);
-
-                if (paymentTerms && isCurrentEmpty) {
-                    console.log("DEBUG: Auto-populating Payment Terms from Master Data:", paymentTerms);
-                    handleInputChange('Payment Terms', paymentTerms);
-                } else if (!paymentTerms) {
-                    console.warn("DEBUG/WARNING: No Payment Terms found in Master Data for this vendor. Available keys:", Object.keys(match));
-                } else if (!isCurrentEmpty) {
-                    console.log("DEBUG: Payment Terms already present in form ('" + currentTerms + "'), skipping override.");
-                }
+                // Use unified vendor change handler for all other updates
+                handleVendorChange(match);
             };
 
             // 1. Exact/Normalized Match (Local)
@@ -502,6 +477,89 @@ const GenericInputFields = ({
         });
 
         return key ? vendor[key] : null;
+    };
+
+    // ---------- Line Item Grouping Logic ----------
+    const aggregateLineItems = (items) => {
+        if (!items || items.length === 0) return [];
+
+        const first = items[0];
+        let totalQuantity = 0;
+        let totalUnitPrice = 0;
+        let totalNetAmount = 0;
+        let totalTaxAmount = 0;
+        let totalDiscount = 0;
+
+        items.forEach(item => {
+            totalQuantity += parseCurrencyValue(extractValue(item.Quantity));
+            totalUnitPrice += parseCurrencyValue(extractValue(item.UnitPrice));
+            totalNetAmount += parseCurrencyValue(extractValue(item.NetAmount));
+            totalTaxAmount += parseCurrencyValue(extractValue(item.TaxAmount));
+            totalDiscount += parseCurrencyValue(extractValue(item.Discount));
+        });
+
+        return {
+            Description: { value: extractValue(first.Description) || 'Aggregated Items', source: 'aggregation' },
+            Quantity: { value: totalQuantity, source: 'aggregation' },
+            UnitPrice: { value: totalUnitPrice, source: 'aggregation' },
+            NetAmount: { value: totalNetAmount, source: 'aggregation' },
+            TaxAmount: { value: totalTaxAmount, source: 'aggregation' },
+            Discount: { value: totalDiscount, source: 'aggregation' },
+            ItemCode: first.ItemCode || { value: '' },
+            UnitOfMeasure: first.UnitOfMeasure || { value: '' },
+            TaxRate: first.TaxRate || { value: '' },
+            GrossAmount: { value: totalNetAmount + totalTaxAmount, source: 'aggregation' }
+        };
+    };
+
+    const applyLineGrouping = (groupingSetting) => {
+        console.log('DEBUG: Applying line grouping:', groupingSetting);
+
+        if (groupingSetting === 'Yes') {
+            // Aggregate all line items into one
+            if (originalLineItems.length > 0) {
+                const aggregated = aggregateLineItems(originalLineItems);
+                console.log('DEBUG: Aggregated line item:', aggregated);
+                setLineItems([aggregated]);
+            }
+        } else {
+            // Restore original line items
+            console.log('DEBUG: Restoring original line items, count:', originalLineItems.length);
+            setLineItems([...originalLineItems]);
+        }
+    };
+
+    // ---------- Comprehensive Vendor Change Handler ----------
+    const handleVendorChange = (vendorDetails) => {
+        if (!vendorDetails) return;
+
+        console.log('DEBUG: handleVendorChange called with vendor:', vendorDetails);
+
+        // 1. Update selected vendor details
+        setSelectedVendorDetails(vendorDetails);
+
+        // 2. Extract and apply Payment Terms
+        const ptKey = Object.keys(vendorDetails).find(k => {
+            const normK = k.toLowerCase().replace(/[\s_\\-]/g, '');
+            return normK === 'paymentterms' || normK === 'terms' || normK === 'termsofpayment';
+        });
+        if (ptKey && vendorDetails[ptKey]) {
+            console.log('DEBUG: Applying Payment Terms:', vendorDetails[ptKey]);
+            handleInputChange('Payment Terms', vendorDetails[ptKey]);
+        }
+
+        // 3. Extract and apply Line Grouping
+        const grouping = vendorDetails['Line Grouping'] ||
+            vendorDetails['LineGrouping'] ||
+            vendorDetails['line_grouping'] ||
+            vendorDetails['LINE_GROUPING'] || 'No';
+        console.log('DEBUG: Line Grouping setting:', grouping);
+        setLineGrouping(grouping);
+        applyLineGrouping(grouping);
+
+        // 4. GST and TDS are already handled by selectedVendorDetails display
+        // 5. Trigger workflow refresh
+        setWorkflowRefreshTrigger(prev => prev + 1);
     };
 
 
@@ -1837,15 +1895,8 @@ const GenericInputFields = ({
                                         if (vName) {
                                             handleInputChange('Vendor Name', vName);
                                         }
-                                        setSelectedVendorDetails(option.vendor);
-                                        // Trigger other logic if needed e.g. Payment Terms
-                                        const ptKey = Object.keys(option.vendor).find(k => {
-                                            const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
-                                            return normK === 'paymentterms' || normK === 'terms' || normK === 'termsofpayment';
-                                        });
-                                        if (ptKey && option.vendor[ptKey]) {
-                                            handleInputChange('Payment Terms', option.vendor[ptKey]);
-                                        }
+                                        // Use unified vendor change handler
+                                        handleVendorChange(option.vendor);
                                     }
                                 }}
                                 options={vendorIdOptions}
@@ -1874,15 +1925,8 @@ const GenericInputFields = ({
                                             setVendorId(vId);
                                             handleInputChange('Vendor ID', vId);
                                         }
-                                        setSelectedVendorDetails(option.vendor);
-                                        // Trigger other logic if needed e.g. Payment Terms
-                                        const ptKey = Object.keys(option.vendor).find(k => {
-                                            const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
-                                            return normK === 'paymentterms' || normK === 'terms' || normK === 'termsofpayment';
-                                        });
-                                        if (ptKey && option.vendor[ptKey]) {
-                                            handleInputChange('Payment Terms', option.vendor[ptKey]);
-                                        }
+                                        // Use unified vendor change handler
+                                        handleVendorChange(option.vendor);
                                     }
                                 }}
                                 options={vendorNameOptions}
