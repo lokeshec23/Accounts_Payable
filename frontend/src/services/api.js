@@ -190,8 +190,11 @@ export const masterDataService = {
   },
 
   // 9️⃣ Embedding Search
-  async searchVendor(vendorName) {
-    const response = await api.post("/master/search-vendor", { vendor_name: vendorName });
+  async searchVendor(vendorName, vendorAddress = null) {
+    const response = await api.post("/master/search-vendor", {
+      vendor_name: vendorName,
+      vendor_address: vendorAddress
+    });
     return response.data;
   },
 

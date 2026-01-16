@@ -14,22 +14,23 @@ AZURE_DI_KEY = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY")
 
 from app.ai.vector_matcher import find_best_vendor_match
 
-def get_vendor_id_from_master(db, vendor_name: str) -> Tuple[Optional[str], Optional[str]]:
+def get_vendor_id_from_master(db, vendor_name: str, vendor_address: str = None) -> Tuple[Optional[str], Optional[str], str]:
     """
-    Normalize vendor name and lookup Vendor ID and official vendor name from Vendor_Master collection.
-    Uses robust matching (Exact -> Embedding -> Text Similarity).
+    Normalize vendor name/address and lookup Vendor ID and official vendor name from Vendor_Master collection.
+    Uses robust matching (Address -> Exact -> Embedding -> Text Similarity).
     
     Args:
         db: Database connection
         vendor_name: Raw vendor name from invoice
+        vendor_address: Raw vendor address from invoice
         
     Returns:
-        Tuple of (vendor_id, official_vendor_name) if found, (None, None) otherwise
+        Tuple of (vendor_id, official_vendor_name, line_grouping) if found, (None, None, "No") otherwise
     """
-    if not vendor_name:
-        return None, None
+    if not vendor_name and not vendor_address:
+        return None, None, "No"
         
-    result = find_best_vendor_match(db, vendor_name)
+    result = find_best_vendor_match(db, vendor_name, vendor_address)
     
     if result and result["match"]:
         match = result["match"]
@@ -43,10 +44,10 @@ def get_vendor_id_from_master(db, vendor_name: str) -> Tuple[Optional[str], Opti
         line_grouping = match.get("Line Grouping") or "No"
 
         if vendor_id:
-             logger.info(f"Duplicate Detector: Matched '{vendor_name}' -> '{official_name}' (ID: {vendor_id}) via {result['method']}")
+             logger.info(f"Duplicate Detector: Matched via {result['method']}")
              return str(vendor_id), str(official_name), str(line_grouping)
              
-    logger.warning(f"Duplicate Detector: No match found for '{vendor_name}'")
+    logger.warning(f"Duplicate Detector: No match found for Name='{vendor_name}', Addr='{vendor_address}'")
     return None, None, "No"
 
 
@@ -80,20 +81,20 @@ def check_duplicate_invoice(db, vendor_id: str, invoice_number: str, entity: str
     return None
 
 
-def extract_vendor_and_invoice_number(file_path: str) -> Tuple[Optional[str], Optional[str]]:
+async def extract_vendor_invoice_and_address(file_path: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
-    Quick extraction of vendor name and invoice number using Azure Document Intelligence.
-    This is a lightweight extraction focused only on key fields needed for duplicate detection.
+    Quick extraction of vendor name, invoice number, and address using Azure Document Intelligence.
+    This is a lightweight extraction focused only on key fields needed for duplicate detection and normalization.
     
     Args:
         file_path: Path to invoice PDF file
         
     Returns:
-        Tuple of (vendor_name, invoice_number)
+        Tuple of (vendor_name, invoice_number, vendor_address)
     """
     if not AZURE_DI_ENDPOINT or not AZURE_DI_KEY:
         logger.warning("Azure Document Intelligence not configured, cannot perform quick extraction")
-        return None, None
+        return None, None, None
     
     try:
         logger.info(f"Starting quick extraction for: {file_path}")
@@ -124,14 +125,13 @@ def extract_vendor_and_invoice_number(file_path: str) -> Tuple[Optional[str], Op
             if hasattr(e, 'response') and e.response is not None:
                 logger.error(f"Response status: {e.response.status_code}")
                 logger.error(f"Response content: {e.response.text[:500]}")
-            return None, None
+            return None, None, None
         
         # Get operation location
         operation_location = response.headers.get("Operation-Location")
         if not operation_location:
             logger.error("No operation location in response headers")
-            logger.error(f"Available headers: {list(response.headers.keys())}")
-            return None, None
+            return None, None, None
         
         logger.info(f"Operation location: {operation_location}")
         
@@ -157,65 +157,43 @@ def extract_vendor_and_invoice_number(file_path: str) -> Tuple[Optional[str], Op
             logger.debug(f"Polling attempt {attempt + 1}: status={status}")
             
             if status == "succeeded":
-                # Extract vendor name and invoice number
+                # Extract vendor name, invoice number, and address
                 vendor_name = None
                 invoice_number = None
+                vendor_address = None
                 
                 if "analyzeResult" in result:
-                    logger.debug(f"analyzeResult keys: {list(result['analyzeResult'].keys())}")
-                    
                     if "documents" in result["analyzeResult"]:
-                        logger.info(f"Found {len(result['analyzeResult']['documents'])} document(s)")
-                        
                         for doc in result["analyzeResult"]["documents"]:
                             fields = doc.get("fields", {})
-                            logger.debug(f"Available fields: {list(fields.keys())}")
                             
-                            # Try multiple field name variations for vendor
-                            for vendor_field in ["VendorName", "vendorName", "Vendor", "SupplierName"]:
-                                if vendor_field in fields:
-                                    field_data = fields[vendor_field]
-                                    vendor_name = (
-                                        field_data.get("content") or 
-                                        field_data.get("valueString") or 
-                                        field_data.get("value")
-                                    )
-                                    if vendor_name:
-                                        logger.info(f"✓ Found vendor via field '{vendor_field}': {vendor_name}")
-                                        break
+                            # Vendor Name
+                            for f in ["VendorName", "vendorName", "Vendor", "SupplierName"]:
+                                if f in fields:
+                                    vendor_name = fields[f].get("content") or fields[f].get("valueString") or fields[f].get("value")
+                                    if vendor_name: break
                             
-                            # Try multiple field name variations for invoice number
-                            for invoice_field in ["InvoiceId", "invoiceId", "InvoiceNumber", "DocumentId"]:
-                                if invoice_field in fields:
-                                    field_data = fields[invoice_field]
-                                    invoice_number = (
-                                        field_data.get("content") or 
-                                        field_data.get("valueString") or 
-                                        field_data.get("value")
-                                    )
-                                    if invoice_number:
-                                        logger.info(f"✓ Found invoice# via field '{invoice_field}': {invoice_number}")
-                                        break
+                            # Invoice Number
+                            for f in ["InvoiceId", "invoiceId", "InvoiceNumber", "DocumentId"]:
+                                if f in fields:
+                                    invoice_number = fields[f].get("content") or fields[f].get("valueString") or fields[f].get("value")
+                                    if invoice_number: break
+
+                            # Vendor Address
+                            for f in ["VendorAddress", "vendorAddress", "Address"]:
+                                if f in fields:
+                                    vendor_address = fields[f].get("content") or fields[f].get("valueString") or fields[f].get("value")
+                                    if vendor_address: break
                             
-                            # If we found both, break
-                            if vendor_name and invoice_number:
+                            if vendor_name and invoice_number and vendor_address:
                                 break
-                    else:
-                        logger.warning("No 'documents' found in analyzeResult")
-                else:
-                    logger.warning("No 'analyzeResult' found in response")
-                
-                if vendor_name or invoice_number:
-                    logger.info(f"✅ Quick extraction completed: vendor={vendor_name}, invoice={invoice_number}")
-                else:
-                    logger.warning("⚠️ Quick extraction completed but no vendor/invoice found")
                     
-                return vendor_name, invoice_number
+                return vendor_name, invoice_number, vendor_address
             
             elif status == "failed":
-                error_info = result.get("error", {})
-                logger.error(f"❌ Azure DI analysis failed: {error_info}")
-                return None, None
+                return None, None, None
+        
+        return None, None, None
         
         logger.warning("⏱️ Quick extraction timed out after 60 seconds")
         return None, None

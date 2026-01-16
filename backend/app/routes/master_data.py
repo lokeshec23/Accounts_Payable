@@ -18,6 +18,7 @@ router = APIRouter(tags=["Master Data"])
 
 class SearchVendorRequest(BaseModel):
     vendor_name: str
+    vendor_address: str = None
 
 @router.post("/search-vendor")
 def search_vendor(
@@ -25,18 +26,17 @@ def search_vendor(
     current_user: UserResponse = Depends(get_current_user)
 ):
     """
-    Search for a vendor in the active Vendor Master list using embedding similarity.
+    Search for a vendor in the active Vendor Master list using address (priority) then name similarity.
     """
     db = get_database()
-    
     
     # Use shared robust matcher
     from app.ai.vector_matcher import find_best_vendor_match
     
-    result = find_best_vendor_match(db, request.vendor_name)
+    result = find_best_vendor_match(db, request.vendor_name, request.vendor_address)
     
     if result and result["match"]:
-        # Match found (Exact, Embedding, or Text)
+        # Match found (Exact Address, Exact Name, Embedding, or Text)
         return {"match": result["match"], "score": result["score"], "method": result["method"]}
         
     return {"match": None, "score": 0.0, "method": "none"}

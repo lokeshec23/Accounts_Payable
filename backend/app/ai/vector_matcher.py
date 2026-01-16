@@ -1,7 +1,7 @@
 import logging
 import time
 from typing import Optional, Dict, Any, Tuple, List
-from app.ai.normalizer import normalize_vendor
+from app.ai.normalizer import normalize_vendor, normalize_address
 from app.ai.embeddings import embed_text
 from app.ai.similarity import cosine_similarity
 from difflib import SequenceMatcher
@@ -12,33 +12,34 @@ logger = logging.getLogger(__name__)
 # Structure:
 # {
 #    "data": [list of vendor rows],
-#    "map": {normalized_name: vendor_row},  # For O(1) exact match
+#    "map": {normalized_name: vendor_row},  # For O(1) exact name match
+#    "address_map": {normalized_address: vendor_row}, # For O(1) exact address match
 #    "timestamp": float  # When cache was last updated
 # }
 _VENDOR_CACHE = {
     "data": [],
     "map": {},
+    "address_map": {},
     "timestamp": 0
 }
 CACHE_TTL = 300  # 5 minutes in seconds
 
-def get_cached_vendors(db) -> Tuple[List[Dict], Dict[str, Dict]]:
+def get_cached_vendors(db) -> Tuple[List[Dict], Dict[str, Dict], Dict[str, Dict]]:
     """
     Retrieve vendors from cache or reload from DB if expired.
     Returns:
-        (list_of_all_vendors, map_of_normalized_names)
+        (list_of_all_vendors, map_of_normalized_names, map_of_normalized_addresses)
     """
     global _VENDOR_CACHE
     current_time = time.time()
     
     # Return cache if valid
     if _VENDOR_CACHE["data"] and (current_time - _VENDOR_CACHE["timestamp"] < CACHE_TTL):
-        return _VENDOR_CACHE["data"], _VENDOR_CACHE["map"]
+        return _VENDOR_CACHE["data"], _VENDOR_CACHE["map"], _VENDOR_CACHE["address_map"]
         
     logger.info("Vendor cache expired or empty. Reloading from database...")
     
     # Find active Vendor_Master collection
-    # Note: In a high-concurrency env, this simple check might race, but it's acceptable here.
     try:
         files = list(db["excel_files"].find({}))
         vendor_master_file = None
@@ -49,7 +50,7 @@ def get_cached_vendors(db) -> Tuple[List[Dict], Dict[str, Dict]]:
                 
         if not vendor_master_file or not vendor_master_file.get("sheets"):
             logger.warning("No Vendor Master file found in database")
-            return [], {}
+            return [], {}, {}
             
         collection_name = vendor_master_file["sheets"][0]["collection_name"]
         
@@ -59,41 +60,49 @@ def get_cached_vendors(db) -> Tuple[List[Dict], Dict[str, Dict]]:
         for chunk in chunks:
             rows.extend(chunk.get("rows", []))
             
-        # Build lookup map for O(1) exact match
+        # Build lookup maps for O(1) exact match
         lookup_map = {}
+        address_map = {}
         for row in rows:
             v_name = row.get("Vendor Name") or row.get("VendorName") or row.get("Name") or row.get("VENDOR_NAME")
             if v_name:
                 norm = normalize_vendor(str(v_name))
                 if norm:
-                    # If duplicate normalized names exist, the last one wins (or logic could be improved)
                     lookup_map[norm] = row
+            
+            v_addr = row.get("Vendor Address") or row.get("VendorAddress") or row.get("Address") or row.get("VENDOR_ADDRESS")
+            if v_addr:
+                norm_addr = normalize_address(str(v_addr))
+                if norm_addr:
+                    address_map[norm_addr] = row
                     
         # Update Cache
         _VENDOR_CACHE = {
             "data": rows,
             "map": lookup_map,
+            "address_map": address_map,
             "timestamp": current_time
         }
         
         logger.info(f"Vendor cache refreshed. Loaded {len(rows)} vendors.")
-        return rows, lookup_map
+        return rows, lookup_map, address_map
         
     except Exception as e:
         logger.error(f"Error loading vendor master: {e}")
-        # Return fallback empty data so we don't crash
-        return [], {}
+        return [], {}, {}
 
 
 def find_best_vendor_match(
     db, 
     input_vendor_name: str, 
+    input_vendor_address: str = None,
     threshold_embedding: float = 0.85, 
     threshold_text: float = 0.60
 ) -> Dict[str, Any]:
     """
     Find the best matching vendor from Master Data using a multi-stage approach:
-    1. Exact Normalized Match (Fastest O(1) with cache)
+    0. Exact Normalized Address Match (HIGHEST PRIORITY)
+    1. Exact Normalized Name Match
     2. Embedding Similarity (Semantic)
     3. Text Similarity (Fuzzy / Typos)
     
@@ -101,29 +110,48 @@ def find_best_vendor_match(
         Dictionary containing:
         - match: The vendor document (or None)
         - score: Confidence score (0.0 - 1.0)
-        - method: "exact", "embedding", "text_similarity", or "none"
+        - method: "exact_address", "exact", "embedding", "text_similarity", or "none"
     """
-    if not input_vendor_name:
+    if not input_vendor_name and not input_vendor_address:
         return {"match": None, "score": 0.0, "method": "none", "reason": "Empty input"}
 
-    normalized_input = normalize_vendor(input_vendor_name)
-    if not normalized_input:
-         return {"match": None, "score": 0.0, "method": "none", "reason": "Normalized input empty"}
-
     # 1. Load Master Data (Cached)
-    vendors, vendor_map = get_cached_vendors(db)
+    vendors, vendor_map, address_map = get_cached_vendors(db)
     
     if not vendors:
          return {"match": None, "score": 0.0, "method": "none", "reason": "No Master Data"}
 
-    # 2. Exact Match Check (O(1) using Map)
-    if normalized_input in vendor_map:
-        match_row = vendor_map[normalized_input]
-        v_name = match_row.get("Vendor Name") or match_row.get("VendorName") or match_row.get("Name") or match_row.get("VENDOR_NAME")
-        logger.info(f"Exact match found (Cached): {v_name}")
-        return {"match": match_row, "score": 1.0, "method": "exact"}
+    # 2. EXACT ADDRESS MATCH (Highest Priority)
+    if input_vendor_address:
+        normalized_address = normalize_address(input_vendor_address)
+        if normalized_address in address_map:
+            match_row = address_map[normalized_address]
+            v_name = match_row.get("Vendor Name") or match_row.get("VendorName") or match_row.get("Name") or match_row.get("VENDOR_NAME")
+            logger.info(f"Exact Address match found: {v_name}")
+            return {"match": match_row, "score": 1.0, "method": "exact_address"}
 
-    # 3. Text Similarity (Fuzzy Match) - Moved up for performance
+    # 3. EXACT NAME MATCH
+    normalized_input = None # Initialize for later use
+    if input_vendor_name:
+        normalized_input = normalize_vendor(input_vendor_name)
+        if not normalized_input:
+            # If name was provided but normalized to empty, we can't proceed with name-based matching
+            return {"match": None, "score": 0.0, "method": "none", "reason": "Normalized input name empty"}
+
+        if normalized_input in vendor_map:
+            match_row = vendor_map[normalized_input]
+            v_name = match_row.get("Vendor Name") or match_row.get("VendorName") or match_row.get("Name") or match_row.get("VENDOR_NAME")
+            logger.info(f"Exact Name match found (Cached): {v_name}")
+            return {"match": match_row, "score": 1.0, "method": "exact"}
+    else:
+        # If no name provided and address didn't match, return none
+        return {"match": None, "score": 0.0, "method": "none", "reason": "No name provided and address match failed"}
+
+    # If we reach here, no exact address or name match was found. Proceed with fuzzy/embedding on name.
+    # Ensure normalized_input is available for subsequent steps if input_vendor_name was provided.
+    # It should be defined from the "3. EXACT NAME MATCH" block.
+
+    # 4. Text Similarity (Fuzzy Match) - Based on NAME
     logger.info("Checking text similarity...")
     best_text_score = 0
     best_text_match = None
@@ -134,8 +162,8 @@ def find_best_vendor_match(
         
         norm_name = normalize_vendor(str(v_name))
         
-        # Optimization: Length filter
-        if abs(len(norm_name) - len(normalized_input)) > 5:
+        # Optimization: Length filter (Relaxed to allow "Company" vs "Company North America")
+        if abs(len(norm_name) - len(normalized_input)) > 15:
             continue
             
         similarity = SequenceMatcher(None, normalized_input, norm_name).ratio()
@@ -148,8 +176,7 @@ def find_best_vendor_match(
         logger.info(f"Text similarity match: {best_text_match.get('VENDOR_NAME', 'Unknown')} (Score: {best_text_score})")
         return {"match": best_text_match, "score": best_text_score, "method": "text_similarity"}
 
-    # 4. Embedding Match (Semantic) - Fallback, expensive!
-    # Only run if dataset is small or we really need it.
+    # 5. Embedding Match (Semantic) - Fallback based on NAME
     if len(vendors) > 20: 
         logger.warning(f"Skipping embedding match due to large dataset size ({len(vendors)} vendors). Relying on text similarity.")
         # Return best text match if it exists (even if below threshold, maybe?) 

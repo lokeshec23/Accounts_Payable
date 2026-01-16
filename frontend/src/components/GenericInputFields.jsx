@@ -389,15 +389,24 @@ const GenericInputFields = ({
     }, []);
 
     // ---------- Vendor Logic & Due Date Calculation ----------
-    // Normalization helper (matches backend logic)
     const normalizeVendor = (name) => {
         if (!name) return "";
         let text = String(name).toLowerCase();
         // Replace multiplication sign with x
         text = text.replace(/×/g, "x");
-        // Remove common suffixes
-        text = text.replace(/\b(pvt|private|ltd|limited|inc|llp|corp|corporation)\b/g, "");
+        // Remove common suffixes with word boundaries
+        text = text.replace(/\b(pvt|private|ltd|limited|inc|llp|corp|corporation|llc|plc|gmbh|co|ag)\b/g, "");
         // Remove non-alpha-numeric characters (keep spaces)
+        text = text.replace(/[^a-z0-9 ]/g, " ");
+        // Collapse multiple spaces
+        text = text.replace(/\s+/g, " ").trim();
+        return text;
+    };
+
+    const normalizeAddress = (address) => {
+        if (!address) return "";
+        let text = String(address).toLowerCase();
+        // Remove common punctuation but keep numbers and letters
         text = text.replace(/[^a-z0-9 ]/g, " ");
         // Collapse multiple spaces
         text = text.replace(/\s+/g, " ").trim();
@@ -409,12 +418,15 @@ const GenericInputFields = ({
 
     useEffect(() => {
         const vendorName = extractValue(formData['Vendor Name']);
+        const vendorAddress = extractValue(formData.vendor_info?.address) ||
+            extractValue(extractionData.vendor_info?.address);
 
         if (vendorName) console.log("DEBUG: Checking Vendor Name:", vendorName);
+        if (vendorAddress) console.log("DEBUG: Checking Vendor Address:", vendorAddress);
 
-        if (vendorName && vendorMasterData.length > 0) {
-            const normalizedInput = normalizeVendor(vendorName);
-            console.log("DEBUG: Normalized Input:", normalizedInput);
+        if ((vendorName || vendorAddress) && vendorMasterData.length > 0) {
+            const normalizedNameInput = vendorName ? normalizeVendor(vendorName) : "";
+            const normalizedAddrInput = vendorAddress ? normalizeAddress(vendorAddress) : "";
 
             // Helper to apply match to form
             const applyMatch = (match) => {
@@ -441,30 +453,39 @@ const GenericInputFields = ({
                 handleVendorChange(match);
             };
 
-            // 1. Exact/Normalized Match (Local)
-            const exactMatch = vendorMasterData.find(v => {
-                const masterName = v['Vendor Name'] || v['VendorName'] || v['Name'];
-                const normalizedMaster = normalizeVendor(masterName);
-                if (normalizedMaster === normalizedInput) {
-                    console.log("DEBUG: Exact Match Found!", v);
-                    return true;
-                }
-                return false;
-            });
+            // 1. Exact Address Match (Local) - HIGHEST PRIORITY
+            let bestLocalMatch = null;
+            if (normalizedAddrInput) {
+                bestLocalMatch = vendorMasterData.find(v => {
+                    const masterAddr = v['Vendor Address'] || v['VendorAddress'] || v['Address'] || v['VENDOR_ADDRESS'];
+                    return masterAddr && normalizeAddress(masterAddr) === normalizedAddrInput;
+                });
+                if (bestLocalMatch) console.log("DEBUG: Exact Address Match Found (Local)!", bestLocalMatch);
+            }
 
-            if (exactMatch) {
-                applyMatch(exactMatch);
+            // 2. Exact Name Match (Local) - Second Priority
+            if (!bestLocalMatch && normalizedNameInput) {
+                bestLocalMatch = vendorMasterData.find(v => {
+                    const masterName = v['Vendor Name'] || v['VendorName'] || v['Name'] || v['VENDOR_NAME'];
+                    return masterName && normalizeVendor(masterName) === normalizedNameInput;
+                });
+                if (bestLocalMatch) console.log("DEBUG: Exact Name Match Found (Local)!", bestLocalMatch);
+            }
+
+            if (bestLocalMatch) {
+                applyMatch(bestLocalMatch);
             } else {
-                // 2. API Embedding Search (Fallback) - RUN ONCE ONLY
+                // 3. API Search (Fallback) - RUN ONCE ONLY
                 if (!initialSearchDone.current) {
-                    console.log("DEBUG: No exact match, attempting AI embedding search (One-time)...");
-                    initialSearchDone.current = true; // Mark as done before running to prevent duplicate calls
+                    console.log("DEBUG: No local exact match, attempting AI search (One-time)...");
+                    initialSearchDone.current = true;
 
                     const searchAsync = async () => {
                         try {
-                            const result = await masterDataService.searchVendor(vendorName);
+                            // Search using both name and address
+                            const result = await masterDataService.searchVendor(vendorName, vendorAddress);
                             if (result && result.match) {
-                                console.log("DEBUG: AI Match Found:", result.match, "Score:", result.score);
+                                console.log(`DEBUG: AI Match Found (${result.method}):`, result.match, "Score:", result.score);
                                 applyMatch(result.match);
                             } else {
                                 console.log("DEBUG: No AI match found.");

@@ -25,7 +25,7 @@ async def upload_invoices(
     entity: str = Depends(get_current_entity)
 ):
     from app.ai.duplicate_detector import (
-        extract_vendor_and_invoice_number,
+        extract_vendor_invoice_and_address,
         get_vendor_id_from_master
     )
     from app.utils.invoice_registry import check_registry_duplicate, register_invoice
@@ -53,12 +53,12 @@ async def upload_invoices(
                 f.write(contents)
 
             # ---- DUPLICATE DETECTION (BEFORE EXTRACTION) ----
-            extracted_vendor_name, invoice_number = extract_vendor_and_invoice_number(file_path)
+            extracted_vendor_name, invoice_number, extracted_vendor_address = await extract_vendor_invoice_and_address(file_path)
             
             duplicate_info = None
-            if extracted_vendor_name and invoice_number:
+            if (extracted_vendor_name or extracted_vendor_address) and invoice_number:
                 # Get vendor ID, OFFICIAL vendor name, and line grouping config from master
-                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name)
+                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name, extracted_vendor_address)
                 
                 if vendor_id:
                     # Fast O(1) duplicate check using registry
@@ -98,8 +98,8 @@ async def upload_invoices(
             
             # Add vendor_id, official vendor name, and invoice_number if available
             current_line_grouping = "No"
-            if extracted_vendor_name and invoice_number:
-                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name)
+            if (extracted_vendor_name or extracted_vendor_address) and invoice_number:
+                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name, extracted_vendor_address)
                 if vendor_id:
                     invoice_dict["vendor_id"] = vendor_id
                     invoice_dict["vendor_name"] = official_vendor_name  # Official name from master
@@ -127,11 +127,12 @@ async def upload_invoices(
             # Update vendor_id and vendor_name from full extraction if not already set
             extracted_data = extraction.get("extracted_data", {})
             if not invoice_dict.get("vendor_id"):
-                # Try to get vendor name from full extraction
+                # Try to get vendor name and address from full extraction
                 vendor_info = extracted_data.get("vendor_info", {})
                 extracted_vendor = vendor_info.get("name", {}).get("value")
-                if extracted_vendor:
-                    vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor)
+                extracted_address = vendor_info.get("address", {}).get("value")
+                if extracted_vendor or extracted_address:
+                    vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor, extracted_address)
                     if vendor_id:
                         update_data["vendor_id"] = vendor_id
                         update_data["vendor_name"] = official_vendor_name

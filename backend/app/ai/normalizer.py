@@ -32,8 +32,30 @@ def normalize_vendor(name: str) -> str:
 
     text = name.lower()
     text = text.replace("×", "x")
-    text = re.sub(r"(pvt|private|ltd|limited|inc|llp|corp|corporation)", "", text)
+    # Remove common corporate suffixes with word boundaries
+    # Added llc, plc, gmbh, co, ag
+    suffixes = r"\b(pvt|private|ltd|limited|inc|llp|corp|corporation|llc|plc|gmbh|co|ag)\b"
+    text = re.sub(suffixes, "", text)
+    
+    # Remove all non-alphanumeric (keep spaces)
     text = re.sub(r"[^a-z0-9 ]", " ", text)
+    # Collapse multiple spaces and strip
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
+
+def normalize_address(address: str) -> str:
+    """
+    Normalize vendor address for consistent history lookup.
+    """
+    if not address:
+        return ""
+
+    text = address.lower()
+    # Remove common punctuation but keep numbers and letters
+    text = re.sub(r"[^a-z0-9 ]", " ", text)
+    # Collapse multiple spaces
     text = re.sub(r"\s+", " ", text).strip()
 
     return text
