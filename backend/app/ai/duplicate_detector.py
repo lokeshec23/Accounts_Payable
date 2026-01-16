@@ -14,23 +14,39 @@ AZURE_DI_KEY = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY")
 
 from app.ai.vector_matcher import find_best_vendor_match
 
-def get_vendor_id_from_master(db, vendor_name: str, vendor_address: str = None) -> Tuple[Optional[str], Optional[str], str]:
+def get_vendor_id_from_master(db, vendor_name: str, entity: str = None) -> Tuple[Optional[str], Optional[str], str]:
     """
-    Normalize vendor name/address and lookup Vendor ID and official vendor name from Vendor_Master collection.
-    Uses robust matching (Address -> Exact -> Embedding -> Text Similarity).
+    Normalize vendor name and lookup Vendor ID and official vendor name from Vendor_Master collection.
+    Uses robust matching (Exact -> Embedding -> Text Similarity).
+    Also checks vendor_metadata for manual mappings.
     
     Args:
         db: Database connection
         vendor_name: Raw vendor name from invoice
-        vendor_address: Raw vendor address from invoice
+        entity: Entity identifier
         
     Returns:
-        Tuple of (vendor_id, official_vendor_name, line_grouping) if found, (None, None, "No") otherwise
+        Tuple of (vendor_id, official_vendor_name, line_grouping)
     """
-    if not vendor_name and not vendor_address:
+    if not vendor_name:
         return None, None, "No"
         
-    result = find_best_vendor_match(db, vendor_name, vendor_address)
+    normalized_name = normalize_vendor(vendor_name)
+    if not normalized_name:
+        return None, None, "No"
+
+    # 1. Check vendor_metadata for manual mappings first
+    metadata_query = {"extracted_name_normalized": normalized_name}
+    if entity:
+        metadata_query["entity"] = entity
+        
+    mapping = db.vendor_metadata.find_one(metadata_query)
+    if mapping:
+        logger.info(f"Vendor Mapping: Found manual mapping for '{vendor_name}' -> '{mapping['official_name']}' (ID: {mapping['vendor_id']})")
+        return mapping["vendor_id"], mapping["official_name"], mapping.get("line_grouping", "No")
+
+    # 2. Proceed with robust matching if no manual mapping found
+    result = find_best_vendor_match(db, vendor_name)
     
     if result and result["match"]:
         match = result["match"]

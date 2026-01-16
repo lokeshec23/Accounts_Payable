@@ -58,7 +58,7 @@ async def upload_invoices(
             duplicate_info = None
             if (extracted_vendor_name or extracted_vendor_address) and invoice_number:
                 # Get vendor ID, OFFICIAL vendor name, and line grouping config from master
-                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name, extracted_vendor_address)
+                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name, entity)
                 
                 if vendor_id:
                     # Fast O(1) duplicate check using registry
@@ -98,9 +98,10 @@ async def upload_invoices(
             
             # Add vendor_id, official vendor name, and invoice_number if available
             current_line_grouping = "No"
-            if (extracted_vendor_name or extracted_vendor_address) and invoice_number:
-                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name, extracted_vendor_address)
+            if extracted_vendor_name and invoice_number:
+                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name, entity)
                 if vendor_id:
+                    invoice_dict["azure_vendor_name"] = extracted_vendor_name
                     invoice_dict["vendor_id"] = vendor_id
                     invoice_dict["vendor_name"] = official_vendor_name  # Official name from master
                     invoice_dict["invoice_number"] = invoice_number
@@ -127,12 +128,11 @@ async def upload_invoices(
             # Update vendor_id and vendor_name from full extraction if not already set
             extracted_data = extraction.get("extracted_data", {})
             if not invoice_dict.get("vendor_id"):
-                # Try to get vendor name and address from full extraction
-                vendor_info = extracted_data.get("vendor_info", {})
+                # Try to get vendor name from full extraction
                 extracted_vendor = vendor_info.get("name", {}).get("value")
-                extracted_address = vendor_info.get("address", {}).get("value")
-                if extracted_vendor or extracted_address:
-                    vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor, extracted_address)
+                if extracted_vendor:
+                    update_data["azure_vendor_name"] = extracted_vendor
+                    vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor, entity)
                     if vendor_id:
                         update_data["vendor_id"] = vendor_id
                         update_data["vendor_name"] = official_vendor_name
@@ -614,6 +614,39 @@ async def update_invoice(
     invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # --- Vendor Mapping Persistence ---
+    extracted_data = update_data.get("extracted_data")
+    if extracted_data:
+        # Check if vendor info is being updated
+        new_vendor_id = extracted_data.get("vendor_info", {}).get("vendor_id", {}).get("value")
+        new_vendor_name = extracted_data.get("vendor_info", {}).get("name", {}).get("value")
+        
+        old_vendor_id = invoice.get("vendor_id")
+        azure_vendor_name = invoice.get("azure_vendor_name")
+        
+        if azure_vendor_name and new_vendor_id and new_vendor_id != old_vendor_id:
+            from app.ai.normalizer import normalize_vendor
+            norm_azure_name = normalize_vendor(azure_vendor_name)
+            if norm_azure_name:
+                mapping = {
+                    "extracted_name": azure_vendor_name,
+                    "extracted_name_normalized": norm_azure_name,
+                    "vendor_id": new_vendor_id,
+                    "official_name": new_vendor_name or invoice.get("vendor_name"),
+                    "entity": invoice.get("entity"),
+                    "updated_at": datetime.utcnow(),
+                    "updated_by": current_user.username
+                }
+                db.vendor_metadata.update_one(
+                    {"extracted_name_normalized": norm_azure_name, "entity": invoice.get("entity")},
+                    {"$set": mapping},
+                    upsert=True
+                )
+                # Also update top-level vendor fields in the invoice
+                update_data["vendor_id"] = new_vendor_id
+                if new_vendor_name:
+                    update_data["vendor_name"] = new_vendor_name
 
     # merge validation
     if "validation_results" in update_data:
