@@ -213,10 +213,10 @@ def get_required_approver_count(db, vendor_name: str, amount: float = None, invo
             
         vendor_workflow = db.vendor_workflows.find_one(workflow_query)
         
-        # Fallback to name if ID match failed but ID was provided
-        if not vendor_workflow and v_id_resolved:
-            
-            vendor_workflow = db.vendor_workflows.find_one({
+        # Fallback to name ONLY if ID was NOT provided/resolved
+        # (User Request: If ID is present, STRICTLY use ID)
+        if not vendor_workflow and not v_id_resolved and v_name_resolved:
+             vendor_workflow = db.vendor_workflows.find_one({
                 "vendor_name": v_name_resolved.strip(),
                 "entity": entity
             })
