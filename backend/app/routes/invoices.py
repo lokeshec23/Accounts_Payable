@@ -17,6 +17,41 @@ import asyncio
 router = APIRouter()
 invoice_processor = InvoiceProcessor()
 
+@router.post("/check-duplicate")
+async def check_duplicate_invoice_endpoint(
+    payload: dict,
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
+):
+    from app.utils.invoice_registry import check_registry_duplicate
+    db = get_database()
+    
+    vendor_id = payload.get("vendor_id")
+    invoice_number = payload.get("invoice_number")
+    current_invoice_id = payload.get("current_invoice_id")
+    
+    if not vendor_id or not invoice_number:
+         return {"is_duplicate": False}
+
+    existing = check_registry_duplicate(db, vendor_id, invoice_number, entity)
+    
+    if existing:
+        # Check if it is the SAME invoice
+        if current_invoice_id and str(existing.get("_id")) == current_invoice_id:
+             return {"is_duplicate": False}
+             
+        uploaded_date = existing.get("uploaded_at")
+        date_str = uploaded_date.strftime("%Y-%m-%d %H:%M") if uploaded_date else "N/A"
+        
+        return {
+            "is_duplicate": True,
+            "message": f"Duplicate found: Vendor '{existing.get('vendor_name', vendor_id)}', Invoice #{invoice_number} (Uploaded {date_str})",
+            "original_invoice_id": str(existing.get("_id"))
+        }
+
+    return {"is_duplicate": False}
+
+
 
 @router.post("/upload")
 async def upload_invoices(

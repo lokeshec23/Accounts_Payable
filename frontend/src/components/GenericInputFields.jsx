@@ -126,18 +126,47 @@ const GenericInputFields = ({
     }, [originalData, data]);
 
     useEffect(() => {
-        // If it was a duplicate, validate if user has changed it
-        if (initialDuplicateNumber) {
-            const currentNum = extractValue(formData['Invoice Number']);
-            // If current number is different from the initial duplicate number, clear error
-            // Using loose comparison after trim for safety against whitespace diffs
-            if (String(currentNum || '').trim() !== String(initialDuplicateNumber || '').trim()) {
-                setIsDuplicateError(false);
-            } else {
-                setIsDuplicateError(true);
+        // Real-time duplicate check with debounce
+        const checkDuplicate = async () => {
+            const currentVendorId = extractValue(formData['Vendor ID']);
+            const currentInvoiceNum = extractValue(formData['Invoice Number']);
+
+            if (!currentVendorId || !currentInvoiceNum) {
+                // detailed check not possible if missing fields
+                return;
             }
-        }
-    }, [formData['Invoice Number'], initialDuplicateNumber]);
+
+            try {
+                const result = await invoiceService.checkDuplicate({
+                    vendor_id: currentVendorId,
+                    invoice_number: currentInvoiceNum,
+                    current_invoice_id: invoiceId
+                });
+
+                if (result.is_duplicate) {
+                    setIsDuplicateError(true);
+                    message.destroy(); // Clear old messages to avoid stack
+                    message.warning({
+                        content: result.message,
+                        key: 'duplicate_warning',
+                        duration: 5
+                    });
+                } else {
+                    // Only clear the error if it was a duplicate error. 
+                    // If we want to be safe, we just set it to false.
+                    setIsDuplicateError(false);
+                }
+            } catch (error) {
+                console.error("Duplicate check failed:", error);
+            }
+        };
+
+        const timer = setTimeout(() => {
+            checkDuplicate();
+        }, 800);
+
+        return () => clearTimeout(timer);
+    }, [formData['Vendor ID'], formData['Invoice Number'], invoiceId]);
 
     // ---------- helpers ----------
     const parseCurrencyValue = (value) => {

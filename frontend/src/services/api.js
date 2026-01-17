@@ -103,6 +103,11 @@ export const invoiceService = {
 
   async recallInvoice(invoiceId, comment = null) {
     return this.updateInvoiceStatus(invoiceId, 'waiting_coding', comment);
+  },
+
+  async checkDuplicate(data) {
+    const response = await api.post('/invoices/check-duplicate', data);
+    return response.data;
   }
 };
 
