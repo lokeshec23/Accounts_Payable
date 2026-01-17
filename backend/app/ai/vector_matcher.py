@@ -161,71 +161,166 @@ def find_best_vendor_match(
         # If no name provided and address didn't match, return none
         return {"match": None, "score": 0.0, "method": "none", "reason": "No name provided and address match failed"}
 
-    # If we reach here, no exact address or name match was found. Proceed with fuzzy/embedding on name.
-    # Ensure normalized_input is available for subsequent steps if input_vendor_name was provided.
-    # It should be defined from the "3. EXACT NAME MATCH" block.
-
-    # 4. Text Similarity (Fuzzy Match) - Based on NAME
-    logger.info("Checking text similarity...")
-    best_text_score = 0
-    best_text_match = None
+    # If we reach here, no exact address or name match was found.
+    # Proceed with advanced matching (Fuzzy/Embedding) for BOTH Name and Address.
     
+    # Ensure normalized_input is available (it might be None if name wasn't provided)
+    if input_vendor_name and not normalized_input:
+         normalized_input = normalize_vendor(input_vendor_name)
+
+    # Prepare Normalized Address for fuzzy/embedding if provided
+    normalized_input_address = None
+    if input_vendor_address:
+        normalized_input_address = normalize_address(input_vendor_address)
+
+    logger.info("Checking advanced matching (Fuzzy & Embedding)...")
+    
+    best_match_candidate = None
+    best_match_score = 0.0
+    best_match_method = "none"
+
+    # --- 4. FUZZY & EMBEDDING MATCHING LOOP ---
+    
+    # Pre-calculate input embeddings if possible to avoid re-doing it inside loop
+    input_name_embedding = embed_text(normalized_input) if normalized_input else None
+    input_address_embedding = embed_text(normalized_input_address) if normalized_input_address else None
+
+    # --- 4. FUZZY & EMBEDDING MATCHING LOOP ---
+    
+    # Pre-calculate input embeddings if possible to avoid re-doing it inside loop
+    input_name_embedding = embed_text(normalized_input) if normalized_input else None
+    input_address_embedding = embed_text(normalized_input_address) if normalized_input_address else None
+
+    # Track best matches separately
+    best_addr_match = None
+    best_addr_score = 0.0
+    best_addr_method = "none"
+
+    best_name_match = None
+    best_name_score = 0.0
+    best_name_method = "none"
+
     for row in vendors:
-        v_name = row.get("Vendor Name") or row.get("VendorName") or row.get("Name") or row.get("VENDOR_NAME")
-        if not v_name: continue
-        
-        norm_name = normalize_vendor(str(v_name))
-        
-        # Optimization: Length filter (Relaxed to allow "Company" vs "Company North America")
-        if abs(len(norm_name) - len(normalized_input)) > 15:
-            continue
+        # --- A. ADDRESS BASED MATCHING ---
+        if normalized_input_address:
+            v_addr = row.get("Vendor Address") or row.get("VendorAddress") or row.get("Address") or row.get("VENDOR_ADDRESS")
             
-        similarity = SequenceMatcher(None, normalized_input, norm_name).ratio()
-        
-        if similarity > best_text_score:
-            best_text_score = similarity
-            best_text_match = row
-            
-    if best_text_score >= threshold_text:
-        logger.info(f"Text similarity match: {best_text_match.get('VENDOR_NAME', 'Unknown')} (Score: {best_text_score})")
-        return {"match": best_text_match, "score": best_text_score, "method": "text_similarity"}
+            # Construct address if missing
+            if not v_addr:
+                 parts = [
+                    row.get("ADDRESS_LINE1") or row.get("Address1"),
+                    row.get("ADDRESS_LINE2") or row.get("Address2"),
+                    row.get("CITY") or row.get("City"),
+                    row.get("STATE_OR_TERITTORY") or row.get("STATE") or row.get("State"),
+                    row.get("ZIP_OR_POSTAL_CODE") or row.get("ZIP") or row.get("PostalCode"),
+                    row.get("COUNTRY") or row.get("Country")
+                ]
+                 v_addr = " ".join([str(p).strip() for p in parts if p]).strip()
 
-    # 5. Embedding Match (Semantic) - Fallback based on NAME
-    if len(vendors) > 20: 
-        logger.warning(f"Skipping embedding match due to large dataset size ({len(vendors)} vendors). Relying on text similarity.")
-        # Return best text match if it exists (even if below threshold, maybe?) 
-        # Or just return None if strictly below threshold.
-        # Let's return the best text match if it's decent (> 0.4) as a "guess" but strictly it respects threshold_text above.
-        return {"match": None, "score": best_text_score, "method": "none"}
-        
-    best_score = 0
-    best_match = None
-    
-    # Generate input embedding
-    input_embedding = embed_text(normalized_input)
-    
-    # Optimization: If input_embedding failed (e.g. key missing), skip this heavy loop
-    if input_embedding:
-        for row in vendors:
+            if v_addr:
+                norm_addr = normalize_address(str(v_addr))
+                
+                # A1. Fuzzy Address
+                if abs(len(norm_addr) - len(normalized_input_address)) < 30: # Relaxed length check
+                    addr_similarity = SequenceMatcher(None, normalized_input_address, norm_addr).ratio()
+                    
+                    if addr_similarity > best_addr_score:
+                        best_addr_score = addr_similarity
+                        best_addr_match = row
+                        best_addr_method = "fuzzy_address"
+
+                # A2. Embedding Address
+                if input_address_embedding and len(vendors) <= 500:
+                    target_addr_emb = embed_text(norm_addr)
+                    if target_addr_emb:
+                        sem_score = cosine_similarity(input_address_embedding, target_addr_emb)
+                        
+                        if sem_score > best_addr_score:
+                             best_addr_score = sem_score
+                             best_addr_match = row
+                             best_addr_method = "embedding_address"
+
+        # --- B. NAME BASED MATCHING ---
+        if normalized_input:
             v_name = row.get("Vendor Name") or row.get("VendorName") or row.get("Name") or row.get("VENDOR_NAME")
-            if not v_name: continue
-            
-            norm_name = normalize_vendor(str(v_name))
-            
-            # TODO: Ideally cache embeddings too, but that's memory intensive.
-            # For now, we regenerate target embedding. 
-            # PRO NOTE: In a real heavy system, we'd pre-compute embeddings in the DB.
-            target_embedding = embed_text(norm_name)
-            
-            if target_embedding:
-                score = cosine_similarity(input_embedding, target_embedding)
-                if score > best_score:
-                    best_score = score
-                    best_match = row
+            if v_name:
+                norm_name = normalize_vendor(str(v_name))
+                
+                # B1. Fuzzy Name
+                if abs(len(norm_name) - len(normalized_input)) < 20:
+                     name_similarity = SequenceMatcher(None, normalized_input, norm_name).ratio()
+                     if name_similarity > best_name_score:
+                         best_name_score = name_similarity
+                         best_name_match = row
+                         best_name_method = "text_similarity"
 
-        if best_score >= threshold_embedding:
-            logger.info(f"Embedding match: {best_match.get('VENDOR_NAME', 'Unknown')} (Score: {best_score})")
-            return {"match": best_match, "score": best_score, "method": "embedding"}
+                # B2. Embedding Name
+                if input_name_embedding and len(vendors) <= 500:
+                    target_name_emb = embed_text(norm_name)
+                    if target_name_emb:
+                        sem_name_score = cosine_similarity(input_name_embedding, target_name_emb)
+                        if sem_name_score > best_name_score:
+                            best_name_score = sem_name_score
+                            best_name_match = row
+                            best_name_method = "embedding"
 
-    logger.info(f"No match found. Best candidate was '{best_text_match.get('VENDOR_NAME') if best_text_match else 'None'}' (Text: {best_text_score})")
-    return {"match": None, "score": max(best_score, best_text_score), "method": "none"}
+    # --- FINAL DECISION: CROSS CHECK ---
+    logger.info(f"Best Name Match: {best_name_match.get('VENDOR_NAME') if best_name_match else 'None'} ({best_name_method}: {best_name_score})")
+    logger.info(f"Best Addr Match: {best_addr_match.get('VENDOR_NAME') if best_addr_match else 'None'} ({best_addr_method}: {best_addr_score})")
+
+    # Weights / Bias
+    # User said: "address is wrong so you can do cross check with vendor name normalization and compare give the best one"
+    # This implies we should trust the higher score, BUT maybe bias slightly towards Name if scores are close?
+    
+    final_match = None
+    final_score = 0.0
+    final_method = "none"
+    
+    # 1. Check strict thresholds first
+    valid_name = best_name_score >= (threshold_text if best_name_method == "text_similarity" else threshold_embedding)
+    valid_addr = best_addr_score >= (0.80 if best_addr_method == "fuzzy_address" else 0.88)
+    
+    if valid_name and not valid_addr:
+        final_match = best_name_match
+        final_score = best_name_score
+        final_method = best_name_method
+        
+    elif valid_addr and not valid_name:
+        final_match = best_addr_match
+        final_score = best_addr_score
+        final_method = best_addr_method
+        
+    elif valid_name and valid_addr:
+        # Both valid: Compare scores
+        if best_name_score >= best_addr_score:
+             final_match = best_name_match
+             final_score = best_name_score
+             final_method = best_name_method
+        else:
+             final_match = best_addr_match
+             final_score = best_addr_score
+             final_method = best_addr_method
+             
+    else:
+        # Neither passed strict threshold
+        # Return best effort if it's "okay" (e.g. > 0.4) or just None?
+        # Original logic returned best text match even if low.
+        if best_name_score > best_addr_score:
+             final_match = best_name_match # Return best prediction
+             final_score = best_name_score
+             final_method = "none" # Sub-threshold
+        else:
+             final_match = best_addr_match
+             final_score = best_addr_score
+             final_method = "none"
+
+    if final_match and final_score >= 0.4: # Only return if at least somewhat relevant
+         if final_score >= (threshold_text if "text" in final_method else threshold_embedding):
+             logger.info(f"Match found via {final_method}: {final_match.get('VENDOR_NAME', 'Unknown')} (Score: {final_score})")
+         else:
+             logger.warning(f"Returning weak match (below threshold): {final_match.get('VENDOR_NAME', 'Unknown')} (Score: {final_score})")
+             
+         return {"match": final_match, "score": final_score, "method": final_method}
+
+    return {"match": None, "score": final_score, "method": "none"}
+

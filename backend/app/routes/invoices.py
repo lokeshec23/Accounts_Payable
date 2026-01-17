@@ -17,6 +17,7 @@ import asyncio
 router = APIRouter()
 invoice_processor = InvoiceProcessor()
 
+
 @router.post("/check-duplicate")
 async def check_duplicate_invoice_endpoint(
     payload: dict,
@@ -24,6 +25,8 @@ async def check_duplicate_invoice_endpoint(
     entity: str = Depends(get_current_entity)
 ):
     from app.utils.invoice_registry import check_registry_duplicate
+    from app.ai.duplicate_detector import check_duplicate_invoice
+
     db = get_database()
     
     vendor_id = payload.get("vendor_id")
@@ -33,8 +36,13 @@ async def check_duplicate_invoice_endpoint(
     if not vendor_id or not invoice_number:
          return {"is_duplicate": False}
 
+    # 1. Try Fast Registry Lookup
     existing = check_registry_duplicate(db, vendor_id, invoice_number, entity)
     
+    # 2. Fallback to Direct Collection Lookup (if registry empty or out of sync)
+    if not existing:
+        existing = check_duplicate_invoice(db, vendor_id, invoice_number, entity)
+
     if existing:
         # Check if it is the SAME invoice
         if current_invoice_id and str(existing.get("_id")) == current_invoice_id:

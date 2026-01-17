@@ -97,9 +97,16 @@ def check_duplicate_invoice(db, vendor_id: str, invoice_number: str, entity: str
         return None
     
     # Query invoices collection
+    # Query invoices collection with case-insensitive matching
+    # Escape special characters to avoid regex errors
+    import re
+    
+    vid_pattern = f"^{re.escape(vendor_id.strip())}$"
+    inv_pattern = f"^{re.escape(invoice_number.strip())}$"
+    
     existing = db.invoices.find_one({
-        "vendor_id": vendor_id,
-        "invoice_number": invoice_number,
+        "vendor_id": {"$regex": vid_pattern, "$options": "i"},
+        "invoice_number": {"$regex": inv_pattern, "$options": "i"},
         "entity": entity
     })
     
