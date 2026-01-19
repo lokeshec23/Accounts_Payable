@@ -759,107 +759,105 @@ const GenericInputFields = ({
 
     // ---------- TDS Calculation Update Total ----------
     useEffect(() => {
-        if (readOnly || !selectedVendorDetails) return;
+        if (readOnly) return;
 
-        // Reuse helper logic to find TDS keys (duplicated to avoid scope issues)
-        const findVal = (obj, keys) => {
-            if (!obj) return null;
-            const matchKey = Object.keys(obj).find(k => {
-                const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
-                return keys.some(target => normK === target.toLowerCase().replace(/[\s_\\\-]/g, ''));
-            });
-            return matchKey ? obj[matchKey] : null;
-        };
+        // 1. Calculate Subtotal from lineItems
+        const calculatedSubtotal = lineItems.reduce((sum, item) => {
+            const val = parseCurrencyValue(
+                extractValue(item.NetAmount) ||
+                extractValue(item.amount) ||
+                extractValue(item.net_amount) ||
+                item.amount ||
+                item.net_amount
+            );
+            return sum + val;
+        }, 0);
 
-        const tdsApplicabilityVal = findVal(selectedVendorDetails, [
-            'TDS/Withhold Tax Applicability Configuration',
-            'TDS Applicability',
-            'TDS Applicable',
-            'Withholding Tax Applicable'
-        ]);
+        // 2. Calculate Total Tax
+        // Header Taxes
+        const headerTax =
+            parseCurrencyValue(extractValue(formData['CGST'])) +
+            parseCurrencyValue(extractValue(formData['SGST'])) +
+            parseCurrencyValue(extractValue(formData['IGST']));
 
-        const isTDSApplicable = tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes';
+        // Line Item Taxes
+        const lineItemTax = lineItems.reduce((sum, item) => {
+            const val = parseCurrencyValue(
+                extractValue(item.TaxAmount) ||
+                extractValue(item.tax_amount)
+            );
+            return sum + val;
+        }, 0);
 
-        if (isTDSApplicable) {
-            const tdsRateVal = findVal(selectedVendorDetails, [
-                'TDS Percentage',
-                'Percentage',
-                'Rate',
-                'TDS Rate',
-                'Withholding Rate'
-            ]) || '0';
+        // Heuristic: If "Total Tax Amount" is populated in header, use it. Else sum components.
+        const fieldTotalTax = parseCurrencyValue(extractValue(formData['Total Tax Amount']));
+        const totalTax = fieldTotalTax > 0 ? fieldTotalTax : (headerTax + lineItemTax);
 
-            const tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
+        // 3. TDS Calculation (only if vendor matched and applicable)
+        let tdsAmount = 0;
+        if (selectedVendorDetails) {
+            const findVal = (obj, keys) => {
+                if (!obj) return null;
+                const matchKey = Object.keys(obj).find(k => {
+                    const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
+                    return keys.some(target => normK === target.toLowerCase().replace(/[\s_\\\-]/g, ''));
+                });
+                return matchKey ? obj[matchKey] : null;
+            };
 
-            // Calculate Subtotal from lineItems
-            const calculatedSubtotal = lineItems.reduce((sum, item) => {
-                const val = parseCurrencyValue(
-                    extractValue(item.NetAmount) ||
-                    extractValue(item.amount) ||
-                    extractValue(item.net_amount) ||
-                    item.amount ||
-                    item.net_amount
-                );
-                return sum + val;
-            }, 0);
+            const tdsApplicabilityVal = findVal(selectedVendorDetails, [
+                'TDS/Withhold Tax Applicability Configuration',
+                'TDS Applicability',
+                'TDS Applicable',
+                'Withholding Tax Applicable'
+            ]);
 
-            // User instruction: TDS Rate is already a decimal. Keep 2 decimal places.
-            const tdsAmount = parseFloat((calculatedSubtotal * tdsRate).toFixed(2));
+            const isTDSApplicable = tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes';
 
-            // Calculate Total Tax
-            // Header Taxes
-            const headerTax =
-                parseCurrencyValue(extractValue(formData['CGST'])) +
-                parseCurrencyValue(extractValue(formData['SGST'])) +
-                parseCurrencyValue(extractValue(formData['IGST']));
+            if (isTDSApplicable) {
+                const tdsRateVal = findVal(selectedVendorDetails, [
+                    'TDS Percentage',
+                    'Percentage',
+                    'Rate',
+                    'TDS Rate',
+                    'Withholding Rate'
+                ]) || '0';
 
-            // Line Item Taxes - only if not included in header taxes (simple logic: add them all)
-            // Note: usually systems have either header tax OR line tax, but we sum here to be safe or assuming one is zero.
-            const lineItemTax = lineItems.reduce((sum, item) => {
-                const val = parseCurrencyValue(
-                    extractValue(item.TaxAmount) ||
-                    extractValue(item.tax_amount)
-                );
-                return sum + val;
-            }, 0);
-
-            // Use the greater of header vs line sum if they might be duplicates? 
-            // Or just sum? "Total Tax Amount" field might be better source if it exists.
-            const fieldTotalTax = parseCurrencyValue(extractValue(formData['Total Tax Amount']));
-
-            // Heuristic: If "Total Tax Amount" is populated, use it. Else sum components.
-            const totalTax = fieldTotalTax > 0 ? fieldTotalTax : (headerTax + lineItemTax);
-
-            // Formula: Payable = Subtotal + Tax - TDS
-            const payableAmount = parseFloat((calculatedSubtotal + totalTax - tdsAmount).toFixed(2));
-            // Formula: Invoice Total = Subtotal + Tax (Gross)
-            const invoiceTotal = parseFloat((calculatedSubtotal + totalTax).toFixed(2));
-
-            // Update Form Data if different (avoid loop)
-            const currentTotal = parseCurrencyValue(extractValue(formData['Total Invoice Amount']));
-            const currentPayable = parseCurrencyValue(extractValue(formData['Total Amount Payable']));
-
-            let hasUpdates = false;
-            const updates = {};
-
-            if (Math.abs(currentTotal - invoiceTotal) > 0.005) {
-                updates['Total Invoice Amount'] = { value: invoiceTotal };
-                hasUpdates = true;
+                const tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
+                tdsAmount = parseFloat((calculatedSubtotal * tdsRate).toFixed(2));
             }
+        }
 
-            if (Math.abs(currentPayable - payableAmount) > 0.005) {
-                updates['Total Amount Payable'] = { value: payableAmount };
-                updates['Amount Due'] = { value: payableAmount };
-                hasUpdates = true;
-            }
+        // 4. Final Totals
+        // Formula: Invoice Total = Subtotal + Tax (Gross)
+        const invoiceTotal = parseFloat((calculatedSubtotal + totalTax).toFixed(2));
+        // Formula: Payable = Gross - TDS
+        const payableAmount = parseFloat((invoiceTotal - tdsAmount).toFixed(2));
 
-            if (hasUpdates) {
-                console.log(`DEBUG: Updating Totals - Invoice: ${invoiceTotal}, Payable: ${payableAmount}`);
-                setFormData((prev) => ({
-                    ...prev,
-                    ...updates
-                }));
-            }
+        // Update Form Data if different (avoid loop)
+        const currentTotal = parseCurrencyValue(extractValue(formData['Total Invoice Amount']));
+        const currentPayable = parseCurrencyValue(extractValue(formData['Total Amount Payable']));
+
+        let hasUpdates = false;
+        const updates = {};
+
+        if (Math.abs(currentTotal - invoiceTotal) > 0.005) {
+            updates['Total Invoice Amount'] = { value: invoiceTotal };
+            hasUpdates = true;
+        }
+
+        if (Math.abs(currentPayable - payableAmount) > 0.005) {
+            updates['Total Amount Payable'] = { value: payableAmount };
+            updates['Amount Due'] = { value: payableAmount };
+            hasUpdates = true;
+        }
+
+        if (hasUpdates) {
+            console.log(`DEBUG: Updating Totals - Invoice: ${invoiceTotal}, Payable: ${payableAmount}, TDS: ${tdsAmount}`);
+            setFormData((prev) => ({
+                ...prev,
+                ...updates
+            }));
         }
 
     }, [
@@ -868,7 +866,8 @@ const GenericInputFields = ({
         formData['CGST'],
         formData['SGST'],
         formData['IGST'],
-        formData['Total Tax Amount']
+        formData['Total Tax Amount'],
+        readOnly
     ]);
 
 
