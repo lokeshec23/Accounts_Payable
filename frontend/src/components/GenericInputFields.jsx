@@ -2350,6 +2350,27 @@ const GenericInputFields = ({
                             <div>{renderFieldInput('Invoice Currency', formData['Invoice Currency'])}</div>
                         </div>
 
+                        {/* Exchange Rate - Only if not USD */}
+                        {extractValue(formData['Invoice Currency']) !== 'USD' && (
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: '350px 1fr',
+                                gap: '16px',
+                                alignItems: 'center'
+                            }}>
+                                <div style={{ fontWeight: 500 }}>Exchange Rate:</div>
+                                <div>
+                                    <InputNumber
+                                        style={{ width: '100%', ...disabledStyle }}
+                                        value={exchangeRate}
+                                        onChange={(val) => setExchangeRate(val)}
+                                        placeholder="Enter exchange rate"
+                                        disabled={disableInputs}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         {/* Total Invoice Amount */}
                         <div style={{
                             display: 'grid',
