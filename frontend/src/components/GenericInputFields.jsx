@@ -358,9 +358,14 @@ const GenericInputFields = ({
             const currentName = String(extractValue(formData['Vendor Name']) || '').trim();
 
             if (officialName && String(officialName).trim() !== currentName) {
-                console.log(`DEBUG: Updating Vendor Name from '${currentName}' to '${officialName}'`);
-                // Force update name
-                handleInputChange('Vendor Name', officialName);
+                // Relaxed: Only force update if normalized values differ significantly
+                // This allows users to keep "Google Inc" even if official is "Google" (provided they match)
+                if (normalizeVendor(officialName) !== normalizeVendor(currentName) || !currentName) {
+                    console.log(`DEBUG: Updating Vendor Name from '${currentName}' to '${officialName}'`);
+                    handleInputChange('Vendor Name', officialName);
+                } else {
+                    console.log("DEBUG: Vendor Name normalized match - skipping force update to allow variation.");
+                }
             } else {
                 console.log("DEBUG: Vendor Name already matches or is empty in master.");
             }
@@ -516,6 +521,9 @@ const GenericInputFields = ({
                 }
 
                 // Auto-correct Vendor Name if needed
+                // RELAXED: We rely on Reverse Lookup (triggered by ID change) to standardize name if needed.
+                // We do NOT force update here to avoid fighting the user while typing.
+                /*
                 const officialName = match['Vendor Name'] || match['VendorName'] || match['Name'] || match['VENDOR_NAME'];
                 const currentName = String(vendorName || '').trim();
 
@@ -524,6 +532,7 @@ const GenericInputFields = ({
                     console.log(`DEBUG: Auto-correcting Vendor Name from '${currentName}' to '${officialName}'`);
                     handleInputChange('Vendor Name', officialName);
                 }
+                */
 
                 // Use unified vendor change handler for all other updates
                 handleVendorChange(match);
@@ -1516,6 +1525,12 @@ const GenericInputFields = ({
 
     // ---------- status update (approve / reject / rework / send for approval) ----------
     const updateStatus = async (newStatus) => {
+        // Strict Block for Duplicates
+        if (isDuplicateError) {
+            message.error(`Cannot ${newStatus}: Duplicate invoice detected. Please resolve the duplicate issue (change Invoice Number or Vendor) before proceeding.`);
+            return;
+        }
+
         if (!invoiceId) {
             message.error('No invoice ID provided');
             return;
@@ -1606,6 +1621,12 @@ const GenericInputFields = ({
     };
 
     const handleSave = async () => {
+        // Strict Block for Duplicates
+        if (isDuplicateError) {
+            message.error("Cannot save: Duplicate invoice detected. Please resolve the duplicate issue (change Invoice Number or Vendor) before saving.");
+            return;
+        }
+
         if (!invoiceId) {
             message.error('No invoice ID provided');
             return;

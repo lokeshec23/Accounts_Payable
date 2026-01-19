@@ -601,6 +601,11 @@ async def update_invoice_status(
         update_query
     )
 
+    db.invoices.update_one(
+        {"_id": ObjectId(invoice_id)},
+        update_query
+    )
+
     # =====================================================
     # CREATE WORKFLOW STEP (RESET AFTER REWORK)
     # =====================================================
@@ -650,6 +655,9 @@ async def update_invoice(
     invoice_update: InvoiceUpdate,
     current_user: UserResponse = Depends(get_current_user)
 ):
+    from app.utils.invoice_registry import check_registry_duplicate
+    from app.ai.duplicate_detector import check_duplicate_invoice
+    
     db = get_database()
 
     update_data = {k: v for k, v in invoice_update.dict().items() if v is not None}
@@ -659,6 +667,58 @@ async def update_invoice(
     invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # --- Duplicate Check Logic (Constraint Enforcement) ---
+    # Determine the effective vendor_id and invoice_number after update
+    # Check if they are being updated in extracted_data
+    
+    current_vendor_id = invoice.get("vendor_id")
+    current_invoice_number = invoice.get("invoice_number")
+    
+    new_vendor_id = current_vendor_id
+    new_invoice_number = current_invoice_number
+    
+    requires_check = False
+    
+    # 1. Check top-level updates
+    if "vendor_id" in update_data:
+        new_vendor_id = update_data["vendor_id"]
+        requires_check = True
+    if "invoice_number" in update_data:
+        new_invoice_number = update_data["invoice_number"]
+        requires_check = True
+        
+    # 2. Check extracted_data updates (which might override or sync with top-level)
+    extracted_data = update_data.get("extracted_data")
+    if extracted_data:
+        # Vendor ID
+        ev_id = extracted_data.get("vendor_info", {}).get("vendor_id", {}).get("value")
+        if ev_id:
+            new_vendor_id = ev_id
+            requires_check = True
+            
+        # Invoice Number
+        ein_num = extracted_data.get("invoice_details", {}).get("invoice_number", {}).get("value")
+        if ein_num:
+            new_invoice_number = ein_num
+            requires_check = True
+
+    if requires_check and new_vendor_id and new_invoice_number:
+        # If either changed, or if we just want to be safe, check for duplicates (excluding self)
+        # We need to ensure we don't block saving the SAME invoice (self)
+        
+        # 1. Try Fast Registry Lookup
+        duplicate = check_registry_duplicate(db, new_vendor_id, new_invoice_number, invoice.get("entity"))
+        
+        # 2. Fallback to Robust DB Lookup (Case-Insensitive)
+        if not duplicate:
+            duplicate = check_duplicate_invoice(db, new_vendor_id, new_invoice_number, invoice.get("entity"))
+        
+        if duplicate and str(duplicate.get("_id")) != invoice_id:
+             raise HTTPException(
+                status_code=409, 
+                detail=f"Duplicate detected: Vendor ID '{new_vendor_id}' already has Invoice #'{new_invoice_number}'."
+            )
 
     # --- Vendor Mapping Persistence ---
     extracted_data = update_data.get("extracted_data")
