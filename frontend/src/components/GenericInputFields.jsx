@@ -1498,6 +1498,12 @@ const GenericInputFields = ({
 
     // ---------- status update (approve / reject / rework / send for approval) ----------
     const updateStatus = async (newStatus) => {
+        // Strict Block for Duplicates
+        if (isDuplicateError) {
+            message.error(`Cannot ${newStatus}: Duplicate invoice detected. Please resolve the duplicate issue (change Invoice Number or Vendor) before proceeding.`);
+            return;
+        }
+
         if (!invoiceId) {
             message.error('No invoice ID provided');
             return;
@@ -1588,6 +1594,12 @@ const GenericInputFields = ({
     };
 
     const handleSave = async () => {
+        // Strict Block for Duplicates
+        if (isDuplicateError) {
+            message.error("Cannot save: Duplicate invoice detected. Please resolve the duplicate issue (change Invoice Number or Vendor) before saving.");
+            return;
+        }
+
         if (!invoiceId) {
             message.error('No invoice ID provided');
             return;
