@@ -131,17 +131,40 @@ const GenericInputFields = ({
     useEffect(() => {
         const items = data?.items || data?.LineItems || [];
 
+        // Check multiple locations for vendor_id:
+        const savedVendorId =
+            data?.vendor_id ||
+            extractValue(data?.extracted_data?.vendor_info?.vendor_id) ||
+            originalData?.vendor_id ||
+            extractValue(originalData?.extracted_data?.vendor_info?.vendor_id) ||
+            '';
+
+        console.log("DEBUG: Vendor ID Resolution:", {
+            dataVendorId: data?.vendor_id,
+            extracted: data?.extracted_data?.vendor_info?.vendor_id,
+            original: originalData?.vendor_id,
+            final: savedVendorId
+        });
+
+        setVendorId(savedVendorId);
+
         // Prioritize official vendor name from master (at root level)
         const initialFormData = {
             ...extractionData,
+            'Vendor ID': savedVendorId, // Initialize directly in formData
             LineItems: items
         };
 
         // Map nested LLM-extracted tax fields to root formData keys
         if (extractionData?.amounts) {
+            console.log("DEBUG: extractionData.amounts:", extractionData.amounts);
             if (extractionData.amounts.CGST) initialFormData['CGST'] = extractionData.amounts.CGST;
             if (extractionData.amounts.SGST) initialFormData['SGST'] = extractionData.amounts.SGST;
             if (extractionData.amounts.IGST) initialFormData['IGST'] = extractionData.amounts.IGST;
+            // Map Total Tax Amount if available (often 'tax' or 'total_tax' in extraction)
+            if (extractionData.amounts.tax) initialFormData['Total Tax Amount'] = extractionData.amounts.tax;
+            else if (extractionData.amounts.total_tax) initialFormData['Total Tax Amount'] = extractionData.amounts.total_tax;
+            else if (extractionData.amounts.total_tax_amount) initialFormData['Total Tax Amount'] = extractionData.amounts.total_tax_amount;
         }
 
         // Helper to parse breakdown string if individual fields are missing
@@ -206,25 +229,7 @@ const GenericInputFields = ({
             );
         }
 
-        // Initialize new fields from data
-        // Check multiple locations for vendor_id:
-        // 1. data.vendor_id (passed from InvoiceReview -> formattedData)
-        // 2. data.extracted_data... (fallback)
-        // 3. originalData.vendor_id (database object root)
-        // 4. originalData.extracted_data... (database object extraction)
-        const savedVendorId =
-            data?.vendor_id ||
-            extractValue(data?.extracted_data?.vendor_info?.vendor_id) ||
-            originalData?.vendor_id ||
-            extractValue(originalData?.extracted_data?.vendor_info?.vendor_id) ||
-            '';
 
-        console.log("DEBUG: Initializing Vendor ID from:", savedVendorId);
-        setVendorId(savedVendorId);
-
-        if (savedVendorId) {
-            handleInputChange('Vendor ID', savedVendorId);
-        }
 
         // Initialize memo from originalData or data
         const savedMemo =
@@ -362,6 +367,7 @@ const GenericInputFields = ({
         return text;
     };
 
+
     // ---------- Vendor Logic & Due Date Calculation ----------
     useEffect(() => {
         const vendorName = extractValue(formData['Vendor Name']);
@@ -379,9 +385,10 @@ const GenericInputFields = ({
                 // Auto-populate Vendor ID if available and not set
                 const matchedId = match['Vendor ID'] || match['VendorID'] || match['vendor_id'] || match['VENDOR_ID'];
 
-                if (matchedId && !vendorId) {
+                if (matchedId && (!vendorId || !extractValue(formData['Vendor ID']))) {
                     console.log("DEBUG: Setting Vendor ID:", matchedId);
                     setVendorId(matchedId);
+                    handleInputChange('Vendor ID', matchedId);
                 }
 
                 // Auto-correct Vendor Name if needed
@@ -605,27 +612,34 @@ const GenericInputFields = ({
             // Heuristic: If "Total Tax Amount" is populated, use it. Else sum components.
             const totalTax = fieldTotalTax > 0 ? fieldTotalTax : (headerTax + lineItemTax);
 
-            // Formula: Total = Subtotal + Tax - TDS
-            const newTotal = parseFloat((calculatedSubtotal + totalTax - tdsAmount).toFixed(2));
+            // Formula: Payable = Subtotal + Tax - TDS
+            const payableAmount = parseFloat((calculatedSubtotal + totalTax - tdsAmount).toFixed(2));
+            // Formula: Invoice Total = Subtotal + Tax (Gross)
+            const invoiceTotal = parseFloat((calculatedSubtotal + totalTax).toFixed(2));
 
             // Update Form Data if different (avoid loop)
             const currentTotal = parseCurrencyValue(extractValue(formData['Total Invoice Amount']));
+            const currentPayable = parseCurrencyValue(extractValue(formData['Total Amount Payable']));
 
-            if (Math.abs(currentTotal - newTotal) > 0.005) {
-                console.log(`DEBUG: Updating Total Amount from ${currentTotal} to ${newTotal} (Sub: ${calculatedSubtotal}, Tax: ${totalTax}, TDS: ${tdsAmount})`);
+            let hasUpdates = false;
+            const updates = {};
 
-                // Update Total Invoice Amount
-                const oldTotalVal = formData['Total Invoice Amount'];
-                const newTotalVal =
-                    typeof oldTotalVal === 'object' && oldTotalVal !== null && 'value' in oldTotalVal
-                        ? { ...oldTotalVal, value: newTotal }
-                        : { value: newTotal }; // Ensure consistent object structure if previously undefined
+            if (Math.abs(currentTotal - invoiceTotal) > 0.005) {
+                updates['Total Invoice Amount'] = { value: invoiceTotal };
+                hasUpdates = true;
+            }
 
+            if (Math.abs(currentPayable - payableAmount) > 0.005) {
+                updates['Total Amount Payable'] = { value: payableAmount };
+                updates['Amount Due'] = { value: payableAmount };
+                hasUpdates = true;
+            }
+
+            if (hasUpdates) {
+                console.log(`DEBUG: Updating Totals - Invoice: ${invoiceTotal}, Payable: ${payableAmount}`);
                 setFormData((prev) => ({
                     ...prev,
-                    'Total Invoice Amount': newTotalVal,
-                    // Optionally update Amount Due as well if it tracks Total
-                    'Amount Due': { value: newTotal }
+                    ...updates
                 }));
             }
         }
@@ -746,8 +760,11 @@ const GenericInputFields = ({
             });
 
             // --- Single Aggregated GST Line Logic ---
+            // --- Single Aggregated GST Line Logic ---
+            const formTaxValue = parseCurrencyValue(extractValue(formData['Total Tax Amount']));
+
             // Calculate total tax from all extracted items
-            const totalTaxAmount = pureBaseItemsWithIndex.reduce((sum, { item }) => {
+            const calculatedTotalTax = pureBaseItemsWithIndex.reduce((sum, { item }) => {
                 const t = parseCurrencyValue(
                     extractValue(item.TaxAmount) ||
                     extractValue(item.tax_amount) ||
@@ -759,6 +776,8 @@ const GenericInputFields = ({
                 parseCurrencyValue(extractValue(formData['CGST'])) +
                 parseCurrencyValue(extractValue(formData['SGST'])) +
                 parseCurrencyValue(extractValue(formData['IGST']));
+
+            const finalGstValue = formTaxValue || calculatedTotalTax;
 
             const gstDesc = 'Total GST';
             const existingGST = prevCoding.find(pc => pc.description === gstDesc);
@@ -780,8 +799,9 @@ const GenericInputFields = ({
                 description: gstDesc,
                 line_type: 'Tax',
                 quantity: 1,
-                unit_price: totalTaxAmount,
-                net_amount: formData['Total Tax Amount'],
+                unit_price: finalGstValue,
+                net_amount: finalGstValue,
+
                 gl_code: gstGL,
                 lob: newCoding[0]?.lob || '',
                 department: newCoding[0]?.department || '',
@@ -818,15 +838,22 @@ const GenericInputFields = ({
                     'Withholding Rate'
                 ]) || '0';
 
-                const tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
+                let tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
+                // Heuristic: If rate is > 1, assume it's a percentage (e.g. 10 -> 0.1, 1 -> 0.01)
+                // If it is <= 1, assume it's a decimal (e.g. 0.1 -> 10%, 0.01 -> 1%)
+                if (tdsRate > 1) {
+                    tdsRate = tdsRate / 100;
+                }
 
                 // Subtotal calculation (only base expense lines)
                 const subtotal = newCoding.reduce((sum, line) => {
-                    const isGst = line.description?.startsWith('GST for item');
+                    // Exclude GST lines (both individual and aggregated)
+                    const isGst = line.description?.startsWith('GST for item') || line.description === 'Total GST';
                     return isGst ? sum : sum + line.net_amount;
                 }, 0);
 
                 // User instruction: TDS Rate is decimal. Round to 2 decimals.
+                // tdsRate is now likely 0.01 for 1%
                 const tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
 
                 if (tdsAmount > 0) {
@@ -1165,6 +1192,8 @@ const GenericInputFields = ({
                     safeUpdate(updatedExtractedData, path, extractValue(formData[label]));
                 }
             });
+
+
 
             // -------- Additional Info --------
             const additionalFields = [
@@ -1742,149 +1771,38 @@ const GenericInputFields = ({
         }
     ];
 
-    // ---------- Quick View ----------
-    const quickViewTab = (
-        <div style={{ padding: '20px' }}>
-            <Collapse defaultActiveKey={['header', 'lineitems']}>
-                <Panel header="Header" key="header">
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '12px'
-                        }}
-                    >
+    // ---------- Helper Components (Moved up for scope access) ----------
+    const renderFieldGroup = (title, fields) => {
 
-
-                        {/* Vendor ID */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '200px 1fr',
-                            gap: '16px',
-                            alignItems: 'center'
-                        }}>
-                            <div style={{ fontWeight: 500 }}>Vendor ID:</div>
-                            <Input
-                                value={vendorId}
-                                onChange={(e) => {
-                                    setVendorId(e.target.value);
-                                    handleInputChange('Vendor ID', e.target.value);
-                                }}
-                                disabled={disableInputs}
-                                style={disabledStyle}
-                            />
-                        </div>
-
-                        {/* Vendor Name */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '200px 1fr',
-                            gap: '16px',
-                            alignItems: 'center'
-                        }}>
-                            <div style={{ fontWeight: 500 }}>Vendor Name:</div>
-                            <div>{renderFieldInput('Vendor Name', formData['Vendor Name'])}</div>
-                        </div>
-
-                        {/* Invoice Number */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '200px 1fr',
-                            gap: '16px',
-                            alignItems: 'center'
-                        }}>
-                            <div style={{ fontWeight: 500 }}>Invoice Number:</div>
-                            <div>{renderFieldInput('Invoice Number', formData['Invoice Number'])}</div>
-                        </div>
-
-                        {/* Invoice Date */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '200px 1fr',
-                            gap: '16px',
-                            alignItems: 'center'
-                        }}>
-                            <div style={{ fontWeight: 500 }}>Invoice Date:</div>
-                            <div>{renderFieldInput('Invoice Date', formData['Invoice Date'])}</div>
-                        </div>
-
-                        {/* Due Date */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '200px 1fr',
-                            gap: '16px',
-                            alignItems: 'center'
-                        }}>
-                            <div style={{ fontWeight: 500 }}>Due Date:</div>
-                            <div>{renderFieldInput('Due Date', formData['Due Date'])}</div>
-                        </div>
-
-                        {/* Payment Terms */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '200px 1fr',
-                            gap: '16px',
-                            alignItems: 'center',
-                        }}>
-                            <div style={{ fontWeight: 500 }}>Payment Terms:</div>
-                            <div>{renderFieldInput('Payment Terms', formData['Payment Terms'])}</div>
-                        </div>
-
-                        {/* Memo */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '200px 1fr',
-                            gap: '16px',
-                            alignItems: 'center'
-                        }}>
-                            <div style={{ fontWeight: 500 }}>Memo:</div>
-                            <Input
-                                value={memo}
-                                onChange={(e) => setMemo(e.target.value)}
-                                disabled={disableInputs}
-                                style={disabledStyle}
-                            />
-                        </div>
-
+        return (<Panel header={title} key={title}>
+            <div
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                }}
+            >
+                {fields.map((field) => (
+                    <React.Fragment key={field}>
                         <div
                             style={{
                                 display: 'grid',
-                                gridTemplateColumns: '200px 1fr',
+                                gridTemplateColumns: '350px 1fr',
                                 gap: '16px',
                                 alignItems: 'center'
                             }}
                         >
-                            <div style={{ fontWeight: 500 }}>Currency:</div>
-                            <div>
-                                {renderFieldInput('Invoice Currency', formData['Invoice Currency'])}
-                            </div>
+                            <div style={{ fontWeight: 500 }}>{field}:</div>
+                            <div>{renderFieldInput(field, formData[field])}</div>
                         </div>
-
-                        <div
-                            style={{
-                                display: 'grid',
-                                gridTemplateColumns: '200px 1fr',
-                                gap: '16px',
-                                alignItems: 'center'
-                            }}
-                        >
-                            <div style={{ fontWeight: 500 }}>Total Amount:</div>
-                            <div>
-                                {renderFieldInput(
-                                    'Total Invoice Amount',
-                                    formData['Total Invoice Amount']
-                                )}
-                            </div>
-                        </div>
-
-                        {extractValue(formData['Invoice Currency']) !== 'USD' && (
+                        {field === 'Invoice Currency' && extractValue(formData['Invoice Currency']) !== 'USD' && (
                             <div
                                 style={{
                                     display: 'grid',
-                                    gridTemplateColumns: '200px 1fr',
+                                    gridTemplateColumns: '350px 1fr',
                                     gap: '16px',
                                     alignItems: 'center',
-                                    marginTop: '8px'
+                                    marginTop: '4px'
                                 }}
                             >
                                 <div style={{ fontWeight: 500 }}>Exchange Rate:</div>
@@ -1899,80 +1817,95 @@ const GenericInputFields = ({
                                 </div>
                             </div>
                         )}
-                        {/* Tax Breakdowns */}
-                        <div style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '12px',
-                            marginTop: '8px'
-                        }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
-                                <div style={{ fontWeight: 500 }}>CGST:</div>
-                                <div>{renderFieldInput('CGST', formData['CGST'])}</div>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
-                                <div style={{ fontWeight: 500 }}>SGST:</div>
-                                <div>{renderFieldInput('SGST', formData['SGST'])}</div>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'center' }}>
-                                <div style={{ fontWeight: 500 }}>IGST:</div>
-                                <div>{renderFieldInput('IGST', formData['IGST'])}</div>
-                            </div>
-                        </div>
+                    </React.Fragment>
+                ))}
+            </div>
+        </Panel>
+        );
+    };
 
-                        {/* Vendor Details Section (Read-Only) */}
-                        {selectedVendorDetails && (
-                            <div style={{
-                                marginTop: '16px',
-                                padding: '12px',
-                                background: '#f0f5ff',
-                                borderRadius: '6px',
-                                border: '1px solid #adc6ff'
-                            }}>
-                                <div style={{ fontWeight: 600, color: '#1d39c4', marginBottom: '8px' }}>
-                                    Vendor Master Details
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', fontSize: '13px' }}>
-                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
-                                        <span style={{ color: '#595959', minWidth: '120px' }}>GST / Use Tax:</span>
-                                        <strong style={{ fontSize: '14px' }}>{selectedVendorDetails['GST / Use Tax Eligibility Configuration'] || 'N/A'}</strong>
+    // Helper for Vendor Master Details Panel
+    const renderVendorMasterDetailsPanel = () => (
+        <Panel header="Vendor Master Details" key="vendor_details">
+            <div style={{ padding: '10px 0' }}>
+                {selectedVendorDetails ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {[
+                            { label: 'GST Eligibility', key: 'GST / Use Tax Eligibility Configuration', altKeys: ['GST Eligibility', 'GST Status'] },
+                            { label: 'TDS Applicability', key: 'TDS/Withhold Tax Applicability Configuration', altKeys: ['TDS Applicable', 'TDS Status'] },
+                            { label: 'TDS Rate', key: 'TDS Percentage', altKeys: ['TDS Rate', 'Rate', 'Percentage'] },
+                            { label: 'TDS Section', key: 'TDS Section Code and Description', altKeys: ['TDS Section', 'Section'] },
+                            { label: 'Line Grouping', key: 'Line Grouping', altKeys: ['Line Grouping', 'LineGrouping', 'Grouping'] },
+                        ].map(({ label, key, altKeys }) => {
+                            const findVal = () => {
+                                if (selectedVendorDetails[key]) return selectedVendorDetails[key];
+                                for (const k of altKeys) {
+                                    if (selectedVendorDetails[k]) return selectedVendorDetails[k];
+                                    const match = Object.keys(selectedVendorDetails).find(vk => vk.toLowerCase() === k.toLowerCase());
+                                    if (match) return selectedVendorDetails[match];
+                                }
+                                return null;
+                            };
+                            const val = findVal();
+                            return (
+                                <div key={label} style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '350px 1fr',
+                                    gap: '16px',
+                                    alignItems: 'center'
+                                }}>
+                                    <div style={{ fontWeight: 500 }}>{label}:</div>
+                                    <div>
+                                        <Input
+                                            value={val || ''}
+                                            placeholder="N/A"
+                                            disabled
+                                            style={{ width: '100%', ...disabledStyle }}
+                                        />
                                     </div>
-                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
-                                        <span style={{ color: '#595959', minWidth: '120px' }}>TDS Applicability:</span>
-                                        <strong style={{ fontSize: '14px' }}>{selectedVendorDetails['TDS/Withhold Tax Applicability Configuration'] || 'N/A'}</strong>
-                                    </div>
-                                    {/* Robust check for "Yes" (case-insensitive) */}
-                                    {selectedVendorDetails['TDS/Withhold Tax Applicability Configuration'] &&
-                                        selectedVendorDetails['TDS/Withhold Tax Applicability Configuration'].toString().trim().toLowerCase() === 'yes' && (
-                                            <>
-                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
-                                                    <span style={{ color: '#595959', minWidth: '120px' }}>TDS %:</span>
-                                                    <strong style={{ fontSize: '14px' }}>
-                                                        {selectedVendorDetails['TDS Percentage'] ||
-                                                            selectedVendorDetails['Percentage'] ||
-                                                            selectedVendorDetails['Rate'] ||
-                                                            selectedVendorDetails['TDS Rate'] ||
-                                                            'N/A'}
-                                                    </strong>
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline' }}>
-                                                    <span style={{ color: '#595959', minWidth: '120px' }}>TDS Section:</span>
-                                                    <strong style={{ fontSize: '14px' }}>
-                                                        {selectedVendorDetails['TDS Section Code and Description'] ||
-                                                            selectedVendorDetails['TDS Section'] ||
-                                                            selectedVendorDetails['Section'] ||
-                                                            selectedVendorDetails['Code'] ||
-                                                            'N/A'}
-                                                    </strong>
-                                                </div>
-                                            </>
-                                        )}
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })}
                     </div>
-                </Panel>
+                ) : (
+                    <div style={{ color: '#8c8c8c', fontStyle: 'italic' }}>
+                        No vendor selected or master data not available.
+                    </div>
+                )}
+            </div>
+        </Panel>
+    );
 
+    // ---------- Quick View ----------
+    const quickViewTab = (
+        <div style={{ padding: '20px' }}>
+            <Collapse defaultActiveKey={['header', 'vendor_details', 'lineitems']}>
+                {/* 1. Header Section */}
+                {renderFieldGroup('Header', [
+                    'Vendor ID',
+                    'Vendor Name',
+                    'Invoice Number',
+                    'Invoice Date',
+                    'Due Date',
+                    'Payment Terms',
+                    'Invoice Currency', // Trigger Exchange Rate if non-USD
+                    'Total Invoice Amount',
+                    'Total Amount Payable',
+                    'Memo' // Note: Memo was manual input in old QuickView. renderFieldGroup might need to handle it or we add it to formData
+                ])}
+                {/* Note: renderFieldGroup uses formData. Is 'Memo' in formData? 
+                   Old QuickView used 'memo' state (lines 1863). 
+                   If 'Memo' is not in formData, renderFieldGroup might fail or show empty.
+                   Let's assume we should use formData for consistency or check if renderFieldInput handles 'Memo'.
+                   Check renderFieldInput (defined elsewhere).
+                   If 'Memo' is separate state, renderFieldGroup won't work perfectly for it unless initialized.
+                   However, for uniformity, let's keep it clean.
+                */}
+
+                {/* 2. Vendor Master Details */}
+                {renderVendorMasterDetailsPanel()}
+
+                {/* 3. Line Items */}
                 <Panel
                     header={
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1995,17 +1928,14 @@ const GenericInputFields = ({
                         key={getCurrencySymbol()}
                         columns={lineItemColumns}
                         dataSource={(() => {
-
                             const data = [];
                             lineItems.forEach((item, index) => {
-                                // Add Base Item
-                                data.push({
-                                    ...item,
-                                    key: `item_${index}`
-                                });
+                                data.push({ ...item, key: `item_${index}` });
                             });
 
                             // --- Single Aggregated GST Row for Quick View ---
+                            const formTaxValue = parseCurrencyValue(extractValue(formData['Total Tax Amount']));
+
                             const totalTaxAmount = lineItems.reduce((sum, item) => {
                                 const t = parseCurrencyValue(
                                     extractValue(item.TaxAmount) ||
@@ -2019,13 +1949,14 @@ const GenericInputFields = ({
                                 parseCurrencyValue(extractValue(formData['SGST'])) +
                                 parseCurrencyValue(extractValue(formData['IGST']));
 
-                            // Always display Total GST row
+                            const finalTaxToDisplay = formTaxValue || totalTaxAmount;
+
                             data.push({
                                 key: 'gst_total',
                                 Description: { value: 'Total GST' },
                                 Quantity: { value: 1 },
-                                UnitPrice: { value: totalTaxAmount },
-                                NetAmount: { value: totalTaxAmount },
+                                UnitPrice: { value: finalTaxToDisplay },
+                                NetAmount: { value: finalTaxToDisplay },
                                 TaxAmount: { value: 0 },
                                 Discount: { value: 0 },
                                 isSystemRow: true
@@ -2056,7 +1987,8 @@ const GenericInputFields = ({
                                     'TDS Rate',
                                     'Withholding Rate'
                                 ]) || '0';
-                                const tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
+                                let tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
+                                if (tdsRate > 1) tdsRate = tdsRate / 100;
 
                                 const subtotal = lineItems.reduce((sum, item) => {
                                     const net = parseCurrencyValue(
@@ -2069,7 +2001,6 @@ const GenericInputFields = ({
                                     return sum + net;
                                 }, 0);
 
-                                // User instruction: TDS Rate is decimal. Round to 2 decimals.
                                 const tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
 
                                 if (tdsAmount > 0) {
@@ -2081,7 +2012,7 @@ const GenericInputFields = ({
                                         NetAmount: { value: -tdsAmount },
                                         TaxAmount: { value: 0 },
                                         Discount: { value: 0 },
-                                        isSystemRow: true // flag for styling or disabling actions
+                                        isSystemRow: true
                                     });
                                 }
                             }
@@ -2102,9 +2033,33 @@ const GenericInputFields = ({
                             Add Line Item
                         </Button>
                     )}
+
+                    <div style={{
+                        marginTop: '20px',
+                        padding: '16px',
+                        background: '#f0f2f5',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        alignItems: 'center',
+                        borderTop: '1px solid #d9d9d9'
+                    }}>
+                        <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontSize: '14px', color: '#595959', marginRight: '12px' }}>Total Amount Payable:</span>
+                            <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#1890ff' }}>
+                                {getCurrencySymbol()} {parseCurrencyValue(extractValue(formData['Total Amount Payable'])).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                        </div>
+                    </div>
                 </Panel>
+                {/* Taxes Section (if needed below, fitting user request order) */}
+                {renderFieldGroup('Taxes', [
+                    'CGST',
+                    'SGST',
+                    'IGST',
+                ])}
             </Collapse>
-        </div >
+        </div>
     );
 
     const glSummaryTab = (
@@ -2112,10 +2067,13 @@ const GenericInputFields = ({
             <h3 style={{ marginBottom: '16px', borderBottom: '2px solid #1890ff', paddingBottom: '8px', color: '#001529' }}>GL Distribution Summary</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {(() => {
-                    
+
 
                     // Use persisted summary if available, otherwise calculate from current line items
                     const persistedSummary = originalData?.gl_summary;
+                    // console.log("originalData 👉", originalData);
+                    // console.log("gl_summary 👉", originalData?.gl_summary);
+
 
                     if (persistedSummary && persistedSummary.length > 0) {
                         return persistedSummary.map((item) => (
@@ -2170,65 +2128,181 @@ const GenericInputFields = ({
                     ));
                 })()}
             </div>
+
+            <div style={{
+                marginTop: '20px',
+                padding: '16px',
+                background: 'white',
+                borderRadius: '6px',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                borderTop: '1px solid #d9d9d9'
+            }}>
+                <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '14px', color: '#595959', marginRight: '12px' }}>Total Amount Payable:</span>
+                    <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#1890ff' }}>
+                        {getCurrencySymbol()} {parseCurrencyValue(extractValue(formData['Total Amount Payable'])).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                </div>
+            </div>
         </div>
     );
 
-    // ---------- All Fields (optimized, still same content) ----------
-    const renderFieldGroup = (title, fields) => {
 
-        return (<Panel header={title} key={title}>
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px'
-                }}
-            >
-                {fields.map((field) => (
-                    <React.Fragment key={field}>
-                        <div
-                            style={{
-                                display: 'grid',
-                                gridTemplateColumns: '350px 1fr',
-                                gap: '16px',
-                                alignItems: 'center'
-                            }}
-                        >
-                            <div style={{ fontWeight: 500 }}>{field}:</div>
-                            <div>{renderFieldInput(field, formData[field])}</div>
-                        </div>
-                        {field === 'Invoice Currency' && extractValue(formData['Invoice Currency']) !== 'USD' && (
-                            <div
-                                style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: '350px 1fr',
-                                    gap: '16px',
-                                    alignItems: 'center',
-                                    marginTop: '4px'
-                                }}
-                            >
-                                <div style={{ fontWeight: 500 }}>Exchange Rate:</div>
-                                <div>
-                                    <InputNumber
-                                        style={{ width: '100%', ...disabledStyle }}
-                                        value={exchangeRate}
-                                        onChange={(val) => setExchangeRate(val)}
-                                        placeholder="Enter exchange rate"
-                                        disabled={disableInputs}
-                                    />
-                                </div>
-                            </div>
-                        )}
-                    </React.Fragment>
-                ))}
-            </div>
-        </Panel>
-        );
-    };
 
     const allFieldsTab = (
         <div style={{ padding: '10px 20px' }}>
-            <Collapse defaultActiveKey={['Vendor', 'Buyer', 'Invoice Header']}>
+            <Collapse defaultActiveKey={['Invoice Header', 'vendor_details', 'Line Items']}>
+                {/* 1. Invoice Header (Reordered to Top) */}
+                {renderFieldGroup('Invoice Header', [
+                    'Invoice Number',
+                    'Invoice Date',
+                    'Due Date',
+                    'Invoice Currency',
+                    'Invoice Type',
+                    'PO Number',
+                    'Payment Terms',
+                    'Payment Method',
+                    'Cost Center / Project Code (if printed)',
+                    'Service period start',
+                    'Service period end'
+                ])}
+
+                {/* 2. Vendor Master Details (New Selection) */}
+                {renderVendorMasterDetailsPanel()}
+
+                {/* 3. Line Items */}
+                <Panel
+                    header={
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Line Items</span>
+                            <Button
+                                icon={<DownloadOutlined />}
+                                size="small"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    exportToExcel();
+                                }}
+                            >
+                                Export to Excel
+                            </Button>
+                        </div>
+                    }
+                    key="Line Items"
+                >
+
+                    <Table
+                        key={getCurrencySymbol()}
+                        columns={lineItemColumns}
+                        dataSource={(() => {
+                            const data = [];
+                            lineItems.forEach((item, index) => {
+                                data.push({ ...item, key: `item_${index}` });
+                            });
+                            // --- Single Aggregated GST Row for Quick View ---
+                            const formTaxValue = parseCurrencyValue(extractValue(formData['Total Tax Amount']));
+
+                            const totalTaxAmount = lineItems.reduce((sum, item) => {
+                                const t = parseCurrencyValue(
+                                    extractValue(item.TaxAmount) ||
+                                    extractValue(item.tax_amount) ||
+                                    item.TaxAmount ||
+                                    item.tax_amount
+                                );
+                                return sum + t;
+                            }, 0) +
+                                parseCurrencyValue(extractValue(formData['CGST'])) +
+                                parseCurrencyValue(extractValue(formData['SGST'])) +
+                                parseCurrencyValue(extractValue(formData['IGST']));
+
+                            const finalTaxToDisplay = formTaxValue || totalTaxAmount;
+
+                            data.push({
+                                key: 'gst_total',
+                                Description: { value: 'Total GST' },
+                                Quantity: { value: 1 },
+                                UnitPrice: { value: finalTaxToDisplay },
+                                NetAmount: { value: finalTaxToDisplay },
+                                TaxAmount: { value: 0 },
+                                Discount: { value: 0 },
+                                isSystemRow: true
+                            });
+
+                            // Dynamic TDS Row for Quick View Display
+                            const findTDSValue = (keys) => {
+                                if (!selectedVendorDetails) return null;
+                                const matchKey = Object.keys(selectedVendorDetails).find(k => {
+                                    const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
+                                    return keys.some(target => normK === target.toLowerCase().replace(/[\s_\\\-]/g, ''));
+                                });
+                                return matchKey ? selectedVendorDetails[matchKey] : null;
+                            };
+
+                            const tdsApplicabilityVal = findTDSValue([
+                                'TDS/Withhold Tax Applicability Configuration',
+                                'TDS Applicability',
+                                'TDS Applicable',
+                                'Withholding Tax Applicable'
+                            ]);
+
+                            if (tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes') {
+                                const tdsRateVal = findTDSValue([
+                                    'TDS Percentage',
+                                    'Percentage',
+                                    'Rate',
+                                    'TDS Rate',
+                                    'Withholding Rate'
+                                ]) || '0';
+                                let tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
+                                if (tdsRate > 1) tdsRate = tdsRate / 100;
+
+                                const subtotal = lineItems.reduce((sum, item) => {
+                                    const net = parseCurrencyValue(
+                                        extractValue(item.NetAmount) ||
+                                        extractValue(item.amount) ||
+                                        extractValue(item.net_amount) ||
+                                        item.amount ||
+                                        item.net_amount
+                                    );
+                                    return sum + net;
+                                }, 0);
+
+                                const tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
+
+                                if (tdsAmount > 0) {
+                                    data.push({
+                                        key: 'TDS_PREVIEW',
+                                        Description: { value: `TDS Deduction` },
+                                        Quantity: { value: 1 },
+                                        UnitPrice: { value: -tdsAmount },
+                                        NetAmount: { value: -tdsAmount },
+                                        TaxAmount: { value: 0 },
+                                        Discount: { value: 0 },
+                                        isSystemRow: true
+                                    });
+                                }
+                            }
+                            return data;
+                        })()}
+                        pagination={false}
+                        scroll={{ x: 'max-content' }}
+                        size="small"
+                    />
+                    {!readOnly && (
+                        <Button
+                            type="dashed"
+                            icon={<PlusOutlined />}
+                            onClick={handleAddLineItem}
+                            disabled={disableInputs}
+                            style={{ marginTop: '16px', width: '100%' }}
+                        >
+                            Add Line Item
+                        </Button>
+                    )}
+                </Panel>
+
+                {/* 4. Extracted Vendor & Buyer Info (Moved down/Optional) */}
                 {renderFieldGroup('Vendor Level', [
                     'Vendor Name',
                     'Vendor Address',
@@ -2252,63 +2326,6 @@ const GenericInputFields = ({
                     'Client Tax ID (if applicable)',
                     'Contact Person'
                 ])}
-
-                {renderFieldGroup('Invoice Header', [
-                    'Invoice Number',
-                    'Invoice Date',
-                    'Due Date',
-                    'Invoice Currency',
-                    'Invoice Type',
-                    'PO Number',
-                    'Payment Terms',
-                    'Payment Method',
-                    'Cost Center / Project Code (if printed)',
-                    'Service period start',
-                    'Service period end'
-                ])}
-
-                <Panel
-                    header={
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Line Items</span>
-                            <Button
-                                icon={<DownloadOutlined />}
-                                size="small"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    exportToExcel();
-                                }}
-                            >
-                                Export to Excel
-                            </Button>
-                        </div>
-                    }
-                    key="Line Items"
-                >
-
-                    <Table
-                        key={getCurrencySymbol()}
-                        columns={lineItemColumns}
-                        dataSource={lineItems.map((item, index) => ({
-                            ...item,
-                            key: index
-                        }))}
-                        pagination={false}
-                        scroll={{ x: 'max-content' }}
-                        size="small"
-                    />
-                    {!readOnly && (
-                        <Button
-                            type="dashed"
-                            icon={<PlusOutlined />}
-                            onClick={handleAddLineItem}
-                            disabled={disableInputs}
-                            style={{ marginTop: '16px', width: '100%' }}
-                        >
-                            Add Line Item
-                        </Button>
-                    )}
-                </Panel>
 
                 {renderFieldGroup('Taxes', [
                     'Total Tax Amount',
@@ -2380,7 +2397,8 @@ const GenericInputFields = ({
     // ---------- Coding Tab ----------
     const codingTab = (
         <div style={{ padding: '20px' }}>
-            <Collapse defaultActiveKey={['header', 'lineitems']}>
+            <Collapse defaultActiveKey={['vendor_details', 'header', 'lineitems']}>
+                {renderVendorMasterDetailsPanel()}
                 <Panel header="Header" key="header">
                     <Table
                         key={getCurrencySymbol()}
