@@ -817,6 +817,25 @@ async def update_invoice(
         update_query
     )
 
+    # --- Registry Sync ---
+    # If critical fields changed, update the fast lookup registry
+    if new_vendor_id != current_vendor_id or new_invoice_number != current_invoice_number:
+        from app.utils.invoice_registry import remove_from_registry, register_invoice
+        
+        # Remove old entry (keyed by invoice_id)
+        remove_from_registry(db, invoice_id)
+        
+        # Add new entry if fields are present
+        if new_vendor_id and new_invoice_number:
+            register_invoice(
+                db,
+                vendor_id=new_vendor_id,
+                invoice_number=new_invoice_number,
+                entity=invoice.get("entity", ""),
+                invoice_id=invoice_id,
+                uploaded_by=invoice.get("uploaded_by", "system")
+            )
+
     updated_invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
     updated_invoice["id"] = str(updated_invoice["_id"])
 
