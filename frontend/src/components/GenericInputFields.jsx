@@ -2840,6 +2840,7 @@ const GenericInputFields = ({
                     'Shipping / Handling / Fees',
                     'Surcharges',
                     'Total Invoice Amount',
+                    'Total Amount Payable',
                     'Amount Paid',
                     'Amount Due'
                 ])}
