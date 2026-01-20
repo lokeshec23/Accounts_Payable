@@ -232,6 +232,7 @@ const GenericInputFields = ({
             if (extractionData.amounts.CGST) initialFormData['CGST'] = extractionData.amounts.CGST;
             if (extractionData.amounts.SGST) initialFormData['SGST'] = extractionData.amounts.SGST;
             if (extractionData.amounts.IGST) initialFormData['IGST'] = extractionData.amounts.IGST;
+            if (extractionData.amounts.GST) initialFormData['GST'] = extractionData.amounts.GST;
             // Map Total Tax Amount if available (often 'tax' or 'total_tax' in extraction)
             if (extractionData.amounts.tax) initialFormData['Total Tax Amount'] = extractionData.amounts.tax;
             else if (extractionData.amounts.total_tax) initialFormData['Total Tax Amount'] = extractionData.amounts.total_tax;
@@ -243,7 +244,7 @@ const GenericInputFields = ({
         const breakdownValue = extractValue(initialFormData[breakdownField]);
 
         if (breakdownValue && typeof breakdownValue === 'string') {
-            const pattern = /(CGST|SGST|IGST)[\s:]*([\d,.]+)/gi;
+            const pattern = /(CGST|SGST|IGST|GST|VAT|PST)[\s:]*([\d,.]+)/gi;
             let match;
             while ((match = pattern.exec(breakdownValue)) !== null) {
                 const type = match[1].toUpperCase();
@@ -777,7 +778,8 @@ const GenericInputFields = ({
         const headerTax =
             parseCurrencyValue(extractValue(formData['CGST'])) +
             parseCurrencyValue(extractValue(formData['SGST'])) +
-            parseCurrencyValue(extractValue(formData['IGST']));
+            parseCurrencyValue(extractValue(formData['IGST'])) +
+            parseCurrencyValue(extractValue(formData['GST']));
 
         // Line Item Taxes
         const lineItemTax = lineItems.reduce((sum, item) => {
@@ -865,6 +867,7 @@ const GenericInputFields = ({
         formData['CGST'],
         formData['SGST'],
         formData['IGST'],
+        formData['GST'],
         formData['Total Tax Amount'],
         readOnly
     ]);
@@ -991,7 +994,8 @@ const GenericInputFields = ({
             }, 0) +
                 parseCurrencyValue(extractValue(formData['CGST'])) +
                 parseCurrencyValue(extractValue(formData['SGST'])) +
-                parseCurrencyValue(extractValue(formData['IGST']));
+                parseCurrencyValue(extractValue(formData['IGST'])) +
+                parseCurrencyValue(extractValue(formData['GST']));
 
             const finalGstValue = formTaxValue || calculatedTotalTax;
 
@@ -1394,6 +1398,10 @@ const GenericInputFields = ({
                 ['Shipping / Handling / Fees', 'amounts.shipping_handling_fees'],
                 ['Surcharges', 'amounts.surcharges'],
                 ['Total Tax Amount', 'amounts.total_tax_amount'],
+                ['CGST', 'amounts.CGST'],
+                ['SGST', 'amounts.SGST'],
+                ['IGST', 'amounts.IGST'],
+                ['GST', 'amounts.GST'],
                 [
                     'Tax Type Breakdown (VAT/GST/PST/IGST etc.)',
                     'amounts.tax_type_breakdown'
@@ -1770,7 +1778,8 @@ const GenericInputFields = ({
                 field.toLowerCase().includes('price') ||
                 field.toLowerCase().includes('total') ||
                 field.toLowerCase().includes('subtotal') ||
-                field.toLowerCase().includes('tax') ||
+                (field.toLowerCase().includes('tax') &&
+                    !field.toLowerCase().includes('breakdown')) ||
                 field.toLowerCase().includes('fees') ||
                 field.toLowerCase().includes('surcharges')) &&
             !field.toLowerCase().includes('id') &&
@@ -2553,9 +2562,11 @@ const GenericInputFields = ({
                 </Panel>
                 {/* Taxes Section (if needed below, fitting user request order) */}
                 {renderFieldGroup('Taxes', [
+                    'Total Tax Amount',
                     'CGST',
                     'SGST',
                     'IGST',
+                    'GST'
                 ])}
             </Collapse>
         </div>
@@ -2832,6 +2843,7 @@ const GenericInputFields = ({
                     'CGST',
                     'SGST',
                     'IGST',
+                    'GST',
                     'Withholding Tax'
                 ])}
 
