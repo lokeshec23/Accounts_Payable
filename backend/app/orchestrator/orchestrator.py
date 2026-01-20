@@ -16,6 +16,8 @@ class InvoiceOrchestrator:
         print(f"Starting invoice processing: {file_path}")
 
         try:
+            import time
+            total_start = time.time()
             # Use the extraction agent directly
             initial_state: InvoiceState = InvoiceState(
                 file_path=file_path,
@@ -29,14 +31,26 @@ class InvoiceOrchestrator:
             )
 
             # Run extraction steps concurrently where possible or sequentially if dependent
+            import time
+            step_start = time.time()
             state = await self.extraction_agent.extract_with_azure_doc_intel(initial_state)
+            print(f"[Orchestrator] Azure extraction step completed in {time.time() - step_start:.2f}s")
+            
+            step_start = time.time()
             state = await self.extraction_agent.enhance_with_llm(state)
+            print(f"[Orchestrator] LLM enhancement step completed in {time.time() - step_start:.2f}s")
+            
+            step_start = time.time()
             state = self.extraction_agent.validate_data(state)
+            print(f"[Orchestrator] Data validation step completed in {time.time() - step_start:.2f}s")
+            
+            step_start = time.time()
             state = self.extraction_agent.generate_final_output(state)
+            print(f"[Orchestrator] Final output generation step completed in {time.time() - step_start:.2f}s")
 
             final_output = state["final_output"]
 
-            print("Invoice processing completed successfully")
+            print(f"Invoice processing completed successfully in {time.time() - total_start:.2f}s")
             return final_output
 
         except Exception as e:

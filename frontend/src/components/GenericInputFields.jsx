@@ -322,6 +322,11 @@ const GenericInputFields = ({
         // Normalize input: trim, stringify
         const currentId = String(rawId || '').trim();
 
+        if (skipNextVendorLookup.current) {
+            console.log("DEBUG: Skipping Vendor ID effect (manual selection pending)");
+            return;
+        }
+
         console.log("DEBUG: Vendor ID changed to:", currentId, "(Raw type:", typeof rawId, ")");
 
         if (!currentId) return;
@@ -495,9 +500,8 @@ const GenericInputFields = ({
             const applyMatch = (match) => {
                 // Auto-populate Vendor ID if available and not set
                 const matchedId = match['Vendor ID'] || match['VendorID'] || match['vendor_id'] || match['VENDOR_ID'];
-
                 const currentFormId = extractValue(formData['Vendor ID']);
-                // Robust comparison (handle numbers vs strings)
+
                 if (!skipNextVendorLookup.current) {
                     if (
                         matchedId &&
@@ -507,27 +511,12 @@ const GenericInputFields = ({
                         setVendorId(matchedId);
                         handleInputChange('Vendor ID', matchedId);
                     }
+                    // Use unified vendor change handler for all other updates
+                    handleVendorChange(match);
                 } else {
-                    console.log("DEBUG: Skipping Vendor ID auto-fill (user selected Vendor Name)");
-                    skipNextVendorLookup.current = false; // reset after one skip
+                    console.log("DEBUG: Skipping Vendor ID auto-fill & Change Handler (user selected Vendor Name/ID)");
+                    skipNextVendorLookup.current = false;
                 }
-
-                // Auto-correct Vendor Name if needed
-                // RELAXED: We rely on Reverse Lookup (triggered by ID change) to standardize name if needed.
-                // We do NOT force update here to avoid fighting the user while typing.
-                /*
-                const officialName = match['Vendor Name'] || match['VendorName'] || match['Name'] || match['VENDOR_NAME'];
-                const currentName = String(vendorName || '').trim();
-
-                // If official name is different (ignoring case/spaces for comparison, or just trust master)
-                if (officialName && (normalizeVendor(officialName) !== normalizeVendor(currentName) || officialName !== currentName)) {
-                    console.log(`DEBUG: Auto-correcting Vendor Name from '${currentName}' to '${officialName}'`);
-                    handleInputChange('Vendor Name', officialName);
-                }
-                */
-
-                // Use unified vendor change handler for all other updates
-                handleVendorChange(match);
             };
 
             // 1. Exact Address Match (Local) - HIGHEST PRIORITY
@@ -551,8 +540,6 @@ const GenericInputFields = ({
                     }
 
                     const normalizedMaster = masterAddr ? normalizeAddress(masterAddr) : "";
-
-                    // console.debug(`DEBUG: Comparing Addr: '${normalizedAddrInput}' vs Master: '${normalizedMaster}'`);
                     return normalizedMaster === normalizedAddrInput;
                 });
                 if (bestLocalMatch) console.log("DEBUG: Exact Address Match Found (Local)!", bestLocalMatch);
@@ -711,6 +698,25 @@ const GenericInputFields = ({
         console.log('DEBUG: Line Grouping setting:', grouping);
         setLineGrouping(grouping);
         applyLineGrouping(grouping);
+
+        // 3.5 Sync Address to avoid address-based re-matching to old vendor
+        let masterAddr = vendorDetails['Vendor Address'] || vendorDetails['VendorAddress'] || vendorDetails['Address'] || vendorDetails['VENDOR_ADDRESS'];
+        if (!masterAddr) {
+            const parts = [
+                vendorDetails['ADDRESS_LINE1'] || vendorDetails['Address1'],
+                vendorDetails['ADDRESS_LINE2'] || vendorDetails['Address2'],
+                vendorDetails['ADDRESS_LINE3'] || vendorDetails['Address3'],
+                vendorDetails['CITY'] || vendorDetails['City'],
+                vendorDetails['STATE_OR_TERITTORY'] || vendorDetails['STATE'] || vendorDetails['State'],
+                vendorDetails['ZIP_OR_POSTAL_CODE'] || vendorDetails['ZIP'] || vendorDetails['PostalCode'] || vendorDetails['ZipCode'],
+                vendorDetails['COUNTRY'] || vendorDetails['Country']
+            ];
+            masterAddr = parts.filter(p => p).map(p => String(p).trim()).join(" ").trim();
+        }
+        if (masterAddr) {
+            console.log('DEBUG: Syncing Vendor Address from Master:', masterAddr);
+            handleInputChange('Vendor Address', masterAddr);
+        }
 
         // 4. GST and TDS are already handled by selectedVendorDetails display
         // 5. Trigger workflow refresh

@@ -68,7 +68,6 @@ async def upload_invoices(
     entity: str = Depends(get_current_entity)
 ):
     from app.ai.duplicate_detector import (
-        extract_vendor_invoice_and_address,
         get_vendor_id_from_master
     )
     from app.utils.invoice_registry import check_registry_duplicate, register_invoice
@@ -85,40 +84,22 @@ async def upload_invoices(
         clean_name = file.filename.replace("\\", "/").split("/")[-1]
         file_path = None
         try:
+            import time
+            total_start = time.time()
+            
             # ---- CLEAN FILENAME ----
             clean_name = file.filename.replace("\\", "/").split("/")[-1]
             new_name = f"{uuid.uuid4()}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{clean_name}"
             file_path = os.path.join(upload_dir, new_name)
 
             # ---- SAVE FILE ----
+            save_start = time.time()
             contents = await file.read()
             with open(file_path, "wb") as f:
                 f.write(contents)
+            print(f"[Backend] File saved in {time.time() - save_start:.2f}s: {file_path}")
 
-            # ---- DUPLICATE DETECTION (BEFORE EXTRACTION) ----
-            extracted_vendor_name, invoice_number, extracted_vendor_address = await extract_vendor_invoice_and_address(file_path)
-            
-            duplicate_info = None
-            if (extracted_vendor_name or extracted_vendor_address) and invoice_number:
-                # Get vendor ID, OFFICIAL vendor name, and line grouping config from master
-                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name, entity, extracted_vendor_address)
-                
-                if vendor_id:
-                    # Fast O(1) duplicate check using registry
-                    existing_invoice = check_registry_duplicate(db, vendor_id, invoice_number, entity)
-                    
-                    if existing_invoice:
-                        # Duplicate found BUT allow upload with warning
-                        uploaded_date = existing_invoice.get("uploaded_at")
-                        date_str = uploaded_date.strftime("%Y-%m-%d %H:%M") if uploaded_date else "N/A"
-                        
-                        duplicate_info = {
-                             "is_duplicate": True,
-                             "reason": f"Duplicate: Vendor '{official_vendor_name}', Invoice #{invoice_number} (Uploaded {date_str})",
-                             "original_invoice_id": str(existing_invoice.get("_id"))
-                        }
-
-            # ---- CREATE DB RECORD ----
+            # ---- CREATE DB RECORD (INITIAL) ----
             invoice_data = InvoiceCreate(
                 filename=new_name,
                 original_filename=clean_name,
@@ -139,26 +120,17 @@ async def upload_invoices(
                 "comment": None
             }]
             
-            # Add vendor_id, official vendor name, and invoice_number if available
-            current_line_grouping = "No"
-            if (extracted_vendor_name or extracted_vendor_address) and invoice_number:
-                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor_name, entity, extracted_vendor_address)
-                if vendor_id:
-                    invoice_dict["azure_vendor_name"] = extracted_vendor_name
-                    invoice_dict["vendor_id"] = vendor_id
-                    invoice_dict["vendor_name"] = official_vendor_name  # Official name from master
-                    invoice_dict["invoice_number"] = invoice_number
-                    current_line_grouping = line_grouping
-            
-            invoice_dict["line_grouping"] = current_line_grouping
-            if duplicate_info:
-                invoice_dict["duplicate_info"] = duplicate_info
-
+            db_start = time.time()
             result = db.invoices.insert_one(invoice_dict)
             invoice_id = str(result.inserted_id)
+            print(f"[Backend] Initial DB record created in {time.time() - db_start:.2f}s: {invoice_id}")
 
             # ---- RUN EXTRACTION ----
+            extract_start = time.time()
+            print(f"[Backend] Starting full extraction for {invoice_id}")
             extraction = await invoice_processor.process_invoice_extraction(file_path)
+            print(f"[Backend] Full extraction completed in {time.time() - extract_start:.2f}s")
+
 
             update_data = {
                 "extracted_data": extraction.get("extracted_data", {}),
@@ -168,21 +140,24 @@ async def upload_invoices(
                 "processed_at": datetime.utcnow()
             }
             
-            # Update vendor_id and vendor_name from full extraction if not already set
+            # Update vendor_id and vendor_name from full extraction
             extracted_data = extraction.get("extracted_data", {})
-            if not invoice_dict.get("vendor_id"):
-                # Try to get vendor name from full extraction
-                vendor_info = extracted_data.get("vendor_info", {})
-                extracted_vendor = vendor_info.get("name", {}).get("value")
-                extracted_address = vendor_info.get("address", {}).get("value")
-                if extracted_vendor or extracted_address:
-                    update_data["azure_vendor_name"] = extracted_vendor
-                    vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor, entity, extracted_address)
-                    if vendor_id:
-                        update_data["vendor_id"] = vendor_id
-                        update_data["vendor_name"] = official_vendor_name
-                        update_data["line_grouping"] = line_grouping
-                        current_line_grouping = line_grouping
+            current_line_grouping = "No"
+            
+            # Try to get vendor name from full extraction
+            vendor_info = extracted_data.get("vendor_info", {})
+            extracted_vendor = vendor_info.get("name", {}).get("value")
+            extracted_address = vendor_info.get("address", {}).get("value")
+            if extracted_vendor or extracted_address:
+                update_data["azure_vendor_name"] = extracted_vendor
+                vendor_start = time.time()
+                vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor, entity, extracted_address)
+                print(f"[Backend] Vendor matching completed in {time.time() - vendor_start:.2f}s")
+                if vendor_id:
+                    update_data["vendor_id"] = vendor_id
+                    update_data["vendor_name"] = official_vendor_name
+                    update_data["line_grouping"] = line_grouping
+                    current_line_grouping = line_grouping
             
             if not invoice_dict.get("invoice_number"):
                 # Try to get invoice number from extraction
@@ -276,6 +251,7 @@ async def upload_invoices(
             final_invoice_number = update_data.get("invoice_number") or invoice_dict.get("invoice_number")
             
             if final_vendor_id and final_invoice_number:
+                reg_start = time.time()
                 register_invoice(
                     db,
                     vendor_id=final_vendor_id,
@@ -284,7 +260,10 @@ async def upload_invoices(
                     invoice_id=invoice_id,
                     uploaded_by=current_user.username
                 )
+                print(f"[Backend] Registered in fast lookup registry in {time.time() - reg_start:.2f}s")
 
+            print(f"[Backend] TOTAL processing for {invoice_id} completed in {time.time() - total_start:.2f}s")
+            
             # ---- PREPARE JSON SAFE RESPONSE ----
             invoice_dict.update(update_data)
             invoice_dict["id"] = invoice_id

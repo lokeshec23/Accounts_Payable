@@ -53,6 +53,8 @@ class InvoiceExtractionAgent:
 
     async def extract_with_azure_doc_intel(self, state: InvoiceState) -> InvoiceState:
         try:
+            import time
+            start_time = time.time()
             self.processing_steps.append("Azure Document Intelligence Extraction Started")
             file_path = state["file_path"]
 
@@ -64,6 +66,9 @@ class InvoiceExtractionAgent:
                     AnalyzeDocumentRequest(bytes_source=document.read())
                 )
                 result: AnalyzeResult = await poller.result()
+            
+            duration = time.time() - start_time
+            print(f"Azure Document Intelligence Extraction took {duration:.2f}s")
 
             raw_response = self._serialize_azure_response(result)
             state["raw_azure_response"] = raw_response
@@ -156,6 +161,8 @@ class InvoiceExtractionAgent:
             return {"error": f"Failed to serialize response: {str(e)}"}
 
     def _parse_azure_response_advanced(self, result: AnalyzeResult) -> Dict[str, Any]:
+        import time
+        parse_start = time.time()
         extracted_data: Dict[str, Any] = {}
 
         if not result.documents:
@@ -191,6 +198,7 @@ class InvoiceExtractionAgent:
         else:
             print("No line items could be extracted from Azure DI")
 
+        print(f"Parsing Azure response took {time.time() - parse_start:.2f}s")
         return extracted_data
 
     def _extract_azure_items_working(self, fields) -> Optional[Dict[str, Any]]:
@@ -376,6 +384,8 @@ class InvoiceExtractionAgent:
 
     async def enhance_with_llm(self, state: InvoiceState) -> InvoiceState:
         try:
+            import time
+            start_time = time.time()
             self.processing_steps.append("LLM Enhancement Started")
 
             azure_data = state["extracted_data"]
@@ -392,6 +402,8 @@ class InvoiceExtractionAgent:
                 print(f"Using {item_count} Azure-extracted line items")
 
             state["enhanced_data"] = merged
+            duration = time.time() - start_time
+            print(f"LLM Enhancement took {duration:.2f}s")
             self.processing_steps.append("LLM Enhancement Completed")
             return state
 
@@ -637,6 +649,8 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
 
     def validate_data(self, state: InvoiceState) -> InvoiceState:
         try:
+            import time
+            v_start = time.time()
             self.processing_steps.append("Data Validation Started")
 
             enhanced_data = state["enhanced_data"]
@@ -648,7 +662,7 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
             state["validated_data"] = validated_data
 
             self.processing_steps.append("Data Validation Completed")
-            print("Data validation completed")
+            print(f"Data validation completed in {time.time() - v_start:.2f}s")
 
             return state
 
@@ -740,6 +754,8 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
 
     def generate_final_output(self, state: InvoiceState) -> InvoiceState:
         try:
+            import time
+            out_start = time.time()
             self.processing_steps.append("Final Output Generation Started")
 
             validated_data = state["validated_data"]
@@ -780,7 +796,7 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
 
             state["final_output"] = final_output
             self.processing_steps.append("Final Output Generation Completed")
-            print("Final output generated successfully")
+            print(f"Final output generated successfully in {time.time() - out_start:.2f}s")
 
             return state
 

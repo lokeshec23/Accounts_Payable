@@ -13,23 +13,23 @@ const InvoiceUpload = ({ onUploadSuccess }) => {
     // AntD v5 message hook
     const [messageApi, contextHolder] = message.useMessage();
 
-  const uploadProps = {
-    name: 'files',
-    multiple: true,
-    directory: false,           // ❌ remove default folder-only mode
-    webkitdirectory: true,      // ✔ allow folder drag-drop
-    fileList,
-    accept: '.pdf',
+    const uploadProps = {
+        name: 'files',
+        multiple: true,
+        directory: false,           // ❌ remove default folder-only mode
+        webkitdirectory: true,      // ✔ allow folder drag-drop
+        fileList,
+        accept: '.pdf',
 
-    beforeUpload: (file) => {
-        setFileList(prev => [...prev, file]);
-        return false;
-    },
+        beforeUpload: (file) => {
+            setFileList(prev => [...prev, file]);
+            return false;
+        },
 
-    onRemove: (file) => {
-        setFileList(prev => prev.filter(f => f.uid !== file.uid));
-    }
-};
+        onRemove: (file) => {
+            setFileList(prev => prev.filter(f => f.uid !== file.uid));
+        }
+    };
 
 
     const handleUpload = async () => {
@@ -40,6 +40,8 @@ const InvoiceUpload = ({ onUploadSuccess }) => {
 
         try {
             setUploading(true);
+            const startTime = Date.now();
+            console.log(`[Frontend] Upload and processing started at: ${new Date(startTime).toLocaleString()}`);
 
             messageApi.open({
                 type: "loading",
@@ -51,9 +53,13 @@ const InvoiceUpload = ({ onUploadSuccess }) => {
             // Correct multi-file upload
             const response = await invoiceService.uploadInvoices(fileList);
 
+            const endTime = Date.now();
+            const duration = (endTime - startTime) / 1000;
+            console.log(`[Frontend] Upload and processing completed in ${duration.toFixed(2)} seconds`);
+
             messageApi.open({
                 type: "success",
-                content: `${response.count} file(s) processed successfully!`,
+                content: `${response.count} file(s) processed successfully! (Time: ${duration.toFixed(2)}s)`,
                 key: "uploading"
             });
 
