@@ -372,16 +372,7 @@ const GenericInputFields = ({
 
             // 2. Update Payment Terms if empty
             // Reuse robust lookup logic
-            const ptKey = Object.keys(match).find(k => {
-                const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
-                return normK === 'paymentterms' ||
-                    normK === 'terms' ||
-                    normK === 'termsofpayment' ||
-                    normK === 'creditterms' ||
-                    normK === 'payterms' ||
-                    normK === 'pmtterms';
-            });
-            const paymentTerms = ptKey ? match[ptKey] : null;
+            const paymentTerms = getVendorPaymentTerms(match);
             const currentTerms = extractValue(formData['Payment Terms']);
             const isCurrentEmpty = !currentTerms || String(currentTerms).trim() === '';
 
@@ -634,9 +625,11 @@ const GenericInputFields = ({
             const norm = k.toLowerCase().replace(/[\s_\\\-]/g, '');
             return (
                 norm === 'paymentterms' ||
+                norm === 'terms' ||
                 norm === 'termsofpayment' ||
                 norm === 'creditterms' ||
-                norm === 'payterms'
+                norm === 'payterms' ||
+                norm === 'pmtterms'
             );
         });
 
@@ -703,13 +696,10 @@ const GenericInputFields = ({
         setSelectedVendorDetails(vendorDetails);
 
         // 2. Extract and apply Payment Terms
-        const ptKey = Object.keys(vendorDetails).find(k => {
-            const normK = k.toLowerCase().replace(/[\s_\\-]/g, '');
-            return normK === 'paymentterms' || normK === 'terms' || normK === 'termsofpayment';
-        });
-        if (ptKey && vendorDetails[ptKey]) {
-            console.log('DEBUG: Applying Payment Terms:', vendorDetails[ptKey]);
-            handleInputChange('Payment Terms', vendorDetails[ptKey]);
+        const paymentTerms = getVendorPaymentTerms(vendorDetails);
+        if (paymentTerms) {
+            console.log('DEBUG: Applying Payment Terms:', paymentTerms);
+            handleInputChange('Payment Terms', paymentTerms);
         }
 
         // 3. Extract and apply Line Grouping
