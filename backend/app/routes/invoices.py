@@ -719,6 +719,9 @@ async def update_invoice(
                 status_code=409, 
                 detail=f"Duplicate detected: Vendor ID '{new_vendor_id}' already has Invoice #'{new_invoice_number}'."
             )
+        else:
+            # If a check was required and NO duplicate was found, clear the stale duplicate warning
+            update_data["duplicate_info"] = None
 
     # --- Vendor Mapping Persistence ---
     extracted_data = update_data.get("extracted_data")
