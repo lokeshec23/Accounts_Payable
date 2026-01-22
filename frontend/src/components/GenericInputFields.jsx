@@ -28,6 +28,8 @@ import {
     DownloadOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+dayjs.extend(customParseFormat);
 import { invoiceService, codingService, workflowService, masterDataService } from '../services/api';
 import { authService } from '../services/auth';
 import WorkflowTab from './WorkflowTab';
@@ -60,6 +62,7 @@ const GenericInputFields = ({
     });
     const [lineItems, setLineItems] = useState(lineItemsFromData);
     const skipNextVendorLookup = React.useRef(false);
+    const initialDuplicateCheckDone = React.useRef(false);
 
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState(readOnly ? '3' : '1');
@@ -126,6 +129,11 @@ const GenericInputFields = ({
     }, [originalData, data]);
 
     useEffect(() => {
+        // Reset initial check flag when invoiceId changes
+        initialDuplicateCheckDone.current = false;
+    }, [invoiceId]);
+
+    useEffect(() => {
         // Real-time duplicate check with debounce
         const checkDuplicate = async () => {
             const currentVendorId = extractValue(formData['Vendor ID']);
@@ -161,6 +169,17 @@ const GenericInputFields = ({
             }
         };
 
+        const currentId = extractValue(formData['Vendor ID']);
+        const currentNum = extractValue(formData['Invoice Number']);
+
+        // Run immediately on first identification (e.g. initial load)
+        if (!initialDuplicateCheckDone.current && currentId && currentNum) {
+            console.log("DEBUG: Running immediate duplicate check for initial identification");
+            initialDuplicateCheckDone.current = true;
+            checkDuplicate();
+            return;
+        }
+
         const timer = setTimeout(() => {
             checkDuplicate();
         }, 800);
@@ -174,6 +193,17 @@ const GenericInputFields = ({
         const cleanValue = String(value).replace(/[$,\s]/g, '');
         const parsed = parseFloat(cleanValue);
         return isNaN(parsed) ? 0 : parsed;
+    };
+
+    const parseStoredDate = (dateStr) => {
+        if (!dateStr) return null;
+        // Try common formats
+        const formats = ['YYYY-MM-DD', 'DD-MM-YYYY', 'DD/MM/YYYY', 'MM-DD-YYYY', 'YYYY/MM/DD'];
+        const d = dayjs(dateStr, formats, true);
+        if (d.isValid()) return d;
+        // Fallback for non-strict native JS parse
+        const fallback = dayjs(dateStr);
+        return fallback.isValid() ? fallback : null;
     };
 
     const extractValue = (fieldValue) => {
@@ -376,16 +406,9 @@ const GenericInputFields = ({
                 console.log("DEBUG: Vendor Name already matches or is empty in master.");
             }
 
-            // 2. Update Payment Terms if empty
-            // Reuse robust lookup logic
-            const paymentTerms = getVendorPaymentTerms(match);
-            const currentTerms = extractValue(formData['Payment Terms']);
-            const isCurrentEmpty = !currentTerms || String(currentTerms).trim() === '';
-
-            if (paymentTerms && isCurrentEmpty) {
-                console.log("DEBUG: Auto-populating Payment Terms from ID Match:", paymentTerms);
-                handleInputChange('Payment Terms', paymentTerms);
-            }
+            // 2. Comprehensive Vendor Details Fetch (Terms, Grouping, Address, TDS/GST)
+            console.log("DEBUG: Fetching comprehensive master details for ID Match.");
+            handleVendorChange(match);
         } else {
             console.log("DEBUG: No match found for Vendor ID:", currentId);
         }
@@ -728,8 +751,8 @@ const GenericInputFields = ({
         const invoiceDateStr = extractValue(formData['Invoice Date']);
         if (!invoiceDateStr) return;
 
-        const invoiceDate = dayjs(invoiceDateStr);
-        if (!invoiceDate.isValid()) return;
+        const invoiceDate = parseStoredDate(invoiceDateStr);
+        if (!invoiceDate || !invoiceDate.isValid()) return;
 
         const extractedTerms = extractValue(formData['Payment Terms']);
         let days = extractNetDays(extractedTerms);
@@ -1821,7 +1844,7 @@ const GenericInputFields = ({
                 >
                     <DatePicker
                         style={{ width: '100%', ...disabledStyle }}
-                        value={stringValue ? dayjs(stringValue) : null}
+                        value={stringValue ? parseStoredDate(stringValue) : null}
                         onChange={(date, dateString) => handleInputChange(field, dateString)}
                         format="YYYY-MM-DD"
                         disabled={disableInputs}
