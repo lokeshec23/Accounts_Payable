@@ -195,10 +195,36 @@ const GenericInputFields = ({
         return isNaN(parsed) ? 0 : parsed;
     };
 
-    const parseStoredDate = (dateStr) => {
+    const parseStoredDate = (dateStr, currency = '') => {
         if (!dateStr) return null;
-        // Try common formats
-        const formats = ['YYYY-MM-DD', 'DD-MM-YYYY', 'DD/MM/YYYY', 'MM-DD-YYYY', 'YYYY/MM/DD'];
+
+        // Normalize: replace dots with dashes if it looks like a dot-separated date
+        // but dayjs customParseFormat can handle Dot also if we provide it in formats.
+        // For INR, we strictly prefer DD-MM-YYYY or DD.MM.YYYY
+        let formats = [
+            'YYYY-MM-DD',
+            'DD-MM-YYYY',
+            'DD.MM.YYYY',
+            'DD/MM/YYYY',
+            'DD-MMM-YYYY',
+            'MM-DD-YYYY',
+            'MM/DD/YYYY',
+            'MM.DD.YYYY',
+            'YYYY/MM/DD'
+        ];
+
+        if (String(currency).toUpperCase() === 'INR') {
+            // Prioritize DD.MM and DD-MM even more strictly for INR
+            formats = [
+                'DD-MM-YYYY',
+                'DD.MM.YYYY',
+                'DD/MM/YYYY',
+                'YYYY-MM-DD',
+                'MM-DD-YYYY',
+                'MM.DD.YYYY'
+            ];
+        }
+
         const d = dayjs(dateStr, formats, true);
         if (d.isValid()) return d;
         // Fallback for non-strict native JS parse
@@ -751,7 +777,8 @@ const GenericInputFields = ({
         const invoiceDateStr = extractValue(formData['Invoice Date']);
         if (!invoiceDateStr) return;
 
-        const invoiceDate = parseStoredDate(invoiceDateStr);
+        const currentCurrency = extractValue(formData['Invoice Currency']);
+        const invoiceDate = parseStoredDate(invoiceDateStr, currentCurrency);
         if (!invoiceDate || !invoiceDate.isValid()) return;
 
         const extractedTerms = extractValue(formData['Payment Terms']);
@@ -1844,7 +1871,7 @@ const GenericInputFields = ({
                 >
                     <DatePicker
                         style={{ width: '100%', ...disabledStyle }}
-                        value={stringValue ? parseStoredDate(stringValue) : null}
+                        value={stringValue ? parseStoredDate(stringValue, extractValue(formData['Invoice Currency'])) : null}
                         onChange={(date, dateString) => handleInputChange(field, dateString)}
                         format="YYYY-MM-DD"
                         disabled={disableInputs}
