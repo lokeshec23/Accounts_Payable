@@ -546,22 +546,33 @@ const GenericInputFields = ({
             const normalizedAddrInput = vendorAddress ? normalizeAddress(vendorAddress) : "";
 
             // Helper to apply match to form
-            const applyMatch = (match) => {
+            const applyMatch = (match, matchType = 'unknown') => {
                 // Auto-populate Vendor ID if available and not set
                 const matchedId = match['Vendor ID'] || match['VendorID'] || match['vendor_id'] || match['VENDOR_ID'];
                 const currentFormId = extractValue(formData['Vendor ID']);
 
                 if (!skipNextVendorLookup.current) {
+                    // Only auto-set Vendor ID if it's currently empty
+                    // This prevents overwriting an ID loaded from the database when multiple vendors share the same name
                     if (
                         matchedId &&
+                        !currentFormId && // Only set if currently empty
                         String(matchedId).trim() !== String(currentFormId || '').trim()
                     ) {
                         console.log("DEBUG: Auto-setting Vendor ID:", matchedId);
                         setVendorId(matchedId);
                         handleInputChange('Vendor ID', matchedId);
+                    } else if (currentFormId) {
+                        console.log("DEBUG: Vendor ID already set to:", currentFormId, "- skipping auto-population");
                     }
+
                     // Use unified vendor change handler for all other updates
-                    handleVendorChange(match);
+                    // But only if the matched ID matches the current ID (or current ID is empty)
+                    if (!currentFormId || String(matchedId).trim() === String(currentFormId).trim()) {
+                        handleVendorChange(match);
+                    } else {
+                        console.log("DEBUG: Skipping vendor change handler - ID mismatch. Current:", currentFormId, "Matched:", matchedId);
+                    }
                 } else {
                     console.log("DEBUG: Skipping Vendor ID auto-fill & Change Handler (user selected Vendor Name/ID)");
                     skipNextVendorLookup.current = false;
@@ -605,7 +616,7 @@ const GenericInputFields = ({
             }
 
             if (bestLocalMatch) {
-                applyMatch(bestLocalMatch);
+                applyMatch(bestLocalMatch, normalizedAddrInput ? 'address' : 'name');
             } else {
                 // 3. API Search (Fallback) - RUN ONCE ONLY
                 if (!initialSearchDone.current) {
@@ -618,7 +629,7 @@ const GenericInputFields = ({
                             const result = await masterDataService.searchVendor(vendorName, vendorAddress);
                             if (result && result.match) {
                                 console.log(`DEBUG: AI Match Found (${result.method}):`, result.match, "Score:", result.score);
-                                applyMatch(result.match);
+                                applyMatch(result.match, result.method);
                             } else {
                                 console.log("DEBUG: No AI match found.");
                                 setSelectedVendorDetails(null);
