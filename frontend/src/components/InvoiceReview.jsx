@@ -64,6 +64,8 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
 
     useEffect(() => {
         if (invoiceData && invoiceData.extracted_data) {
+            console.log("DEBUG: InvoiceReview invoiceData keys:", Object.keys(invoiceData));
+            console.log("DEBUG: InvoiceReview original_items:", invoiceData.original_items);
             const extractedData = invoiceData.extracted_data;
 
             const extraction_json = {};
@@ -174,10 +176,32 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                 });
             }
 
+            // ------------------------------
+            // ORIGINAL LINE ITEMS (Restoration Source)
+            // ------------------------------
+            const originalItems = [];
+            if (invoiceData.original_items && Array.isArray(invoiceData.original_items)) {
+                invoiceData.original_items.forEach(item => {
+                    originalItems.push({
+                        Description: { value: extractNestedValue(item.description) },
+                        ItemCode: { value: extractNestedValue(item.product_code || item.item_code) },
+                        Quantity: { value: extractNestedValue(item.quantity) },
+                        UnitOfMeasure: { value: extractNestedValue(item.unit_of_measure) },
+                        UnitPrice: { value: extractNestedValue(item.unit_price) },
+                        Discount: { value: extractNestedValue(item.discount) },
+                        NetAmount: { value: extractNestedValue(item.amount) },
+                        TaxRate: { value: extractNestedValue(item.tax_rate) },
+                        TaxAmount: { value: extractNestedValue(item.tax_amount) },
+                        GrossAmount: { value: extractNestedValue(item.gross_amount) }
+                    });
+                });
+            }
+
             setFormattedData({
                 doc_type: 'invoice',
                 extraction_json,
                 items,
+                original_line_items: originalItems,
                 original_data: extractedData,
                 vendor_name: invoiceData.vendor_name,
                 vendor_id: invoiceData.vendor_id

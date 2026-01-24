@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status
 from fastapi.responses import FileResponse
 from typing import List
 from app.services.invoice_processor import InvoiceProcessor
+from app.services.line_grouping import aggregate_items
 from app.models.invoice import InvoiceCreate, InvoiceResponse, InvoiceStatus, InvoiceUpdate
 from app.models.workflow import WorkflowStepType, WorkflowStepStatus
 from app.database.mongodb import get_database
@@ -168,20 +169,26 @@ async def upload_invoices(
 
             # ---- LINE GROUPING LOGIC ----
             if current_line_grouping == "Yes":
-                if "Items" in extracted_data and "value" in extracted_data["Items"] and extracted_data["Items"]["value"]:
-                    items = extracted_data["Items"]["value"]
+                # ---- LINE GROUPING LOGIC (NON-DESTRUCTIVE) ----
+                # ---- PRESERVE ORIGINAL ITEMS (FIRST, ALWAYS) ----
+                items = extracted_data.get("Items", {}).get("value", [])
+
+                if items and "original_items" not in update_data:
+                    import copy
+                    update_data["original_items"] = copy.deepcopy(items)
+
+                if current_line_grouping == "Yes" and items:
                     first_item = items[0]
-                    
+
                     aggregated_description = first_item.get("description", {}).get("value") or "Aggregated Items"
                     total_quantity = 0.0
                     total_unit_price = 0.0
                     total_net_amount = 0.0
-                    
+
                     def safe_to_float(v):
                         if v is None: return 0.0
                         if isinstance(v, (int, float)): return float(v)
                         try:
-                            # Clean currency symbols and commas
                             return float(str(v).replace('$', '').replace(',', '').strip())
                         except:
                             return 0.0
@@ -190,8 +197,7 @@ async def upload_invoices(
                         total_quantity += safe_to_float(item.get("quantity", {}).get("value"))
                         total_unit_price += safe_to_float(item.get("unit_price", {}).get("value"))
                         total_net_amount += safe_to_float(item.get("amount", {}).get("value"))
-                    
-                    # Create single aggregated line
+
                     aggregated_item = {
                         "description": {"value": aggregated_description, "source": "aggregation", "confidence": 1.0},
                         "quantity": {"value": total_quantity, "source": "aggregation", "confidence": 1.0},
@@ -204,8 +210,14 @@ async def upload_invoices(
                         "tax_amount": {"value": 0.0},
                         "gross_amount": {"value": total_net_amount}
                     }
-                    
+
                     extracted_data["Items"]["value"] = [aggregated_item]
+                    update_data["extracted_data"] = extracted_data
+
+                else:
+                    # Restore original items when grouping is No
+                    original_items = invoice_dict.get("original_items", items)
+                    extracted_data["Items"]["value"] = original_items
                     update_data["extracted_data"] = extracted_data
 
             db.invoices.update_one({"_id": result.inserted_id}, {"$set": update_data})
@@ -660,9 +672,31 @@ async def update_invoice(
     requires_check = False
     
     # 1. Check top-level updates
+    # if "vendor_id" in update_data:
+    #     new_vendor_id = update_data["vendor_id"]
+    #     requires_check = True
+    # ---- Line grouping toggle when vendor changes ----
     if "vendor_id" in update_data:
-        new_vendor_id = update_data["vendor_id"]
-        requires_check = True
+        vendor = db.vendor_master.find_one({"vendor_id": new_vendor_id})
+        new_grouping = vendor.get("Line Grouping", "No") if vendor else "No"
+
+        extracted_data = update_data.get("extracted_data", invoice.get("extracted_data", {}))
+        items = extracted_data.get("Items", {}).get("value", [])
+
+        original_items = invoice.get("original_items", items)
+        update_data["original_items"] = original_items
+
+        if new_grouping == "Yes":
+            # aggregate again
+            from app.services.line_grouping import aggregate_items  # or your local method
+            aggregated = aggregate_items(original_items)
+            extracted_data["Items"]["value"] = [aggregated]
+        else:
+            # restore
+            extracted_data["Items"]["value"] = original_items
+
+        update_data["extracted_data"] = extracted_data
+
     if "invoice_number" in update_data:
         new_invoice_number = update_data["invoice_number"]
         requires_check = True

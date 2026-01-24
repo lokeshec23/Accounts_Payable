@@ -56,6 +56,7 @@ class Invoice(InvoiceBase):
     uploaded_at: datetime
     processed_at: Optional[datetime] = None
     duplicate_info: Optional[Dict[str, Any]] = None
+    original_items: Optional[List[Dict[str, Any]]] = None
 
     class Config:
         from_attributes = True

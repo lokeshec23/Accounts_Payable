@@ -12,71 +12,245 @@ logger = logging.getLogger(__name__)
 AZURE_DI_ENDPOINT = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT")
 AZURE_DI_KEY = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY")
 
-def get_vendor_id_from_master(db, vendor_name: str, entity: str = None, vendor_address: str = None) -> Tuple[Optional[str], Optional[str], str]:
-    """
-    Normalize vendor name and address, then lookup Vendor ID and official vendor name.
-    Uses robust matching (Exact -> Embedding -> Text Similarity).
-    Also checks vendor_metadata for manual mappings (both name and address based).
+def _count_same_name_vendors(db, normalized_name: str, entity: str = None) -> int:
+    if not normalized_name:
+        return 0
+
+    query = {
+        "$expr": {
+            "$eq": [
+                {"$toLower": "$normalized_name"},
+                normalized_name.lower()
+            ]
+        }
+    }
+
+    if entity:
+        query["entity"] = entity
+
+    # If you don't have normalized_name in vendor master,
+    # do normalization in Python instead (shown below)
+    vendors = db.vendor_master.find({"entity": entity}) if entity else db.vendor_master.find()
+    count = 0
+    for v in vendors:
+        name = (
+            v.get("Vendor Name") or
+            v.get("VendorName") or
+            v.get("Name") or
+            v.get("VENDOR_NAME")
+        )
+        if name and normalize_vendor(name) == normalized_name:
+            count += 1
+    return count
+
+
+# def get_vendor_id_from_master(db, vendor_name: str, entity: str = None, vendor_address: str = None) -> Tuple[Optional[str], Optional[str], str]:
+#     """
+#     Normalize vendor name and address, then lookup Vendor ID and official vendor name.
+#     Uses robust matching (Exact -> Embedding -> Text Similarity).
+#     Also checks vendor_metadata for manual mappings (both name and address based).
     
-    Args:
-        db: Database connection
-        vendor_name: Raw vendor name from invoice
-        entity: Entity identifier
-        vendor_address: Raw vendor address from invoice
+#     Args:
+#         db: Database connection
+#         vendor_name: Raw vendor name from invoice
+#         entity: Entity identifier
+#         vendor_address: Raw vendor address from invoice
         
-    Returns:
-        Tuple of (vendor_id, official_vendor_name, line_grouping)
+#     Returns:
+#         Tuple of (vendor_id, official_vendor_name, line_grouping)
+#     """
+#     if not vendor_name and not vendor_address:
+#         return None, None, "No"
+        
+#     normalized_name = normalize_vendor(vendor_name) if vendor_name else None
+#     normalized_address = normalize_address(vendor_address) if vendor_address else None
+
+#     # 1. Check vendor_metadata for manual mappings first
+#     if normalized_name or normalized_address:
+#         # Check by address first (Highest Priority)
+#         if normalized_address:
+#             addr_query = {"extracted_address_normalized": normalized_address}
+#             if entity:
+#                 addr_query["entity"] = entity
+            
+#             mapping = db.vendor_metadata.find_one(addr_query)
+#             if mapping:
+#                 logger.info(f"Vendor Mapping: Found manual mapping for address '{vendor_address}' -> '{mapping['official_name']}' (ID: {mapping['vendor_id']})")
+#                 return mapping["vendor_id"], mapping["official_name"], mapping.get("line_grouping", "No")
+
+#         # Then check by name
+#         # 0. Ambiguity check (CRITICAL)
+#         if normalized_name:
+#             same_name_count = _count_same_name_vendors(db, normalized_name, entity)
+#             if same_name_count > 1:
+#                 logger.warning(
+#                     f"⚠️ Ambiguous vendor name '{vendor_name}'. "
+#                     f"{same_name_count} vendors share this name. Skipping auto-mapping."
+#                 )
+#                 return None, None, "No"
+
+#     # 2. Proceed with robust matching if no manual mapping found
+#     # Pass both name and address to the matcher
+#     result = find_best_vendor_match(db, vendor_name, vendor_address)
+    
+#     if result and result["match"]:
+#         if normalized_name:
+#             same_name_count = _count_same_name_vendors(db, normalized_name, entity)
+#             if same_name_count > 1:
+#                 logger.warning(
+#                     f"⚠️ AI matched vendor for ambiguous name '{vendor_name}'. Ignoring auto-match."
+#                 )
+#                 return None, None, "No"
+
+#     match = result["match"]
+#     # Extract ID and Name from match
+#     vendor_id = match.get("Vendor ID") or match.get("VendorID") or match.get("vendor_id") or match.get("VENDOR_ID")
+    
+#     # Get official valid name
+#     official_name = match.get("Vendor Name") or match.get("VendorName") or match.get("Name") or match.get("VENDOR_NAME")
+        
+#     # Get Line Grouping
+#     line_grouping = match.get("Line Grouping") or "No"
+
+#     if vendor_id:
+#          logger.info(f"Duplicate Detector: Matched via {result['method']}")
+#          return str(vendor_id), str(official_name), str(line_grouping)
+             
+#     logger.warning(f"Duplicate Detector: No match found for Name='{vendor_name}', Addr='{vendor_address}'")
+#     return None, None, "No"
+
+def get_vendor_id_from_master(
+    db,
+    vendor_name: str,
+    entity: str = None,
+    vendor_address: str = None
+) -> Tuple[Optional[str], Optional[str], str]:
     """
+    Safe vendor resolution:
+    - Address-based vendor_metadata → always allowed
+    - Name-based vendor_metadata → only if name is NOT ambiguous
+    - AI / vector match → only if name is NOT ambiguous
+    """
+
     if not vendor_name and not vendor_address:
         return None, None, "No"
-        
+
     normalized_name = normalize_vendor(vendor_name) if vendor_name else None
     normalized_address = normalize_address(vendor_address) if vendor_address else None
 
-    # 1. Check vendor_metadata for manual mappings first
+    # -------------------------------------------------------
+    # 0. Ambiguity detection (check Vendor Master)
+    # -------------------------------------------------------
+    is_ambiguous = False
+    if normalized_name:
+        vendors = db.vendor_master.find({"entity": entity}) if entity else db.vendor_master.find()
+        count = 0
+        for v in vendors:
+            name = (
+                v.get("Vendor Name") or
+                v.get("VendorName") or
+                v.get("Name") or
+                v.get("VENDOR_NAME")
+            )
+            if name and normalize_vendor(name) == normalized_name:
+                count += 1
+                if count > 1:
+                    is_ambiguous = True
+                    break
+
+    if is_ambiguous:
+        logger.warning(
+            f"⚠️ Ambiguous vendor name detected: '{vendor_name}'. "
+            f"Multiple vendors share this name. Name-based auto-mapping will be skipped."
+        )
+
+    # -------------------------------------------------------
+    # 1. Vendor Metadata Lookup (SAFE MODE)
+    # -------------------------------------------------------
     if normalized_name or normalized_address:
-        # Check by address first (Highest Priority)
+
+        # 1A. Address-based mapping → ALWAYS SAFE
         if normalized_address:
             addr_query = {"extracted_address_normalized": normalized_address}
             if entity:
                 addr_query["entity"] = entity
-            
+
             mapping = db.vendor_metadata.find_one(addr_query)
             if mapping:
-                logger.info(f"Vendor Mapping: Found manual mapping for address '{vendor_address}' -> '{mapping['official_name']}' (ID: {mapping['vendor_id']})")
-                return mapping["vendor_id"], mapping["official_name"], mapping.get("line_grouping", "No")
+                logger.info(
+                    f"Vendor Mapping (Address): '{vendor_address}' "
+                    f"→ '{mapping['official_name']}' (ID: {mapping['vendor_id']})"
+                )
+                return (
+                    mapping["vendor_id"],
+                    mapping["official_name"],
+                    mapping.get("line_grouping", "No")
+                )
 
-        # Then check by name
-        if normalized_name:
+        # 1B. Name-based mapping → ONLY if NOT ambiguous
+        if normalized_name and not is_ambiguous:
             metadata_query = {"extracted_name_normalized": normalized_name}
             if entity:
                 metadata_query["entity"] = entity
-            
+
             mapping = db.vendor_metadata.find_one(metadata_query)
             if mapping:
-                logger.info(f"Vendor Mapping: Found manual mapping for name '{vendor_name}' -> '{mapping['official_name']}' (ID: {mapping['vendor_id']})")
-                return mapping["vendor_id"], mapping["official_name"], mapping.get("line_grouping", "No")
+                logger.info(
+                    f"Vendor Mapping (Name): '{vendor_name}' "
+                    f"→ '{mapping['official_name']}' (ID: {mapping['vendor_id']})"
+                )
+                return (
+                    mapping["vendor_id"],
+                    mapping["official_name"],
+                    mapping.get("line_grouping", "No")
+                )
 
-    # 2. Proceed with robust matching if no manual mapping found
-    # Pass both name and address to the matcher
-    result = find_best_vendor_match(db, vendor_name, vendor_address)
-    
-    if result and result["match"]:
-        match = result["match"]
-        # Extract ID and Name from match
-        vendor_id = match.get("Vendor ID") or match.get("VendorID") or match.get("vendor_id") or match.get("VENDOR_ID")
-        
-        # Get official valid name
-        official_name = match.get("Vendor Name") or match.get("VendorName") or match.get("Name") or match.get("VENDOR_NAME")
-        
-        # Get Line Grouping
-        line_grouping = match.get("Line Grouping") or "No"
+        if is_ambiguous:
+            logger.warning(
+                f"Skipping name-based vendor_metadata for ambiguous vendor '{vendor_name}'. "
+                f"Only address-based metadata is allowed."
+            )
 
-        if vendor_id:
-             logger.info(f"Duplicate Detector: Matched via {result['method']}")
-             return str(vendor_id), str(official_name), str(line_grouping)
-             
-    logger.warning(f"Duplicate Detector: No match found for Name='{vendor_name}', Addr='{vendor_address}'")
+    # -------------------------------------------------------
+    # 2. AI / Vector Matching (ONLY if NOT ambiguous)
+    # -------------------------------------------------------
+    if not is_ambiguous:
+        result = find_best_vendor_match(db, vendor_name, vendor_address)
+
+        if result and result.get("match"):
+            match = result["match"]
+
+            vendor_id = (
+                match.get("Vendor ID")
+                or match.get("VendorID")
+                or match.get("vendor_id")
+                or match.get("VENDOR_ID")
+            )
+
+            official_name = (
+                match.get("Vendor Name")
+                or match.get("VendorName")
+                or match.get("Name")
+                or match.get("VENDOR_NAME")
+            )
+
+            line_grouping = match.get("Line Grouping") or "No"
+
+            if vendor_id:
+                logger.info(f"Vendor matched via {result.get('method')}")
+                return str(vendor_id), str(official_name), str(line_grouping)
+
+    else:
+        logger.warning(
+            f"AI matching skipped for ambiguous vendor name '{vendor_name}'."
+        )
+
+    # -------------------------------------------------------
+    # 3. No safe match found
+    # -------------------------------------------------------
+    logger.warning(
+        f"No safe vendor match found for Name='{vendor_name}', Address='{vendor_address}'"
+    )
     return None, None, "No"
 
 

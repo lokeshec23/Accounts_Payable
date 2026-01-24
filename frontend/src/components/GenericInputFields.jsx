@@ -79,6 +79,7 @@ const GenericInputFields = ({
     // Line Grouping state
     const [lineGrouping, setLineGrouping] = useState('No');
     const [originalLineItems, setOriginalLineItems] = useState([]);
+    const originalLineItemsRef = React.useRef([]); // Fix for stale closure in vendor change
 
     // Status & validation info
     const [invoiceStatus, setInvoiceStatus] = useState(initialStatus);
@@ -320,8 +321,15 @@ const GenericInputFields = ({
 
         setFormData(initialFormData);
         setLineItems(items);
-        setOriginalLineItems(items); // Store original items for grouping/ungrouping
 
+        // Prioritize original_line_items from backend (which might be detailed vs 'items' being aggregated)
+        const detailedItems = data?.original_line_items && data.original_line_items.length > 0
+            ? data.original_line_items
+            : items;
+
+        console.log("DEBUG: Initializing originalLineItems with count:", detailedItems.length);
+        setOriginalLineItems(detailedItems);
+        originalLineItemsRef.current = detailedItems; // Sync Ref
         setInvoiceStatus(originalData?.status || 'waiting_approval');
         setValidationInfo(originalData?.validation_results || {});
 
@@ -722,15 +730,21 @@ const GenericInputFields = ({
 
         if (groupingSetting === 'Yes') {
             // Aggregate all line items into one
-            if (originalLineItems.length > 0) {
-                const aggregated = aggregateLineItems(originalLineItems);
+            // Use Ref to get the latest original items regardless of closure
+            const itemsToGroup = originalLineItemsRef.current.length > 0 ? originalLineItemsRef.current : originalLineItems;
+
+            if (itemsToGroup.length > 0) {
+                const aggregated = aggregateLineItems(itemsToGroup);
                 console.log('DEBUG: Aggregated line item:', aggregated);
                 setLineItems([aggregated]);
             }
         } else {
             // Restore original line items
-            console.log('DEBUG: Restoring original line items, count:', originalLineItems.length);
-            setLineItems([...originalLineItems]);
+            // Use Ref to get the latest original items regardless of closure
+            const itemsToRestore = originalLineItemsRef.current.length > 0 ? originalLineItemsRef.current : originalLineItems;
+
+            console.log('DEBUG: Restoring original line items, count:', itemsToRestore.length);
+            setLineItems([...itemsToRestore]);
         }
     };
 
