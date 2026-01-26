@@ -183,6 +183,13 @@ async def upload_invoices(
                         update_data["vendor_name"] = official_vendor_name
                         update_data["line_grouping"] = line_grouping
                         current_line_grouping = line_grouping
+                        
+                        # Sync to extracted_data for frontend consistency
+                        if "vendor_info" not in extracted_data:
+                            extracted_data["vendor_info"] = {}
+                        extracted_data["vendor_info"]["vendor_id"] = {"value": vendor_id}
+                        extracted_data["vendor_info"]["name"] = {"value": official_vendor_name}
+                        update_data["extracted_data"] = extracted_data
             
             if not invoice_dict.get("invoice_number"):
                 # Try to get invoice number from extraction
@@ -778,6 +785,14 @@ async def update_invoice(
                 update_data["vendor_id"] = new_vendor_id
                 if new_vendor_name:
                     update_data["vendor_name"] = new_vendor_name
+                
+                # Sync back to extracted_data.vendor_info for frontend consistency
+                if "vendor_info" not in extracted_data:
+                    extracted_data["vendor_info"] = {}
+                extracted_data["vendor_info"]["vendor_id"] = {"value": new_vendor_id}
+                if new_vendor_name:
+                    extracted_data["vendor_info"]["name"] = {"value": new_vendor_name}
+                update_data["extracted_data"] = extracted_data
 
     # merge validation
     if "validation_results" in update_data:
