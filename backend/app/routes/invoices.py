@@ -592,11 +592,6 @@ async def update_invoice_status(
         update_query
     )
 
-    db.invoices.update_one(
-        {"_id": ObjectId(invoice_id)},
-        update_query
-    )
-
     # =====================================================
     # CREATE WORKFLOW STEP (RESET AFTER REWORK)
     # =====================================================
