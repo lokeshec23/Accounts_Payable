@@ -80,8 +80,8 @@ def update_coding_history(db, vendor_name: str, line_items: List[LineItemCoding]
     history = db.coding_history
 
     for item in line_items:
-        if not item.description or not item.gl_code:
-            continue
+        # if not item.description or not item.gl_code or not item.lob or not item.department or not item.customer or not item.item:
+        #     continue
 
         norm_desc = normalize_description(item.description)
         embedding = embed_text(norm_desc)

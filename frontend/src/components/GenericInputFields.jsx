@@ -1086,14 +1086,39 @@ const GenericInputFields = ({
             const isEligible = selectedVendorDetails?.['GST / Use Tax Eligibility Configuration']?.toString().trim() === 'Eligible';
 
             // For ineligible, inherit from the first base line, or keep existing edit
+            // let gstGL = existingGST?.gl_code || '';
+            // if (!gstGL) {
+            //     // gstGL = isEligible ? 'GST_INPUT' : (newCoding[0]?.gl_code || '');
+            //     if (isEligible) {
+            //         gstGL = 'GST_INPUT';
+            //     } else {
+            //         if (newCoding[0]?.gl_code === 'GST_INPUT') {
+            //             const otherGL = glList.find(gl => gl !== 'GST_INPUT');
+            //             console.log('otherGL', otherGL);
+            //             gstGL = otherGL || '';
+            //         }
+            //     }
+            // }
             let gstGL = existingGST?.gl_code || '';
-            if (!gstGL) {
-                gstGL = isEligible ? 'GST_INPUT' : (newCoding[0]?.gl_code || '');
-            } else if (!isEligible && newCoding.length > 0 && existingGST.gl_code === newCoding[0].gl_code) {
-                // specific check: if it was auto-inherited, update it if the parent changed? 
-                // Simpler: if ineligible and no manual override, sync with first line
+
+            if (isEligible) {
+                gstGL = 'GST_INPUT';
+            } else if (gstGL === 'GST_INPUT') {
+                // Use newCoding[0]'s GL code if it's not GST_INPUT, otherwise empty
+                if (newCoding[0]?.gl_code && newCoding[0].gl_code !== 'GST_INPUT') {
+                    gstGL = newCoding[0]?.gl_code;
+                } else {
+                    gstGL = '';
+                }
+            } else if (!gstGL) {
                 gstGL = newCoding[0]?.gl_code || '';
             }
+
+            // } else if (!isEligible && newCoding.length > 0 && existingGST.gl_code === newCoding[0].gl_code) {
+            //     // specific check: if it was auto-inherited, update it if the parent changed? 
+            //     // Simpler: if ineligible and no manual override, sync with first line
+            //     gstGL = newCoding[0]?.gl_code || '';
+            // }
 
             newCoding.push({
                 s_no: currentSNo++,
