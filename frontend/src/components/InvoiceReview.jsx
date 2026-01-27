@@ -144,6 +144,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                 extraction_json['Total Invoice Amount'] = extractNestedValue(extractedData.amounts.total_invoice_amount);
                 extraction_json['Amount Paid'] = extractNestedValue(extractedData.amounts.amount_paid);
                 extraction_json['Amount Due'] = extractNestedValue(extractedData.amounts.amount_due);
+                extraction_json['Total Amount Payable'] = extractNestedValue(extractedData.amounts.total_amount_payable) || extraction_json['Amount Due'];
             }
 
             // ------------------------------

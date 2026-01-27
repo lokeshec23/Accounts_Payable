@@ -386,6 +386,11 @@ const GenericInputFields = ({
         // Normalize input: trim, stringify
         const currentId = String(rawId || '').trim();
 
+        if (readOnly) {
+            console.log("DEBUG: Skipping Vendor ID effect in Read-Only mode.");
+            return;
+        }
+
         if (skipNextVendorLookup.current) {
             console.log("DEBUG: Skipping Vendor ID effect (manual selection pending)");
             return;
@@ -562,10 +567,13 @@ const GenericInputFields = ({
                 if (!skipNextVendorLookup.current) {
                     // Only auto-set Vendor ID if it's currently empty
                     // This prevents overwriting an ID loaded from the database when multiple vendors share the same name
+                    // Only auto-set Vendor ID if it's currently empty
+                    // This prevents overwriting an ID loaded from the database when multiple vendors share the same name
                     if (
                         matchedId &&
                         !currentFormId && // Only set if currently empty
-                        String(matchedId).trim() !== String(currentFormId || '').trim()
+                        String(matchedId).trim() !== String(currentFormId || '').trim() &&
+                        !readOnly // Don't override in read-only mode
                     ) {
                         console.log("DEBUG: Auto-setting Vendor ID:", matchedId);
                         setVendorId(matchedId);
@@ -759,7 +767,7 @@ const GenericInputFields = ({
 
         // 2. Extract and apply Payment Terms
         const paymentTerms = getVendorPaymentTerms(vendorDetails);
-        if (paymentTerms) {
+        if (paymentTerms && !readOnly) {
             console.log('DEBUG: Applying Payment Terms:', paymentTerms);
             handleInputChange('Payment Terms', paymentTerms);
         }
@@ -771,7 +779,11 @@ const GenericInputFields = ({
             vendorDetails['LINE_GROUPING'] || 'No';
         console.log('DEBUG: Line Grouping setting:', grouping);
         setLineGrouping(grouping);
-        applyLineGrouping(grouping);
+
+        // ONLY update formData and apply grouping if NOT read-only
+        if (!readOnly) {
+            applyLineGrouping(grouping);
+        }
 
         // 3.5 Sync Address to avoid address-based re-matching to old vendor
         let masterAddr = vendorDetails['Vendor Address'] || vendorDetails['VendorAddress'] || vendorDetails['Address'] || vendorDetails['VENDOR_ADDRESS'];
@@ -787,7 +799,7 @@ const GenericInputFields = ({
             ];
             masterAddr = parts.filter(p => p).map(p => String(p).trim()).join(" ").trim();
         }
-        if (masterAddr) {
+        if (masterAddr && !readOnly) {
             console.log('DEBUG: Syncing Vendor Address from Master:', masterAddr);
             handleInputChange('Vendor Address', masterAddr);
         }
@@ -799,6 +811,7 @@ const GenericInputFields = ({
 
 
     useEffect(() => {
+        if (readOnly) return;
         const invoiceDateStr = extractValue(formData['Invoice Date']);
         if (!invoiceDateStr) return;
 
@@ -1004,9 +1017,19 @@ const GenericInputFields = ({
         loadWorkflow();
     }, [invoiceId]);
 
+    // Track if coding data has been explicitly loaded from backend
+    const codingDataLoaded = React.useRef(false);
+
     // ---------- keep coding items in sync with invoice line items ----------
     useEffect(() => {
         if (!lineItems?.length) return;
+        // In read-only mode, we should NOT sync derived fields (GST/TDS) 
+        // if it would override what's already there (likely from codingData).
+        // Except for the very first time if coding tab is empty.
+        if (readOnly && codingLineItems.length > 0) {
+            console.log("DEBUG: Skipping Coding Sync in Read-Only mode to preserve state.");
+            return;
+        }
 
         setCodingLineItems((prevCoding) => {
             const newCoding = [];
@@ -1085,55 +1108,20 @@ const GenericInputFields = ({
 
             const isEligible = selectedVendorDetails?.['GST / Use Tax Eligibility Configuration']?.toString().trim() === 'Eligible';
 
-            // For ineligible, inherit from the first base line, or keep existing edit
-            // let gstGL = existingGST?.gl_code || '';
-            // if (!gstGL) {
-            //     // gstGL = isEligible ? 'GST_INPUT' : (newCoding[0]?.gl_code || '');
-            //     if (isEligible) {
-            //         gstGL = 'GST_INPUT';
-            //     } else {
-            //         if (newCoding[0]?.gl_code === 'GST_INPUT') {
-            //             const otherGL = glList.find(gl => gl !== 'GST_INPUT');
-            //             console.log('otherGL', otherGL);
-            //             gstGL = otherGL || '';
-            //         }
-            //     }
-            // }
-            // let gstGL = existingGST?.gl_code || '';
-
-            // if (isEligible) {
-            //     gstGL = 'GST_INPUT';
-            // } else if (gstGL === 'GST_INPUT') {
-            //     // Use newCoding[0]'s GL code if it's not GST_INPUT, otherwise empty
-            //     if (newCoding[0]?.gl_code && newCoding[0].gl_code !== 'GST_INPUT') {
-            //         gstGL = newCoding[0]?.gl_code;
-            //     } else {
-            //         gstGL = '';
-            //     }
-            // } else if (!gstGL) {
-            //     gstGL = newCoding[0]?.gl_code || '';
-            // }
-
-            // } else if (!isEligible && newCoding.length > 0 && existingGST.gl_code === newCoding[0].gl_code) {
-            //     // specific check: if it was auto-inherited, update it if the parent changed? 
-            //     // Simpler: if ineligible and no manual override, sync with first line
-            //     gstGL = newCoding[0]?.gl_code || '';
-            // }
             let gstGL = existingGST?.gl_code || '';
 
-            // Case 1: Eligible → always GST_INPUT
             if (isEligible) {
                 gstGL = 'GST_INPUT';
+            } else if (gstGL === 'GST_INPUT') {
+                // Use newCoding[0]'s GL code if it's not GST_INPUT, otherwise empty
+                if (newCoding[0]?.gl_code && newCoding[0].gl_code !== 'GST_INPUT') {
+                    gstGL = newCoding[0]?.gl_code;
+                } else {
+                    gstGL = '';
+                }
+            } else if (!gstGL) {
+                gstGL = newCoding[0]?.gl_code || '';
             }
-            // Case 2: Not eligible + currently GST_INPUT → clear it
-            else if (gstGL === 'GST_INPUT') {
-                const other = prevCoding.find(pc => pc.gl_code && pc.gl_code !== 'GST_INPUT');
-                gstGL = other?.gl_code || '';
-            }
-            // Case 3: Otherwise → keep whatever user selected (do nothing)
-            else {
-            }
-
 
             newCoding.push({
                 s_no: currentSNo++,
@@ -1529,6 +1517,7 @@ const GenericInputFields = ({
                 ],
                 ['Withholding Tax', 'amounts.withholding_tax'],
                 ['Total Invoice Amount', 'amounts.total_invoice_amount'],
+                ['Total Amount Payable', 'amounts.total_amount_payable'],
                 ['Amount Paid', 'amounts.amount_paid'],
                 ['Amount Due', 'amounts.amount_due']
             ];
