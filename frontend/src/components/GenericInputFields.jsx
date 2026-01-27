@@ -1099,26 +1099,38 @@ const GenericInputFields = ({
             //         }
             //     }
             // }
-            let gstGL = existingGST?.gl_code || '';
+            // let gstGL = existingGST?.gl_code || '';
 
-            if (isEligible) {
-                gstGL = 'GST_INPUT';
-            } else if (gstGL === 'GST_INPUT') {
-                // Use newCoding[0]'s GL code if it's not GST_INPUT, otherwise empty
-                if (newCoding[0]?.gl_code && newCoding[0].gl_code !== 'GST_INPUT') {
-                    gstGL = newCoding[0]?.gl_code;
-                } else {
-                    gstGL = '';
-                }
-            } else if (!gstGL) {
-                gstGL = newCoding[0]?.gl_code || '';
-            }
+            // if (isEligible) {
+            //     gstGL = 'GST_INPUT';
+            // } else if (gstGL === 'GST_INPUT') {
+            //     // Use newCoding[0]'s GL code if it's not GST_INPUT, otherwise empty
+            //     if (newCoding[0]?.gl_code && newCoding[0].gl_code !== 'GST_INPUT') {
+            //         gstGL = newCoding[0]?.gl_code;
+            //     } else {
+            //         gstGL = '';
+            //     }
+            // } else if (!gstGL) {
+            //     gstGL = newCoding[0]?.gl_code || '';
+            // }
 
             // } else if (!isEligible && newCoding.length > 0 && existingGST.gl_code === newCoding[0].gl_code) {
             //     // specific check: if it was auto-inherited, update it if the parent changed? 
             //     // Simpler: if ineligible and no manual override, sync with first line
             //     gstGL = newCoding[0]?.gl_code || '';
             // }
+            let gstGL = existingGST?.gl_code || '';
+
+            // Case 1: Eligible → always GST_INPUT
+            if (isEligible) {
+                gstGL = 'GST_INPUT';
+            }
+            // Case 2: Not eligible + currently GST_INPUT → clear it
+            else if (gstGL === 'GST_INPUT') {
+                gstGL = '';
+            }
+            // Case 3: Otherwise → keep whatever user selected (do nothing)
+
 
             newCoding.push({
                 s_no: currentSNo++,
