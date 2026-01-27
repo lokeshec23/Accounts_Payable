@@ -2991,7 +2991,7 @@ const GenericInputFields = ({
     const codingTab = (
         <div style={{ padding: '20px' }}>
             <Collapse defaultActiveKey={['vendor_details', 'header', 'lineitems']}>
-                {renderVendorMasterDetailsPanel()}
+                {/* {renderVendorMasterDetailsPanel()} */}
                 <Panel header="Header" key="header">
                     <Table
                         key={getCurrencySymbol()}
