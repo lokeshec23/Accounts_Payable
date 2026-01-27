@@ -1041,7 +1041,7 @@ const GenericInputFields = ({
                 .map((item, idx) => ({ item, idx }))
                 .filter(({ item }) => {
                     const desc = (extractValue(item.Description) || item.description || '').toString();
-                    return !desc.startsWith('GST for item') && !desc.startsWith('TDS Deduction');
+                    return !desc.startsWith('GST for item') && !desc.startsWith('TDS Deduction') && desc !== 'Total GST';
                 });
 
             pureBaseItemsWithIndex.forEach(({ item, idx }) => {
