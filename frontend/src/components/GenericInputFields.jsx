@@ -1127,9 +1127,12 @@ const GenericInputFields = ({
             }
             // Case 2: Not eligible + currently GST_INPUT → clear it
             else if (gstGL === 'GST_INPUT') {
-                gstGL = '';
+                const other = prevCoding.find(pc => pc.gl_code && pc.gl_code !== 'GST_INPUT');
+                gstGL = other?.gl_code || '';
             }
             // Case 3: Otherwise → keep whatever user selected (do nothing)
+            else {
+            }
 
 
             newCoding.push({
