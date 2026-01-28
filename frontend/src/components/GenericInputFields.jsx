@@ -589,6 +589,8 @@ const GenericInputFields = ({
                     } else {
                         console.log("DEBUG: Skipping vendor change handler - ID mismatch. Current:", currentFormId, "Matched:", matchedId);
                     }
+                    // Use unified vendor change handler for all other updates
+                    handleVendorChange(match);
                 } else {
                     console.log("DEBUG: Skipping Vendor ID auto-fill & Change Handler (user selected Vendor Name/ID)");
                     skipNextVendorLookup.current = false;
@@ -785,6 +787,25 @@ const GenericInputFields = ({
             applyLineGrouping(grouping);
         }
 
+        // // 3.5 Sync Address to avoid address-based re-matching to old vendor
+        // let masterAddr = vendorDetails['Vendor Address'] || vendorDetails['VendorAddress'] || vendorDetails['Address'] || vendorDetails['VENDOR_ADDRESS'];
+        // if (!masterAddr) {
+        //     const parts = [
+        //         vendorDetails['ADDRESS_LINE1'] || vendorDetails['Address1'],
+        //         vendorDetails['ADDRESS_LINE2'] || vendorDetails['Address2'],
+        //         vendorDetails['ADDRESS_LINE3'] || vendorDetails['Address3'],
+        //         vendorDetails['CITY'] || vendorDetails['City'],
+        //         vendorDetails['STATE_OR_TERITTORY'] || vendorDetails['STATE'] || vendorDetails['State'],
+        //         vendorDetails['ZIP_OR_POSTAL_CODE'] || vendorDetails['ZIP'] || vendorDetails['PostalCode'] || vendorDetails['ZipCode'],
+        //         vendorDetails['COUNTRY'] || vendorDetails['Country']
+        //     ];
+        //     masterAddr = parts.filter(p => p).map(p => String(p).trim()).join(" ").trim();
+        // }
+        // if (masterAddr && !readOnly) {
+        //     console.log('DEBUG: Syncing Vendor Address from Master:', masterAddr);
+        //     handleInputChange('Vendor Address', masterAddr);
+        // }
+
         // 3.5 Sync Address to avoid address-based re-matching to old vendor
         let masterAddr = vendorDetails['Vendor Address'] || vendorDetails['VendorAddress'] || vendorDetails['Address'] || vendorDetails['VENDOR_ADDRESS'];
         if (!masterAddr) {
@@ -799,7 +820,7 @@ const GenericInputFields = ({
             ];
             masterAddr = parts.filter(p => p).map(p => String(p).trim()).join(" ").trim();
         }
-        if (masterAddr && !readOnly) {
+        if (masterAddr) {
             console.log('DEBUG: Syncing Vendor Address from Master:', masterAddr);
             handleInputChange('Vendor Address', masterAddr);
         }

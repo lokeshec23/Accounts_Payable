@@ -70,6 +70,7 @@ const MainLayout = () => {
 
     // ------------ FETCH INVOICES --------------
     const fetchInvoices = async () => {
+
         try {
             setLoading(true);
 
@@ -77,6 +78,9 @@ const MainLayout = () => {
             const invoicesArray = Array.isArray(response) ? response : [];
 
             const transformedData = invoicesArray.map((invoice) => {
+
+
+
                 const extracted = invoice.extracted_data || {};
                 const vendorInfo = extracted.vendor_info || {};
                 const invoiceDetails = extracted.invoice_details || {};
@@ -84,15 +88,31 @@ const MainLayout = () => {
                 const validation = invoice.validation_results || {};
 
                 const getValue = (obj) => {
-                    if (!obj) return '';
-                    return obj.value !== null && obj.value !== undefined ? obj.value : '';
+                    if (obj === null || obj === undefined) return '';
+
+                    // Case 1: Azure-style { value: "..." }
+                    if (typeof obj === 'object' && 'value' in obj) {
+                        return obj.value ?? '';
+                    }
+
+                    // Case 2: Plain string / number
+                    return obj;
                 };
+
+                // if (!vendorInfo.id && !vendorInfo.vendor_id) {
+                //         console.warn("⚠️ Missing vendor id for invoice:", {
+                //             filename: invoice.original_filename,
+                //             vendorInfo
+                //         });
+                // }
+
 
                 return {
                     key: invoice._id || invoice.id,
                     id: invoice._id || invoice.id,
                     filename: invoice.original_filename || invoice.filename || 'N/A',
-                    vendorName: getValue(vendorInfo.name) || 'N/A',
+                    vendorName: getValue(invoice.vendor_name || vendorInfo.name) || 'N/A',
+                    vendorId: getValue(invoice.vendor_id || vendorInfo.id || vendorInfo.vendor_id) || 'N/A',
                     invoiceId: getValue(invoiceDetails.invoice_number) || 'N/A',
                     totalAmount: getValue(amounts.total_invoice_amount),
                     amountDue: getValue(amounts.amount_due),
@@ -157,6 +177,7 @@ const MainLayout = () => {
             const fieldsToSearch = [
                 inv.filename,
                 inv.vendorName,
+                inv.vendorId,
                 inv.invoiceId,
                 inv.uploadedBy,
                 inv.status,
@@ -193,6 +214,18 @@ const MainLayout = () => {
             filters: [...new Set(allInvoices.map(inv => inv.vendorName).filter(Boolean))].map(name => ({ text: name, value: name })),
             onFilter: (value, record) => record.vendorName === value,
         },
+        {
+            title: 'Vendor Id',
+            dataIndex: 'vendorId',
+            key: 'vendorId',
+            width: 180,
+            sorter: (a, b) => (a.vendorId || '').localeCompare(b.vendorId || ''),
+            multiple: 2,
+            filterSearch: true,
+            filters: [...new Set(allInvoices.map(inv => inv.vendorId).filter(Boolean))].map(id => ({ text: id, value: id })),
+            onFilter: (value, record) => record.vendorId === value,
+        },
+
         {
             title: 'Invoice ID',
             dataIndex: 'invoiceId',
@@ -452,15 +485,24 @@ const MainLayout = () => {
                 const validation = invoice.validation_results || {};
 
                 const getValue = (obj) => {
-                    if (!obj) return '';
-                    return obj.value !== null && obj.value !== undefined ? obj.value : '';
+                    if (obj === null || obj === undefined) return '';
+
+                    // Azure-style: { value: "..." }
+                    if (typeof obj === 'object' && 'value' in obj) {
+                        return obj.value ?? '';
+                    }
+
+                    // Plain string / number
+                    return obj;
                 };
+
 
                 return {
                     key: invoice._id || invoice.id || index,
                     sno: index + 1,
                     filename: invoice.original_filename || invoice.filename || '',
-                    vendorName: getValue(vendorInfo.name),
+                    vendorName: getValue(invoice.vendor_name || vendorInfo.name),
+                    vendorId: getValue(invoice.vendor_id || vendorInfo.id || vendorInfo.vendor_id),
                     vendorAddress: getValue(vendorInfo.address),
                     vendorCountry: getValue(vendorInfo.country),
                     vendorTaxId: getValue(vendorInfo.tax_id),
@@ -592,6 +634,7 @@ const MainLayout = () => {
             const fieldsToSearch = [
                 row.filename,
                 row.vendorName,
+                row.vendorId,
                 row.vendorAddress,
                 row.vendorCountry,
                 row.vendorTaxId,

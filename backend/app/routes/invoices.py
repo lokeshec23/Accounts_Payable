@@ -159,6 +159,26 @@ async def upload_invoices(
                     update_data["vendor_name"] = official_vendor_name
                     update_data["line_grouping"] = line_grouping
                     current_line_grouping = line_grouping
+            if not invoice_dict.get("vendor_id"):
+                # Try to get vendor name from full extraction
+                vendor_info = extracted_data.get("vendor_info", {})
+                extracted_vendor = vendor_info.get("name", {}).get("value")
+                extracted_address = vendor_info.get("address", {}).get("value")
+                if extracted_vendor or extracted_address:
+                    update_data["azure_vendor_name"] = extracted_vendor
+                    vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor, entity, extracted_address)
+                    if vendor_id:
+                        update_data["vendor_id"] = vendor_id
+                        update_data["vendor_name"] = official_vendor_name
+                        update_data["line_grouping"] = line_grouping
+                        current_line_grouping = line_grouping
+                        
+                        # Sync to extracted_data for frontend consistency
+                        if "vendor_info" not in extracted_data:
+                            extracted_data["vendor_info"] = {}
+                        extracted_data["vendor_info"]["vendor_id"] = {"value": vendor_id}
+                        extracted_data["vendor_info"]["name"] = {"value": official_vendor_name}
+                        update_data["extracted_data"] = extracted_data
             
             if not invoice_dict.get("invoice_number"):
                 # Try to get invoice number from extraction
@@ -727,6 +747,9 @@ async def update_invoice(
                 status_code=409, 
                 detail=f"Duplicate detected: Vendor ID '{new_vendor_id}' already has Invoice #'{new_invoice_number}'."
             )
+        else:
+            # If a check was required and NO duplicate was found, clear the stale duplicate warning
+            update_data["duplicate_info"] = None
 
     # --- Vendor Mapping Persistence ---
     extracted_data = update_data.get("extracted_data")
@@ -783,6 +806,14 @@ async def update_invoice(
                 update_data["vendor_id"] = new_vendor_id
                 if new_vendor_name:
                     update_data["vendor_name"] = new_vendor_name
+                
+                # Sync back to extracted_data.vendor_info for frontend consistency
+                if "vendor_info" not in extracted_data:
+                    extracted_data["vendor_info"] = {}
+                extracted_data["vendor_info"]["vendor_id"] = {"value": new_vendor_id}
+                if new_vendor_name:
+                    extracted_data["vendor_info"]["name"] = {"value": new_vendor_name}
+                update_data["extracted_data"] = extracted_data
 
     # merge validation
     if "validation_results" in update_data:
