@@ -1105,59 +1105,55 @@ const GenericInputFields = ({
                 parseCurrencyValue(extractValue(formData['IGST'])) +
                 parseCurrencyValue(extractValue(formData['GST']));
 
-            const finalGstValue = formTaxValue || calculatedTotalTax;
+            const finalGstValue =
+                (formTaxValue !== undefined && formTaxValue !== null && formTaxValue !== '')
+                    ? formTaxValue
+                    : calculatedTotalTax;
 
             const gstDesc = 'Total GST';
-            let existingGST = prevCoding.find(pc => pc.description === gstDesc);
 
-            // If approver (readOnly) → DO NOTHING new
+            // Find GST in history
+            const existingGST = prevCoding.find(pc => pc.description === gstDesc);
+
+            // Approver → keep history untouched
             if (readOnly) {
-                // Just keep whatever is already there
-                if (existingGST) {
-                    existingGST.unit_price = existingGST.unit_price;
-                    existingGST.net_amount = existingGST.net_amount;
-                }
                 return prevCoding;
             }
 
+            const isEligible =
+                selectedVendorDetails?.['GST / Use Tax Eligibility Configuration']
+                    ?.toString()
+                    .trim() === 'Eligible';
 
-            if (!readOnly) {
-                const isEligible =
-                    selectedVendorDetails?.['GST / Use Tax Eligibility Configuration']
-                        ?.toString()
-                        .trim() === 'Eligible';
+            let gstGL = existingGST?.gl_code || '';
 
-                let gstGL = existingGST?.gl_code || '';
-
-                if (isEligible) {
-                    gstGL = 'GST_INPUT';
-                } else if (gstGL === 'GST_INPUT') {
-                    gstGL = newCoding[0]?.gl_code || '';
-                }
-
-                if (existingGST) {
-                    // Update only
-                    existingGST.unit_price = finalGstValue;
-                    existingGST.net_amount = finalGstValue;
-                    existingGST.gl_code = gstGL;
-                } else {
-                    // Create ONLY for coder/admin
-                    newCoding.push({
-                        s_no: currentSNo++,
-                        description: gstDesc,
-                        line_type: 'Tax',
-                        quantity: 1,
-                        unit_price: finalGstValue,
-                        net_amount: finalGstValue,
-                        gl_code: gstGL,
-                        lob: newCoding[0]?.lob || '',
-                        department: newCoding[0]?.department || '',
-                        customer: newCoding[0]?.customer || '',
-                        item: newCoding[0]?.item || '',
-                        original_index: -2
-                    });
+            if (isEligible) {
+                gstGL = 'GST_INPUT';
+            } else {
+                if (gstGL === 'GST_INPUT') {
+                    // Find another GL from history (not GST_INPUT)
+                    const otherHistoryGL = prevCoding.find(
+                        pc => pc.gl_code && pc.gl_code !== 'GST_INPUT'
+                    );
+                    gstGL = otherHistoryGL?.gl_code || '';
                 }
             }
+
+            // Always push Total GST into newCoding
+            newCoding.push({
+                s_no: currentSNo++,
+                description: gstDesc,
+                line_type: 'Tax',
+                quantity: 1,
+                unit_price: finalGstValue,
+                net_amount: finalGstValue,
+                gl_code: gstGL,
+                lob: existingGST?.lob || '',
+                department: existingGST?.department || '',
+                customer: existingGST?.customer || '',
+                item: existingGST?.item || '',
+                original_index: -2
+            });
 
             // --- TDS Line Logic ---
             const findTDSValue = (keys) => {
