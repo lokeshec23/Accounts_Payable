@@ -1027,7 +1027,13 @@ const GenericInputFields = ({
         // that system-generated rows (TDS, Total GST) are correctly calculated
         // when vendor details are loaded asynchronously.
         // Duplication is prevented by the filters in pureBaseItemsWithIndex below.
-
+        // In read-only mode, we should NOT sync derived fields (GST/TDS) 
+        // if it would override what's already there (likely from codingData).
+        // Except for the very first time if coding tab is empty.
+        if (readOnly && codingLineItems.length > 0) {
+            console.log("DEBUG: Skipping Coding Sync in Read-Only mode to preserve state.");
+            return;
+        }
 
         setCodingLineItems((prevCoding) => {
             const newCoding = [];
@@ -1039,8 +1045,7 @@ const GenericInputFields = ({
                 .map((item, idx) => ({ item, idx }))
                 .filter(({ item }) => {
                     const desc = (extractValue(item.Description) || item.description || '').toString().trim();
-                    return !desc.startsWith('GST for item') && !desc.startsWith('TDS Deduction') && !desc.startsWith('Total GST');
-
+                    return !desc.startsWith('GST for item') 
                 });
 
             pureBaseItemsWithIndex.forEach(({ item, idx }) => {
