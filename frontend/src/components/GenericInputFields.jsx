@@ -1130,13 +1130,7 @@ const GenericInputFields = ({
             if (isEligible) {
                 gstGL = 'GST_INPUT';
             } else {
-                if (gstGL === 'GST_INPUT') {
-                    // Find another GL from history (not GST_INPUT)
-                    const otherHistoryGL = prevCoding.find(
-                        pc => pc.gl_code && pc.gl_code !== 'GST_INPUT'
-                    );
-                    gstGL = otherHistoryGL?.gl_code || '';
-                }
+                gstGL = newCoding[0]?.gl_code || '';
             }
 
             // Always push Total GST into newCoding
@@ -1148,10 +1142,10 @@ const GenericInputFields = ({
                 unit_price: finalGstValue,
                 net_amount: finalGstValue,
                 gl_code: gstGL,
-                lob: existingGST?.lob || '',
-                department: existingGST?.department || '',
-                customer: existingGST?.customer || '',
-                item: existingGST?.item || '',
+                lob: newCoding[0]?.lob || '',
+                department: newCoding[0] ?.department || '',
+                customer: newCoding[0]?.customer || '',
+                item: newCoding[0] ?.item || '',
                 original_index: -2
             });
 
@@ -1221,10 +1215,10 @@ const GenericInputFields = ({
                         unit_price: -tdsAmount,
                         net_amount: -tdsAmount,
                         gl_code: existingTDS?.gl_code || 'TDS_PAYABLE',
-                        lob: '',
-                        department: '',
-                        customer: '',
-                        item: '',
+                        lob: newCoding[0]?.lob || '',
+                        department: newCoding[0]?.department || '',
+                        customer: newCoding[0]?.customer || '',
+                        item: newCoding[0]?.item || '',
                         original_index: -1
                     });
                 }
