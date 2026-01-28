@@ -1368,7 +1368,7 @@ const CodingReviewPage = () => {
                                         {(() => {
                                             // Use Total Amount from Header Coding (invoiceData)
                                             // Matches the 'total_amount' field in headerDataSource
-                                            const headerTotalAmountRaw = invoiceData?.rawData?.extracted_data?.amounts?.total_invoice_amount?.value;
+                                            const headerTotalAmountRaw = invoiceData?.rawData?.extracted_data?.amounts?.total_amount_payable?.value;
                                             // Robust parsing: convert to string, remove currency symbols and commas, then parse
                                             const cleanedTotalAmount = String(headerTotalAmountRaw || '0').replace(/[^0-9.-]+/g, '');
                                             const headerTotalAmount = parseFloat(cleanedTotalAmount) || 0;
@@ -1442,7 +1442,7 @@ const CodingReviewPage = () => {
                                                         justifyContent: 'space-between',
                                                         alignItems: 'center'
                                                     }}>
-                                                        <span style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>Total Amount:</span>
+                                                        <span style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>Total Amount Payable:</span>
                                                         <span style={{ fontSize: '24px', fontWeight: 'bold', color: 'white' }}>
                                                             {getCurrencySymbol()} {headerTotalAmount.toFixed(2)}
                                                         </span>
