@@ -589,8 +589,6 @@ const GenericInputFields = ({
                     } else {
                         console.log("DEBUG: Skipping vendor change handler - ID mismatch. Current:", currentFormId, "Matched:", matchedId);
                     }
-                    // Use unified vendor change handler for all other updates
-                    handleVendorChange(match);
                 } else {
                     console.log("DEBUG: Skipping Vendor ID auto-fill & Change Handler (user selected Vendor Name/ID)");
                     skipNextVendorLookup.current = false;
@@ -1066,7 +1064,7 @@ const GenericInputFields = ({
                 .map((item, idx) => ({ item, idx }))
                 .filter(({ item }) => {
                     const desc = (extractValue(item.Description) || item.description || '').toString().trim();
-                    return !desc.startsWith('GST for item') 
+                    return !desc.startsWith('GST for item')
                 });
 
             pureBaseItemsWithIndex.forEach(({ item, idx }) => {
@@ -1164,9 +1162,9 @@ const GenericInputFields = ({
                 net_amount: finalGstValue,
                 gl_code: gstGL,
                 lob: newCoding[0]?.lob || '',
-                department: newCoding[0] ?.department || '',
+                department: newCoding[0]?.department || '',
                 customer: newCoding[0]?.customer || '',
-                item: newCoding[0] ?.item || '',
+                item: newCoding[0]?.item || '',
                 original_index: -2
             });
 
