@@ -7,7 +7,8 @@ import PdfViewerWithHighlight from './PdfViewerWithHighlight';
 import PdfViewer from './Pdfviewer';
 import { useGlobalSettings } from '../context/GlobalSettingsContext';
 import { currencyService } from '../services/api';
-import { Select, Space, Typography } from 'antd';
+import { Select, Space, Typography, Tabs } from 'antd';
+import AuditTrail from './AuditTrail';
 
 const { Text } = Typography;
 
@@ -414,29 +415,36 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                     </div>
 
                     {formattedData && (
-                        <GenericInputFields
-                            data={formattedData}
-                            schema={schemaMap.invoice}
-                            setHoveredKey={setHoveredKey}
-                            invoiceId={invoiceData?.id}
-                            originalData={invoiceData}
-                            currencies={currencies}
-                            onCurrencyChange={handleCurrencyChange}
-                            readOnly={readOnly || (() => {
-                                // Dynamic permission: If user has access to /coding or /invoice, they can edit.
-                                // Otherwise (like typical approvers), they are read-only here.
-                                if (!settings.navigation || !userRole) return true; // Default safe
-                                const codingRoles = settings.navigation.find(n => n.path === '/coding')?.roles || [];
-                                const invoiceRoles = settings.navigation.find(n => n.path === '/invoice')?.roles || [];
+                        <Tabs defaultActiveKey="review">
+                            <Tabs.TabPane tab="Invoice Review" key="review">
+                                <GenericInputFields
+                                    data={formattedData}
+                                    schema={schemaMap.invoice}
+                                    setHoveredKey={setHoveredKey}
+                                    invoiceId={invoiceData?.id}
+                                    originalData={invoiceData}
+                                    currencies={currencies}
+                                    onCurrencyChange={handleCurrencyChange}
+                                    readOnly={readOnly || (() => {
+                                        // Dynamic permission: If user has access to /coding or /invoice, they can edit.
+                                        // Otherwise (like typical approvers), they are read-only here.
+                                        if (!settings.navigation || !userRole) return true; // Default safe
+                                        const codingRoles = settings.navigation.find(n => n.path === '/coding')?.roles || [];
+                                        const invoiceRoles = settings.navigation.find(n => n.path === '/invoice')?.roles || [];
 
-                                const canEdit = codingRoles.includes(userRole) ||
-                                    invoiceRoles.includes(userRole) ||
-                                    codingRoles.includes('all') ||
-                                    invoiceRoles.includes('all') ||
-                                    userRole === 'admin';
-                                return !canEdit;
-                            })()}
-                        />
+                                        const canEdit = codingRoles.includes(userRole) ||
+                                            invoiceRoles.includes(userRole) ||
+                                            codingRoles.includes('all') ||
+                                            invoiceRoles.includes('all') ||
+                                            userRole === 'admin';
+                                        return !canEdit;
+                                    })()}
+                                />
+                            </Tabs.TabPane>
+                            <Tabs.TabPane tab="Audit Trail" key="audit">
+                                <AuditTrail invoiceId={invoiceData?.id} />
+                            </Tabs.TabPane>
+                        </Tabs>
                     )}
                 </div>
             </div>

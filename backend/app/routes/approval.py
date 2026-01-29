@@ -7,6 +7,8 @@ from app.dependencies import get_current_entity
 from app.models.user import UserResponse
 from datetime import datetime
 from bson.objectid import ObjectId
+from app.services.audit_service import audit_service
+from app.models.audit_log import AuditAction
 
 router = APIRouter()
 
@@ -138,4 +140,13 @@ async def send_to_approval(
     }
     db.workflow_steps.insert_one(workflow_step)
     
+    # [AUDIT] Log Send to Approval
+    await audit_service.log_action(
+        invoice_id=invoice_id, 
+        action=AuditAction.SENT_TO_APPROVAL, 
+        user=current_user.username,
+        entity=entity,
+        details={"approvers_required": extra_fields.get("required_approvers", 0)}
+    )
+
     return {"message": "Invoice sent to approval successfully"}

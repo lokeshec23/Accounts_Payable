@@ -6,6 +6,7 @@ import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined, Rollback
 import { read, utils } from 'xlsx';
 import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
 import WorkflowTab from '../components/WorkflowTab';
+import AuditTrail from '../components/AuditTrail';
 import { invoiceService, codingService, masterDataService, approvalService, workflowService, currencyService } from '../services/api';
 
 const CodingReviewPage = () => {
@@ -1460,6 +1461,11 @@ const CodingReviewPage = () => {
                                 key: 'workflow',
                                 label: 'Workflow',
                                 children: <WorkflowTab invoiceId={invoiceData?.id} refreshTrigger={workflowRefreshTrigger} />
+                            },
+                            {
+                                key: 'audit',
+                                label: 'Audit Trail',
+                                children: <AuditTrail invoiceId={invoiceData?.id} />
                             }
                         ]}
                     />

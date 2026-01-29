@@ -14,6 +14,8 @@ import os
 from bson.objectid import ObjectId
 import uuid
 import asyncio
+from app.services.audit_service import audit_service
+from app.models.audit_log import AuditAction
 
 router = APIRouter()
 invoice_processor = InvoiceProcessor()
@@ -276,6 +278,15 @@ async def upload_invoices(
                 "entity": entity
             }
             db.workflow_steps.insert_one(workflow_step)
+            
+            # [AUDIT] Log Upload
+            await audit_service.log_action(
+                invoice_id=invoice_id, 
+                action=AuditAction.UPLOADED, 
+                user=current_user.username,
+                entity=entity,
+                details={"filename": clean_name}
+            )
 
             # ---- REGISTER IN FAST LOOKUP REGISTRY ----
             # Get final vendor_id and invoice_number (may have been updated from full extraction)
@@ -533,6 +544,16 @@ async def update_invoice_status(
         )
         return {"message": "Status updated", "main_status": main_status}
 
+    # [AUDIT] Log Recall / Status Change (WAITING_CODING is usually recall)
+    if status == InvoiceStatus.WAITING_CODING:
+        await audit_service.log_action(
+            invoice_id=invoice_id, 
+            action=AuditAction.RECALLED, 
+            user=current_user.username,
+            entity=invoice.get("entity"),
+            details={"comment": comment}
+        )
+
     # =====================================================
     # REJECT / REWORK
     # =====================================================
@@ -651,6 +672,34 @@ async def update_invoice_status(
             "approver_number": approver_number,
             "comment": comment
         })
+
+    # [AUDIT] Log Detailed Status Change
+    action_map = {
+        InvoiceStatus.APPROVED: AuditAction.APPROVED,
+        InvoiceStatus.REJECTED: AuditAction.REJECTED,
+        InvoiceStatus.REWORKED: AuditAction.REWORKED,
+        InvoiceStatus.WAITING_CODING: AuditAction.RECALLED
+    }
+    
+    if status in action_map:
+        base_action = action_map[status].value
+        if status == InvoiceStatus.APPROVED:
+            level_suffix = f" ({approver_number}{['st','nd','rd','th'][min(approver_number-1,3)]} Approver)"
+            display_action = base_action + level_suffix
+        else:
+            display_action = base_action
+            
+        await audit_service.log_action(
+            invoice_id=invoice_id, 
+            action=display_action, 
+            user=current_user.username,
+            entity=invoice.get("entity"),
+            details={
+                "status": {"old": invoice.get("status"), "new": main_status},
+                "comment": comment,
+                "approver_level": approver_number if status in [InvoiceStatus.APPROVED, InvoiceStatus.REJECTED, InvoiceStatus.REWORKED] else None
+            }
+        )
 
     return {"message": "Status updated", "main_status": main_status}
 
@@ -877,6 +926,58 @@ async def update_invoice(
 
     updated_invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
     updated_invoice["id"] = str(updated_invoice["_id"])
+
+    # [AUDIT] Log Update with Deep Diff
+    audit_details = {}
+    
+    # 1. Top level simple fields (Status is unique here)
+    if "status" in update_data and update_data["status"] != invoice.get("status"):
+        audit_details["Status"] = {"old": invoice.get("status"), "new": update_data["status"]}
+            
+    # 2. Extracted Data / Critical Fields (Consolidated Mapping)
+    # We check both top-level and nested paths but map them to the same human label
+    critical_checks = [
+        # (Paths to check, Human Label)
+        (["vendor_id"], "Vendor ID"),
+        (["vendor_name"], "Vendor Name"),
+        (["invoice_number"], "Invoice Number"),
+        (["extracted_data", "amounts", "total_invoice_amount", "value"], "Total Invoice Amount"),
+        (["extracted_data", "amounts", "total_amount_payable", "value"], "Total Amount Payable"),
+        (["extracted_data", "invoice_details", "invoice_number", "value"], "Invoice Number"),
+        (["extracted_data", "invoice_details", "invoice_date", "value"], "Invoice Date"),
+        (["extracted_data", "vendor_info", "name", "value"], "Vendor Name")
+    ]
+
+    def get_nested(d, p):
+        val = d
+        for step in p:
+            if isinstance(val, dict):
+                val = val.get(step)
+            else:
+                return None
+        return val
+
+    for path, label in critical_checks:
+        # Check update_data first (new state)
+        new_val = get_nested(update_data, path)
+        if new_val is not None:
+             old_val = get_nested(invoice, path)
+             if new_val != old_val:
+                 # Only add if not already captured by another path for the same label
+                 if label not in audit_details:
+                     audit_details[label] = {"old": old_val, "new": new_val}
+                
+    # If no specific details found but we know update happened, fall back to generic list
+    if not audit_details:
+        audit_details = {"updated_fields": list(update_data.keys())}
+
+    await audit_service.log_action(
+        invoice_id=invoice_id, 
+        action=AuditAction.UPDATED, 
+        user=current_user.username,
+        entity=updated_invoice.get("entity"),
+        details=audit_details
+    )
 
     return InvoiceResponse(**updated_invoice)
 

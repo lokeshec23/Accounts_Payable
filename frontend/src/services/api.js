@@ -359,4 +359,11 @@ export const delegationService = {
   }
 };
 
+export const auditService = {
+  async getAuditTrail(invoiceId) {
+    const response = await api.get(`/audit/${invoiceId}`);
+    return response.data;
+  }
+};
+
 export default api;

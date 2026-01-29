@@ -15,6 +15,8 @@ from app.models.user import UserResponse
 from app.ai.normalizer import normalize_description, normalize_vendor
 from app.ai.embeddings import embed_text
 from app.ai.similarity import cosine_similarity
+from app.services.audit_service import audit_service
+from app.models.audit_log import AuditAction
 
 router = APIRouter()
 
@@ -373,4 +375,14 @@ async def create_or_update_coding(
 
     saved = db.coding.find_one({"invoice_id": coding_data.invoice_id})
     saved["id"] = str(saved["_id"])
+
+    # [AUDIT] Log Coding Saved
+    await audit_service.log_action(
+        invoice_id=coding_data.invoice_id, 
+        action=AuditAction.CODING_SAVED, 
+        user=current_user.username,
+        entity=invoice.get("entity"),
+        details={"line_items_count": len(coding_data.line_items), "total_amount": sum(i.net_amount for i in coding_data.line_items)}
+    )
+
     return CodingResponse(**saved)
