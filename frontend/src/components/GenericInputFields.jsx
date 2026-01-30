@@ -1,5 +1,5 @@
 // src/components/GenericInputFields.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Tabs,
@@ -33,11 +33,12 @@ dayjs.extend(customParseFormat);
 import { invoiceService, codingService, workflowService, masterDataService } from '../services/api';
 import { authService } from '../services/auth';
 import WorkflowTab from './WorkflowTab';
+import AuditTrail from './AuditTrail';
 
 const { Panel } = Collapse;
 const { TextArea } = Input;
 
-const GenericInputFields = ({
+const GenericInputFields = forwardRef(({
     data,
     schema,
     setHoveredKey,
@@ -46,7 +47,16 @@ const GenericInputFields = ({
     currencies = [],
     onCurrencyChange,
     readOnly = false
-}) => {
+}, ref) => {
+    // Expose methods and state to parent
+    useImperativeHandle(ref, () => ({
+        handleSave,
+        handleSendForCoding,
+        saving,
+        isDuplicateError,
+        disableInputs
+    }));
+
     // Current User & Role
     const currentUser = authService.getCurrentUser?.();
     const isCoder = currentUser?.role === 'coder';
@@ -3374,6 +3384,8 @@ const GenericInputFields = ({
                     previewVendorId={extractValue(formData['Vendor ID'])}
                     previewVendorName={extractValue(formData['Vendor Name'])}
                 />;
+            case '5':
+                return <AuditTrail invoiceId={invoiceId} />;
             default:
                 return quickViewTab;
         }
@@ -3527,7 +3539,8 @@ const GenericInputFields = ({
                             { key: '2', label: 'All Fields' },
                             ...(readOnly ? [{ key: '3', label: 'Coding' }] : []),
                             { key: 'gl_summary', label: 'GL Summary' },
-                            { key: '4', label: 'Workflow' }
+                            { key: '4', label: 'Workflow' },
+                            { key: '5', label: 'Audit Trail' }
                         ]}
                     />
 
@@ -3620,30 +3633,7 @@ const GenericInputFields = ({
                     </div>
                 )}
 
-                {!readOnly && (
-                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                        <Button
-                            type="primary"
-                            icon={<SaveOutlined />}
-                            onClick={handleSave}
-                            loading={saving}
-                            size="default"
-                            disabled={disableInputs}
-                        >
-                            Save
-                        </Button>
-                        <Button
-                            type="primary"
-                            icon={<SendOutlined />}
-                            onClick={handleSendForCoding}
-                            loading={saving}
-                            size="default"
-                            disabled={disableInputs || isDuplicateError}
-                        >
-                            Send for Coding
-                        </Button>
-                    </div>
-                )}
+                {/* Action buttons removed - now in InvoiceReview header */}
 
 
 
@@ -3653,6 +3643,6 @@ const GenericInputFields = ({
             <div style={{ flex: 1, overflow: 'auto' }}>{renderTabContent()}</div>
         </div>
     );
-};
+});
 
 export default GenericInputFields;

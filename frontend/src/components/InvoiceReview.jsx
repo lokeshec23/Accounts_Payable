@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons';
 import GenericInputFields from './GenericInputFields';
 import { schemaMap } from '../config/schemaMap';
 import PdfViewerWithHighlight from './PdfViewerWithHighlight';
@@ -356,6 +356,12 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     }, [isDragging]);
 
 
+    const genericInputRef = useRef(null);
+
+    const handleSave = () => genericInputRef.current?.handleSave();
+    const handleSendForCoding = () => genericInputRef.current?.handleSendForCoding();
+
+
     return (
         <div
             style={{
@@ -399,57 +405,86 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                 {/* RIGHT SIDE FORM */}
                 <div
                     style={{
-                        flex: 1, // Take remaining space
+                        flex: 1,
                         overflow: 'auto',
                         background: 'white',
-                        padding: '20px'
+                        padding: '20px',
+                        display: 'flex',
+                        flexDirection: 'column'
                     }}
                 >
-                    <div style={{ marginBottom: '16px' }}>
+                    {/* Header Row */}
+                    <div style={{
+                        marginBottom: '16px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexShrink: 0
+                    }}>
                         <Button
                             icon={<ArrowLeftOutlined />}
                             onClick={onBack}
                         >
                             Back to Invoice
                         </Button>
+
+                        {/* Action Buttons */}
+                        {formattedData && !readOnly && (
+                            <Space>
+                                <Button
+                                    type="primary"
+                                    icon={<SaveOutlined />}
+                                    onClick={handleSave}
+                                    loading={genericInputRef.current?.saving}
+                                    disabled={genericInputRef.current?.disableInputs}
+                                >
+                                    Save
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    icon={<SendOutlined />}
+                                    onClick={handleSendForCoding}
+                                    loading={genericInputRef.current?.saving}
+                                    disabled={genericInputRef.current?.disableInputs || genericInputRef.current?.isDuplicateError}
+                                >
+                                    Send for Coding
+                                </Button>
+                            </Space>
+                        )}
                     </div>
 
-                    {formattedData && (
-                        <Tabs defaultActiveKey="review">
-                            <Tabs.TabPane tab="Invoice Review" key="review">
-                                <GenericInputFields
-                                    data={formattedData}
-                                    schema={schemaMap.invoice}
-                                    setHoveredKey={setHoveredKey}
-                                    invoiceId={invoiceData?.id}
-                                    originalData={invoiceData}
-                                    currencies={currencies}
-                                    onCurrencyChange={handleCurrencyChange}
-                                    readOnly={readOnly || (() => {
-                                        // Dynamic permission: If user has access to /coding or /invoice, they can edit.
-                                        // Otherwise (like typical approvers), they are read-only here.
-                                        if (!settings.navigation || !userRole) return true; // Default safe
-                                        const codingRoles = settings.navigation.find(n => n.path === '/coding')?.roles || [];
-                                        const invoiceRoles = settings.navigation.find(n => n.path === '/invoice')?.roles || [];
+                    {/* Content Area */}
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                        {formattedData && (
+                            <GenericInputFields
+                                ref={genericInputRef}
+                                data={formattedData}
+                                schema={schemaMap.invoice}
+                                setHoveredKey={setHoveredKey}
+                                invoiceId={invoiceData?.id}
+                                originalData={invoiceData}
+                                currencies={currencies}
+                                onCurrencyChange={handleCurrencyChange}
+                                readOnly={readOnly || (() => {
+                                    if (!settings.navigation || !userRole) return true;
+                                    const codingRoles = settings.navigation.find(n => n.path === '/coding')?.roles || [];
+                                    const invoiceRoles = settings.navigation.find(n => n.path === '/invoice')?.roles || [];
 
-                                        const canEdit = codingRoles.includes(userRole) ||
-                                            invoiceRoles.includes(userRole) ||
-                                            codingRoles.includes('all') ||
-                                            invoiceRoles.includes('all') ||
-                                            userRole === 'admin';
-                                        return !canEdit;
-                                    })()}
-                                />
-                            </Tabs.TabPane>
-                            <Tabs.TabPane tab="Audit Trail" key="audit">
-                                <AuditTrail invoiceId={invoiceData?.id} />
-                            </Tabs.TabPane>
-                        </Tabs>
-                    )}
+                                    const canEdit = codingRoles.includes(userRole) ||
+                                        invoiceRoles.includes(userRole) ||
+                                        codingRoles.includes('all') ||
+                                        invoiceRoles.includes('all') ||
+                                        userRole === 'admin';
+                                    return !canEdit;
+                                })()}
+                            />
+                        )}
+                    </div>
                 </div>
             </div>
-        </div >
+        </div>
     );
 };
 
 export default InvoiceReview;
+

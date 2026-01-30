@@ -538,14 +538,17 @@ async def update_invoice_status(
         db.invoices.update_one(
             {"_id": ObjectId(invoice_id)},
             {
-                "$set": {"status": main_status, "validation_results": {}, "approved_by": []},
+                "$set": {
+                    "status": main_status, 
+                    "validation_results": {}, 
+                    "approved_by": [],
+                    "current_approver_level": 1
+                },
                 "$push": {"status_history": new_status_entry}
             }
         )
-        return {"message": "Status updated", "main_status": main_status}
 
-    # [AUDIT] Log Recall / Status Change (WAITING_CODING is usually recall)
-    if status == InvoiceStatus.WAITING_CODING:
+        # [AUDIT] Log Recall
         await audit_service.log_action(
             invoice_id=invoice_id, 
             action=AuditAction.RECALLED, 
@@ -553,6 +556,11 @@ async def update_invoice_status(
             entity=invoice.get("entity"),
             details={"comment": comment}
         )
+        
+        return {"message": "Status updated", "main_status": main_status}
+
+    # Remove the second (now redundant/unreachable) WAITING_CODING audit block
+
 
     # =====================================================
     # REJECT / REWORK
@@ -971,9 +979,18 @@ async def update_invoice(
     if not audit_details:
         audit_details = {"updated_fields": list(update_data.keys())}
 
+    # [AUDIT] Log Update with Specific Action if Status Changed
+    action = AuditAction.UPDATED
+    if "status" in update_data and update_data["status"] != invoice.get("status"):
+        new_status = update_data["status"]
+        if new_status == InvoiceStatus.WAITING_CODING:
+            action = AuditAction.SENT_FOR_CODING
+        elif new_status == InvoiceStatus.WAITING_APPROVAL:
+            action = AuditAction.SENT_TO_APPROVAL
+
     await audit_service.log_action(
         invoice_id=invoice_id, 
-        action=AuditAction.UPDATED, 
+        action=action, 
         user=current_user.username,
         entity=updated_invoice.get("entity"),
         details=audit_details

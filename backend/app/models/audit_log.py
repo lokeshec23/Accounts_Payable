@@ -8,6 +8,7 @@ class AuditAction(str, Enum):
     UPDATED = "Invoice Updated"
     STATUS_CHANGE = "Status Changed"
     CODING_SAVED = "Coding Saved"
+    SENT_FOR_CODING = "Sent for Coding"
     SENT_TO_APPROVAL = "Sent for Approval"
     APPROVED = "Approved"
     REJECTED = "Rejected"
