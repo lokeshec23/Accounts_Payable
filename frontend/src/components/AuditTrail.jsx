@@ -45,13 +45,13 @@ const AuditTrail = ({ invoiceId }) => {
 
     const getIcon = (action) => {
         if (action.startsWith("Invoice Uploaded")) return <CloudUploadOutlined style={{ color: '#1890ff' }} />;
-        if (action.startsWith("Invoice Updated")) return <EditOutlined style={{ color: '#faad14' }} />;
+        if (action.startsWith("Invoice Updated")) return <EditOutlined style={{ color: '#f2a917ff' }} />;
         if (action.startsWith("Coding Saved")) return <SaveOutlined style={{ color: '#52c41a' }} />;
         if (action.startsWith("Sent for Approval")) return <SendOutlined style={{ color: '#722ed1' }} />;
         if (action.startsWith("Approved")) return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
         if (action.startsWith("Rejected")) return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
-        if (action.startsWith("Reworked")) return <UndoOutlined style={{ color: '#faad14' }} />;
-        if (action.startsWith("Recalled")) return <UndoOutlined style={{ color: '#faad14' }} />;
+        if (action.startsWith("Reworked")) return <UndoOutlined style={{ color: '#f2a917ff' }} />;
+        if (action.startsWith("Recalled")) return <UndoOutlined style={{ color: '#f2a917ff' }} />;
         if (action.startsWith("Comment Added")) return <MessageOutlined style={{ color: '#1890ff' }} />;
         return <ClockCircleOutlined />;
     };
@@ -62,7 +62,7 @@ const AuditTrail = ({ invoiceId }) => {
         if (action.startsWith("Rejected")) return "red";
         if (action.startsWith("Sent for Approval")) return "purple";
         if (action.startsWith("Coding Saved")) return "cyan";
-        return "gray";
+        return "orange";
     };
 
     const renderDetails = (details) => {
