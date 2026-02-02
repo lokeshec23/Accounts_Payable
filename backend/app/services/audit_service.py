@@ -1,7 +1,10 @@
+import json
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from app.database.mongodb import get_database
 from app.models.audit_log import AuditLogCreate, AuditLogResponse
+
+from app.middleware.trace_middleware import trace_logger
 
 class AuditService:
     def __init__(self):
@@ -16,7 +19,7 @@ class AuditService:
 
     async def log_action(self, invoice_id: str, action: str, user: str, entity: str, details: Optional[Dict[str, Any]] = None):
         """
-        Logs an action into the audit_logs collection.
+        Logs an action into the audit_logs collection and echoes to application trace.
         """
         log_entry = AuditLogCreate(
             invoice_id=invoice_id,
@@ -29,6 +32,9 @@ class AuditService:
         
         log_dict = log_entry.dict()
         self.collection.insert_one(log_dict)
+        
+        # Echo to trace log for "nook and corner" coverage
+        trace_logger.info(f"AUDIT_EVENT | {user} | {action} | Invoice: {invoice_id} | Details: {json.dumps(details if details else {})}")
         print(f"[Audit] Logged action: {action} for invoice {invoice_id} by {user}")
 
     async def get_audit_trail(self, invoice_id: str, entity: str) -> List[AuditLogResponse]:

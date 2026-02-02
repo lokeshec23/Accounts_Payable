@@ -30,10 +30,27 @@ api.interceptors.request.use(
   }
 );
 
-// Handle token expiry
+// Handle token expiry and Trace Logging
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Trace log "nook and corner" actions
+    let requestData = response.config.data;
+    try {
+      if (typeof requestData === 'string' && requestData.startsWith('{')) {
+        requestData = JSON.parse(requestData);
+      }
+    } catch (e) {
+      // Keep as is if not JSON
+    }
+
+    console.log(`[Trace] ${response.config.method.toUpperCase()} ${response.config.url} | Status: ${response.status}`, {
+      request: requestData,
+      response: response.data
+    });
+    return response;
+  },
   (error) => {
+    console.error(`[Trace ERROR] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error.response?.data || error.message);
     if (error.response?.status === 401 && !error.config.url.endsWith('/auth/login')) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');

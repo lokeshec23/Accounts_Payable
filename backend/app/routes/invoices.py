@@ -147,40 +147,34 @@ async def upload_invoices(
             extracted_data = extraction.get("extracted_data", {})
             current_line_grouping = "No"
             
-            # Try to get vendor name from full extraction
+            # Resolve vendor from master data
             vendor_info = extracted_data.get("vendor_info", {})
             extracted_vendor = vendor_info.get("name", {}).get("value")
             extracted_address = vendor_info.get("address", {}).get("value")
+            
             if extracted_vendor or extracted_address:
                 update_data["azure_vendor_name"] = extracted_vendor
                 vendor_start = time.time()
                 vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor, entity, extracted_address)
                 print(f"[Backend] Vendor matching completed in {time.time() - vendor_start:.2f}s")
+                
                 if vendor_id:
                     update_data["vendor_id"] = vendor_id
                     update_data["vendor_name"] = official_vendor_name
                     update_data["line_grouping"] = line_grouping
                     current_line_grouping = line_grouping
-            if not invoice_dict.get("vendor_id"):
-                # Try to get vendor name from full extraction
-                vendor_info = extracted_data.get("vendor_info", {})
-                extracted_vendor = vendor_info.get("name", {}).get("value")
-                extracted_address = vendor_info.get("address", {}).get("value")
-                if extracted_vendor or extracted_address:
-                    update_data["azure_vendor_name"] = extracted_vendor
-                    vendor_id, official_vendor_name, line_grouping = get_vendor_id_from_master(db, extracted_vendor, entity, extracted_address)
-                    if vendor_id:
-                        update_data["vendor_id"] = vendor_id
-                        update_data["vendor_name"] = official_vendor_name
-                        update_data["line_grouping"] = line_grouping
-                        current_line_grouping = line_grouping
-                        
-                        # Sync to extracted_data for frontend consistency
-                        if "vendor_info" not in extracted_data:
-                            extracted_data["vendor_info"] = {}
-                        extracted_data["vendor_info"]["vendor_id"] = {"value": vendor_id}
-                        extracted_data["vendor_info"]["name"] = {"value": official_vendor_name}
-                        update_data["extracted_data"] = extracted_data
+                    
+                    # Sync to extracted_data for frontend consistency
+                    if "vendor_info" not in extracted_data:
+                        extracted_data["vendor_info"] = {}
+                    extracted_data["vendor_info"]["vendor_id"] = {"value": vendor_id}
+                    extracted_data["vendor_info"]["name"] = {"value": official_vendor_name}
+                    update_data["extracted_data"] = extracted_data
+            
+            # Fallback for old vendor matching logic if needed (redundant now but kept safe)
+            if not update_data.get("vendor_id") and invoice_dict.get("vendor_id"):
+                 update_data["vendor_id"] = invoice_dict["vendor_id"]
+                 update_data["vendor_name"] = invoice_dict.get("vendor_name")
             
             if not invoice_dict.get("invoice_number"):
                 # Try to get invoice number from extraction

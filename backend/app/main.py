@@ -14,8 +14,12 @@ from app.routes import auth, invoices, coding, dashboard, currency
 from app.routes import master_data, workflow, approval, admin, settings as settings_route, workflow_config, delegation, audit
 from app.database.mongodb import connect_to_mongo, close_mongo_connection
 
+from app.middleware.trace_middleware import TraceMiddleware
+
 app = FastAPI(title="Accounts Payable API", version="1.0.0")
-# Force reload
+
+# Register Trace Middleware
+app.add_middleware(TraceMiddleware)
 
 # CORS middleware
 app.add_middleware(
