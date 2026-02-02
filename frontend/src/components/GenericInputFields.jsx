@@ -44,7 +44,8 @@ const GenericInputFields = forwardRef(({
     originalData,
     currencies = [],
     onCurrencyChange,
-    readOnly = false
+    readOnly = false,
+    onDuplicateChange
 }, ref) => {
     // Expose methods and state to parent
     useImperativeHandle(ref, () => ({
@@ -960,6 +961,14 @@ const GenericInputFields = forwardRef(({
         ) return;
 
         const isInitial = prevVendorIdRef.current === '' && prevInvoiceNumberRef.current === '';
+
+        // Clear immediately to enable button while checking new value
+        if (!isInitial) {
+            setIsDuplicateError(false);
+            if (onDuplicateChange) onDuplicateChange(false);
+            message.destroy('duplicate_warning');
+        }
+
         prevVendorIdRef.current = vendor;
         prevInvoiceNumberRef.current = invoice;
 
@@ -971,15 +980,17 @@ const GenericInputFields = forwardRef(({
                     current_invoice_id: invoiceId
                 });
 
-                if (result?.is_duplicate) {
-                    setIsDuplicateError(true);
+                const isDup = !!result?.is_duplicate;
+                setIsDuplicateError(isDup);
+                if (onDuplicateChange) onDuplicateChange(isDup);
+
+                if (isDup) {
                     message.warning({
                         key: 'duplicate_warning',
                         content: result.message || 'Duplicate invoice detected',
                         duration: 10
                     });
                 } else {
-                    setIsDuplicateError(false);
                     message.destroy('duplicate_warning');
                 }
             } catch (err) {
@@ -992,13 +1003,14 @@ const GenericInputFields = forwardRef(({
             return;
         }
 
-        const timer = setTimeout(runCheck, 600);
+        const timer = setTimeout(runCheck, 400); // Faster debounce
         return () => clearTimeout(timer);
     }, [
         formData['Vendor ID'],
         formData['Invoice Number'],
         invoiceId,
-        extractValue
+        extractValue,
+        onDuplicateChange
     ]);
 
     // ==================== INITIAL LOAD ====================
