@@ -959,10 +959,11 @@ const GenericInputFields = forwardRef(({
             invoice === prevInvoiceNumberRef.current
         ) return;
 
+        const isInitial = prevVendorIdRef.current === '' && prevInvoiceNumberRef.current === '';
         prevVendorIdRef.current = vendor;
         prevInvoiceNumberRef.current = invoice;
 
-        const timer = setTimeout(async () => {
+        const runCheck = async () => {
             try {
                 const result = await invoiceService.checkDuplicate({
                     vendor_id: vendor,
@@ -984,8 +985,14 @@ const GenericInputFields = forwardRef(({
             } catch (err) {
                 console.error('Duplicate check failed', err);
             }
-        }, 600);
+        };
 
+        if (isInitial) {
+            runCheck();
+            return;
+        }
+
+        const timer = setTimeout(runCheck, 600);
         return () => clearTimeout(timer);
     }, [
         formData['Vendor ID'],
@@ -1051,6 +1058,17 @@ const GenericInputFields = forwardRef(({
             extractValue(originalData?.extracted_data?.additional_info?.memo) || '';
         setMemo(savedMemo);
         setExchangeRate(originalData?.exchange_rate || null);
+
+        // IMMEDIATE VENDOR DETAILS POPULATION
+        const existingDetails = data?.vendor_details || originalData?.vendor_details;
+        if (existingDetails) {
+            setSelectedVendorDetails(existingDetails);
+            const grouping = existingDetails['Line Grouping'] || existingDetails['LineGrouping'] ||
+                existingDetails['line_grouping'] || existingDetails['LINE_GROUPING'] || 'No';
+            setLineGrouping(grouping);
+            skipNextVendorLookup.current = true;
+            initialSearchDone.current = true;
+        }
 
         // Initialize last duplicate check values
         const initialVendorId = extractValue(initialFormData['Vendor ID']);
@@ -1421,7 +1439,7 @@ const GenericInputFields = forwardRef(({
                     return !desc.startsWith('GST for item');
                 });
 
-            
+
             pureBaseItemsWithIndex.forEach(({ item, idx }) => {
                 const lineKey = getLineKey(item);
 

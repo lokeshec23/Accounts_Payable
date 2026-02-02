@@ -124,7 +124,7 @@ def get_vendor_id_from_master(
     vendor_name: str,
     entity: str = None,
     vendor_address: str = None
-) -> Tuple[Optional[str], Optional[str], str]:
+) -> Tuple[Optional[str], Optional[str], str, Optional[dict]]:
     """
     Safe vendor resolution:
     - Address-based vendor_metadata → always allowed
@@ -133,7 +133,7 @@ def get_vendor_id_from_master(
     """
 
     if not vendor_name and not vendor_address:
-        return None, None, "No"
+        return None, None, "No", None
 
     normalized_name = normalize_vendor(vendor_name) if vendor_name else None
     normalized_address = normalize_address(vendor_address) if vendor_address else None
@@ -181,10 +181,18 @@ def get_vendor_id_from_master(
                     f"Vendor Mapping (Address): '{vendor_address}' "
                     f"→ '{mapping['official_name']}' (ID: {mapping['vendor_id']})"
                 )
+                
+                # Fetch full record for the frontend
+                full_v = db.vendor_master.find_one({
+                    "vendor_id": mapping["vendor_id"],
+                    "entity": entity
+                }) if entity else db.vendor_master.find_one({"vendor_id": mapping["vendor_id"]})
+
                 return (
                     mapping["vendor_id"],
                     mapping["official_name"],
-                    mapping.get("line_grouping", "No")
+                    mapping.get("line_grouping", "No"),
+                    full_v
                 )
 
         # 1B. Name-based mapping → ONLY if NOT ambiguous
@@ -199,10 +207,17 @@ def get_vendor_id_from_master(
                     f"Vendor Mapping (Name): '{vendor_name}' "
                     f"→ '{mapping['official_name']}' (ID: {mapping['vendor_id']})"
                 )
+                
+                full_v = db.vendor_master.find_one({
+                    "vendor_id": mapping["vendor_id"],
+                    "entity": entity
+                }) if entity else db.vendor_master.find_one({"vendor_id": mapping["vendor_id"]})
+
                 return (
                     mapping["vendor_id"],
                     mapping["official_name"],
-                    mapping.get("line_grouping", "No")
+                    mapping.get("line_grouping", "No"),
+                    full_v
                 )
 
         if is_ambiguous:
@@ -238,7 +253,7 @@ def get_vendor_id_from_master(
 
             if vendor_id:
                 logger.info(f"Vendor matched via {result.get('method')}")
-                return str(vendor_id), str(official_name), str(line_grouping)
+                return str(vendor_id), str(official_name), str(line_grouping), match
 
     else:
         logger.warning(
@@ -251,7 +266,7 @@ def get_vendor_id_from_master(
     logger.warning(
         f"No safe vendor match found for Name='{vendor_name}', Address='{vendor_address}'"
     )
-    return None, None, "No"
+    return None, None, "No", None
 
 
 def check_duplicate_invoice(db, vendor_id: str, invoice_number: str, entity: str) -> Optional[Dict]:
