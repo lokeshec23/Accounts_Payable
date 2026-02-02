@@ -29,6 +29,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     });
     const [isDragging, setIsDragging] = useState(false);
     const leftWidthRef = useRef(leftWidth);
+    const [isDuplicate, setIsDuplicate] = useState(false);
 
     useEffect(() => {
         const fetchCurrencies = async () => {
@@ -445,7 +446,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                                     icon={<SendOutlined />}
                                     onClick={handleSendForCoding}
                                     loading={genericInputRef.current?.saving}
-                                    disabled={genericInputRef.current?.disableInputs || genericInputRef.current?.isDuplicateError}
+                                    disabled={genericInputRef.current?.disableInputs || isDuplicate}
                                 >
                                     Send for Coding
                                 </Button>
@@ -464,7 +465,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                                 invoiceId={invoiceData?.id}
                                 originalData={invoiceData}
                                 currencies={currencies}
-                                onCurrencyChange={handleCurrencyChange}
+                                onDuplicateChange={setIsDuplicate}
                                 readOnly={readOnly || (() => {
                                     if (!settings.navigation || !userRole) return true;
                                     const codingRoles = settings.navigation.find(n => n.path === '/coding')?.roles || [];
