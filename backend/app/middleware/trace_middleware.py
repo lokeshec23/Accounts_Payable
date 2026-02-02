@@ -10,12 +10,34 @@ import os
 trace_logger = logging.getLogger("application_trace")
 trace_logger.setLevel(logging.INFO)
 
+# Setup error logger
+error_logger = logging.getLogger("application_error")
+error_logger.setLevel(logging.ERROR)
+
 # File handler for trace log
 log_file = os.path.join(os.getcwd(), "application_trace.log")
 handler = logging.FileHandler(log_file)
 formatter = logging.Formatter('%(asctime)s | %(message)s')
 handler.setFormatter(formatter)
 trace_logger.addHandler(handler)
+
+# File handler for error log
+error_file = os.path.join(os.getcwd(), "application_error.log")
+error_handler = logging.FileHandler(error_file)
+error_formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(name)s | %(message)s')
+error_handler.setFormatter(error_formatter)
+error_logger.addHandler(error_handler)
+
+# Setup GET response logger
+get_logger = logging.getLogger("application_get")
+get_logger.setLevel(logging.INFO)
+
+get_log_file = os.path.join(os.getcwd(), "application_get_responses.log")
+get_handler = logging.FileHandler(get_log_file)
+get_formatter = logging.Formatter('%(asctime)s | %(message)s')
+get_handler.setFormatter(get_formatter)
+get_logger.addHandler(get_handler)
+
 
 class TraceMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -38,7 +60,21 @@ class TraceMiddleware(BaseHTTPMiddleware):
             request._receive = receive
 
         # 2. Process Request
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception as e:
+            import traceback
+            error_data = {
+                "method": method,
+                "url": url,
+                "client": client_host,
+                "request_body": "Internal Error", # Will be logged in detail below if possible
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            }
+            error_logger.error(f"Unhandled exception during request processing: {json.dumps(error_data)}")
+            # Re-raise so FastAPI can handle it (usually results in 500)
+            raise e
         
         # 3. Capture Response Info
         process_time = time.time() - start_time
@@ -66,8 +102,8 @@ class TraceMiddleware(BaseHTTPMiddleware):
         # 4. Format and Log Trace Entry
         try:
             req_body_desc = "Binary/Large"
-            # Avoid parsing huge bodies
-            if len(request_body) < 10000:
+            # Avoid parsing huge bodies (limit to 1MB)
+            if len(request_body) < 1000000:
                 content_type_req = request.headers.get("content-type", "")
                 if "application/json" in content_type_req:
                     try:
@@ -81,7 +117,7 @@ class TraceMiddleware(BaseHTTPMiddleware):
 
             if is_json:
                 res_body_desc = "Binary/Large"
-                if len(response_body) < 10000:
+                if len(response_body) < 1000000:
                     try:
                         res_body_desc = json.loads(response_body.decode()) if response_body else None
                     except:
@@ -94,12 +130,31 @@ class TraceMiddleware(BaseHTTPMiddleware):
                 "request_body": req_body_desc,
                 "status_code": status_code,
                 "response_body": res_body_desc,
-                "duration_ms": round(process_time * 1000, 2)
+                "duration_s": round(process_time, 3)
             }
             
             trace_logger.info(json.dumps(trace_data))
             
+            # 5. Log Errors separately if status code is >= 400
+            if status_code >= 400:
+                error_logger.error(f"Request failed with status {status_code}: {json.dumps(trace_data)}")
+            
         except Exception as e:
-            trace_logger.error(f"Error logging trace: {str(e)}")
+            error_logger.error(f"Error logging trace: {str(e)}")
+        # 6. Log GET API responses separately
+        if method == "GET":                
+            try:
+                get_log_data = {
+                    "url": url,
+                    "query_params": dict(request.query_params),
+                    "status_code": status_code,
+                    "response_body": res_body_desc,
+                    "duration_s": round(process_time, 3)
+                }
+
+                get_logger.info(json.dumps(get_log_data))
+
+            except Exception as e:
+                error_logger.error(f"Error logging GET response: {str(e)}")
 
         return response
