@@ -140,6 +140,13 @@ const GenericInputFields = forwardRef(({
         , [disableInputs]);
 
     // ==================== MEMOIZED HELPER FUNCTIONS ====================
+    const getLineKey = (item) => {
+        const desc = (extractValue(item.Description) || '').trim();
+        const qty = extractValue(item.Quantity) || 0;
+        const amt = extractValue(item.NetAmount) || extractValue(item.amount) || 0;
+        return `${desc}__${qty}__${amt}`;
+    };
+
     const getCurrencySymbol = useCallback(() => {
         return '$';
     }, []);
@@ -910,6 +917,35 @@ const GenericInputFields = forwardRef(({
     // Track previous values to avoid unnecessary calls
     const prevVendorIdRef = useRef('');
     const prevInvoiceNumberRef = useRef('');
+    const codingByLineKeyRef = useRef({});
+
+    useEffect(() => {
+        codingLineItems.forEach(line => {
+            if (line.original_index >= 0) {
+                const item = lineItems[line.original_index];
+                if (!item) return;
+
+                const key = getLineKey(item);
+
+                if (
+                    line.gl_code ||
+                    line.lob ||
+                    line.department ||
+                    line.customer ||
+                    line.item
+                ) {
+                    codingByLineKeyRef.current[key] = {
+                        gl_code: line.gl_code,
+                        lob: line.lob,
+                        department: line.department,
+                        customer: line.customer,
+                        item: line.item
+                    };
+                }
+            }
+        });
+    }, [codingLineItems, lineItems]);
+
 
     useEffect(() => {
         const vendor = extractValue(formData['Vendor ID']);
@@ -1385,10 +1421,15 @@ const GenericInputFields = forwardRef(({
                     return !desc.startsWith('GST for item');
                 });
 
+            
             pureBaseItemsWithIndex.forEach(({ item, idx }) => {
-                const existingBase = prevCoding.find(pc =>
-                    pc.original_index === idx && !pc.description?.startsWith('GST for item')
-                );
+                const lineKey = getLineKey(item);
+
+                const preserved = codingByLineKeyRef.current[lineKey];
+
+                const existingBase =
+                    prevCoding.find(pc => pc.original_index === idx) ||
+                    preserved;
 
                 const unitPrice = parseCurrencyValue(extractValue(item.UnitPrice) ||
                     extractValue(item.unit_price));
