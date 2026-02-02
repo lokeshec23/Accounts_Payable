@@ -18,7 +18,8 @@ import {
     CheckCircleOutlined,
     CloseCircleOutlined,
     RollbackOutlined,
-    SendOutlined
+    SendOutlined,
+    DeleteOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
@@ -288,6 +289,10 @@ const GenericInputFields = forwardRef(({
             TaxAmount: { value: '' }, GrossAmount: { value: '' }
         };
         setLineItems((prev) => [...prev, newItem]);
+    }, []);
+
+    const removeLineItem = useCallback((index) => {
+        setLineItems((prev) => prev.filter((_, i) => i !== index));
     }, []);
 
     const handleDeleteLineItem = useCallback((index) => {
@@ -638,9 +643,26 @@ const GenericInputFields = forwardRef(({
                         step={0.01} disabled={readOnly} />
                 </div>
             )
+        },
+        {
+            title: 'Action',
+            key: 'action',
+            width: 70,
+            render: (text, record, index) => {
+                if (record.isSystemRow || readOnly || disableInputs) return null;
+                return (
+                    <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => removeLineItem(index)}
+                        size="small"
+                    />
+                );
+            }
         }
     ], [disableInputs, disabledStyle, extractValue, handleLineItemChange, setHoveredKey,
-        parseCurrencyValue, readOnly]);
+        parseCurrencyValue, readOnly, removeLineItem]);
 
     // ==================== SAVE FUNCTIONS ====================
     const saveInvoiceData = useCallback(async () => {
