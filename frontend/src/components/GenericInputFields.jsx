@@ -46,7 +46,8 @@ const GenericInputFields = forwardRef(({
     currencies = [],
     onCurrencyChange,
     readOnly = false,
-    onDuplicateChange
+    onDuplicateChange,
+    onVendorLoadingChange
 }, ref) => {
     // Expose methods and state to parent
     useImperativeHandle(ref, () => ({
@@ -86,6 +87,7 @@ const GenericInputFields = forwardRef(({
     const [vendorNameOptions, setVendorNameOptions] = useState([]);
     const [memo, setMemo] = useState('');
     const [exchangeRate, setExchangeRate] = useState(null);
+    const [isVendorLoading, setIsVendorLoading] = useState(false);
 
     // Line Grouping state
     const [lineGrouping, setLineGrouping] = useState('No');
@@ -1218,6 +1220,8 @@ const GenericInputFields = forwardRef(({
     useEffect(() => {
         const loadVendorMaster = async () => {
             try {
+                setIsVendorLoading(true);
+                if (onVendorLoadingChange) onVendorLoadingChange(true);
                 const files = await masterDataService.getFiles();
                 const vendorMasterFile = files.find(f =>
                     f.tab_name === 'Vendor_Master' || f.tab_name === 'Vendor Master' ||
@@ -1230,10 +1234,13 @@ const GenericInputFields = forwardRef(({
                 }
             } catch (error) {
                 console.error("Failed to load Vendor Master data", error);
+            } finally {
+                setIsVendorLoading(false);
+                if (onVendorLoadingChange) onVendorLoadingChange(false);
             }
         };
         loadVendorMaster();
-    }, []);
+    }, [onVendorLoadingChange]);
 
 
     const renderFieldGroup = useCallback((groupName, fields) => {
