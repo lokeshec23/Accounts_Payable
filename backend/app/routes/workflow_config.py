@@ -1,13 +1,20 @@
 from fastapi import APIRouter, HTTPException, Depends
-from bson import ObjectId
 from datetime import datetime
 from typing import List, Optional
-from app.database.mongodb import get_database
+from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_, asc
+import json
+
+from app.database.database import get_db
+from app.models.db_models import (
+    VendorWorkflow as DBVendorWorkflow, 
+    CodificationWorkflow as DBCodificationWorkflow,
+    ExcelFile, MasterDataChunk, User as DBUser
+)
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
 from app.models.workflow_vendor import VendorWorkflow, VendorWorkflowResponse
 from app.models.workflow_codification import CodificationWorkflow, CodificationWorkflowResponse
-
 from app.dependencies import get_current_entity
 
 router = APIRouter(tags=["Workflow Configuration"])
@@ -16,142 +23,127 @@ router = APIRouter(tags=["Workflow Configuration"])
 
 @router.get("/vendor", response_model=List[VendorWorkflowResponse])
 async def get_vendor_workflows(
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
-    """Get all vendor workflows for the current entity"""
-    db = get_database()
+    workflows = db.query(DBVendorWorkflow).filter(
+        or_(DBVendorWorkflow.entity == entity, DBVendorWorkflow.entity == None)
+    ).all()
     
-    workflows = list(db.vendor_workflows.find({
-        "$or": [
-            {"entity": entity},
-            {"entity": {"$exists": False}}
-        ]
-    }))
-    
-    for workflow in workflows:
-        workflow["id"] = str(workflow["_id"])
-        del workflow["_id"]
-    
-    return workflows
-
+    result = []
+    for w in workflows:
+        result.append({
+            "id": str(w.id),
+            "vendor_id": w.vendor_id,
+            "vendor_name": w.vendor_name,
+            "approver_count": w.approver_count,
+            "mandatory_approver_1": w.mandatory_approver_1,
+            "mandatory_approver_2": w.mandatory_approver_2,
+            "mandatory_approver_3": w.mandatory_approver_3,
+            "amount_threshold": w.amount_threshold,
+            "threshold_approver": w.threshold_approver,
+            "optional_approver": w.optional_approver,
+            "entity": w.entity,
+            "created_at": w.created_at
+        })
+    return result
 
 @router.post("/vendor", response_model=VendorWorkflowResponse)
 async def create_vendor_workflow(
     workflow: VendorWorkflow,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
-    """Create a new vendor workflow"""
-    db = get_database()
-    
-    # Check if workflow already exists for this vendor and entity
-    existing = db.vendor_workflows.find_one({
-        "vendor_id": workflow.vendor_id,
-        "entity": entity
-    })
+    existing = db.query(DBVendorWorkflow).filter(
+        DBVendorWorkflow.vendor_id == workflow.vendor_id,
+        DBVendorWorkflow.entity == entity
+    ).first()
     
     if existing:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Workflow already exists for vendor '{workflow.vendor_id}'"
-        )
+        raise HTTPException(400, f"Workflow already exists for vendor '{workflow.vendor_id}'")
     
-    workflow_dict = workflow.dict()
-    workflow_dict["entity"] = entity
-    workflow_dict["created_at"] = datetime.utcnow()
-    workflow_dict["updated_at"] = datetime.utcnow()
+    new_workflow = DBVendorWorkflow(
+        entity=entity,
+        vendor_id=workflow.vendor_id,
+        vendor_name=workflow.vendor_name,
+        approver_count=workflow.approver_count,
+        mandatory_approver_1=workflow.mandatory_approver_1,
+        mandatory_approver_2=workflow.mandatory_approver_2,
+        mandatory_approver_3=workflow.mandatory_approver_3,
+        amount_threshold=workflow.amount_threshold,
+        threshold_approver=workflow.threshold_approver,
+        optional_approver=workflow.optional_approver,
+        created_at=datetime.utcnow()
+    )
+    db.add(new_workflow)
+    db.commit()
+    db.refresh(new_workflow)
     
-    result = db.vendor_workflows.insert_one(workflow_dict)
-    workflow_dict["id"] = str(result.inserted_id)
-    del workflow_dict["_id"]
-    return workflow_dict
-
+    return {**workflow.dict(), "id": str(new_workflow.id), "entity": entity, "created_at": new_workflow.created_at}
 
 @router.put("/vendor/{workflow_id}", response_model=VendorWorkflowResponse)
 async def update_vendor_workflow(
-    workflow_id: str,
+    workflow_id: int,
     workflow: VendorWorkflow,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
-    """Update an existing vendor workflow"""
-    db = get_database()
-    
-    # Check if workflow exists
-    # Loosen entity check
-    existing = db.vendor_workflows.find_one({
-        "_id": ObjectId(workflow_id),
-        "$or": [
-            {"entity": entity},
-            {"entity": {"$exists": False}}
-        ]
-    })
+    existing = db.query(DBVendorWorkflow).filter(
+        DBVendorWorkflow.id == workflow_id,
+        or_(DBVendorWorkflow.entity == entity, DBVendorWorkflow.entity == None)
+    ).first()
     
     if not existing:
-        raise HTTPException(status_code=404, detail="Workflow not found")
+        raise HTTPException(404, "Workflow not found")
     
-    workflow_dict = workflow.dict()
-    workflow_dict["entity"] = entity
-    workflow_dict["updated_at"] = datetime.utcnow()
-    workflow_dict["created_at"] = existing.get("created_at", datetime.utcnow())
+    existing.vendor_id = workflow.vendor_id
+    existing.vendor_name = workflow.vendor_name
+    existing.approver_count = workflow.approver_count
+    existing.mandatory_approver_1 = workflow.mandatory_approver_1
+    existing.mandatory_approver_2 = workflow.mandatory_approver_2
+    existing.mandatory_approver_3 = workflow.mandatory_approver_3
+    existing.amount_threshold = workflow.amount_threshold
+    existing.threshold_approver = workflow.threshold_approver
+    existing.optional_approver = workflow.optional_approver
+    existing.entity = entity
     
-    db.vendor_workflows.update_one(
-        {"_id": ObjectId(workflow_id)},
-        {"$set": workflow_dict}
-    )
-    
-    workflow_dict["id"] = workflow_id
-    return workflow_dict
-
+    db.commit()
+    return {**workflow.dict(), "id": str(workflow_id), "entity": entity, "created_at": existing.created_at}
 
 @router.delete("/vendor/{workflow_id}")
 async def delete_vendor_workflow(
-    workflow_id: str,
+    workflow_id: int,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
-    """Delete a vendor workflow"""
-    db = get_database()
+    result = db.query(DBVendorWorkflow).filter(
+        DBVendorWorkflow.id == workflow_id,
+        or_(DBVendorWorkflow.entity == entity, DBVendorWorkflow.entity == None)
+    ).delete()
     
-    # Loosen entity check: allow if document has matching entity OR no entity field at all
-    result = db.vendor_workflows.delete_one({
-        "_id": ObjectId(workflow_id),
-        "$or": [
-            {"entity": entity},
-            {"entity": {"$exists": False}}
-        ]
-    })
+    if result == 0:
+        raise HTTPException(404, "Workflow not found")
     
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Workflow not found")
-    
+    db.commit()
     return {"message": "Workflow deleted successfully"}
-
 
 @router.get("/vendor/vendors")
 async def get_workflow_vendors(
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
-    """Get all vendors with workflow_applicable = 'Yes' from Vendor Master"""
-    db = get_database()
+    vendor_file = db.query(ExcelFile).filter(ExcelFile.tab_name == "Vendor_Master").first()
+    if not vendor_file: return []
     
-    # 1. Targeted search for Vendor_Master tab
-    meta = db.excel_files.find_one({"tab_name": "Vendor_Master"})
-    if not meta or "sheets" not in meta or not meta["sheets"]:
-        return []
-    
-    vendor_collection = meta["sheets"][0].get("collection_name")
-    if not vendor_collection:
-        return []
-    
-    chunks = list(db[vendor_collection].find())
-    
+    chunks = db.query(MasterDataChunk).filter(MasterDataChunk.file_id == vendor_file.id).all()
     workflow_vendors = []
     for chunk in chunks:
-        rows = chunk.get("rows", [])
+        rows = json.loads(chunk.data_json)
         for vendor in rows:
-            # Flexible field matching for Workflow Eligibility / Applicability
             workflow_applicable = None
             for key in vendor.keys():
                 kl = key.lower()
@@ -159,309 +151,179 @@ async def get_workflow_vendors(
                     workflow_applicable = vendor[key]
                     break
             
-            vendor_name = None
-            for key in ["VENDOR_NAME", "Vendor Name", "VendorName", "Name", "vendor_name"]:
-                if key in vendor:
-                    vendor_name = vendor[key]
-                    break
-            
-            vendor_id = None
-            for key in ["VENDOR_ID", "Vendor ID", "VendorID", "vendor_id", "Customer_Id"]:
-                if key in vendor:
-                    vendor_id = vendor[key]
-                    break
-            
-            # Strictly only show if explicitly 'Yes'
-            if vendor_name:
-                is_applicable = str(workflow_applicable).strip().lower() == "yes"
-                if is_applicable:
+            if str(workflow_applicable).strip().lower() == "yes":
+                vendor_name = None
+                for key in ["VENDOR_NAME", "Vendor Name", "VendorName", "Name", "vendor_name"]:
+                    if key in vendor: vendor_name = vendor[key]; break
+                
+                vendor_id = None
+                for key in ["VENDOR_ID", "Vendor ID", "VendorID", "vendor_id", "Customer_Id"]:
+                    if key in vendor: vendor_id = vendor[key]; break
+                
+                if vendor_name:
                     label = f"{vendor_id} - {vendor_name}" if vendor_id else str(vendor_name)
-                    # Use a unique value: ID-Name if ID exists, else just Name
                     unique_val = f"{vendor_id}|{vendor_name}" if vendor_id else str(vendor_name)
                     workflow_vendors.append({
                         "id": str(vendor_id) if vendor_id else "",
                         "value": unique_val,
                         "label": label,
-                        "vendor_name": str(vendor_name) # Explicitly keep raw name
+                        "vendor_name": str(vendor_name)
                     })
-    
     return workflow_vendors
-
 
 # ==================== CODIFICATION WORKFLOW ====================
 
 @router.get("/codification", response_model=List[CodificationWorkflowResponse])
 async def get_codification_workflows(
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
-    """Get all codification workflows for the current entity"""
-    db = get_database()
+    workflows = db.query(DBCodificationWorkflow).filter(
+        or_(DBCodificationWorkflow.entity == entity, DBCodificationWorkflow.entity == None)
+    ).all()
     
-    workflows = list(db.codification_workflows.find({
-        "$or": [
-            {"entity": entity},
-            {"entity": {"$exists": False}}
-        ]
-    }))
-    
-    for workflow in workflows:
-        workflow["id"] = str(workflow["_id"])
-        del workflow["_id"]
-    
-    return workflows
-
+    result = []
+    for w in workflows:
+        result.append({
+            "id": str(w.id),
+            "lob": w.lob,
+            "department_id": w.department_id,
+            "approver_count": w.approver_count,
+            "mandatory_approver_1": w.mandatory_approver_1,
+            "mandatory_approver_2": w.mandatory_approver_2,
+            "mandatory_approver_3": w.mandatory_approver_3,
+            "amount_threshold": w.amount_threshold,
+            "threshold_approver": w.threshold_approver,
+            "optional_approver": w.optional_approver,
+            "entity": w.entity,
+            "created_at": w.created_at
+        })
+    return result
 
 @router.post("/codification", response_model=CodificationWorkflowResponse)
 async def create_codification_workflow(
     workflow: CodificationWorkflow,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
-    """Create a new codification workflow"""
-    db = get_database()
-    
-    # Check if workflow already exists for this LOB/Department combination
-    existing = db.codification_workflows.find_one({
-        "lob": workflow.lob,
-        "department_id": workflow.department_id,
-        "entity": entity
-    })
+    existing = db.query(DBCodificationWorkflow).filter(
+        DBCodificationWorkflow.lob == workflow.lob,
+        DBCodificationWorkflow.department_id == workflow.department_id,
+        DBCodificationWorkflow.entity == entity
+    ).first()
     
     if existing:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Workflow already exists for LOB '{workflow.lob}' and Department '{workflow.department_id}'"
-        )
+        raise HTTPException(400, f"Workflow already exists for LOB '{workflow.lob}' and Department '{workflow.department_id}'")
+        
+    new_workflow = DBCodificationWorkflow(
+        entity=entity,
+        lob=workflow.lob,
+        department_id=workflow.department_id,
+        approver_count=workflow.approver_count,
+        mandatory_approver_1=workflow.mandatory_approver_1,
+        mandatory_approver_2=workflow.mandatory_approver_2,
+        mandatory_approver_3=workflow.mandatory_approver_3,
+        amount_threshold=workflow.amount_threshold,
+        threshold_approver=workflow.threshold_approver,
+        optional_approver=workflow.optional_approver,
+        created_at=datetime.utcnow()
+    )
+    db.add(new_workflow)
+    db.commit()
+    db.refresh(new_workflow)
     
-    workflow_dict = workflow.dict()
-    workflow_dict["entity"] = entity
-    workflow_dict["created_at"] = datetime.utcnow()
-    workflow_dict["updated_at"] = datetime.utcnow()
-    
-    result = db.codification_workflows.insert_one(workflow_dict)
-    workflow_dict["id"] = str(result.inserted_id)
-    del workflow_dict["_id"]
-    
-    return workflow_dict
-
+    return {**workflow.dict(), "id": str(new_workflow.id), "entity": entity, "created_at": new_workflow.created_at}
 
 @router.put("/codification/{workflow_id}", response_model=CodificationWorkflowResponse)
 async def update_codification_workflow(
-    workflow_id: str,
+    workflow_id: int,
     workflow: CodificationWorkflow,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
-    """Update an existing codification workflow"""
-    db = get_database()
-    
-    # Check if workflow exists
-    # Loosen entity check
-    existing = db.codification_workflows.find_one({
-        "_id": ObjectId(workflow_id),
-        "$or": [
-            {"entity": entity},
-            {"entity": {"$exists": False}}
-        ]
-    })
+    existing = db.query(DBCodificationWorkflow).filter(
+        DBCodificationWorkflow.id == workflow_id,
+        or_(DBCodificationWorkflow.entity == entity, DBCodificationWorkflow.entity == None)
+    ).first()
     
     if not existing:
-        raise HTTPException(status_code=404, detail="Workflow not found")
-    
-    # Check if updating to a duplicate LOB/Department combination
-    if existing["lob"] != workflow.lob or existing["department_id"] != workflow.department_id:
-        duplicate = db.codification_workflows.find_one({
-            "lob": workflow.lob,
-            "department_id": workflow.department_id,
-            "entity": entity,
-            "_id": {"$ne": ObjectId(workflow_id)}
-        })
+        raise HTTPException(404, "Workflow not found")
         
-        if duplicate:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Workflow already exists for LOB '{workflow.lob}' and Department '{workflow.department_id}'"
-            )
+    existing.lob = workflow.lob
+    existing.department_id = workflow.department_id
+    existing.approver_count = workflow.approver_count
+    existing.mandatory_approver_1 = workflow.mandatory_approver_1
+    existing.mandatory_approver_2 = workflow.mandatory_approver_2
+    existing.mandatory_approver_3 = workflow.mandatory_approver_3
+    existing.amount_threshold = workflow.amount_threshold
+    existing.threshold_approver = workflow.threshold_approver
+    existing.optional_approver = workflow.optional_approver
+    existing.entity = entity
     
-    workflow_dict = workflow.dict()
-    workflow_dict["entity"] = entity
-    workflow_dict["updated_at"] = datetime.utcnow()
-    workflow_dict["created_at"] = existing.get("created_at", datetime.utcnow())
-    
-    db.codification_workflows.update_one(
-        {"_id": ObjectId(workflow_id)},
-        {"$set": workflow_dict}
-    )
-    
-    workflow_dict["id"] = workflow_id
-    return workflow_dict
-
+    db.commit()
+    return {**workflow.dict(), "id": str(workflow_id), "entity": entity, "created_at": existing.created_at}
 
 @router.delete("/codification/{workflow_id}")
 async def delete_codification_workflow(
-    workflow_id: str,
+    workflow_id: int,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
-    """Delete a codification workflow"""
-    db = get_database()
+    result = db.query(DBCodificationWorkflow).filter(
+        DBCodificationWorkflow.id == workflow_id,
+        or_(DBCodificationWorkflow.entity == entity, DBCodificationWorkflow.entity == None)
+    ).delete()
     
-    # Loosen entity check
-    result = db.codification_workflows.delete_one({
-        "_id": ObjectId(workflow_id),
-        "$or": [
-            {"entity": entity},
-            {"entity": {"$exists": False}}
-        ]
-    })
+    if result == 0:
+        raise HTTPException(404, "Workflow not found")
     
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Workflow not found")
-    
+    db.commit()
     return {"message": "Workflow deleted successfully"}
 
-
 @router.get("/codification/lobs")
-async def get_lobs(
-    current_user: UserResponse = Depends(get_current_user)
-):
-    """Get all unique LOBs from master data using flexible matching (same as CodingReview)"""
-    db = get_database()
-
+async def get_lobs(db: Session = Depends(get_db)):
     lobs = {}
-    files = list(db.excel_files.find())
-    
-    # 1. Broad Search: Look in any collection that might have LOB data
-    # CodingReview looks for "Line_Items" or any sheet with "LOB" in the name
+    files = db.query(ExcelFile).all()
     for file in files:
-        sheets = file.get("sheets", [])
-        for sheet in sheets:
-            sheet_name = sheet.get("name", "").lower()
-            tab_name = file.get("tab_name", "").lower()
-            
-            # Match Line_Items tab or any sheet with 'lob' in the name
-            if "line_items" in tab_name or "lob" in sheet_name:
-                col_name = sheet.get("collection_name")
-                if not col_name: continue
-                
-                chunks = list(db[col_name].find())
-                for chunk in chunks:
-                    for row in chunk.get("rows", []):
-                        # Flexible field matching (from CodingReview logic)
-                        lob_id = None
-                        for key in ["LOB ID", "LOBID", "LOB", "LineOfBusiness", "Line of Business", "LineOfBiz"]:
-                            if key in row and row[key]:
-                                lob_id = str(row[key]).strip()
-                                break
-                            else:
-                                for rk in row.keys():
-                                    if rk.lower().replace("_", "").replace(" ", "") == key.lower().replace("_", "").replace(" ", ""):
-                                        if row[rk]:
-                                            lob_id = str(row[rk]).strip()
-                                            break
-                            if lob_id: break
-                        
-                        lob_name = None
-                        for key in ["Name", "LOB Name", "LOBName", "Description"]:
-                            if key in row and row[key]:
-                                lob_name = str(row[key]).strip()
-                                break
-                            else:
-                                for rk in row.keys():
-                                    if rk.lower().replace("_", "").replace(" ", "") == key.lower().replace("_", "").replace(" ", ""):
-                                        if row[rk]:
-                                            lob_name = str(row[rk]).strip()
-                                            break
-                            if lob_name: break
-
-                        if lob_id:
-                            label = f"{lob_id} - {lob_name}" if lob_name else lob_id
-                            # We use lob_id as the value for the workflow rule
-                            lobs[lob_id] = label
-    
+        if "line_items" in file.tab_name.lower():
+            chunks = db.query(MasterDataChunk).filter(MasterDataChunk.file_id == file.id).all()
+            for chunk in chunks:
+                rows = json.loads(chunk.data_json)
+                for row in rows:
+                    lob_id, lob_name = None, None
+                    for k in ["LOB ID", "LOBID", "LOB"]:
+                        if k in row and row[k]: lob_id = str(row[k]).strip(); break
+                    for k in ["Name", "LOB Name", "Description"]:
+                        if k in row and row[k]: lob_name = str(row[k]).strip(); break
+                    if lob_id: lobs[lob_id] = f"{lob_id} - {lob_name}" if lob_name else lob_id
     return [{"value": vid, "label": lbl} for vid, lbl in sorted(lobs.items())]
 
-
 @router.get("/codification/departments")
-async def get_departments(
-    current_user: UserResponse = Depends(get_current_user)
-):
-    """Get all unique Department IDs from master data using flexible matching (same as CodingReview)"""
-    db = get_database()
-    
+async def get_departments(db: Session = Depends(get_db)):
     departments = {}
-    files = list(db.excel_files.find())
-    
+    files = db.query(ExcelFile).all()
     for file in files:
-        sheets = file.get("sheets", [])
-        for sheet in sheets:
-            sheet_name = sheet.get("name", "").lower()
-            tab_name = file.get("tab_name", "").lower()
-            
-            # Match Line_Items tab or any sheet with 'department' in the name
-            if "line_items" in tab_name or "department" in sheet_name or "dept" in sheet_name:
-                col_name = sheet.get("collection_name")
-                if not col_name: continue
-                
-                chunks = list(db[col_name].find())
-                for chunk in chunks:
-                    for row in chunk.get("rows", []):
-                        # Flexible field matching
-                        dept_id = None
-                        for key in ["Department ID", "DepartmentID", "department_id", "dept_id", "Dept ID", "Department_ID", "Dept"]:
-                            if key in row and row[key]:
-                                dept_id = str(row[key]).strip()
-                                break
-                            else:
-                                for rk in row.keys():
-                                    if rk.lower().replace("_", "").replace(" ", "") == key.lower().replace("_", "").replace(" ", ""):
-                                        if row[rk]:
-                                            dept_id = str(row[rk]).strip()
-                                            break
-                            if dept_id: break
-                        
-                        dept_name = None
-                        for key in ["Department name", "Department Name", "DeptName", "Name"]:
-                            if key in row and row[key]:
-                                dept_name = str(row[key]).strip()
-                                break
-                            else:
-                                for rk in row.keys():
-                                    if rk.lower().replace("_", "").replace(" ", "") == key.lower().replace("_", "").replace(" ", ""):
-                                        if row[rk]:
-                                            dept_name = str(row[rk]).strip()
-                                            break
-                            if dept_name: break
-
-                        if dept_id:
-                            label = f"{dept_id} - {dept_name}" if dept_name else dept_id
-                            departments[dept_id] = label
-    
+        if any(x in file.tab_name.lower() for x in ["line_items", "department", "dept"]):
+            chunks = db.query(MasterDataChunk).filter(MasterDataChunk.file_id == file.id).all()
+            for chunk in chunks:
+                rows = json.loads(chunk.data_json)
+                for row in rows:
+                    dept_id, dept_name = None, None
+                    for k in ["Department ID", "DepartmentID", "dept_id", "Dept"]:
+                        if k in row and row[k]: dept_id = str(row[k]).strip(); break
+                    for k in ["Department Name", "DeptName", "Name"]:
+                        if k in row and row[k]: dept_name = str(row[k]).strip(); break
+                    if dept_id: departments[dept_id] = f"{dept_id} - {dept_name}" if dept_name else dept_id
     return [{"value": did, "label": lbl} for did, lbl in sorted(departments.items())]
 
-
-# ==================== APPROVERS ====================
-
 @router.get("/approvers")
-async def get_approvers(
-    current_user: UserResponse = Depends(get_current_user)
-):
-    """Get all users who can act as approvers (Strict: role='approver' and status='active')"""
-    db = get_database()
-    
-    approvers = list(db.users.find({
-        "role": "approver",
-        "status": "active"
-    }))
-    
-    entity_approvers = []
-    for approver in approvers:
-        email = approver.get("email")
-        if email:
-            entity_approvers.append({
-                "value": email,
-                "label": f"{approver.get('username', email.split('@')[0])} ({email})"
-            })
-    
-    return entity_approvers
+async def get_approvers(db: Session = Depends(get_db)):
+    approvers = db.query(DBUser).filter(DBUser.role == "approver", DBUser.status == "active").all()
+    return [{
+        "value": a.email,
+        "label": f"{a.username or a.email.split('@')[0]} ({a.email})"
+    } for a in approvers]

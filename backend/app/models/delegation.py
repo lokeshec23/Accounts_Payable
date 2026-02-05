@@ -1,6 +1,9 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
+from sqlalchemy.orm import Session
+from sqlalchemy import and_, or_
+from app.models.db_models import Delegation as DBDelegation
 
 class DelegationBase(BaseModel):
     original_approver: str = Field(..., description="Email of the original approver")
@@ -13,30 +16,27 @@ class DelegationCreate(DelegationBase):
     pass
 
 class DelegationResponse(DelegationBase):
-    id: str = Field(..., alias="_id")
+    id: int
     created_at: datetime
     created_by: str
 
     class Config:
-        allow_population_by_field_name = True
+        from_attributes = True
 
-def check_active_delegation(db, original_approver_email: str, entity: str):
+def check_active_delegation(db: Session, original_approver_email: str, entity: str) -> List[str]:
     """
     Checks if there is an active delegation for the given original approver.
     Returns the list of substitute approver emails if active.
     """
     now = datetime.utcnow()
-    # Normalize now to start of day for comparison if using date-only storage, 
-    # but here we want to match any delegation that overlaps with TODAY.
-    # To be safe and day-inclusive:
     day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     day_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-    delegations = db.delegations.find({
-        "original_approver": original_approver_email.lower(),
-        "entity": entity,
-        "start_date": {"$lte": day_end},
-        "end_date": {"$gte": day_start}
-    })
+    delegations = db.query(DBDelegation).filter(
+        DBDelegation.original_approver == original_approver_email.lower(),
+        DBDelegation.entity == entity,
+        DBDelegation.start_date <= day_end,
+        DBDelegation.end_date >= day_start
+    ).all()
     
-    return [d["substitute_approver"].lower() for d in delegations]
+    return [d.substitute_approver.lower() for d in delegations]

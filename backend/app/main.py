@@ -12,7 +12,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import auth, invoices, coding, dashboard, currency
 from app.routes import master_data, workflow, approval, admin, settings as settings_route, workflow_config, delegation, audit
-from app.database.mongodb import connect_to_mongo, close_mongo_connection
+from app.database.database import engine, Base
+from app.database.init_db import init_database
 
 from app.middleware.trace_middleware import TraceMiddleware
 
@@ -46,26 +47,44 @@ app.include_router(workflow_config.router, prefix="/api/workflow-config", tags=[
 app.include_router(delegation.router, prefix="/api/delegation", tags=["delegation"])
 app.include_router(audit.router, prefix="/api/audit", tags=["audit"])
 
-from app.database.bootstrap import bootstrap_admin
-from app.database.migration import migrate_users_role_status
-from app.ai.vector_matcher import get_cached_vendors
-from app.database.mongodb import get_database
 
 @app.on_event("startup")
 async def startup_event():
-    await connect_to_mongo()
-    await bootstrap_admin()
-    # await migrate_users_role_status()
+    """Initialize database on startup"""
+    print("\n" + "="*60)
+    print("STARTING ACCOUNTS PAYABLE API")
+    print("="*60)
+    
+    try:
+        # Initialize database (create tables and default data)
+        init_database()
+        print("✓ Database initialized successfully")
+    except Exception as e:
+        print(f"✗ Database initialization error: {e}")
+        # Don't fail startup - allow app to run for debugging
+    
+    print("="*60 + "\n")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    await close_mongo_connection()
+    """Cleanup on shutdown"""
+    print("\nShutting down Accounts Payable API...")
+    # SQLAlchemy connections are managed by connection pool
+    # No explicit cleanup needed
 
 @app.get("/")
 async def root():
-    return {"message": "Accounts Payable API"}
+    return {"message": "Accounts Payable API", "database": "SQL Server"}
 
-
-
-
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    try:
+        # Test database connection
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
 

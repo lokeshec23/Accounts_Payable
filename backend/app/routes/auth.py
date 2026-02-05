@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
+from sqlalchemy.orm import Session
 from app.models.auth import LoginRequest, Token
-from app.models.user import User, UserResponse
-from app.database.mongodb import get_database
+from app.models.user import User as UserPydantic, UserResponse
+from app.models.db_models import User as UserDB
+from app.database.database import get_db
 from app.auth.jwt import verify_password, get_password_hash, create_access_token
 from datetime import datetime, timedelta
 from app.config.settings import settings
@@ -9,17 +11,17 @@ from app.config.settings import settings
 router = APIRouter()
 
 @router.post("/register", response_model=UserResponse)
-async def register(user: User):
-    db = get_database()
-    
+async def register(user: UserPydantic, db: Session = Depends(get_db)):
     # Check if user already exists
-    if db.users.find_one({"email": user.email}):
+    existing_email = db.query(UserDB).filter(UserDB.email == user.email).first()
+    if existing_email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
     
-    if db.users.find_one({"username": user.username}):
+    existing_username = db.query(UserDB).filter(UserDB.username == user.username).first()
+    if existing_username:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already taken"
@@ -27,48 +29,56 @@ async def register(user: User):
     
     # Hash password
     hashed_password = get_password_hash(user.password)
-    user_dict = user.dict()
-    user_dict["password"] = hashed_password
     
-    # Set defaults
-    user_dict["status"] = "pending"
-    user_dict["role"] = "coder"
+    # Create new user
+    new_user = UserDB(
+        username=user.username,
+        email=user.email,
+        password=hashed_password,
+        status="pending",
+        role="coder",
+        created_at=datetime.utcnow()
+    )
     
-    # Set created_at to current UTC time if not present
-    user_dict["created_at"] = datetime.utcnow()
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
     
-    # Insert user
-    result = db.users.insert_one(user_dict)
-    user_dict["id"] = str(result.inserted_id)
-    
-    return UserResponse(**user_dict)
+    return UserResponse(
+        id=str(new_user.id),
+        username=new_user.username,
+        email=new_user.email,
+        role=new_user.role,
+        status=new_user.status,
+        created_at=new_user.created_at
+    )
 
 @router.post("/login", response_model=Token)
-async def login(login_data: LoginRequest):
-    db = get_database()
+async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
+    # Find user by email
+    user = db.query(UserDB).filter(UserDB.email == login_data.email).first()
     
-    user = db.users.find_one({"email": login_data.email})
-    if not user or not verify_password(login_data.password, user["password"]):
+    if not user or not verify_password(login_data.password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
     
     # Check status
-    if user.get("status", "active") != "active": # Backward compatibility: assume active if missing
+    if user.status != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account pending approval"
         )
     
     access_token = create_access_token(
-        data={"sub": user["email"]},
+        data={"sub": user.email},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     
     return {
         "access_token": access_token, 
         "token_type": "bearer",
-        "username": user.get("username", user["email"].split("@")[0]),
-        "role": user.get("role", "coder")
+        "username": user.username,
+        "role": user.role
     }

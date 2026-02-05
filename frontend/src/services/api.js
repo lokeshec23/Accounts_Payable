@@ -108,11 +108,11 @@ export const invoiceService = {
   },
 
   getPdfUrl(invoiceId) {
-    return `${API_BASE_URL}/invoices/${invoiceId}/pdf`;
+    return `${API_BASE_URL}/invoices/${invoiceId}/file`;
   },
 
   async getPdfBlob(invoiceId) {
-    const response = await api.get(`/invoices/${invoiceId}/pdf`, {
+    const response = await api.get(`/invoices/${invoiceId}/file`, {
       responseType: 'blob'
     });
     return URL.createObjectURL(response.data);

@@ -4,8 +4,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings:
+    # SQL Server Database URL
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL", 
+        "mssql+pyodbc://sa:varshu@40067@localhost:1433/accounts_payable?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes"
+    )
+    
+    # Legacy MongoDB URL (kept for backward compatibility during migration)
     MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
     DATABASE_NAME: str = "accounts_payable"
+    
+    # JWT Settings
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 360

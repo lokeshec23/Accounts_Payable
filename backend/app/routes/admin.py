@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List
+from sqlalchemy.orm import Session
+from app.database.database import get_db
+from app.models.db_models import User as DBUser
 from app.models.user import UserResponse
-from app.database.mongodb import get_database
 from app.auth.jwt import get_current_user
 from app.utils.settings import get_app_settings
-from bson.objectid import ObjectId
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -15,9 +16,6 @@ class UserRoleUpdate(BaseModel):
 
 # Helper to check if user is admin
 def get_current_admin(current_user: UserResponse = Depends(get_current_user)):
-    # Assuming role is stored in UserResponse (which it is now)
-    # Check both "admin" role and specific usernames as fallback for bootstrapping
-    # Check admin role
     if current_user.role != "admin": 
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -27,34 +25,23 @@ def get_current_admin(current_user: UserResponse = Depends(get_current_user)):
 
 @router.get("/", response_model=List[UserResponse])
 async def get_all_users(
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_admin)
 ):
     """Get all users (Admin only)"""
-    db = get_database()
-    users = db.users.find()
-    
-    user_list = []
-    for user in users:
-        user["id"] = str(user["_id"])
-        # Ensure role/status exist for older records
-        if "role" not in user: user["role"] = "coder"
-        if "status" not in user: user["status"] = "active"
-        
-        user_list.append(UserResponse(**user))
-        
-    return user_list
+    users = db.query(DBUser).all()
+    return users
 
 
 @router.put("/{user_id}/role", response_model=UserResponse)
 async def update_user_role(
-    user_id: str,
+    user_id: int,
     update_data: UserRoleUpdate,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_admin)
 ):
-    db = get_database()
-
-    #  Load global settings correctly
-    settings = get_app_settings()
+    #  Load global settings
+    settings = get_app_settings(db)
 
     allowed_roles = settings.get("roles", [])
     allowed_statuses = settings.get("statuses", [])
@@ -74,24 +61,19 @@ async def update_user_role(
         )
 
     # Prevent admin removing own admin role
-    if str(current_user.id) == user_id and update_data.role != "admin":
+    if current_user.id == user_id and update_data.role != "admin":
         raise HTTPException(
             status_code=400,
             detail="Admin cannot remove own admin role"
         )
 
-    result = db.users.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$set": {
-            "role": update_data.role,
-            "status": update_data.status
-        }}
-    )
-
-    if result.matched_count == 0:
+    user = db.query(DBUser).filter(DBUser.id == user_id).first()
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    updated_user = db.users.find_one({"_id": ObjectId(user_id)})
-    updated_user["id"] = str(updated_user["_id"])
+    user.role = update_data.role
+    user.status = update_data.status
+    db.commit()
+    db.refresh(user)
 
-    return UserResponse(**updated_user)
+    return user
