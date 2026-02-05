@@ -1,12 +1,14 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_, or_, delete
+from app.database.sql_server import get_db
 from app.models.delegation import DelegationCreate, DelegationResponse
-from app.database.mongodb import get_database
+from app.models.sql.delegation import Delegation as SQLDelegation
 from app.auth.jwt import get_current_user
 from app.dependencies import get_current_entity
 from app.models.user import UserResponse
 from datetime import datetime
-from bson.objectid import ObjectId
 
 router = APIRouter()
 
@@ -14,10 +16,9 @@ router = APIRouter()
 async def create_delegation(
     delegation: DelegationCreate,
     current_user: UserResponse = Depends(get_current_user),
-    entity: str = Depends(get_current_entity)
+    entity: str = Depends(get_current_entity),
+    db: AsyncSession = Depends(get_db)
 ):
-    db = get_database()
-    
     # Validation: Cannot delegate to self
     if delegation.original_approver == delegation.substitute_approver:
         raise HTTPException(
@@ -32,62 +33,92 @@ async def create_delegation(
             detail="You do not have permission to delegate this user's approvals."
         )
 
-    delegation_dict = delegation.dict()
-    delegation_dict["created_at"] = datetime.utcnow()
-    delegation_dict["created_by"] = current_user.email
-    delegation_dict["entity"] = entity
+    new_delegation = SQLDelegation(
+        original_approver=delegation.original_approver,
+        substitute_approver=delegation.substitute_approver,
+        start_date=delegation.start_date,
+        end_date=delegation.end_date,
+        entity=entity,
+        created_at=datetime.utcnow(),
+        created_by=current_user.email
+    )
     
-    result = db.delegations.insert_one(delegation_dict)
+    db.add(new_delegation)
+    await db.commit()
+    await db.refresh(new_delegation)
     
-    created = db.delegations.find_one({"_id": result.inserted_id})
-    created["_id"] = str(created["_id"])
-    
-    return created
+    return DelegationResponse(
+        id=str(new_delegation.id),
+        original_approver=new_delegation.original_approver,
+        substitute_approver=new_delegation.substitute_approver,
+        start_date=new_delegation.start_date,
+        end_date=new_delegation.end_date,
+        created_at=new_delegation.created_at,
+        created_by=new_delegation.created_by
+    )
 
 @router.get("/", response_model=List[DelegationResponse])
 async def get_delegations(
     current_user: UserResponse = Depends(get_current_user),
-    entity: str = Depends(get_current_entity)
+    entity: str = Depends(get_current_entity),
+    db: AsyncSession = Depends(get_db)
 ):
-    db = get_database()
-    
-    query = {"entity": entity}
+    stmt = select(SQLDelegation).where(SQLDelegation.entity == entity)
     
     # Non-admins only see delegations they created or are involved in
     if current_user.role != "admin":
-        query["$or"] = [
-            {"original_approver": current_user.email},
-            {"substitute_approver": current_user.email},
-            {"created_by": current_user.email}
-        ]
+        stmt = stmt.where(
+            or_(
+                SQLDelegation.original_approver == current_user.email,
+                SQLDelegation.substitute_approver == current_user.email,
+                SQLDelegation.created_by == current_user.email
+            )
+        )
         
-    delegations = list(db.delegations.find(query).sort("created_at", -1))
+    stmt = stmt.order_by(SQLDelegation.created_at.desc())
+    result = await db.execute(stmt)
+    delegations = result.scalars().all()
     
-    for d in delegations:
-        d["_id"] = str(d["_id"])
-        
-    return delegations
+    return [
+        DelegationResponse(
+            id=str(d.id),
+            original_approver=d.original_approver,
+            substitute_approver=d.substitute_approver,
+            start_date=d.start_date,
+            end_date=d.end_date,
+            created_at=d.created_at,
+            created_by=d.created_by
+        ) for d in delegations
+    ]
 
 @router.delete("/{delegation_id}")
 async def delete_delegation(
     delegation_id: str,
-    current_user: UserResponse = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
-    db = get_database()
-    
-    delegation = db.delegations.find_one({"_id": ObjectId(delegation_id)})
+    try:
+        del_id_int = int(delegation_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid delegation ID format")
+
+    stmt = select(SQLDelegation).where(SQLDelegation.id == del_id_int)
+    result = await db.execute(stmt)
+    delegation = result.scalar_one_or_none()
+
     if not delegation:
         raise HTTPException(status_code=404, detail="Delegation not found")
         
     # Permission check: Only admin, creator, or original approver can delete
     if current_user.role != "admin" and \
-       current_user.email != delegation.get("created_by") and \
-       current_user.email != delegation.get("original_approver"):
+       current_user.email != delegation.created_by and \
+       current_user.email != delegation.original_approver:
         raise HTTPException(
             status_code=403,
             detail="You do not have permission to revert this delegation."
         )
         
-    db.delegations.delete_one({"_id": ObjectId(delegation_id)})
+    await db.delete(delegation)
+    await db.commit()
     
     return {"message": "Delegation reverted successfully"}

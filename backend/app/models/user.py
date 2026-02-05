@@ -6,7 +6,7 @@ class User(BaseModel):
     username: str
     email: EmailStr
     password: str
-    role: str = "user"  # admin, coder, approver, user
+    role: str = "coder"  # admin, coder, approver, user
     status: str = "pending"  # pending, active, rejected
     created_at: Optional[datetime] = None
 
@@ -21,5 +21,6 @@ class UserResponse(BaseModel):
     status: str 
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }

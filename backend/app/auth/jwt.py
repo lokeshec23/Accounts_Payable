@@ -4,7 +4,9 @@ from passlib.context import CryptContext
 from app.config.settings import settings
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from app.database.mongodb import get_database
+from sqlalchemy import select
+from app.database.sql_server import AsyncSessionLocal
+from app.models.sql.user import User
 from app.models.user import UserResponse
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -48,18 +50,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     if email is None:
         raise credentials_exception
         
-    db = get_database()
-    user = db.users.find_one({"email": email})
-    if user is None:
-        raise credentials_exception
-            
-    user_response = UserResponse(
-        id=str(user["_id"]),
-        username=user["username"],
-        email=user["email"],
-        created_at=user["created_at"],
-        role=user.get("role", "coder"),
-        status=user.get("status", "active")
-    )
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
         
-    return user_response
+        if user is None:
+            raise credentials_exception
+                
+        user_response = UserResponse(
+            id=str(user.id),
+            username=user.username,
+            email=user.email,
+            created_at=user.created_at,
+            role=user.role,
+            status=user.status
+        )
+            
+        return user_response

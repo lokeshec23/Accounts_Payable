@@ -84,7 +84,8 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
             // MAP VENDOR INFORMATION
             // ------------------------------
             if (extractedData.vendor_info) {
-                extraction_json['Vendor Name'] = extractNestedValue(extractedData.vendor_info.name);
+                // [FALLBACK] Use top-level vendor_name if nested JSON value is missing
+                extraction_json['Vendor Name'] = extractNestedValue(extractedData.vendor_info.name) || invoiceData.vendor_name || '';
                 extraction_json['Vendor Address'] = extractNestedValue(extractedData.vendor_info.address);
                 extraction_json['Vendor Country'] = extractNestedValue(extractedData.vendor_info.country);
                 extraction_json['Vendor Tax ID (VAT/GST/TIN/W9, etc.)'] = extractNestedValue(extractedData.vendor_info.tax_id);
@@ -114,7 +115,8 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
             // MAP INVOICE DETAILS
             // ------------------------------
             if (extractedData.invoice_details) {
-                extraction_json['Invoice Number'] = extractNestedValue(extractedData.invoice_details.invoice_number);
+                // [FALLBACK] Use top-level invoice_number if nested JSON value is missing
+                extraction_json['Invoice Number'] = extractNestedValue(extractedData.invoice_details.invoice_number) || invoiceData.invoice_number || '';
                 extraction_json['Invoice Date'] = extractNestedValue(extractedData.invoice_details.invoice_date);
                 extraction_json['Due Date'] = extractNestedValue(extractedData.invoice_details.due_date);
                 extraction_json['Invoice Currency'] = extractNestedValue(extractedData.invoice_details.currency);

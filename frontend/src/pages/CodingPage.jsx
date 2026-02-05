@@ -42,21 +42,30 @@ const CodingPage = () => {
             setAllCodingInvoices(codingInvoices);
 
             // Transform backend data to table format
-            const transformedData = codingInvoices.map((invoice) => ({
-                key: invoice._id || invoice.id,
-                id: invoice._id || invoice.id,
-                filename: invoice.original_filename || invoice.filename || 'N/A',
-                vendorName: invoice.extracted_data?.vendor_info?.name?.value || 'N/A',
-                invoiceId: invoice.extracted_data?.invoice_details?.invoice_number?.value || 'N/A',
-                totalAmount: invoice.extracted_data?.amounts?.total_invoice_amount?.value || '',
-                amountDue: invoice.extracted_data?.amounts?.amount_due?.value || '',
-                lastUpdated: formatDateTimeIST(invoice.processed_at || invoice.uploaded_at),
-                uploadedBy: invoice.uploaded_by || 'Unknown',
-                status: invoice.status || 'coding',
-                fileUrl: invoice.file_url || '/sample-invoice.pdf',
-                rawData: invoice,
-                currency: invoice.extracted_data?.invoice_details?.currency?.value || 'USD'
-            }));
+            const transformedData = codingInvoices.map((invoice) => {
+                const exData = invoice.extracted_data || {};
+                const vendorInfo = exData.vendor_info || {};
+                const invoiceDetails = exData.invoice_details || {};
+                const amounts = exData.amounts || {};
+
+                return {
+                    key: invoice._id || invoice.id,
+                    id: invoice._id || invoice.id,
+                    filename: invoice.original_filename || invoice.filename || 'N/A',
+                    // [FALLBACK] Use top-level vendor_name if JSON extraction missing
+                    vendorName: invoice.vendor_name || vendorInfo.name?.value || 'N/A',
+                    // [FALLBACK] Use top-level invoice_number if JSON extraction missing
+                    invoiceId: invoice.invoice_number || invoiceDetails.invoice_number?.value || 'N/A',
+                    totalAmount: amounts.total_invoice_amount?.value || '',
+                    amountDue: amounts.amount_due?.value || '',
+                    lastUpdated: formatDateTimeIST(invoice.processed_at || invoice.uploaded_at),
+                    uploadedBy: invoice.uploaded_by || 'Unknown',
+                    status: invoice.status || 'coding',
+                    fileUrl: invoice.file_url || '/sample-invoice.pdf',
+                    rawData: invoice,
+                    currency: invoiceDetails.currency?.value || 'USD'
+                };
+            });
 
             // Calculate pagination
             const startIndex = (page - 1) * pageSize;

@@ -1,0 +1,5 @@
+Inspecting and fixing entity_master table...
+Total rows found: 1
+ID: 123, EntityID: 321, Name: Test, Details: 'xxx'
+Fixing ID 123 because details is invalid: 'xxx'
+Done.

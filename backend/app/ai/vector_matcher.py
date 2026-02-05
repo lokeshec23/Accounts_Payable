@@ -24,11 +24,13 @@ _VENDOR_CACHE = {
 }
 CACHE_TTL = 300  # 5 minutes in seconds
 
-def get_cached_vendors(db) -> Tuple[List[Dict], Dict[str, Dict], Dict[str, Dict]]:
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.models.sql.vendor_master import VendorMaster
+
+async def get_cached_vendors(db: AsyncSession) -> Tuple[List[Dict], Dict[str, Dict], Dict[str, Dict]]:
     """
-    Retrieve vendors from cache or reload from DB if expired.
-    Returns:
-        (list_of_all_vendors, map_of_normalized_names, map_of_normalized_addresses)
+    Retrieve vendors from cache or reload from SQL DB if expired.
     """
     global _VENDOR_CACHE
     current_time = time.time()
@@ -37,28 +39,15 @@ def get_cached_vendors(db) -> Tuple[List[Dict], Dict[str, Dict], Dict[str, Dict]
     if _VENDOR_CACHE["data"] and (current_time - _VENDOR_CACHE["timestamp"] < CACHE_TTL):
         return _VENDOR_CACHE["data"], _VENDOR_CACHE["map"], _VENDOR_CACHE["address_map"]
         
-    logger.info("Vendor cache expired or empty. Reloading from database...")
+    logger.info("Vendor cache expired or empty. Reloading from SQL database...")
     
-    # Find active Vendor_Master collection
     try:
-        files = list(db["excel_files"].find({}))
-        vendor_master_file = None
-        for f in files:
-            if f.get("tab_name") in ["Vendor_Master", "Vendor Master", "Vendors", "Vendor"]:
-                vendor_master_file = f
-                break
-                
-        if not vendor_master_file or not vendor_master_file.get("sheets"):
-            logger.warning("No Vendor Master file found in database")
-            return [], {}, {}
-            
-        collection_name = vendor_master_file["sheets"][0]["collection_name"]
+        # Load all vendors from SQL VendorMaster table
+        stmt = select(VendorMaster)
+        result = await db.execute(stmt)
+        vendors_sql = result.scalars().all()
         
-        # Load all vendors
-        chunks = list(db[collection_name].find().sort("chunk_index", 1))
-        rows = []
-        for chunk in chunks:
-            rows.extend(chunk.get("rows", []))
+        rows = [v.details for v in vendors_sql]
             
         # Build lookup maps for O(1) exact match
         lookup_map = {}
@@ -70,17 +59,15 @@ def get_cached_vendors(db) -> Tuple[List[Dict], Dict[str, Dict], Dict[str, Dict]
                 if norm:
                     lookup_map[norm] = row
             
-            # Address construction - handle split fields
+            # Address construction
             v_addr = row.get("Vendor Address") or row.get("VendorAddress") or row.get("Address") or row.get("VENDOR_ADDRESS")
             if not v_addr:
-                # Try to construct from parts found in logs (ADDRESS_LINE1, CITY, etc.)
                 parts = [
                     row.get("ADDRESS_LINE1") or row.get("Address1"),
                     row.get("ADDRESS_LINE2") or row.get("Address2"),
-                    row.get("ADDRESS_LINE3") or row.get("Address3"),
                     row.get("CITY") or row.get("City"),
                     row.get("STATE_OR_TERITTORY") or row.get("STATE") or row.get("State"),
-                    row.get("ZIP_OR_POSTAL_CODE") or row.get("ZIP") or row.get("PostalCode") or row.get("ZipCode"),
+                    row.get("ZIP_OR_POSTAL_CODE") or row.get("ZIP") or row.get("PostalCode"),
                     row.get("COUNTRY") or row.get("Country")
                 ]
                 v_addr = " ".join([str(p).strip() for p in parts if p]).strip()
@@ -98,39 +85,29 @@ def get_cached_vendors(db) -> Tuple[List[Dict], Dict[str, Dict], Dict[str, Dict]
             "timestamp": current_time
         }
         
-        logger.info(f"Vendor cache refreshed. Loaded {len(rows)} vendors.")
+        logger.info(f"Vendor cache refreshed. Loaded {len(rows)} vendors from SQL.")
         return rows, lookup_map, address_map
         
     except Exception as e:
-        logger.error(f"Error loading vendor master: {e}")
+        logger.error(f"Error loading vendor master from SQL: {e}")
         return [], {}, {}
 
 
-def find_best_vendor_match(
-    db, 
+async def find_best_vendor_match(
+    db: AsyncSession, 
     input_vendor_name: str, 
     input_vendor_address: str = None,
     threshold_embedding: float = 0.85, 
     threshold_text: float = 0.60
 ) -> Dict[str, Any]:
     """
-    Find the best matching vendor from Master Data using a multi-stage approach:
-    0. Exact Normalized Address Match (HIGHEST PRIORITY)
-    1. Exact Normalized Name Match
-    2. Embedding Similarity (Semantic)
-    3. Text Similarity (Fuzzy / Typos)
-    
-    Returns:
-        Dictionary containing:
-        - match: The vendor document (or None)
-        - score: Confidence score (0.0 - 1.0)
-        - method: "exact_address", "exact", "embedding", "text_similarity", or "none"
+    Find the best matching vendor from Master Data using a multi-stage approach (SQL).
     """
     if not input_vendor_name and not input_vendor_address:
         return {"match": None, "score": 0.0, "method": "none", "reason": "Empty input"}
 
     # 1. Load Master Data (Cached)
-    vendors, vendor_map, address_map = get_cached_vendors(db)
+    vendors, vendor_map, address_map = await get_cached_vendors(db)
     
     if not vendors:
          return {"match": None, "score": 0.0, "method": "none", "reason": "No Master Data"}

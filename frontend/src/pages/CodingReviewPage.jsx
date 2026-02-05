@@ -837,8 +837,8 @@ const CodingReviewPage = () => {
                 invoiceData?.rawData?.extracted_data?.vendor_info?.vendor_id?.value ||
                 invoiceData?.rawData?.extracted_data?.vendor_info?.vendor_id ||
                 '',
-            vendor_name: invoiceData?.vendorName || '',
-            invoice_id: invoiceData?.invoiceId || '',
+            vendor_name: invoiceData?.vendorName || invoiceData?.rawData?.vendor_name || '',
+            invoice_id: invoiceData?.invoiceId || invoiceData?.rawData?.invoice_number || '',
             total_amount: invoiceData?.rawData?.extracted_data?.amounts?.total_invoice_amount?.value || '',
             amount_due: invoiceData?.rawData?.extracted_data?.amounts?.amount_due?.value || '',
             exchange_rate: invoiceData?.exchange_rate || invoiceData?.rawData?.exchange_rate || '',

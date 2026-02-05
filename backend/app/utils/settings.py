@@ -1,7 +1,5 @@
-from app.database.mongodb import get_database
-
 DEFAULT_SETTINGS = {
-    "roles": ["admin", "coder", "approver"],
+    "roles": ["admin", "coder", "approver", "user"],
     "statuses": ["active", "pending", "rejected"],
     "navigation": [
         {"label": "Dashboard", "path": "/dashboard", "roles": ["all"]},
@@ -16,19 +14,7 @@ DEFAULT_SETTINGS = {
 
 def get_app_settings():
     """
-    Retrieve application settings from the database.
-    Returns default settings if not found in DB.
+    Returns default application settings.
+    SQL routes should handle DB-backed settings.
     """
-    db = get_database()
-    settings = db["global_settings"].find_one({"_id": "app_settings"})
-
-    if not settings:
-        return DEFAULT_SETTINGS.copy()
-
-    settings.pop("_id", None)
-    
-    # Merge with defaults to ensure all keys exist
-    merged_settings = DEFAULT_SETTINGS.copy()
-    merged_settings.update(settings)
-    
-    return merged_settings
+    return DEFAULT_SETTINGS.copy()

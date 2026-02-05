@@ -1,0 +1,1974 @@
+INFO:     Will watch for changes in these directories: ['c:\\Users\\LDNA40063\\Accounts_Payable\\backend']
+INFO:     Uvicorn running on http://localhost:8014 (Press CTRL+C to quit)
+INFO:     Started reloader process [19988] using WatchFiles
+INFO:     Started server process [7824]
+INFO:     Waiting for application startup.
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 14:08:54,444 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 14:08:54,444 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 14:08:54,447 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 14:08:54,447 INFO sqlalchemy.engine.Engine [generated in 0.00071s] ()
+2026-02-05 14:08:54,456 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 14:08:54,456 INFO sqlalchemy.engine.Engine [generated in 0.00043s] ()
+2026-02-05 14:08:54,460 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 14:08:54,460 INFO sqlalchemy.engine.Engine [generated in 0.00043s] ()
+2026-02-05 14:08:54,467 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 14:08:54,477 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 14:08:54,477 INFO sqlalchemy.engine.Engine [generated in 0.00079s] ('admin', 'admin@example.com')
+2026-02-05 14:08:54,482 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'db_check.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [7824]
+WARNING:  WatchFiles detected changes in 'db_check.py'. Reloading...
+INFO:     Started server process [27608]
+INFO:     Waiting for application startup.
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 14:18:58,492 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 14:18:58,492 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 14:18:58,501 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 14:18:58,502 INFO sqlalchemy.engine.Engine [generated in 0.00068s] ()
+2026-02-05 14:18:58,528 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 14:18:58,528 INFO sqlalchemy.engine.Engine [generated in 0.00059s] ()
+2026-02-05 14:18:58,550 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 14:18:58,550 INFO sqlalchemy.engine.Engine [generated in 0.00052s] ()
+2026-02-05 14:18:58,609 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 14:18:58,618 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 14:18:58,619 INFO sqlalchemy.engine.Engine [generated in 0.00092s] ('admin', 'admin@example.com')
+2026-02-05 14:18:58,623 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     Application startup complete.
+ERROR:    Traceback (most recent call last):
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 664, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 123, in run
+    raise KeyboardInterrupt()
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 700, in lifespan
+    await receive()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\uvicorn\lifespan\on.py", line 137, in receive
+    return await self.receive_queue.get()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\asyncio\queues.py", line 158, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+INFO:     Started server process [4932]
+INFO:     Waiting for application startup.
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 14:19:07,728 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 14:19:07,728 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 14:19:07,731 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 14:19:07,731 INFO sqlalchemy.engine.Engine [generated in 0.00052s] ()
+2026-02-05 14:19:07,739 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 14:19:07,739 INFO sqlalchemy.engine.Engine [generated in 0.00041s] ()
+2026-02-05 14:19:07,744 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 14:19:07,744 INFO sqlalchemy.engine.Engine [generated in 0.00042s] ()
+2026-02-05 14:19:07,751 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 14:19:07,760 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 14:19:07,760 INFO sqlalchemy.engine.Engine [generated in 0.00065s] ('admin', 'admin@example.com')
+2026-02-05 14:19:07,767 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'fix_entity_data.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [4932]
+INFO:     Started server process [768]
+INFO:     Waiting for application startup.
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 14:24:09,645 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 14:24:09,645 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 14:24:09,648 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 14:24:09,648 INFO sqlalchemy.engine.Engine [generated in 0.00043s] ()
+2026-02-05 14:24:09,655 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 14:24:09,655 INFO sqlalchemy.engine.Engine [generated in 0.00038s] ()
+2026-02-05 14:24:09,659 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 14:24:09,659 INFO sqlalchemy.engine.Engine [generated in 0.00037s] ()
+2026-02-05 14:24:09,663 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 14:24:09,672 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 14:24:09,672 INFO sqlalchemy.engine.Engine [generated in 0.00072s] ('admin', 'admin@example.com')
+2026-02-05 14:24:09,676 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'fix_entity_data.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [768]
+WARNING:  WatchFiles detected changes in 'app\routes\master_data.py'. Reloading...
+INFO:     Started server process [3124]
+INFO:     Waiting for application startup.
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 14:25:55,032 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 14:25:55,032 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 14:25:55,036 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 14:25:55,036 INFO sqlalchemy.engine.Engine [generated in 0.00072s] ()
+2026-02-05 14:25:55,044 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 14:25:55,044 INFO sqlalchemy.engine.Engine [generated in 0.00048s] ()
+2026-02-05 14:25:55,047 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 14:25:55,047 INFO sqlalchemy.engine.Engine [generated in 0.00035s] ()
+2026-02-05 14:25:55,053 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 14:25:55,062 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 14:25:55,062 INFO sqlalchemy.engine.Engine [generated in 0.00063s] ('admin', 'admin@example.com')
+2026-02-05 14:25:55,069 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     Application startup complete.
+ERROR:    Traceback (most recent call last):
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 664, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 123, in run
+    raise KeyboardInterrupt()
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 700, in lifespan
+    await receive()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\uvicorn\lifespan\on.py", line 137, in receive
+    return await self.receive_queue.get()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\asyncio\queues.py", line 158, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+INFO:     Started server process [26732]
+INFO:     Waiting for application startup.
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 14:26:03,062 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 14:26:03,063 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 14:26:03,066 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 14:26:03,066 INFO sqlalchemy.engine.Engine [generated in 0.00041s] ()
+2026-02-05 14:26:03,073 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 14:26:03,073 INFO sqlalchemy.engine.Engine [generated in 0.00051s] ()
+2026-02-05 14:26:03,075 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 14:26:03,075 INFO sqlalchemy.engine.Engine [generated in 0.00036s] ()
+2026-02-05 14:26:03,082 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 14:26:03,091 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 14:26:03,091 INFO sqlalchemy.engine.Engine [generated in 0.00065s] ('admin', 'admin@example.com')
+2026-02-05 14:26:03,096 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'seed_settings.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [26732]
+WARNING:  WatchFiles detected changes in 'seed_settings.py', 'test_settings_sync.py', 'app\main.py', 'app\routes\invoices.py', 'app\database\bootstrap.py'. Reloading...
+INFO:     Started server process [1952]
+INFO:     Waiting for application startup.
+INFO:     STARTING BOOTSTRAP PROCESS...
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 16:16:25,680 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 16:16:25,680 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 16:16:25,689 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 16:16:25,689 INFO sqlalchemy.engine.Engine [generated in 0.00048s] ()
+2026-02-05 16:16:25,786 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 16:16:25,786 INFO sqlalchemy.engine.Engine [generated in 0.00038s] ()
+2026-02-05 16:16:25,797 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 16:16:25,797 INFO sqlalchemy.engine.Engine [generated in 0.00035s] ()
+2026-02-05 16:16:25,829 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 16:16:25,838 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 16:16:25,838 INFO sqlalchemy.engine.Engine [generated in 0.00059s] ('admin', 'admin@example.com')
+2026-02-05 16:16:25,856 INFO sqlalchemy.engine.Engine SELECT global_settings.config_key, global_settings.settings_data, global_settings.id, global_settings.created_at, global_settings.updated_at 
+FROM global_settings 
+WHERE global_settings.config_key = ?
+2026-02-05 16:16:25,856 INFO sqlalchemy.engine.Engine [generated in 0.00048s] ('app_settings',)
+sys:1: SAWarning: Column 'global_settings.id' is marked as a member of the primary key for table 'global_settings', but has no Python-side or server-side default generator indicated, nor does it indicate 'autoincrement=True' or 'nullable=True', and no explicit value is passed.  Primary key columns typically may not store NULL. Note that as of SQLAlchemy 1.1, 'autoincrement=True' must be indicated explicitly for composite (e.g. multicolumn) primary keys if AUTO_INCREMENT/SERIAL/IDENTITY behavior is expected for one of the columns in the primary key. CREATE TABLE statements are impacted by this change as well on most backends.
+2026-02-05 16:16:25,866 INFO sqlalchemy.engine.Engine INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) VALUES (?, ?, ?, ?)
+2026-02-05 16:16:25,866 INFO sqlalchemy.engine.Engine [generated in 0.00105s] ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 10, 46, 25, 866396), datetime.datetime(2026, 2, 5, 10, 46, 25, 866396))
+2026-02-05 16:16:25,870 INFO sqlalchemy.engine.Engine ROLLBACK
+ERROR:    Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyodbc.Error: ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 693, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 569, in __aenter__
+    await self._router.startup()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 670, in startup
+    await handler()
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\main.py", line 76, in startup_event
+    await bootstrap_settings(db)
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\database\bootstrap.py", line 82, in bootstrap_settings
+    await db.commit()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py", line 1000, in commit
+    await greenlet_spawn(self.sync_session.commit)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1311, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1286, in _prepare_impl
+    self.session.flush()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4331, in flush
+    self._flush(objects)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4466, in _flush
+    with util.safe_reraise():
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4427, in _flush
+    flush_context.execute()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.DBAPIError: (pyodbc.Error) ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+[SQL: INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) VALUES (?, ?, ?, ?)]
+[parameters: ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 10, 46, 25, 866396), datetime.datetime(2026, 2, 5, 10, 46, 25, 866396))]
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
+
+ERROR:    Application startup failed. Exiting.
+INFO:     Started server process [28180]
+INFO:     Waiting for application startup.
+INFO:     STARTING BOOTSTRAP PROCESS...
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 16:16:39,322 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 16:16:39,322 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 16:16:39,328 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 16:16:39,328 INFO sqlalchemy.engine.Engine [generated in 0.00071s] ()
+2026-02-05 16:16:39,339 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 16:16:39,340 INFO sqlalchemy.engine.Engine [generated in 0.00062s] ()
+2026-02-05 16:16:39,350 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 16:16:39,350 INFO sqlalchemy.engine.Engine [generated in 0.00070s] ()
+2026-02-05 16:16:39,359 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 16:16:39,374 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 16:16:39,375 INFO sqlalchemy.engine.Engine [generated in 0.00084s] ('admin', 'admin@example.com')
+2026-02-05 16:16:39,382 INFO sqlalchemy.engine.Engine SELECT global_settings.config_key, global_settings.settings_data, global_settings.id, global_settings.created_at, global_settings.updated_at 
+FROM global_settings 
+WHERE global_settings.config_key = ?
+2026-02-05 16:16:39,382 INFO sqlalchemy.engine.Engine [generated in 0.00079s] ('app_settings',)
+sys:1: SAWarning: Column 'global_settings.id' is marked as a member of the primary key for table 'global_settings', but has no Python-side or server-side default generator indicated, nor does it indicate 'autoincrement=True' or 'nullable=True', and no explicit value is passed.  Primary key columns typically may not store NULL. Note that as of SQLAlchemy 1.1, 'autoincrement=True' must be indicated explicitly for composite (e.g. multicolumn) primary keys if AUTO_INCREMENT/SERIAL/IDENTITY behavior is expected for one of the columns in the primary key. CREATE TABLE statements are impacted by this change as well on most backends.
+2026-02-05 16:16:39,390 INFO sqlalchemy.engine.Engine INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) VALUES (?, ?, ?, ?)
+2026-02-05 16:16:39,390 INFO sqlalchemy.engine.Engine [generated in 0.00112s] ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 10, 46, 39, 389713), datetime.datetime(2026, 2, 5, 10, 46, 39, 389713))
+2026-02-05 16:16:39,392 INFO sqlalchemy.engine.Engine ROLLBACK
+ERROR:    Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyodbc.Error: ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 693, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 569, in __aenter__
+    await self._router.startup()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 670, in startup
+    await handler()
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\main.py", line 76, in startup_event
+    await bootstrap_settings(db)
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\database\bootstrap.py", line 82, in bootstrap_settings
+    await db.commit()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py", line 1000, in commit
+    await greenlet_spawn(self.sync_session.commit)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1311, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1286, in _prepare_impl
+    self.session.flush()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4331, in flush
+    self._flush(objects)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4466, in _flush
+    with util.safe_reraise():
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4427, in _flush
+    flush_context.execute()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.DBAPIError: (pyodbc.Error) ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+[SQL: INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) VALUES (?, ?, ?, ?)]
+[parameters: ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 10, 46, 39, 389713), datetime.datetime(2026, 2, 5, 10, 46, 39, 389713))]
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
+
+ERROR:    Application startup failed. Exiting.
+WARNING:  WatchFiles detected changes in 'app\models\sql\settings.py'. Reloading...
+INFO:     Started server process [2536]
+INFO:     Waiting for application startup.
+INFO:     STARTING BOOTSTRAP PROCESS...
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 16:20:19,246 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 16:20:19,246 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 16:20:19,254 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 16:20:19,254 INFO sqlalchemy.engine.Engine [generated in 0.00069s] ()
+2026-02-05 16:20:19,322 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 16:20:19,322 INFO sqlalchemy.engine.Engine [generated in 0.00059s] ()
+2026-02-05 16:20:19,347 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 16:20:19,347 INFO sqlalchemy.engine.Engine [generated in 0.00060s] ()
+2026-02-05 16:20:19,457 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 16:20:19,473 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 16:20:19,473 INFO sqlalchemy.engine.Engine [generated in 0.00100s] ('admin', 'admin@example.com')
+2026-02-05 16:20:19,522 INFO sqlalchemy.engine.Engine SELECT global_settings.config_key, global_settings.settings_data, global_settings.id, global_settings.created_at, global_settings.updated_at 
+FROM global_settings 
+WHERE global_settings.config_key = ?
+2026-02-05 16:20:19,522 INFO sqlalchemy.engine.Engine [generated in 0.00091s] ('app_settings',)
+sys:1: SAWarning: Column 'global_settings.id' is marked as a member of the primary key for table 'global_settings', but has no Python-side or server-side default generator indicated, nor does it indicate 'autoincrement=True' or 'nullable=True', and no explicit value is passed.  Primary key columns typically may not store NULL. Note that as of SQLAlchemy 1.1, 'autoincrement=True' must be indicated explicitly for composite (e.g. multicolumn) primary keys if AUTO_INCREMENT/SERIAL/IDENTITY behavior is expected for one of the columns in the primary key. CREATE TABLE statements are impacted by this change as well on most backends.
+2026-02-05 16:20:19,539 INFO sqlalchemy.engine.Engine INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) VALUES (?, ?, ?, ?)
+2026-02-05 16:20:19,540 INFO sqlalchemy.engine.Engine [generated in 0.00114s] ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 10, 50, 19, 539854), datetime.datetime(2026, 2, 5, 10, 50, 19, 539854))
+2026-02-05 16:20:19,543 INFO sqlalchemy.engine.Engine ROLLBACK
+ERROR:    Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyodbc.Error: ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 693, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 569, in __aenter__
+    await self._router.startup()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 670, in startup
+    await handler()
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\main.py", line 76, in startup_event
+    await bootstrap_settings(db)
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\database\bootstrap.py", line 82, in bootstrap_settings
+    await db.commit()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py", line 1000, in commit
+    await greenlet_spawn(self.sync_session.commit)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1311, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1286, in _prepare_impl
+    self.session.flush()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4331, in flush
+    self._flush(objects)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4466, in _flush
+    with util.safe_reraise():
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4427, in _flush
+    flush_context.execute()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.DBAPIError: (pyodbc.Error) ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+[SQL: INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) VALUES (?, ?, ?, ?)]
+[parameters: ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 10, 50, 19, 539854), datetime.datetime(2026, 2, 5, 10, 50, 19, 539854))]
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
+
+ERROR:    Application startup failed. Exiting.
+WARNING:  WatchFiles detected changes in 'fix_global_settings_table.py'. Reloading...
+WARNING:  WatchFiles detected changes in 'fix_global_settings_table.py'. Reloading...
+INFO:     Started server process [26156]
+INFO:     Waiting for application startup.
+INFO:     STARTING BOOTSTRAP PROCESS...
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 16:35:43,390 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 16:35:43,391 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 16:35:43,396 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 16:35:43,396 INFO sqlalchemy.engine.Engine [generated in 0.00065s] ()
+2026-02-05 16:35:43,445 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 16:35:43,445 INFO sqlalchemy.engine.Engine [generated in 0.00045s] ()
+2026-02-05 16:35:43,452 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 16:35:43,452 INFO sqlalchemy.engine.Engine [generated in 0.00038s] ()
+2026-02-05 16:35:43,474 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 16:35:43,484 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 16:35:43,484 INFO sqlalchemy.engine.Engine [generated in 0.00079s] ('admin', 'admin@example.com')
+2026-02-05 16:35:43,493 INFO sqlalchemy.engine.Engine SELECT global_settings.config_key, global_settings.settings_data, global_settings.id, global_settings.created_at, global_settings.updated_at 
+FROM global_settings 
+WHERE global_settings.config_key = ?
+2026-02-05 16:35:43,494 INFO sqlalchemy.engine.Engine [generated in 0.00051s] ('app_settings',)
+sys:1: SAWarning: Column 'global_settings.id' is marked as a member of the primary key for table 'global_settings', but has no Python-side or server-side default generator indicated, nor does it indicate 'autoincrement=True' or 'nullable=True', and no explicit value is passed.  Primary key columns typically may not store NULL. Note that as of SQLAlchemy 1.1, 'autoincrement=True' must be indicated explicitly for composite (e.g. multicolumn) primary keys if AUTO_INCREMENT/SERIAL/IDENTITY behavior is expected for one of the columns in the primary key. CREATE TABLE statements are impacted by this change as well on most backends.
+2026-02-05 16:35:43,504 INFO sqlalchemy.engine.Engine INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) VALUES (?, ?, ?, ?)
+2026-02-05 16:35:43,504 INFO sqlalchemy.engine.Engine [generated in 0.00066s] ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 11, 5, 43, 503910), datetime.datetime(2026, 2, 5, 11, 5, 43, 503910))
+2026-02-05 16:35:43,505 INFO sqlalchemy.engine.Engine ROLLBACK
+ERROR:    Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyodbc.Error: ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 693, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 569, in __aenter__
+    await self._router.startup()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 670, in startup
+    await handler()
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\main.py", line 76, in startup_event
+    await bootstrap_settings(db)
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\database\bootstrap.py", line 82, in bootstrap_settings
+    await db.commit()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py", line 1000, in commit
+    await greenlet_spawn(self.sync_session.commit)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1311, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1286, in _prepare_impl
+    self.session.flush()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4331, in flush
+    self._flush(objects)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4466, in _flush
+    with util.safe_reraise():
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4427, in _flush
+    flush_context.execute()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.DBAPIError: (pyodbc.Error) ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+[SQL: INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) VALUES (?, ?, ?, ?)]
+[parameters: ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 11, 5, 43, 503910), datetime.datetime(2026, 2, 5, 11, 5, 43, 503910))]
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
+
+ERROR:    Application startup failed. Exiting.
+INFO:     Started server process [27556]
+INFO:     Waiting for application startup.
+INFO:     STARTING BOOTSTRAP PROCESS...
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 16:35:51,938 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 16:35:51,939 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 16:35:51,941 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 16:35:51,941 INFO sqlalchemy.engine.Engine [generated in 0.00040s] ()
+2026-02-05 16:35:51,948 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 16:35:51,948 INFO sqlalchemy.engine.Engine [generated in 0.00039s] ()
+2026-02-05 16:35:51,951 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 16:35:51,951 INFO sqlalchemy.engine.Engine [generated in 0.00066s] ()
+2026-02-05 16:35:51,956 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 16:35:51,965 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 16:35:51,965 INFO sqlalchemy.engine.Engine [generated in 0.00065s] ('admin', 'admin@example.com')
+2026-02-05 16:35:51,970 INFO sqlalchemy.engine.Engine SELECT global_settings.config_key, global_settings.settings_data, global_settings.id, global_settings.created_at, global_settings.updated_at 
+FROM global_settings 
+WHERE global_settings.config_key = ?
+2026-02-05 16:35:51,970 INFO sqlalchemy.engine.Engine [generated in 0.00045s] ('app_settings',)
+sys:1: SAWarning: Column 'global_settings.id' is marked as a member of the primary key for table 'global_settings', but has no Python-side or server-side default generator indicated, nor does it indicate 'autoincrement=True' or 'nullable=True', and no explicit value is passed.  Primary key columns typically may not store NULL. Note that as of SQLAlchemy 1.1, 'autoincrement=True' must be indicated explicitly for composite (e.g. multicolumn) primary keys if AUTO_INCREMENT/SERIAL/IDENTITY behavior is expected for one of the columns in the primary key. CREATE TABLE statements are impacted by this change as well on most backends.
+2026-02-05 16:35:51,976 INFO sqlalchemy.engine.Engine INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) VALUES (?, ?, ?, ?)
+2026-02-05 16:35:51,976 INFO sqlalchemy.engine.Engine [generated in 0.00057s] ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 11, 5, 51, 976189), datetime.datetime(2026, 2, 5, 11, 5, 51, 976189))
+2026-02-05 16:35:51,976 INFO sqlalchemy.engine.Engine ROLLBACK
+ERROR:    Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyodbc.Error: ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 693, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 569, in __aenter__
+    await self._router.startup()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 670, in startup
+    await handler()
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\main.py", line 76, in startup_event
+    await bootstrap_settings(db)
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\database\bootstrap.py", line 82, in bootstrap_settings
+    await db.commit()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py", line 1000, in commit
+    await greenlet_spawn(self.sync_session.commit)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1311, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1286, in _prepare_impl
+    self.session.flush()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4331, in flush
+    self._flush(objects)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4466, in _flush
+    with util.safe_reraise():
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4427, in _flush
+    flush_context.execute()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.DBAPIError: (pyodbc.Error) ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+[SQL: INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) VALUES (?, ?, ?, ?)]
+[parameters: ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 11, 5, 51, 976189), datetime.datetime(2026, 2, 5, 11, 5, 51, 976189))]
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
+
+ERROR:    Application startup failed. Exiting.
+WARNING:  WatchFiles detected changes in 'verify_and_fix_settings.py'. Reloading...
+INFO:     Started server process [27572]
+INFO:     Waiting for application startup.
+INFO:     STARTING BOOTSTRAP PROCESS...
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 16:45:24,472 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 16:45:24,472 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 16:45:24,477 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 16:45:24,477 INFO sqlalchemy.engine.Engine [generated in 0.00045s] ()
+2026-02-05 16:45:24,499 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 16:45:24,499 INFO sqlalchemy.engine.Engine [generated in 0.00044s] ()
+2026-02-05 16:45:24,505 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 16:45:24,505 INFO sqlalchemy.engine.Engine [generated in 0.00050s] ()
+2026-02-05 16:45:24,521 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 16:45:24,531 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 16:45:24,531 INFO sqlalchemy.engine.Engine [generated in 0.00065s] ('admin', 'admin@example.com')
+2026-02-05 16:45:24,545 INFO sqlalchemy.engine.Engine SELECT global_settings.config_key, global_settings.settings_data, global_settings.id, global_settings.created_at, global_settings.updated_at 
+FROM global_settings 
+WHERE global_settings.config_key = ?
+2026-02-05 16:45:24,545 INFO sqlalchemy.engine.Engine [generated in 0.00060s] ('app_settings',)
+sys:1: SAWarning: Column 'global_settings.id' is marked as a member of the primary key for table 'global_settings', but has no Python-side or server-side default generator indicated, nor does it indicate 'autoincrement=True' or 'nullable=True', and no explicit value is passed.  Primary key columns typically may not store NULL. Note that as of SQLAlchemy 1.1, 'autoincrement=True' must be indicated explicitly for composite (e.g. multicolumn) primary keys if AUTO_INCREMENT/SERIAL/IDENTITY behavior is expected for one of the columns in the primary key. CREATE TABLE statements are impacted by this change as well on most backends.
+2026-02-05 16:45:24,553 INFO sqlalchemy.engine.Engine INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) VALUES (?, ?, ?, ?)
+2026-02-05 16:45:24,553 INFO sqlalchemy.engine.Engine [generated in 0.00085s] ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 11, 15, 24, 552811), datetime.datetime(2026, 2, 5, 11, 15, 24, 552811))
+2026-02-05 16:45:24,554 INFO sqlalchemy.engine.Engine ROLLBACK
+ERROR:    Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyodbc.Error: ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 693, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 569, in __aenter__
+    await self._router.startup()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 670, in startup
+    await handler()
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\main.py", line 76, in startup_event
+    await bootstrap_settings(db)
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\database\bootstrap.py", line 82, in bootstrap_settings
+    await db.commit()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py", line 1000, in commit
+    await greenlet_spawn(self.sync_session.commit)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1311, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1286, in _prepare_impl
+    self.session.flush()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4331, in flush
+    self._flush(objects)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4466, in _flush
+    with util.safe_reraise():
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4427, in _flush
+    flush_context.execute()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.DBAPIError: (pyodbc.Error) ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+[SQL: INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) VALUES (?, ?, ?, ?)]
+[parameters: ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 11, 15, 24, 552811), datetime.datetime(2026, 2, 5, 11, 15, 24, 552811))]
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
+
+ERROR:    Application startup failed. Exiting.
+WARNING:  WatchFiles detected changes in 'app\models\sql\settings.py'. Reloading...
+INFO:     Started server process [26780]
+INFO:     Waiting for application startup.
+INFO:     STARTING BOOTSTRAP PROCESS...
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 16:46:58,246 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 16:46:58,246 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 16:46:58,252 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 16:46:58,252 INFO sqlalchemy.engine.Engine [generated in 0.00049s] ()
+2026-02-05 16:46:58,273 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 16:46:58,273 INFO sqlalchemy.engine.Engine [generated in 0.00061s] ()
+2026-02-05 16:46:58,281 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 16:46:58,282 INFO sqlalchemy.engine.Engine [generated in 0.00044s] ()
+2026-02-05 16:46:58,303 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 16:46:58,316 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 16:46:58,316 INFO sqlalchemy.engine.Engine [generated in 0.00075s] ('admin', 'admin@example.com')
+2026-02-05 16:46:58,331 INFO sqlalchemy.engine.Engine SELECT global_settings.id, global_settings.config_key, global_settings.settings_data, global_settings.created_at, global_settings.updated_at 
+FROM global_settings 
+WHERE global_settings.config_key = ?
+2026-02-05 16:46:58,332 INFO sqlalchemy.engine.Engine [generated in 0.00061s] ('app_settings',)
+2026-02-05 16:46:58,401 INFO sqlalchemy.engine.Engine INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) OUTPUT inserted.id VALUES (?, ?, ?, ?)
+2026-02-05 16:46:58,401 INFO sqlalchemy.engine.Engine [generated in 0.00082s] ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 11, 16, 58, 401538), datetime.datetime(2026, 2, 5, 11, 16, 58, 401538))
+2026-02-05 16:46:58,404 INFO sqlalchemy.engine.Engine ROLLBACK
+ERROR:    Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyodbc.Error: ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 693, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 569, in __aenter__
+    await self._router.startup()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 670, in startup
+    await handler()
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\main.py", line 76, in startup_event
+    await bootstrap_settings(db)
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\database\bootstrap.py", line 82, in bootstrap_settings
+    await db.commit()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py", line 1000, in commit
+    await greenlet_spawn(self.sync_session.commit)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1311, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1286, in _prepare_impl
+    self.session.flush()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4331, in flush
+    self._flush(objects)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4466, in _flush
+    with util.safe_reraise():
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4427, in _flush
+    flush_context.execute()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.DBAPIError: (pyodbc.Error) ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+[SQL: INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) OUTPUT inserted.id VALUES (?, ?, ?, ?)]
+[parameters: ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 11, 16, 58, 401538), datetime.datetime(2026, 2, 5, 11, 16, 58, 401538))]
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
+
+ERROR:    Application startup failed. Exiting.
+WARNING:  WatchFiles detected changes in 'app\models\sql\settings.py'. Reloading...
+INFO:     Started server process [27076]
+INFO:     Waiting for application startup.
+INFO:     STARTING BOOTSTRAP PROCESS...
+Loading .env from: C:\Users\LDNA40063\Accounts_Payable\backend\.env
+Azure clients initialized successfully
+2026-02-05 16:47:56,182 INFO sqlalchemy.engine.Engine SELECT CAST(SERVERPROPERTY('ProductVersion') AS VARCHAR)
+2026-02-05 16:47:56,182 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-05 16:47:56,188 INFO sqlalchemy.engine.Engine SELECT schema_name()
+2026-02-05 16:47:56,188 INFO sqlalchemy.engine.Engine [generated in 0.00075s] ()
+2026-02-05 16:47:56,204 INFO sqlalchemy.engine.Engine SELECT CAST('test max support' AS NVARCHAR(max))
+2026-02-05 16:47:56,204 INFO sqlalchemy.engine.Engine [generated in 0.00075s] ()
+2026-02-05 16:47:56,213 INFO sqlalchemy.engine.Engine SELECT 1 FROM fn_listextendedproperty(default, default, default, default, default, default, default)
+2026-02-05 16:47:56,213 INFO sqlalchemy.engine.Engine [generated in 0.00174s] ()
+2026-02-05 16:47:56,233 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-05 16:47:56,250 INFO sqlalchemy.engine.Engine SELECT users.username, users.email, users.password, users.role, users.status, users.id, users.created_at, users.updated_at 
+FROM users 
+WHERE users.username = ? OR users.email = ?
+2026-02-05 16:47:56,250 INFO sqlalchemy.engine.Engine [generated in 0.00120s] ('admin', 'admin@example.com')
+2026-02-05 16:47:56,281 INFO sqlalchemy.engine.Engine SELECT global_settings.id, global_settings.config_key, global_settings.settings_data, global_settings.created_at, global_settings.updated_at 
+FROM global_settings 
+WHERE global_settings.config_key = ?
+2026-02-05 16:47:56,281 INFO sqlalchemy.engine.Engine [generated in 0.00070s] ('app_settings',)
+2026-02-05 16:47:56,291 INFO sqlalchemy.engine.Engine INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) OUTPUT inserted.id VALUES (?, ?, ?, ?)
+2026-02-05 16:47:56,291 INFO sqlalchemy.engine.Engine [generated in 0.00108s] ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 11, 17, 56, 291209), datetime.datetime(2026, 2, 5, 11, 17, 56, 291209))
+2026-02-05 16:47:56,293 INFO sqlalchemy.engine.Engine ROLLBACK
+ERROR:    Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyodbc.Error: ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 693, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 204, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\fastapi\routing.py", line 133, in merged_lifespan
+    async with original_context(app) as maybe_original_state:
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 569, in __aenter__
+    await self._router.startup()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\starlette\routing.py", line 670, in startup
+    await handler()
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\main.py", line 76, in startup_event
+    await bootstrap_settings(db)
+  File "c:\Users\LDNA40063\Accounts_Payable\backend\app\database\bootstrap.py", line 82, in bootstrap_settings
+    await db.commit()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py", line 1000, in commit
+    await greenlet_spawn(self.sync_session.commit)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1311, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 1286, in _prepare_impl
+    self.session.flush()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4331, in flush
+    self._flush(objects)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4466, in _flush
+    with util.safe_reraise():
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\session.py", line 4427, in _flush
+    flush_context.execute()
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 230, in execute
+    self._adapt_connection._handle_exception(error)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 368, in _handle_exception
+    raise error.with_traceback(exc_info[2])
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 228, in execute
+    return self.await_(self._execute_async(operation, parameters))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\sqlalchemy\connectors\asyncio.py", line 251, in _execute_async
+    result = await self._cursor.execute(operation, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 132, in execute
+    await self._run_operation(self._impl.execute, sql, *params)
+  File "c:\Users\LDNA40063\Accounts_Payable\.account_payable_venv\Lib\site-packages\aioodbc\cursor.py", line 30, in _run_operation
+    result = await self._conn._execute(func, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\LDNA40063\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.DBAPIError: (pyodbc.Error) ('HY104', '[HY104] [Microsoft][ODBC SQL Server Driver]Invalid precision value (0) (SQLBindParameter)')
+[SQL: INSERT INTO global_settings (config_key, settings_data, created_at, updated_at) OUTPUT inserted.id VALUES (?, ?, ?, ?)]
+[parameters: ('app_settings', '{"entity_name": "Consolidated Analytics Inc", "roles": ["admin", "coder", "approver"], "statuses": ["active", "pending", "rejected"], "navigation": [ ... (350 characters truncated) ... ata", "roles": ["admin"]}, {"label": "Settings", "path": "/settings", "roles": ["admin"]}, {"label": "Admin", "path": "/admin", "roles": ["admin"]}]}', datetime.datetime(2026, 2, 5, 11, 17, 56, 291209), datetime.datetime(2026, 2, 5, 11, 17, 56, 291209))]
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
+
+ERROR:    Application startup failed. Exiting.

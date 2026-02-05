@@ -58,8 +58,9 @@ class Invoice(InvoiceBase):
     duplicate_info: Optional[Dict[str, Any]] = None
     original_items: Optional[List[Dict[str, Any]]] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class InvoiceResponse(Invoice):
     pass

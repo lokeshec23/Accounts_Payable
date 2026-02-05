@@ -44,8 +44,7 @@ propcache==0.4.1
 pyasn1==0.6.1
 pycparser==2.23
 pydantic==2.10.3
-pydantic_core==2.27.1
-pymongo==4.10.1
+pydantic_core==2.27.1 # Removed motor and pymongo
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 python-jose==3.3.0
@@ -70,3 +69,10 @@ watchfiles==1.1.1
 websockets==15.0.1
 yarl==1.22.0
 zstandard==0.25.0
+
+# SQL Server Migration
+SQLAlchemy==2.0.25
+pyodbc==5.1.0
+pydantic-settings==2.1.0
+pydantic[email-validator]
+aioodbc==0.3.3

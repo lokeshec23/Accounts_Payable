@@ -1,5 +1,6 @@
 from fastapi import Header, HTTPException
 from typing import Optional
+from app.database.sql_server import get_db
 
 async def get_current_entity(x_entity: Optional[str] = Header(None, alias="X-Entity")):
     # If no entity header provided, default to first entity

@@ -12,5 +12,6 @@ class ApproverDefaultResponse(ApproverDefaultBase):
     id: str
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }

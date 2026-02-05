@@ -17,26 +17,34 @@ class DelegationResponse(DelegationBase):
     created_at: datetime
     created_by: str
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = {
+        "populate_by_name": True,
+        "from_attributes": True
+    }
 
-def check_active_delegation(db, original_approver_email: str, entity: str):
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
+from app.models.sql.delegation import Delegation
+
+async def check_active_delegation(db: AsyncSession, original_approver_email: str, entity: str):
     """
-    Checks if there is an active delegation for the given original approver.
+    Checks if there is an active delegation for the given original approver (SQL).
     Returns the list of substitute approver emails if active.
     """
     now = datetime.utcnow()
-    # Normalize now to start of day for comparison if using date-only storage, 
-    # but here we want to match any delegation that overlaps with TODAY.
-    # To be safe and day-inclusive:
     day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     day_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-    delegations = db.delegations.find({
-        "original_approver": original_approver_email.lower(),
-        "entity": entity,
-        "start_date": {"$lte": day_end},
-        "end_date": {"$gte": day_start}
-    })
+    stmt = select(Delegation).where(
+        and_(
+            Delegation.original_approver == original_approver_email.lower(),
+            Delegation.entity == entity,
+            Delegation.start_date <= day_end,
+            Delegation.end_date >= day_start
+        )
+    )
     
-    return [d["substitute_approver"].lower() for d in delegations]
+    result = await db.execute(stmt)
+    delegations = result.scalars().all()
+    
+    return [d.substitute_approver.lower() for d in delegations]

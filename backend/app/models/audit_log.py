@@ -27,3 +27,8 @@ class AuditLogCreate(BaseModel):
 class AuditLogResponse(AuditLogCreate):
     id: str
     timestamp: datetime
+
+    model_config = {
+        "from_attributes": True
+    }
+
