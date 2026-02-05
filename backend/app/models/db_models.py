@@ -431,6 +431,7 @@ class CodingHistory(Base):
     __tablename__ = "coding_history"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    vendor_id = Column(String(100), nullable=True, index=True)
     vendor_key = Column(String(500), nullable=False, index=True)
     vendor_name = Column(String(500), nullable=True)
     description = Column(Text, nullable=True)
@@ -440,5 +441,5 @@ class CodingHistory(Base):
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (
-        Index('ix_coding_history_lookup', 'vendor_key', 'normalized_description'),
+        Index('ix_coding_history_lookup', 'vendor_id', 'vendor_key', 'normalized_description'),
     )

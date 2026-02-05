@@ -1,326 +1,205 @@
 import logging
 import time
+import json
 from typing import Optional, Dict, Any, Tuple, List
-from app.ai.normalizer import normalize_vendor, normalize_address
-from app.ai.embeddings import embed_text
-from app.ai.similarity import cosine_similarity
+from sqlalchemy.orm import Session
 from difflib import SequenceMatcher
+
+from app.models.db_models import ExcelFile, MasterDataChunk
+from app.ai.normalizer import normalize_vendor, normalize_address
 
 logger = logging.getLogger(__name__)
 
-# --- In-Memory Cache for Vendor Master ---
-# Structure:
-# {
-#    "data": [list of vendor rows],
-#    "map": {normalized_name: vendor_row},  # For O(1) exact name match
-#    "address_map": {normalized_address: vendor_row}, # For O(1) exact address match
-#    "timestamp": float  # When cache was last updated
-# }
+# ---------------- CACHE ---------------- #
 _VENDOR_CACHE = {
-    "data": [],
-    "map": {},
+    "rows": [],
+    "vendor_map": {},
     "address_map": {},
     "timestamp": 0
 }
-CACHE_TTL = 300  # 5 minutes in seconds
+CACHE_TTL = 300  # 5 minutes
 
-def get_cached_vendors(db) -> Tuple[List[Dict], Dict[str, Dict], Dict[str, Dict]]:
+
+# ---------------- HELPERS ---------------- #
+def _get_val(row: dict, keys: list) -> Optional[str]:
+    """Helper to get value from row using multiple key variations (case-insensitive)."""
+    for k in keys:
+        if k in row:
+            return row[k]
+        k_upper = k.upper()
+        for rk in row:
+            if rk.upper() == k_upper:
+                return row[rk]
+    return None
+
+
+def _build_address(row: dict) -> str:
+    """Construct a full address string from individual master data fields."""
+    parts = [
+        _get_val(row, ["ADDRESS_LINE1", "Address1", "ADDRESS 1"]),
+        _get_val(row, ["ADDRESS_LINE2", "Address2", "ADDRESS 2"]),
+        _get_val(row, ["CITY", "City"]),
+        _get_val(row, ["STATE_OR_TERITTORY", "STATE", "State"]),
+        _get_val(row, ["ZIP_OR_POSTAL_CODE", "ZIP", "PostalCode"]),
+        _get_val(row, ["COUNTRY", "Country"]),
+    ]
+    return " ".join(str(p).strip() for p in parts if p).strip()
+
+
+# ---------------- LOAD MASTER ---------------- #
+def get_cached_vendors(db: Session) -> Tuple[List[Dict], Dict[str, Dict], Dict[str, Dict]]:
     """
-    Retrieve vendors from cache or reload from DB if expired.
-    Returns:
-        (list_of_all_vendors, map_of_normalized_names, map_of_normalized_addresses)
+    Retrieve vendors from cache or reload from SQL Server if expired.
+    Returns (rows, vendor_map, address_map).
     """
     global _VENDOR_CACHE
-    current_time = time.time()
-    
-    # Return cache if valid
-    if _VENDOR_CACHE["data"] and (current_time - _VENDOR_CACHE["timestamp"] < CACHE_TTL):
-        return _VENDOR_CACHE["data"], _VENDOR_CACHE["map"], _VENDOR_CACHE["address_map"]
-        
-    logger.info("Vendor cache expired or empty. Reloading from database...")
-    
-    # Find active Vendor_Master collection
+    now = time.time()
+
+    if _VENDOR_CACHE["rows"] and (now - _VENDOR_CACHE["timestamp"] < CACHE_TTL):
+        return _VENDOR_CACHE["rows"], _VENDOR_CACHE["vendor_map"], _VENDOR_CACHE["address_map"]
+
+    logger.info("Reloading Vendor Master cache from SQL Server...")
+
     try:
-        files = list(db["excel_files"].find({}))
-        vendor_master_file = None
-        for f in files:
-            if f.get("tab_name") in ["Vendor_Master", "Vendor Master", "Vendors", "Vendor"]:
-                vendor_master_file = f
-                break
-                
-        if not vendor_master_file or not vendor_master_file.get("sheets"):
-            logger.warning("No Vendor Master file found in database")
+        # 1. Find the Vendor Master file record
+        vendor_file = db.query(ExcelFile).filter(
+            ExcelFile.tab_name.in_(["Vendor_Master", "Vendor Master", "Vendors", "Vendor"])
+        ).order_by(ExcelFile.uploaded_at.desc()).first()
+
+        if not vendor_file:
+            logger.warning("No Vendor Master file found in SQL Server")
             return [], {}, {}
-            
-        collection_name = vendor_master_file["sheets"][0]["collection_name"]
-        
-        # Load all vendors
-        chunks = list(db[collection_name].find().sort("chunk_index", 1))
+
+        # 2. Extract all rows from chunks
+        chunks = db.query(MasterDataChunk).filter(
+            MasterDataChunk.file_id == vendor_file.id
+        ).order_by(MasterDataChunk.chunk_index.asc()).all()
+
         rows = []
         for chunk in chunks:
-            rows.extend(chunk.get("rows", []))
-            
-        # Build lookup maps for O(1) exact match
-        lookup_map = {}
-        address_map = {}
-        for row in rows:
-            v_name = row.get("Vendor Name") or row.get("VendorName") or row.get("Name") or row.get("VENDOR_NAME")
-            if v_name:
-                norm = normalize_vendor(str(v_name))
-                if norm:
-                    lookup_map[norm] = row
-            
-            # Address construction - handle split fields
-            v_addr = row.get("Vendor Address") or row.get("VendorAddress") or row.get("Address") or row.get("VENDOR_ADDRESS")
-            if not v_addr:
-                # Try to construct from parts found in logs (ADDRESS_LINE1, CITY, etc.)
-                parts = [
-                    row.get("ADDRESS_LINE1") or row.get("Address1"),
-                    row.get("ADDRESS_LINE2") or row.get("Address2"),
-                    row.get("ADDRESS_LINE3") or row.get("Address3"),
-                    row.get("CITY") or row.get("City"),
-                    row.get("STATE_OR_TERITTORY") or row.get("STATE") or row.get("State"),
-                    row.get("ZIP_OR_POSTAL_CODE") or row.get("ZIP") or row.get("PostalCode") or row.get("ZipCode"),
-                    row.get("COUNTRY") or row.get("Country")
-                ]
-                v_addr = " ".join([str(p).strip() for p in parts if p]).strip()
+            try:
+                data = json.loads(chunk.data_json) if isinstance(chunk.data_json, str) else chunk.data_json
+                if isinstance(data, dict) and "rows" in data:
+                    rows.extend(data["rows"])
+                elif isinstance(data, list):
+                    rows.extend(data)
+            except Exception as e:
+                logger.error(f"Failed to parse chunk data: {e}")
 
-            if v_addr:
-                norm_addr = normalize_address(str(v_addr))
+        # 3. Build lookup maps
+        vendor_map = {}
+        address_map = {}
+        for r in rows:
+            name = _get_val(r, ["Vendor Name", "VendorName", "Name", "VENDOR_NAME", "VENDOR NAME"])
+            if name:
+                norm_name = normalize_vendor(str(name))
+                if norm_name:
+                    vendor_map[norm_name] = r
+
+            addr = _get_val(r, ["Vendor Address", "VendorAddress", "Address", "VENDOR_ADDRESS", "VENDOR ADDRESS"]) or _build_address(r)
+            if addr:
+                norm_addr = normalize_address(str(addr))
                 if norm_addr:
-                    address_map[norm_addr] = row
-                    
+                    address_map[norm_addr] = r
+
         # Update Cache
         _VENDOR_CACHE = {
-            "data": rows,
-            "map": lookup_map,
+            "rows": rows,
+            "vendor_map": vendor_map,
             "address_map": address_map,
-            "timestamp": current_time
+            "timestamp": now
         }
-        
+
         logger.info(f"Vendor cache refreshed. Loaded {len(rows)} vendors.")
-        return rows, lookup_map, address_map
-        
+        return rows, vendor_map, address_map
+
     except Exception as e:
         logger.error(f"Error loading vendor master: {e}")
         return [], {}, {}
 
 
+# ---------------- MATCHER ---------------- #
 def find_best_vendor_match(
-    db, 
-    input_vendor_name: str, 
+    db: Session,
+    input_vendor_name: str,
     input_vendor_address: str = None,
-    threshold_embedding: float = 0.85, 
-    threshold_text: float = 0.60
+    threshold_text: float = 0.55
 ) -> Dict[str, Any]:
     """
-    Find the best matching vendor from Master Data using a multi-stage approach:
-    0. Exact Normalized Address Match (HIGHEST PRIORITY)
-    1. Exact Normalized Name Match
-    2. Embedding Similarity (Semantic)
-    3. Text Similarity (Fuzzy / Typos)
-    
-    Returns:
-        Dictionary containing:
-        - match: The vendor document (or None)
-        - score: Confidence score (0.0 - 1.0)
-        - method: "exact_address", "exact", "embedding", "text_similarity", or "none"
+    Find best matching vendor with strictly prioritized sequence:
+    1. Exact Name Match (Metadata/Extracted Name)
+    2. Address Match (Exact then Fuzzy)
+    3. Name Match Fallback (Fuzzy)
     """
     if not input_vendor_name and not input_vendor_address:
-        return {"match": None, "score": 0.0, "method": "none", "reason": "Empty input"}
+        return {"match": None, "score": 0.0, "method": "none"}
 
-    # 1. Load Master Data (Cached)
-    vendors, vendor_map, address_map = get_cached_vendors(db)
-    
-    if not vendors:
-         return {"match": None, "score": 0.0, "method": "none", "reason": "No Master Data"}
+    rows, vendor_map, address_map = get_cached_vendors(db)
+    if not rows:
+        return {"match": None, "score": 0.0, "method": "no_master"}
 
-    # 2. EXACT ADDRESS MATCH (Highest Priority)
-    if input_vendor_address:
-        normalized_address = normalize_address(input_vendor_address)
-        if normalized_address in address_map:
-            match_row = address_map[normalized_address]
-            v_name = match_row.get("Vendor Name") or match_row.get("VendorName") or match_row.get("Name") or match_row.get("VENDOR_NAME")
-            logger.info(f"Exact Address match found: {v_name}")
-            return {"match": match_row, "score": 1.0, "method": "exact_address"}
+    norm_name = normalize_vendor(input_vendor_name) if input_vendor_name else ""
+    norm_addr = normalize_address(input_vendor_address) if input_vendor_address else ""
 
-    # 3. EXACT NAME MATCH
-    normalized_input = None # Initialize for later use
-    if input_vendor_name:
-        normalized_input = normalize_vendor(input_vendor_name)
-        if not normalized_input:
-            # If name was provided but normalized to empty, we can't proceed with name-based matching
-            return {"match": None, "score": 0.0, "method": "none", "reason": "Normalized input name empty"}
+    # =====================================================
+    # PRIORITY 1: EXACT NAME MATCH
+    # =====================================================
+    if norm_name and norm_name in vendor_map:
+        return {
+            "match": vendor_map[norm_name],
+            "score": 1.0,
+            "method": "name_exact"
+        }
 
-        if normalized_input in vendor_map:
-            match_row = vendor_map[normalized_input]
-            v_name = match_row.get("Vendor Name") or match_row.get("VendorName") or match_row.get("Name") or match_row.get("VENDOR_NAME")
-            logger.info(f"Exact Name match found (Cached): {v_name}")
-            return {"match": match_row, "score": 1.0, "method": "exact"}
-    else:
-        # If no name provided and address didn't match, return none
-        return {"match": None, "score": 0.0, "method": "none", "reason": "No name provided and address match failed"}
-
-    # If we reach here, no exact address or name match was found.
-    # Proceed with advanced matching (Fuzzy/Embedding) for BOTH Name and Address.
-    
-    # Ensure normalized_input is available (it might be None if name wasn't provided)
-    if input_vendor_name and not normalized_input:
-         normalized_input = normalize_vendor(input_vendor_name)
-
-    # Prepare Normalized Address for fuzzy/embedding if provided
-    normalized_input_address = None
-    if input_vendor_address:
-        normalized_input_address = normalize_address(input_vendor_address)
-
-    logger.info("Checking advanced matching (Fuzzy & Embedding)...")
-    
-    best_match_candidate = None
-    best_match_score = 0.0
-    best_match_method = "none"
-
-    # --- 4. FUZZY & EMBEDDING MATCHING LOOP ---
-    
-    # Pre-calculate input embeddings if possible to avoid re-doing it inside loop
-    input_name_embedding = embed_text(normalized_input) if normalized_input else None
-    input_address_embedding = embed_text(normalized_input_address) if normalized_input_address else None
-
-    # --- 4. FUZZY & EMBEDDING MATCHING LOOP ---
-    
-    # Pre-calculate input embeddings if possible to avoid re-doing it inside loop
-    input_name_embedding = embed_text(normalized_input) if normalized_input else None
-    input_address_embedding = embed_text(normalized_input_address) if normalized_input_address else None
-
-    # Track best matches separately
-    best_addr_match = None
-    best_addr_score = 0.0
-    best_addr_method = "none"
-
-    best_name_match = None
-    best_name_score = 0.0
-    best_name_method = "none"
-
-    for row in vendors:
-        # --- A. ADDRESS BASED MATCHING ---
-        if normalized_input_address:
-            v_addr = row.get("Vendor Address") or row.get("VendorAddress") or row.get("Address") or row.get("VENDOR_ADDRESS")
-            
-            # Construct address if missing
-            if not v_addr:
-                 parts = [
-                    row.get("ADDRESS_LINE1") or row.get("Address1"),
-                    row.get("ADDRESS_LINE2") or row.get("Address2"),
-                    row.get("CITY") or row.get("City"),
-                    row.get("STATE_OR_TERITTORY") or row.get("STATE") or row.get("State"),
-                    row.get("ZIP_OR_POSTAL_CODE") or row.get("ZIP") or row.get("PostalCode"),
-                    row.get("COUNTRY") or row.get("Country")
-                ]
-                 v_addr = " ".join([str(p).strip() for p in parts if p]).strip()
-
-            if v_addr:
-                norm_addr = normalize_address(str(v_addr))
-                
-                # A1. Fuzzy Address
-                if abs(len(norm_addr) - len(normalized_input_address)) < 30: # Relaxed length check
-                    addr_similarity = SequenceMatcher(None, normalized_input_address, norm_addr).ratio()
-                    
-                    if addr_similarity > best_addr_score:
-                        best_addr_score = addr_similarity
-                        best_addr_match = row
-                        best_addr_method = "fuzzy_address"
-
-                # A2. Embedding Address
-                if input_address_embedding and len(vendors) <= 500:
-                    target_addr_emb = embed_text(norm_addr)
-                    if target_addr_emb:
-                        sem_score = cosine_similarity(input_address_embedding, target_addr_emb)
-                        
-                        if sem_score > best_addr_score:
-                             best_addr_score = sem_score
-                             best_addr_match = row
-                             best_addr_method = "embedding_address"
-
-        # --- B. NAME BASED MATCHING ---
-        if normalized_input:
-            v_name = row.get("Vendor Name") or row.get("VendorName") or row.get("Name") or row.get("VENDOR_NAME")
-            if v_name:
-                norm_name = normalize_vendor(str(v_name))
-                
-                # B1. Fuzzy Name
-                if abs(len(norm_name) - len(normalized_input)) < 20:
-                     name_similarity = SequenceMatcher(None, normalized_input, norm_name).ratio()
-                     if name_similarity > best_name_score:
-                         best_name_score = name_similarity
-                         best_name_match = row
-                         best_name_method = "text_similarity"
-
-                # B2. Embedding Name
-                if input_name_embedding and len(vendors) <= 500:
-                    target_name_emb = embed_text(norm_name)
-                    if target_name_emb:
-                        sem_name_score = cosine_similarity(input_name_embedding, target_name_emb)
-                        if sem_name_score > best_name_score:
-                            best_name_score = sem_name_score
-                            best_name_match = row
-                            best_name_method = "embedding"
-
-    # --- FINAL DECISION: CROSS CHECK ---
-    logger.info(f"Best Name Match: {best_name_match.get('VENDOR_NAME') if best_name_match else 'None'} ({best_name_method}: {best_name_score})")
-    logger.info(f"Best Addr Match: {best_addr_match.get('VENDOR_NAME') if best_addr_match else 'None'} ({best_addr_method}: {best_addr_score})")
-
-    # Weights / Bias
-    # User said: "address is wrong so you can do cross check with vendor name normalization and compare give the best one"
-    # This implies we should trust the higher score, BUT maybe bias slightly towards Name if scores are close?
-    
-    final_match = None
-    final_score = 0.0
-    final_method = "none"
-    
-    # 1. Check strict thresholds first
-    valid_name = best_name_score >= (threshold_text if best_name_method == "text_similarity" else threshold_embedding)
-    valid_addr = best_addr_score >= (0.80 if best_addr_method == "fuzzy_address" else 0.88)
-    
-    if valid_name and not valid_addr:
-        final_match = best_name_match
-        final_score = best_name_score
-        final_method = best_name_method
+    # =====================================================
+    # PRIORITY 2: ADDRESS MATCH
+    # =====================================================
+    if norm_addr:
+        # Exact Address
+        if norm_addr in address_map:
+            return {
+                "match": address_map[norm_addr],
+                "score": 1.0,
+                "method": "address_exact"
+            }
         
-    elif valid_addr and not valid_name:
-        final_match = best_addr_match
-        final_score = best_addr_score
-        final_method = best_addr_method
+        # Fuzzy Address
+        best_addr = (None, 0.0)
+        for r in rows:
+            addr = _get_val(r, ["Vendor Address", "VENDOR_ADDRESS"]) or _build_address(r)
+            if not addr: continue
+            score = SequenceMatcher(None, norm_addr, normalize_address(str(addr))).ratio()
+            if score > best_addr[1]:
+                best_addr = (r, score)
         
-    elif valid_name and valid_addr:
-        # Both valid: Compare scores
-        if best_name_score >= best_addr_score:
-             final_match = best_name_match
-             final_score = best_name_score
-             final_method = best_name_method
-        else:
-             final_match = best_addr_match
-             final_score = best_addr_score
-             final_method = best_addr_method
-             
-    else:
-        # Neither passed strict threshold
-        # Return best effort if it's "okay" (e.g. > 0.4) or just None?
-        # Original logic returned best text match even if low.
-        if best_name_score > best_addr_score:
-             final_match = best_name_match # Return best prediction
-             final_score = best_name_score
-             final_method = "none" # Sub-threshold
-        else:
-             final_match = best_addr_match
-             final_score = best_addr_score
-             final_method = "none"
+        if best_addr[1] >= threshold_text:
+            return {
+                "match": best_addr[0],
+                "score": best_addr[1],
+                "method": "address_fuzzy"
+            }
 
-    if final_match and final_score >= 0.4: # Only return if at least somewhat relevant
-         if final_score >= (threshold_text if "text" in final_method else threshold_embedding):
-             logger.info(f"Match found via {final_method}: {final_match.get('VENDOR_NAME', 'Unknown')} (Score: {final_score})")
-         else:
-             logger.warning(f"Returning weak match (below threshold): {final_match.get('VENDOR_NAME', 'Unknown')} (Score: {final_score})")
-             
-         return {"match": final_match, "score": final_score, "method": final_method}
+    # =====================================================
+    # PRIORITY 3: FUZZY NAME SEARCH (FINAL FALLBACK)
+    # =====================================================
+    if norm_name:
+        best_name = (None, 0.0)
+        for r in rows:
+            v = _get_val(r, ["Vendor Name", "VendorName", "Name", "VENDOR_NAME", "VENDOR NAME"])
+            if not v: continue
+            score = SequenceMatcher(None, norm_name, normalize_vendor(str(v))).ratio()
+            if score > best_name[1]:
+                best_name = (r, score)
 
-    return {"match": None, "score": final_score, "method": "none"}
+        if best_name[1] >= threshold_text:
+            return {
+                "match": best_name[0],
+                "score": best_name[1],
+                "method": "name_fuzzy"
+            }
 
+    # =====================================================
+    # ❌ NOTHING MATCHED
+    # =====================================================
+    logger.warning(f"No match found for: name='{input_vendor_name}', addr='{input_vendor_address}'")
+    return {"match": None, "score": 0.0, "method": "none"}

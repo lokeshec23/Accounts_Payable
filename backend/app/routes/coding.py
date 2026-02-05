@@ -23,6 +23,10 @@ from app.ai.similarity import cosine_similarity
 from app.services.audit_service import audit_service
 from app.models.audit_log import AuditAction
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 def safe_float(value) -> float:
@@ -55,46 +59,68 @@ def get_line_items(invoice: Any) -> List[Dict[str, Any]]:
     if isinstance(extracted.get("Items"), dict): return extracted["Items"].get("value", [])
     return []
 
-def update_coding_history(db: Session, vendor_name: str, line_items: List[LineItemCoding]):
-    if not vendor_name: return
-    vendor_key = normalize_vendor(vendor_name)
-    for item in line_items:
-        if not item.description: continue
-        norm_desc = normalize_description(item.description)
-        embedding = embed_text(norm_desc)
-        history = db.query(CodingHistory).filter(
-            CodingHistory.vendor_key == vendor_key,
-            CodingHistory.normalized_description == norm_desc
-        ).first()
+def update_coding_history(db: Session, vendor_name: str, line_items: List[LineItemCoding], vendor_id: str = None):
+    if not vendor_name and not vendor_id: return
+    vendor_key = normalize_vendor(vendor_name) if vendor_name else None
+    try:
+        for item in line_items:
+            if not item.description: continue
+            norm_desc = normalize_description(item.description)
+            embedding = embed_text(norm_desc)
+            
+            # Priority 1: vendor_id, Priority 2: vendor_key
+            query = db.query(CodingHistory)
+            if vendor_id:
+                query = query.filter(CodingHistory.vendor_id == vendor_id)
+            else:
+                query = query.filter(CodingHistory.vendor_key == vendor_key)
+                
+            history = query.filter(CodingHistory.normalized_description == norm_desc).first()
 
-        coding_data = {
-            "gl_code": item.gl_code,
-            "lob": item.lob,
-            "department": item.department,
-            "customer": item.customer,
-            "item": item.item
-        }
+            coding_data = {
+                "gl_code": item.gl_code,
+                "lob": item.lob,
+                "department": item.department,
+                "customer": item.customer,
+                "item": item.item
+            }
 
-        if history:
-            history.description = item.description
-            history.embedding = json.dumps(embedding)
-            history.coding_json = json.dumps(coding_data)
-            history.updated_at = datetime.utcnow()
-        else:
-            new_history = CodingHistory(
-                vendor_key=vendor_key,
-                vendor_name=vendor_name,
-                description=item.description,
-                normalized_description=norm_desc,
-                embedding=json.dumps(embedding),
-                coding_json=json.dumps(coding_data)
-            )
-            db.add(new_history)
-    db.commit()
+            if history:
+                history.description = item.description
+                history.embedding = json.dumps(embedding)
+                history.coding_json = json.dumps(coding_data)
+                history.updated_at = datetime.utcnow()
+                if vendor_id: history.vendor_id = vendor_id # Update id if missing
+            else:
+                new_history = CodingHistory(
+                    vendor_id=vendor_id,
+                    vendor_key=vendor_key,
+                    vendor_name=vendor_name,
+                    description=item.description,
+                    normalized_description=norm_desc,
+                    embedding=json.dumps(embedding),
+                    coding_json=json.dumps(coding_data)
+                )
+                db.add(new_history)
+        db.commit()
+    except Exception as e:
+        logger.error(f"Error updating coding history: {e}")
+        db.rollback()
 
-def get_coding_suggestions(db: Session, vendor_name: str, extracted_items: List[Dict[str, Any]]) -> List[LineItemCoding]:
-    vendor_key = normalize_vendor(vendor_name)
-    history_entries = db.query(CodingHistory).filter(CodingHistory.vendor_key == vendor_key).all()
+def get_coding_suggestions(db: Session, vendor_name: str, extracted_items: List[Dict[str, Any]], vendor_id: str = None) -> List[LineItemCoding]:
+    vendor_key = normalize_vendor(vendor_name) if vendor_name else None
+    
+    query = db.query(CodingHistory)
+    if vendor_id:
+        query = query.filter(CodingHistory.vendor_id == vendor_id)
+    else:
+        query = query.filter(CodingHistory.vendor_key == vendor_key)
+        
+    try:
+        history_entries = query.all()
+    except Exception as e:
+        logger.error(f"Error fetching coding history entries: {e}")
+        history_entries = []
     
     suggestions: List[LineItemCoding] = []
     for idx, raw in enumerate(extracted_items):
@@ -106,13 +132,17 @@ def get_coding_suggestions(db: Session, vendor_name: str, extracted_items: List[
         best_match = None
         best_score = 0.0
 
-        for h in history_entries:
-            if not h.embedding: continue
-            h_emb = json.loads(h.embedding)
-            score = cosine_similarity(query_embedding, h_emb)
-            if score > best_score:
-                best_score = score
-                best_match = h
+        try:
+            for h in history_entries:
+                if not h.embedding: continue
+                h_emb = json.loads(h.embedding)
+                score = cosine_similarity(query_embedding, h_emb)
+                if score > best_score:
+                    best_score = score
+                    best_match = h
+        except Exception as e:
+            logger.error(f"Error processing history entries: {e}")
+            best_match = None
 
         def val(key):
             v = raw.get(key)
@@ -164,7 +194,7 @@ async def get_coding(
     if not vendor_name or not items:
         return CodingResponse(id="", invoice_id=str(invoice_id), line_items=[], total_amount=0.0, created_at=datetime.utcnow())
 
-    suggestions = get_coding_suggestions(db, vendor_name, items)
+    suggestions = get_coding_suggestions(db, vendor_name, items, vendor_id=invoice.vendor_id)
     return CodingResponse(
         id="suggested",
         invoice_id=str(invoice_id),
@@ -211,8 +241,9 @@ async def create_or_update_coding(
 
     # Update history and gl_summary
     vendor_name = coding_data.vendor_name or get_vendor_name(invoice)
-    if vendor_name and coding_data.line_items:
-        update_coding_history(db, vendor_name, coding_data.line_items)
+    vendor_id = invoice.vendor_id
+    if (vendor_name or vendor_id) and coding_data.line_items:
+        update_coding_history(db, vendor_name, coding_data.line_items, vendor_id=vendor_id)
 
     summary_map = {}
     for item in coding_data.line_items:

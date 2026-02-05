@@ -33,9 +33,12 @@ async def send_to_approval(
     Send invoice to approval workflow using SQLAlchemy.
     """
     # 1. Verify invoice exists
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.entity == entity).first()
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # Use the entity stored on the invoice for all subsequent lookups
+    entity = invoice.entity
     
     # 2. Verify coding exists
     coding = db.query(DBCoding).filter(DBCoding.invoice_id == invoice_id).first()
@@ -79,7 +82,7 @@ async def send_to_approval(
     # 6. Workflow Steps
     # Check if we need to insert "Coding Completed" step
     # We define cycle start
-    last_cycle_start = datetime.min
+    last_cycle_start = datetime(1753, 1, 1)
     histories = db.query(InvoiceStatusHistory).filter(InvoiceStatusHistory.invoice_id == invoice_id).order_by(InvoiceStatusHistory.timestamp.desc()).all()
     for h in histories:
         if h.status in [InvoiceStatus.REWORKED, InvoiceStatus.WAITING_CODING]:

@@ -191,21 +191,27 @@ def get_required_approver_count(
         v_workflow = None
         if v_id_resolved:
             v_workflow = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_id == v_id_resolved, VendorWorkflow.entity == entity).first()
-        
             
-        if v_workflow:
-            workflow_found = True
-            workflow_type = "vendor"
-            count = v_workflow.approver_count
-            assigned_approvers = [v_workflow.mandatory_approver_1, v_workflow.mandatory_approver_2, v_workflow.mandatory_approver_3]
-            
-            if count >= 4:
-                # Check threshold
-                if amount is not None and v_workflow.amount_threshold is not None:
-                     if amount > v_workflow.amount_threshold:
-                        assigned_approvers.append(v_workflow.threshold_approver)
-            if count == 5:
-                assigned_approvers.append(v_workflow.optional_approver)
+            # Fallback fuzzy entity match if exact match fails
+            if not v_workflow and entity:
+                all_v_workflows = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_id == v_id_resolved).all()
+                for vw in all_v_workflows:
+                    if entity.lower() in vw.entity.lower() or vw.entity.lower() in entity.lower():
+                        v_workflow = vw
+                        break
+            if v_workflow:
+                workflow_found = True
+                workflow_type = "vendor"
+                count = v_workflow.approver_count
+                assigned_approvers = [v_workflow.mandatory_approver_1, v_workflow.mandatory_approver_2, v_workflow.mandatory_approver_3]
+                
+                if count >= 4:
+                    # Check threshold
+                    if amount is not None and v_workflow.amount_threshold is not None:
+                         if amount > v_workflow.amount_threshold:
+                            assigned_approvers.append(v_workflow.threshold_approver)
+                if count == 5:
+                    assigned_approvers.append(v_workflow.optional_approver)
 
     # 3. Try Codification Based Workflow
     if not workflow_found and invoice_id and entity:
@@ -264,9 +270,12 @@ async def get_workflow_history(
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.entity == entity).first()
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(404, "Invoice not found")
+    
+    # Use the entity stored on the invoice
+    entity = invoice.entity
         
     vendor_name = preview_vendor_name if preview_vendor_name else (invoice.vendor_name or "Unknown")
     vendor_id = preview_vendor_id if preview_vendor_id else invoice.vendor_id
