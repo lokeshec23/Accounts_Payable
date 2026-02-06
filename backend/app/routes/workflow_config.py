@@ -315,7 +315,7 @@ async def get_departments(db: Session = Depends(get_db)):
                     dept_id, dept_name = None, None
                     for k in ["Department ID", "DepartmentID", "dept_id", "Dept"]:
                         if k in row and row[k]: dept_id = str(row[k]).strip(); break
-                    for k in ["Department Name", "DeptName", "Name"]:
+                    for k in ["Department name", "DeptName", "Name", "Description", "Department Description", "Department"]:
                         if k in row and row[k]: dept_name = str(row[k]).strip(); break
                     if dept_id: departments[dept_id] = f"{dept_id} - {dept_name}" if dept_name else dept_id
     return [{"value": did, "label": lbl} for did, lbl in sorted(departments.items())]

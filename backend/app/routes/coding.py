@@ -115,17 +115,33 @@ def update_coding_history(db: Session, vendor_name: str, line_items: List[LineIt
 def get_coding_suggestions(db: Session, vendor_name: str, extracted_items: List[Dict[str, Any]], vendor_id: str = None) -> List[LineItemCoding]:
     vendor_key = normalize_vendor(vendor_name) if vendor_name else None
     
-    query = db.query(CodingHistory)
+    history_entries = []
+    seen_ids = set()
+
+    # 1. Fetch by Vendor ID (Strong matching)
     if vendor_id:
-        query = query.filter(CodingHistory.vendor_id == vendor_id)
-    else:
-        query = query.filter(CodingHistory.vendor_key == vendor_key)
-        
-    try:
-        history_entries = query.all()
-    except Exception as e:
-        logger.error(f"Error fetching coding history entries: {e}")
-        history_entries = []
+        try:
+            id_entries = db.query(CodingHistory).filter(CodingHistory.vendor_id == vendor_id).all()
+            for h in id_entries:
+                history_entries.append(h)
+                seen_ids.add(h.id)
+        except Exception as e:
+            logger.error(f"Error fetching ID-based history: {e}")
+
+    # 2. Fetch by Vendor Name (Broad matching) - ALWAYS fetch to fill gaps
+    if vendor_key:
+        try:
+            name_query = db.query(CodingHistory).filter(CodingHistory.vendor_key == vendor_key)
+            if vendor_id:
+                # Exclude what we already fetched
+                name_query = name_query.filter(CodingHistory.vendor_id != vendor_id)
+            
+            name_entries = name_query.all()
+            history_entries.extend(name_entries)
+        except Exception as e:
+            logger.error(f"Error fetching Name-based history: {e}")
+            
+    # Suggestions logic follows...
     
     suggestions: List[LineItemCoding] = []
     for idx, raw in enumerate(extracted_items):
@@ -186,11 +202,48 @@ async def get_coding(
 
     existing = db.query(DBCoding).filter(DBCoding.invoice_id == invoice_id).first()
     if existing:
+        saved_items = json.loads(existing.line_items) if existing.line_items else []
+        
+        # Auto-fill: If any saved item has NO GL Code, try to fetch suggestions to fill it
+        # This handles cases where the user opened the invoice previously (creating empty records) 
+        # but we now have better suggestions (e.g. via fallback logic).
+        if any(not item.get("gl_code") for item in saved_items):
+            try:
+                vendor_name = get_vendor_name(invoice)
+                raw_items = get_line_items(invoice)
+                # Fetch fresh suggestions
+                fresh_suggestions = get_coding_suggestions(db, vendor_name, raw_items, vendor_id=invoice.vendor_id)
+                
+                # Create a map of suggestions by description (or index)
+                # Using index is riskier if lines changed, but description is safer
+                suggestion_map = {s.description: s for s in fresh_suggestions}
+                
+                for idx, item in enumerate(saved_items):
+                    if not item.get("gl_code"):
+                        # Try to find match by description
+                        desc = item.get("description")
+                        if desc and desc in suggestion_map:
+                            item["gl_code"] = suggestion_map[desc].gl_code
+                            item["lob"] = suggestion_map[desc].lob
+                            item["department"] = suggestion_map[desc].department
+                            item["customer"] = suggestion_map[desc].customer
+                            item["item"] = suggestion_map[desc].item
+                        # Fallback: Try by index if descriptions perfectly align
+                        elif idx < len(fresh_suggestions) and fresh_suggestions[idx].description == desc:
+                             s = fresh_suggestions[idx]
+                             item["gl_code"] = s.gl_code
+                             item["lob"] = s.lob
+                             item["department"] = s.department
+                             item["customer"] = s.customer
+                             item["item"] = s.item
+            except Exception as e:
+                logger.error(f"Error auto-filling coding suggestions: {e}")
+
         return CodingResponse(
             id=str(existing.id),
             invoice_id=str(existing.invoice_id),
             header_coding=existing.header_coding,
-            line_items=json.loads(existing.line_items) if existing.line_items else [],
+            line_items=saved_items,
             created_at=existing.created_at
         )
 
