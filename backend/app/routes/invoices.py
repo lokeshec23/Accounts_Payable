@@ -664,6 +664,9 @@ async def update_invoice(
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
 
+    # Capture state BEFORE updates
+    old_invoice_dict = invoice_to_dict(invoice)
+
     # --- Duplicate Check Logic (Constraint Enforcement) ---
     # Determine the effective vendor_id and invoice_number after update
     # Check if they are being updated in extracted_data
@@ -865,25 +868,42 @@ async def update_invoice(
     # [AUDIT] Log Update with Deep Diff
     audit_details = {}
     
-    if "status" in update_data and update_data["status"] != invoice.status:
-        audit_details["Status"] = {"old": invoice.status.value if hasattr(invoice.status, 'value') else invoice.status, "new": update_data["status"]}
-            
-    # 2. Extracted Data / Critical Fields (Consolidated Mapping)
-    # We check both top-level and nested paths but map them to the same human label
+    # Capture state AFTER updates
+    new_invoice_dict = invoice_to_dict(invoice)
+
+    # 1. Compare Top-Level Fields
+    # List of simple fields to check
+    simple_fields = [
+        "vendor_id", "vendor_name", "invoice_number", "status", 
+        "line_grouping", "confidence_score", "exchange_rate"
+    ]
+    
+    for field in simple_fields:
+        old_val = old_invoice_dict.get(field)
+        new_val = new_invoice_dict.get(field)
+        if old_val != new_val:
+            audit_details[field] = {"old": old_val, "new": new_val}
+
+    # 2. Compare Extracted Data (Critical Fields)
+    # We check specific paths in the JSON data
     critical_checks = [
         # (Paths to check, Human Label)
-        (["vendor_id"], "Vendor ID"),
-        (["vendor_name"], "Vendor Name"),
-        (["invoice_number"], "Invoice Number"),
-        (["extracted_data", "amounts", "total_invoice_amount", "value"], "Total Invoice Amount"),
-        (["extracted_data", "amounts", "total_amount_payable", "value"], "Total Amount Payable"),
-        (["extracted_data", "invoice_details", "invoice_number", "value"], "Invoice Number"),
-        (["extracted_data", "invoice_details", "invoice_date", "value"], "Invoice Date"),
-        (["extracted_data", "vendor_info", "name", "value"], "Vendor Name")
+        (["vendor_info", "vendor_id", "value"], "Extracted Vendor ID"),
+        (["vendor_info", "name", "value"], "Extracted Vendor Name"),
+        (["vendor_info", "address", "value"], "Extracted Vendor Address"),
+        (["invoice_details", "invoice_number", "value"], "Extracted Invoice Number"),
+        (["invoice_details", "invoice_date", "value"], "Extracted Invoice Date"),
+        (["invoice_details", "po_number", "value"], "PO Number"),
+        (["amounts", "total_invoice_amount", "value"], "Total Invoice Amount"),
+        (["amounts", "total_amount_payable", "value"], "Total Amount Payable"),
+        (["amounts", "total_tax_amount", "value"], "Total Tax Amount"),
+        (["amounts", "total_service_tax_amount", "value"], "Service Tax Amount"),
+        (["invoice_details", "currency", "value"], "Currency")
     ]
 
     def get_nested(d, p):
         val = d
+        if not val: return None
         for step in p:
             if isinstance(val, dict):
                 val = val.get(step)
@@ -891,40 +911,47 @@ async def update_invoice(
                 return None
         return val
 
-    # Convert invoice to dict for easier nested access
-    invoice_dict = invoice_to_dict(invoice)
+    old_extracted = old_invoice_dict.get("extracted_data") or {}
+    new_extracted = new_invoice_dict.get("extracted_data") or {}
 
     for path, label in critical_checks:
-        # Check update_data first (new state)
-        new_val = get_nested(update_data, path)
-        if new_val is not None:
-             old_val = get_nested(invoice_dict, path)
-             if new_val != old_val:
-                 # Only add if not already captured by another path for the same label
-                 if label not in audit_details:
-                     audit_details[label] = {"old": old_val, "new": new_val}
-                
-    # If no specific details found but we know update happened, fall back to generic list
-    if not audit_details:
-        audit_details = {"updated_fields": list(update_data.keys())}
+        old_val = get_nested(old_extracted, path)
+        new_val = get_nested(new_extracted, path)
+        if old_val != new_val:
+            audit_details[label] = {"old": old_val, "new": new_val}
+            
+    # Check Line Items Count (High level check)
+    old_items = old_extracted.get("Items", {}).get("value", [])
+    new_items = new_extracted.get("Items", {}).get("value", [])
+    if len(old_items) != len(new_items):
+         audit_details["Line Items Count"] = {"old": len(old_items), "new": len(new_items)}
+
+    # If extracted_data changed but no critical fields were caught, log generic
+    # This ensures we don't miss updates
+    if old_extracted != new_extracted and not any(k in audit_details for _, k in critical_checks) and "Line Items Count" not in audit_details:
+         audit_details["Extracted Data"] = "Content Updated (Details not specified)"
 
     # [AUDIT] Log Update with Specific Action if Status Changed
     action = AuditAction.UPDATED
-    if "status" in update_data and update_data["status"] != invoice.status:
-        new_status = update_data["status"]
+    
+    # If status changed, prioritize that action name
+    if "status" in audit_details:
+        new_status = new_invoice_dict.get("status")
         if new_status == InvoiceStatusEnum.WAITING_CODING:
             action = AuditAction.SENT_FOR_CODING
         elif new_status == InvoiceStatusEnum.WAITING_APPROVAL:
             action = AuditAction.SENT_TO_APPROVAL
- 
-    await audit_service.log_action(
-        db=db,
-        invoice_id=invoice_id, 
-        action=action, 
-        user=current_user.username,
-        entity=invoice.entity,
-        details=audit_details
-    )
+    
+    # Only log if there are actual changes
+    if audit_details:
+        await audit_service.log_action(
+            db=db,
+            invoice_id=invoice_id, 
+            action=action, 
+            user=current_user.username,
+            entity=invoice.entity,
+            details=audit_details
+        )
  
     return InvoiceResponse(**invoice_to_dict(invoice))
 
