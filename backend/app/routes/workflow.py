@@ -9,7 +9,8 @@ from datetime import datetime
 from app.database.database import get_db
 from app.models.db_models import (
     Invoice, WorkflowStep, VendorWorkflow, CodificationWorkflow, 
-    ExcelFile, MasterDataChunk, Coding as DBCoding
+    ExcelFile, MasterDataChunk, Coding as DBCoding,
+    ApproverAmount, ApproverGL, ApproverNumber, ApproverDefault
 )
 from app.auth.jwt import get_current_user
 from app.dependencies import get_current_entity
@@ -187,7 +188,7 @@ def get_required_approver_count(
             vendor_eligible = True
 
     # 2. Try Vendor Based Workflow
-    if vendor_eligible and entity:
+    if entity:
         v_workflow = None
         if v_id_resolved:
             v_workflow = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_id == v_id_resolved, VendorWorkflow.entity == entity).first()
@@ -199,16 +200,18 @@ def get_required_approver_count(
                     if entity.lower() in vw.entity.lower() or vw.entity.lower() in entity.lower():
                         v_workflow = vw
                         break
+            
             if v_workflow:
+                # If we found a workflow, we prioritize it
                 workflow_found = True
                 workflow_type = "vendor"
                 count = v_workflow.approver_count
                 assigned_approvers = [v_workflow.mandatory_approver_1, v_workflow.mandatory_approver_2, v_workflow.mandatory_approver_3]
                 
                 if count >= 4:
-                    # Check threshold
+                    # Check threshold (Changed to >= for robustness)
                     if amount is not None and v_workflow.amount_threshold is not None:
-                         if amount > v_workflow.amount_threshold:
+                         if amount >= v_workflow.amount_threshold:
                             assigned_approvers.append(v_workflow.threshold_approver)
                 if count == 5:
                     assigned_approvers.append(v_workflow.optional_approver)
@@ -244,12 +247,61 @@ def get_required_approver_count(
                             assigned_approvers.append(cod_workflow.optional_approver)
                         break
 
-    # 4. Fallback
+    # 4. Fallback Logic (Progressive check of other config tables)
+    if not workflow_found and entity:
+        # A. Check GL based configuration
+        coding = db.query(DBCoding).filter(DBCoding.invoice_id == invoice_id).first() if invoice_id else None
+        if coding and coding.header_coding:
+            hc = json.loads(coding.header_coding)
+            gl_code = hc.get("gl_code")
+            if gl_code:
+                approver_gl = db.query(ApproverGL).filter(ApproverGL.gl_code == gl_code, ApproverGL.entity == entity).first()
+                if approver_gl:
+                    workflow_found = True
+                    workflow_type = "approver_gl"
+                    count = approver_gl.required_approvers
+                    emails = json.loads(approver_gl.approver_emails) if approver_gl.approver_emails else []
+                    assigned_approvers = [e for e in emails if e]
+
+        # B. Check Amount based configuration
+        if not workflow_found and amount is not None:
+            approver_amt = db.query(ApproverAmount).filter(
+                ApproverAmount.entity == entity,
+                ApproverAmount.min_amount <= amount,
+                ApproverAmount.max_amount >= amount
+            ).first()
+            if approver_amt:
+                workflow_found = True
+                workflow_type = "approver_amount"
+                count = approver_amt.required_approvers
+                emails = json.loads(approver_amt.approver_emails) if approver_amt.approver_emails else []
+                assigned_approvers = [e for e in emails if e]
+
+        # C. Check Approver Number (Count based)
+        if not workflow_found:
+            approver_num = db.query(ApproverNumber).filter(ApproverNumber.entity == entity).first()
+            if approver_num:
+                workflow_found = True
+                workflow_type = "approver_number"
+                count = approver_num.approver_count
+                emails = json.loads(approver_num.approver_emails) if approver_num.approver_emails else []
+                assigned_approvers = [e for e in emails if e]
+
+        # D. Check Default configuration
+        if not workflow_found:
+            approver_def = db.query(ApproverDefault).filter(ApproverDefault.entity == entity).first()
+            if approver_def:
+                workflow_found = True
+                workflow_type = "approver_default"
+                count = approver_def.required_approvers
+                emails = json.loads(approver_def.approver_emails) if approver_def.approver_emails else []
+                assigned_approvers = [e for e in emails if e]
+
     if not workflow_found:
         return {
             "required": 3,
             "assigned_approvers": [],
-            "workflow_type": "default",
+            "workflow_type": "hardcoded_default",
             "breakdown": {"default": 3}
         }
 

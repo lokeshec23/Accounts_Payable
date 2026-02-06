@@ -7,7 +7,8 @@ from app.models.invoice import InvoiceStatus
 from app.models.workflow import WorkflowStepType, WorkflowStepStatus
 from app.database.database import get_db
 from app.models.db_models import (
-    Invoice, WorkflowStep, InvoiceStatusHistory, Coding as DBCoding
+    Invoice, WorkflowStep, InvoiceStatusHistory, Coding as DBCoding,
+    InvoiceAssignedApprover
 )
 from app.auth.jwt import get_current_user
 from app.dependencies import get_current_entity
@@ -65,9 +66,21 @@ async def send_to_approval(
     # Note: workflow_type is tracked in requirement_data but not stored on invoice
 
     
-    # Re-map assigned approvers (if we had a table for it, but here we'll just rely on requirement_data for current level check)
-    # Actually, we should probably store them or at least know who they are.
-    # The requirement_data returns them.
+    # Clear existing assigned approvers
+    db.query(InvoiceAssignedApprover).filter(InvoiceAssignedApprover.invoice_id == invoice_id).delete()
+    
+    # Store assigned approvers
+    assigned_approvers = requirement_data.get("assigned_approvers", [])
+    for idx, email in enumerate(assigned_approvers):
+        if email:
+            db.add(InvoiceAssignedApprover(
+                invoice_id=invoice_id,
+                approver_email=email,
+                sequence_order=idx + 1
+            ))
+    
+    # Update requirement breakdown if we want to persist it (using JSON field)
+    invoice.approver_breakdown = json.dumps(requirement_data.get("breakdown", {}))
     
     # 5. Add to Status History
     history = InvoiceStatusHistory(
