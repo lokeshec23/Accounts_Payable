@@ -140,6 +140,12 @@ export const codingService = {
     return response.data;
   },
 
+  async getSuggestions(invoiceId, vendorId = null) {
+    const params = vendorId ? { vendor_id: vendorId } : {};
+    const response = await api.get(`/coding/${invoiceId}/suggestions`, { params });
+    return response.data;
+  },
+
   async deleteCoding(invoiceId) {
     const response = await api.delete(`/coding/${invoiceId}`);
     return response.data;

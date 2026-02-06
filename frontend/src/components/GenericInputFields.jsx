@@ -446,6 +446,12 @@ const GenericInputFields = forwardRef(({
         if (!vendorDetails) return;
         setSelectedVendorDetails(vendorDetails);
 
+        const vId = vendorDetails['Vendor ID'] || vendorDetails['VendorID'] ||
+            vendorDetails['vendor_id'] || vendorDetails['VENDOR_ID'];
+        if (vId) {
+            setVendorId(vId);
+        }
+
         const paymentTerms = getVendorPaymentTerms(vendorDetails);
         if (paymentTerms && !readOnly) {
             handleInputChange('Payment Terms', paymentTerms);
@@ -457,6 +463,33 @@ const GenericInputFields = forwardRef(({
 
         if (!readOnly) {
             applyLineGrouping(grouping);
+        }
+
+        // Fetch suggestions for new vendor
+        if (vId && !readOnly && invoiceId) {
+            console.log(`[GenericInputFields] Fetching suggestions for invoice ${invoiceId} vendor ${vId}`);
+            codingService.getSuggestions(invoiceId, vId).then(suggestions => {
+                console.log("[GenericInputFields] Received suggestions:", suggestions);
+                if (suggestions && suggestions.length > 0) {
+                    setCodingLineItems(prev => {
+                        const updated = [...prev];
+                        suggestions.forEach((sugg, idx) => {
+                            if (updated[idx] && updated[idx].original_index >= 0) {
+                                console.log(`[GenericInputFields] Updating Item ${idx + 1}:`, sugg);
+                                updated[idx] = {
+                                    ...updated[idx],
+                                    gl_code: sugg.gl_code || updated[idx].gl_code || '',
+                                    lob: sugg.lob || updated[idx].lob || '',
+                                    department: sugg.department || updated[idx].department || '',
+                                    customer: sugg.customer || updated[idx].customer || '',
+                                    item: sugg.item || updated[idx].item || ''
+                                };
+                            }
+                        });
+                        return updated;
+                    });
+                }
+            }).catch(err => console.error("Failed to fetch suggestions:", err));
         }
 
         let masterAddr = vendorDetails['Vendor Address'] || vendorDetails['VendorAddress'] ||
@@ -479,7 +512,7 @@ const GenericInputFields = forwardRef(({
         }
 
         setWorkflowRefreshTrigger(prev => prev + 1);
-    }, [getVendorPaymentTerms, readOnly, handleInputChange, applyLineGrouping]);
+    }, [getVendorPaymentTerms, readOnly, handleInputChange, applyLineGrouping, invoiceId]);
 
     // ==================== EXPORT FUNCTION ====================
     const exportToExcel = useCallback(() => {
@@ -749,7 +782,9 @@ const GenericInputFields = forwardRef(({
 
             await invoiceService.updateInvoice(invoiceId, {
                 exchange_rate: exchangeRate,
-                extracted_data: updatedExtractedData
+                extracted_data: updatedExtractedData,
+                vendor_id: vendorId,
+                vendor_name: extractValue(formData['Vendor Name'])
             });
 
             message.success('Invoice updated successfully!');
@@ -1531,7 +1566,7 @@ const GenericInputFields = forwardRef(({
             if (gstAmount > 0) {
                 newCoding.push({
                     s_no: currentSNo++,
-                    description: 'Total GST',
+                    description: isEligible ? 'Total GST' : 'Total GST (Ineligible)',
                     line_type: isEligible ? 'Tax' : 'Expense',
                     quantity: 1,
                     unit_price: gstAmount,

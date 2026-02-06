@@ -65,6 +65,11 @@ def update_coding_history(db: Session, vendor_name: str, line_items: List[LineIt
     try:
         for item in line_items:
             if not item.description: continue
+            
+            # Skip if gl_code is empty - don't store empty/unfilled coding in history
+            if not item.gl_code:
+                continue
+
             norm_desc = normalize_description(item.description)
             embedding = embed_text(norm_desc)
             
@@ -203,6 +208,37 @@ async def get_coding(
         total_amount=sum(i.net_amount for i in suggestions),
         created_at=datetime.utcnow()
     )
+
+@router.get("/{invoice_id}/suggestions", response_model=List[LineItemCoding])
+async def get_suggestions(
+    invoice_id: int,
+    vendor_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
+):
+    """
+    Fetch coding suggestions for an invoice, optionally overriding the vendor_id.
+    """
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not invoice or invoice.entity != entity:
+        raise HTTPException(404, "Invoice not found or access denied")
+
+    vendor_name = get_vendor_name(invoice)
+    items = get_line_items(invoice)
+    
+    if not items:
+        return []
+
+    # Use provided vendor_id or fallback to invoice's vendor_id
+    target_vendor_id = vendor_id or invoice.vendor_id
+    
+    logger.info(f"Fetching suggestions for invoice {invoice_id} with vendor {target_vendor_id}")
+    
+    suggestions = get_coding_suggestions(db, vendor_name, items, vendor_id=target_vendor_id)
+    
+    logger.info(f"Found {len(suggestions)} suggestions. First item GL: {suggestions[0].gl_code if suggestions else 'None'}")
+    return suggestions
 
 @router.post("/", response_model=CodingResponse)
 async def create_or_update_coding(
