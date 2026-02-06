@@ -157,7 +157,7 @@ const DelegationManager = ({ isAdmin = false, onUpdate }) => {
             title: 'Action',
             key: 'action',
             render: (_, record) => (
-                <Button type="link" danger onClick={() => handleRevert(record._id)}>
+                <Button type="link" danger onClick={() => handleRevert(record.id)}>
                     Revert
                 </Button>
             ),
@@ -217,7 +217,7 @@ const DelegationManager = ({ isAdmin = false, onUpdate }) => {
             <Table
                 dataSource={delegations}
                 columns={columns}
-                rowKey="_id"
+                rowKey="id"
                 pagination={{ pageSize: 5 }}
                 size="small"
                 style={{ marginTop: 20 }}

@@ -261,6 +261,9 @@ class Delegation(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     entity = Column(String(100), nullable=False, index=True)
+    delegator_email = Column(String(200), nullable=False) # Copied from original_approver usually
+    substitute_email = Column(String(200), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
     original_approver = Column(String(200), nullable=False, index=True)
     substitute_approver = Column(String(200), nullable=False)
     start_date = Column(DateTime, nullable=False)

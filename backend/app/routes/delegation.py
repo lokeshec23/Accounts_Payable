@@ -28,6 +28,9 @@ async def create_delegation(
         raise HTTPException(403, "You do not have permission to delegate this user's approvals.")
 
     new_del = DBDelegation(
+        delegator_email=delegation.original_approver.lower(),
+        substitute_email=delegation.substitute_approver.lower(),
+         is_active=True,
         original_approver=delegation.original_approver.lower(),
         substitute_approver=delegation.substitute_approver.lower(),
         start_date=delegation.start_date,
@@ -79,10 +82,12 @@ async def delete_delegation(
     delegation = db.query(DBDelegation).filter(DBDelegation.id == delegation_id).first()
     if not delegation:
         raise HTTPException(404, "Delegation not found")
-        
+    
+    print(f"DEBUG REVERT: User={current_user.email} Role={current_user.role} CreatedBy={delegation.created_by} Orig={delegation.original_approver}")
+
     if current_user.role != "admin" and \
-       current_user.email != delegation.created_by and \
-       current_user.email != delegation.original_approver:
+       current_user.email.lower() != (delegation.created_by or "").lower() and \
+       current_user.email.lower() != (delegation.original_approver or "").lower():
         raise HTTPException(403, "You do not have permission to revert this delegation.")
         
     db.delete(delegation)
