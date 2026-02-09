@@ -355,8 +355,23 @@ async def get_invoice_pdf(
         raise HTTPException(status_code=404, detail="Invoice not found")
 
     file_path = invoice.file_path
+    
+    # Ensure path is absolute/resolvable
+    if file_path and not os.path.isabs(file_path):
+        base_dir = os.getcwd()
+        full_path = os.path.join(base_dir, file_path)
+        if os.path.exists(full_path):
+            file_path = full_path
+
     if not file_path or not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="PDF file not found")
+        # Fallback: try to find it in uploads folder if path looks like just a filename
+        if file_path and "/" not in file_path and "\\" not in file_path:
+             alt_path = os.path.join("uploads", file_path)
+             if os.path.exists(alt_path):
+                 file_path = alt_path
+
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"PDF file not found at {file_path}")
 
     return FileResponse(
         path=file_path,
