@@ -7,7 +7,7 @@ class Settings:
     # SQL Server Database URL
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL", 
-        "mssql+pyodbc://sa:varshu@40067@localhost:1433/accounts_payable?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes"
+        "mssql+pymssql://sa:Loandna%402026@localhost:1433/accounts_payable?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes"
     )
     
     # Legacy MongoDB URL (kept for backward compatibility during migration)

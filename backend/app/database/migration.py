@@ -17,7 +17,7 @@ def migrate_users_role_status():
         
         # Update non-admins
         db.query(DBUser).filter(DBUser.username != admin_username).update({
-            "role": "user",
+            "role": "coder",
             "status": "pending"
         }, synchronize_session=False)
         
