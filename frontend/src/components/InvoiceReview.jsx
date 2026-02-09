@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from 'antd';
+import { Button, Spin } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons';
 import GenericInputFields from './GenericInputFields';
 import { schemaMap } from '../config/schemaMap';
@@ -30,6 +30,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     const [isDragging, setIsDragging] = useState(false);
     const leftWidthRef = useRef(leftWidth);
     const [isDuplicate, setIsDuplicate] = useState(false);
+    const [isVendorMasterLoading, setIsVendorMasterLoading] = useState(false);
 
     useEffect(() => {
         const fetchCurrencies = async () => {
@@ -407,7 +408,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                 <div
                     style={{
                         flex: 1,
-                        overflow: 'auto',
+                        overflow: 'hidden',
                         background: 'white',
                         padding: '20px',
                         display: 'flex',
@@ -455,7 +456,20 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                     </div>
 
                     {/* Content Area */}
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                        {isVendorMasterLoading && (
+                            <div style={{
+                                position: 'absolute',
+                                top: 0, left: 0, right: 0, bottom: 0,
+                                zIndex: 100,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'rgba(255, 255, 255, 0.7)'
+                            }}>
+                                <Spin tip="Fetching vendor master details..." />
+                            </div>
+                        )}
                         {formattedData && (
                             <GenericInputFields
                                 ref={genericInputRef}
@@ -466,6 +480,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                                 originalData={invoiceData}
                                 currencies={currencies}
                                 onDuplicateChange={setIsDuplicate}
+                                onVendorLoadingChange={setIsVendorMasterLoading}
                                 readOnly={readOnly || (() => {
                                     if (!settings.navigation || !userRole) return true;
                                     const codingRoles = settings.navigation.find(n => n.path === '/coding')?.roles || [];
