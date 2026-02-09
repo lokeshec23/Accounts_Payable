@@ -1,152 +1,139 @@
 from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+from datetime import datetime
+import json
+
 from app.models.invoice import InvoiceStatus
 from app.models.workflow import WorkflowStepType, WorkflowStepStatus
-from app.database.mongodb import get_database
+from app.database.database import get_db
+from app.models.db_models import (
+    Invoice, WorkflowStep, InvoiceStatusHistory, Coding as DBCoding,
+    InvoiceAssignedApprover
+)
 from app.auth.jwt import get_current_user
 from app.dependencies import get_current_entity
 from app.models.user import UserResponse
-from datetime import datetime
-from bson.objectid import ObjectId
 from app.services.audit_service import audit_service
 from app.models.audit_log import AuditAction
+from app.routes.workflow import (
+    get_vendor_data_from_invoice, 
+    get_required_approver_count, 
+    get_invoice_total_from_invoice
+)
 
 router = APIRouter()
 
 @router.post("/send-to-approval/{invoice_id}")
 async def send_to_approval(
-    invoice_id: str,
+    invoice_id: int,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
     """
-    Send invoice to approval workflow.
-    This creates a 'waiting_approval' workflow step and updates invoice status.
+    Send invoice to approval workflow using SQLAlchemy.
     """
-    db = get_database()
-    
-    # Verify invoice exists AND belongs to entity
-    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    # 1. Verify invoice exists
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     
-    # Entity Check
-    if invoice.get("entity") != entity:
-        raise HTTPException(status_code=403, detail="Access denied to this entity's data")
+    # Use the entity stored on the invoice for all subsequent lookups
+    entity = invoice.entity
     
-    # Verify coding exists
-    coding = db.coding.find_one({"invoice_id": invoice_id})
+    # 2. Verify coding exists
+    coding = db.query(DBCoding).filter(DBCoding.invoice_id == invoice_id).first()
     if not coding:
         raise HTTPException(status_code=400, detail="Coding must be completed before sending to approval")
     
-    # Append to status_history
-    new_status_entry = {
-        "status": InvoiceStatus.WAITING_APPROVAL,
-        "user": current_user.username,
-        "timestamp": datetime.utcnow(),
-        "comment": None
-    }
+    # 3. Calculate Approvers
+    vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
+    total_amount = get_invoice_total_from_invoice(db, invoice_id)
     
+    # Get currency from extraction
+    extracted = {}
+    if invoice.extracted_data:
+        try: extracted = json.loads(invoice.extracted_data) if isinstance(invoice.extracted_data, str) else invoice.extracted_data
+        except: pass
+    currency = extracted.get("invoice_details", {}).get("currency", {}).get("value", "USD")
     
-    # Calculate approver count (Strict Persistence Logic)
-    extra_fields = {}
+    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, currency=currency, entity=entity, force_vendor_id=vendor_id)
     
-    # 1. Check if we already have a locked value (Strict Persistence)
-    if invoice.get("required_approvers") is not None:
-        # Ensure these are preserved (implicitly done by not adding them to set if not needed, 
-        # but for clarity/completeness and in case of any weird mongo behavior, we can set them again or just skip)
-        # Actually, if we just don't touch them, they persist.
-        pass
-    else:
-        # 2. Calculate fresh if not set
-        from app.routes.workflow import get_vendor_data_from_invoice, get_required_approver_count, get_invoice_total_from_invoice
-        
-        vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
-        total_amount = get_invoice_total_from_invoice(db, invoice_id)
-        currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
-        requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, currency=currency, entity=entity)
-        
-        extra_fields["required_approvers"] = requirement_data["required"]
-        extra_fields["assigned_approvers"] = requirement_data.get("assigned_approvers", [])
-        extra_fields["workflow_type"] = requirement_data.get("workflow_type")
-        extra_fields["approver_breakdown"] = requirement_data["breakdown"]
+    # 4. Update Invoice Status
+    invoice.status = InvoiceStatus.WAITING_APPROVAL
+    invoice.current_approver_level = 1
+    invoice.required_approvers = requirement_data["required"]
+    # Note: workflow_type is tracked in requirement_data but not stored on invoice
 
-    # Update invoice status
-    db.invoices.update_one(
-    {"_id": ObjectId(invoice_id)},
-    {
-        "$set": {
-            "status": InvoiceStatus.WAITING_APPROVAL, 
-            "current_approver_level": 1,              
-            **extra_fields                              
-        },
-        "$push": {
-            "status_history": {
-                "status": InvoiceStatus.WAITING_APPROVAL,
-                "user": current_user.username,
-                "timestamp": datetime.utcnow(),
-                "comment": None                         # ✅ SAFE
-            }
-        }
-    }
-)
+    
+    # Clear existing assigned approvers
+    db.query(InvoiceAssignedApprover).filter(InvoiceAssignedApprover.invoice_id == invoice_id).delete()
+    
+    # Store assigned approvers
+    assigned_approvers = requirement_data.get("assigned_approvers", [])
+    for idx, email in enumerate(assigned_approvers):
+        if email:
+            db.add(InvoiceAssignedApprover(
+                invoice_id=invoice_id,
+                approver_email=email,
+                sequence_order=idx + 1
+            ))
+    
+    # Update requirement breakdown if we want to persist it (using JSON field)
+    invoice.approver_breakdown = json.dumps(requirement_data.get("breakdown", {}))
+    
+    # 5. Add to Status History
+    history = InvoiceStatusHistory(
+        invoice_id=invoice_id,
+        status=InvoiceStatus.WAITING_APPROVAL,
+        user=current_user.username,
+        timestamp=datetime.utcnow(),
+        comment="Sent to approval"
+    )
+    db.add(history)
 
-
-    # -------------------------------------------------------------
-    #   INSERT "CODING COMPLETED" STEP HERE (Moved from coding.py)
-    # -------------------------------------------------------------
-    # We define the start of the current cycle based on the last time it was in "reworked" or "waiting_coding"
-    status_history = invoice.get("status_history", [])
-    last_cycle_start = datetime.min
-    for entry in reversed(status_history):
-        if entry.get("status") in ["reworked", "waiting_coding"] and entry.get("timestamp"):
-            ts = entry["timestamp"]
-            if isinstance(ts, str):
-                try:
-                    ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                except:
-                    continue
-            last_cycle_start = ts
+    # 6. Workflow Steps
+    # Check if we need to insert "Coding Completed" step
+    # We define cycle start
+    last_cycle_start = datetime(1753, 1, 1)
+    histories = db.query(InvoiceStatusHistory).filter(InvoiceStatusHistory.invoice_id == invoice_id).order_by(InvoiceStatusHistory.timestamp.desc()).all()
+    for h in histories:
+        if h.status in [InvoiceStatus.REWORKED, InvoiceStatus.WAITING_CODING]:
+            last_cycle_start = h.timestamp
             break
-
-    # Avoid duplicate "Coding" steps for the same cycle
-    existing_coding_step = db.workflow_steps.find_one({
-        "invoice_id": invoice_id,
-        "step_type": WorkflowStepType.CODING,
-        "timestamp": {"$gt": last_cycle_start}
-    })
+            
+    existing_coding_step = db.query(WorkflowStep).filter(
+        WorkflowStep.invoice_id == invoice_id,
+        WorkflowStep.step_type == WorkflowStepType.CODING,
+        WorkflowStep.timestamp > last_cycle_start
+    ).first()
 
     if not existing_coding_step:
-        db.workflow_steps.insert_one({
-            "invoice_id": invoice_id,
-            "step_name": "Coding",
-            "step_type": WorkflowStepType.CODING,
-            "user": current_user.username,
-            "status": WorkflowStepStatus.COMPLETED,
-            "timestamp": datetime.utcnow(),
-            "entity": entity
-        })
+        db.add(WorkflowStep(
+            invoice_id=invoice_id,
+            step_name="Coding",
+            step_type=WorkflowStepType.CODING,
+            user=current_user.username,
+            status=WorkflowStepStatus.COMPLETED,
+            timestamp=datetime.utcnow(),
+            entity=entity
+        ))
 
-    # Create workflow step: Waiting for Approval
-    workflow_step = {
-        "invoice_id": invoice_id,
-        "step_name": "Waiting for Approval",
-        "step_type": WorkflowStepType.WAITING_APPROVAL,
-        "user": current_user.username,
-        "status": WorkflowStepStatus.PENDING,
-        "timestamp": datetime.utcnow(),
-        "approver_number": None,
-        "comment": None,
-        "entity": entity
-    }
-    db.workflow_steps.insert_one(workflow_step)
-    
-    # [AUDIT] Log Send to Approval
-    await audit_service.log_action(
-        invoice_id=invoice_id, 
-        action=AuditAction.SENT_TO_APPROVAL, 
+    # Add "Waiting for Approval" step
+    db.add(WorkflowStep(
+        invoice_id=invoice_id,
+        step_name="Waiting for Approval",
+        step_type=WorkflowStepType.WAITING_APPROVAL,
         user=current_user.username,
-        entity=entity,
-        details={"approvers_required": extra_fields.get("required_approvers", 0)}
-    )
+        status=WorkflowStepStatus.PENDING,
+        timestamp=datetime.utcnow(),
+        entity=entity
+    ))
+    
+    db.commit()
+
+    # [AUDIT]
+    await audit_service.log_action(db, invoice_id, AuditAction.SENT_TO_APPROVAL, current_user.username, entity,
+                                  details={"approvers_required": requirement_data["required"]})
 
     return {"message": "Invoice sent to approval successfully"}

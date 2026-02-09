@@ -1,18 +1,20 @@
-from fastapi import APIRouter, HTTPException, Body, UploadFile, File
-from bson import ObjectId
-from pymongo import ASCENDING
-from app.database.mongodb import get_database
+from fastapi import APIRouter, HTTPException, Body, UploadFile, File, Depends
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from sqlalchemy import asc
 import pandas as pd
 import numpy as np
-# Trigger reload
-from fastapi import Depends
+import io
+import re
+import json
+from datetime import datetime
+from typing import Dict, Any, List,Union
+
+from app.database.database import get_db
+from app.models.db_models import ExcelFile, MasterDataChunk
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
-
-from app.ai.embeddings import embed_text
-from app.ai.similarity import cosine_similarity
-from app.ai.normalizer import normalize_vendor
-from pydantic import BaseModel
+from app.ai.vector_matcher import find_best_vendor_match
 
 router = APIRouter(tags=["Master Data"])
 
@@ -23,58 +25,86 @@ class SearchVendorRequest(BaseModel):
 @router.post("/search-vendor")
 def search_vendor(
     request: SearchVendorRequest,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
     """
     Search for a vendor in the active Vendor Master list using address (priority) then name similarity.
     """
-    db = get_database()
-    
-    # Use shared robust matcher
-    from app.ai.vector_matcher import find_best_vendor_match
-    
     result = find_best_vendor_match(db, request.vendor_name, request.vendor_address)
     
     if result and result["match"]:
-        # Match found (Exact Address, Exact Name, Embedding, or Text)
         return {"match": result["match"], "score": result["score"], "method": result["method"]}
         
     return {"match": None, "score": 0.0, "method": "none"}
 
-
-
 @router.get("/files")
 def list_files(
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
-    db = get_database()
-    files_meta = db["excel_files"]
-
-    files = list(files_meta.find({}, {"rows": 0}))
-    for f in files:
-        f["_id"] = str(f["_id"])
-    return files
+    # Return status of the 4 fixed tabs
+    tabs = ["Entity_Master", "Vendor_Master", "Line_Items", "TDS_Rates"]
+    result = []
     
+    # Query all files for these tabs
+    all_files = db.query(ExcelFile).filter(ExcelFile.tab_name.in_(tabs)).all()
+    
+    # Group by tab_name
+    from collections import defaultdict
+    tab_groups = defaultdict(list)
+    for f in all_files:
+        tab_groups[f.tab_name].append(f)
+    
+    for tab in tabs:
+        files_in_tab = tab_groups.get(tab, [])
+        if files_in_tab:
+            # Sort by uploaded_at desc
+            files_in_tab.sort(key=lambda x: x.uploaded_at, reverse=True)
+            primary = files_in_tab[0]
+            
+            # Format sheets for the frontend
+            sheets = []
+            for f in files_in_tab:
+                sheets.append({
+                    "name": f.sheet_name or "Sheet1",
+                    "collection_name": f"master_data_{tab}:{f.sheet_name}" if f.sheet_name else f"master_data_{tab}"
+                })
+
+            result.append({
+                "id": primary.id,
+                "tab_name": tab,
+                "file_name": primary.original_filename,
+                "uploaded_at": primary.uploaded_at,
+                "uploaded_by": primary.uploaded_by,
+                "status": "active",
+                "sheets": sheets
+            })
+        else:
+            result.append({
+                "tab_name": tab,
+                "file_name": None,
+                "status": "missing",
+                "sheets": []
+            })
+    return result
+
+def slugify(text):
+    return re.sub(r'[^a-zA-Z0-9]', '_', str(text)).strip('_')
+
 @router.post("/upload")
 async def upload_master_file(
     tab_name: str,
     file: UploadFile = File(...),
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
     try:
-        db = get_database()
-        
         # Check extension
         if not file.filename.endswith(('.xls', '.xlsx', '.csv')):
              raise HTTPException(400, "Invalid file format. Please upload .xls, .xlsx, or .csv")
              
         contents = await file.read()
-        import io
-        import re
-
-        def slugify(text):
-            return re.sub(r'[^a-zA-Z0-9]', '_', str(text)).strip('_')
-
         sheets_data = {} # {sheet_name: df}
         
         # Handle CSV files
@@ -89,234 +119,188 @@ async def upload_master_file(
                 df = df.replace({np.nan: None})
                 sheets_data[sheet_name] = df
 
-        # Prepare metadata
-        sheet_metadata = []
-        
-        # Clear existing metadata and collections for this tab first
-        existing_meta = db.excel_files.find_one({"tab_name": tab_name})
-        if existing_meta and "sheets" in existing_meta:
-            for s in existing_meta["sheets"]:
-                db[s["collection_name"]].drop()
-        elif existing_meta:
-            # Fallback for old structure
-            db[f"master_data_{tab_name}"].drop()
+        # Clear existing file metadata and chunks for this tab (all sheets)
+        existing_files = db.query(ExcelFile).filter(ExcelFile.tab_name == tab_name).all()
+        for ef in existing_files:
+            db.query(MasterDataChunk).filter(MasterDataChunk.file_id == ef.id).delete()
+            db.delete(ef)
+        db.commit()
 
-        for idx, (sheet_name, df) in enumerate(sheets_data.items()):
-            safe_name = slugify(sheet_name)
-            sub_collection = f"master_data_{tab_name}_{idx}_{safe_name}"
+        # Process all sheets
+        for sheet_name, df in sheets_data.items():
+            # Inject Vendor_Master default fields
+            if tab_name == "Vendor_Master":
+                defaults = {
+                    "GST / Use Tax Eligibility Configuration": "Eligible",
+                    "TDS/Withhold Tax Applicability Configuration": "No",
+                    "TDS Percentage": "",
+                    "TDS Section Code and Description": "",
+                    "Workflow Applicability Configuration": "Yes",
+                    "Line Grouping": "No"
+                }
+                for col, val in defaults.items():
+                    if col not in df.columns:
+                        df[col] = val
             
-            # Inject Vendor_Master default fields ONLY for the first sheet of Vendor_Master tab
-            if tab_name == "Vendor_Master" and idx == 0:
-                if "GST / Use Tax Eligibility Configuration" not in df.columns:
-                    df["GST / Use Tax Eligibility Configuration"] = "Eligible"
-                if "TDS/Withhold Tax Applicability Configuration" not in df.columns:
-                    df["TDS/Withhold Tax Applicability Configuration"] = "No"
-                if "TDS Percentage" not in df.columns:
-                    df["TDS Percentage"] = ""
-                if "TDS Section Code and Description" not in df.columns:
-                    df["TDS Section Code and Description"] = ""
-                if "Workflow Applicability Configuration" not in df.columns:
-                    df["Workflow Applicability Configuration"] = "Yes"
-                if "Line Grouping" not in df.columns:
-                    df["Line Grouping"] = "No"
-            
+            # Create ExcelFile record for each sheet
+            new_file = ExcelFile(
+                original_filename=file.filename,
+                tab_name=tab_name,
+                sheet_name=sheet_name,
+                uploaded_by=current_user.username,
+                columns_json=json.dumps(df.columns.tolist())
+            )
+            db.add(new_file)
+            db.flush() # Get the ID
+
+            # Save rows in chunks
             rows = df.to_dict(orient="records")
-            
-            # Clear (redundant but safe) and Insert
-            db[sub_collection].delete_many({})
             chunk_size = 5000
-            if rows:
-                for i in range(0, len(rows), chunk_size):
-                    db[sub_collection].insert_one({
-                        "chunk_index": i // chunk_size,
-                        "rows": rows[i:i + chunk_size]
-                    })
+            for i in range(0, len(rows), chunk_size):
+                chunk = MasterDataChunk(
+                    file_id=new_file.id,
+                    chunk_index=i // chunk_size,
+                    data_json=json.dumps(rows[i:i + chunk_size], default=str)
+                )
+                db.add(chunk)
             
-            sheet_metadata.append({
-                "name": sheet_name,
-                "collection_name": sub_collection
-            })
-
-        # Update metadata
-        from datetime import datetime
-        db.excel_files.update_one(
-            {"tab_name": tab_name},
-            {"$set": {
-                "file_name": file.filename,
-                "uploaded_at": datetime.utcnow(),
-                "uploaded_by": current_user.username,
-                "status": "active",
-                "sheets": sheet_metadata
-            }},
-            upsert=True
-        )
+            db.commit()
         
         return {
             "message": "File uploaded successfully", 
-            "sheets": sheet_metadata
+            "id": new_file.id,
+            "tab_name": tab_name
         }
         
     except Exception as e:
+        db.rollback()
         print(f"Error uploading file: {e}")
         raise HTTPException(500, f"Failed to upload file: {str(e)}")
 
 @router.delete("/files/{tab_name}")
 async def delete_tab_data(
     tab_name: str,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
     try:
-        db = get_database()
-        meta = db.excel_files.find_one({"tab_name": tab_name})
-        
-        if meta and "sheets" in meta:
-            for s in meta["sheets"]:
-                db[s["collection_name"]].drop()
+        existing_file = db.query(ExcelFile).filter(ExcelFile.tab_name == tab_name).first()
+        if existing_file:
+            db.query(MasterDataChunk).filter(MasterDataChunk.file_id == existing_file.id).delete()
+            db.delete(existing_file)
+            db.commit()
+            return {"message": f"Data for {tab_name} deleted successfully"}
         else:
-            # Fallback
-            db[f"master_data_{tab_name}"].drop()
-
-        db.excel_files.delete_one({"tab_name": tab_name})
-        return {"message": f"Data for {tab_name} deleted successfully"}
+            return {"message": f"No data found for {tab_name}"}
     except Exception as e:
-        print(f"Error deleting data: {e}")
+        db.rollback()
         raise HTTPException(500, f"Failed to delete data: {str(e)}")
-
-
-
-
-@router.get("/files")
-def list_files(
-    current_user: UserResponse = Depends(get_current_user)
-):
-    db = get_database()
-    # Return status of the 4 fixed tabs
-    tabs = ["Entity_Master", "Vendor_Master", "Line_Items", "TDS_Rates"]
-    result = []
-    for tab in tabs:
-        meta = db.excel_files.find_one({"tab_name": tab})
-        if meta:
-            meta["_id"] = str(meta["_id"])
-            result.append(meta)
-        else:
-            result.append({
-                "tab_name": tab,
-                "file_name": None,
-                "status": "missing"
-            })
-    return result
-
-# Removed get_sheets as we use fixed tabs now
 
 @router.get("/entities")
 def get_entities(
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
-    db = get_database()
-    
     # Support multi-sheet collection naming
-    meta = db.excel_files.find_one({"tab_name": "Entity_Master"})
-    collection_name = "master_data_Entity_Master"
-    if meta and "sheets" in meta and len(meta["sheets"]) > 0:
-        collection_name = meta["sheets"][0]["collection_name"]
+    file_meta = db.query(ExcelFile).filter(ExcelFile.tab_name == "Entity_Master").first()
     
-    chunks = list(
-        db[collection_name].find().sort("chunk_index", ASCENDING)
-    )
-
     entities = []
-    for chunk in chunks:
-        entities.extend(chunk.get("rows", []))
+    if file_meta:
+        chunks = db.query(MasterDataChunk).filter(MasterDataChunk.file_id == file_meta.id).order_by(asc(MasterDataChunk.chunk_index)).all()
+        for chunk in chunks:
+            entities.extend(json.loads(chunk.data_json))
 
     # --- AUTO-CREATE DEFAULT ENTITY IF NONE EXISTS ---
     if not entities:
-        from datetime import datetime
         print("DEBUG: No entities found. Creating Default Entity.")
-        
         default_entity = {
             "Entity Name": "Default Entity",
             "Entity No": "1",
             "EntityId": "1"
         }
         
-        # 1. Define Collection
-        default_collection = "master_data_Entity_Master_default"
-        
-        # 2. Insert Data
-        db[default_collection].delete_many({}) 
-        db[default_collection].insert_one({
-             "chunk_index": 0,
-             "rows": [default_entity]
-        })
-        
-        # 3. Update/Create Metadata
-        db.excel_files.update_one(
-            {"tab_name": "Entity_Master"},
-            {"$set": {
-                "file_name": "auto_generated_default",
-                "uploaded_at": datetime.utcnow(),
-                "uploaded_by": "system",
-                "status": "active",
-                "sheets": [{
-                    "name": "Default",
-                    "collection_name": default_collection
-                }]
-            }},
-            upsert=True
+        # 1. Create file record
+        new_file = ExcelFile(
+            original_filename="auto_generated_default",
+            tab_name="Entity_Master",
+            uploaded_by="system",
+            columns_json=json.dumps(["Entity Name", "Entity No", "EntityId"])
         )
+        db.add(new_file)
+        db.flush()
+        
+        # 2. Create chunk
+        chunk = MasterDataChunk(
+            file_id=new_file.id,
+            chunk_index=0,
+            data_json=json.dumps([default_entity])
+        )
+        db.add(chunk)
+        db.commit()
         
         entities = [default_entity]
 
     return entities
 
+def resolve_file_id(db: Session, identifier: Union[int, str]) -> int:
+    """Helper to resolve file_id from identity (int) or collection_name (tab:sheet)."""
+    try:
+        return int(identifier)
+    except (ValueError, TypeError):
+        name = str(identifier)
+        if name.startswith("master_data_"):
+            name = name.replace("master_data_", "")
+        
+        sheet_name = None
+        if ":" in name:
+            tab_name, sheet_name = name.split(":", 1)
+        else:
+            tab_name = name
 
+        query = db.query(ExcelFile).filter(ExcelFile.tab_name == tab_name)
+        if sheet_name:
+            query = query.filter(ExcelFile.sheet_name == sheet_name)
+        
+        file_meta = query.order_by(ExcelFile.uploaded_at.desc()).first()
+        if not file_meta:
+            raise HTTPException(404, f"No file found for: {identifier}")
+        return file_meta.id
 
-def load_full_sheet(collection_name: str):
-    db = get_database()
-    chunks = list(db[collection_name].find().sort("chunk_index", ASCENDING))
-
+def load_full_sheet_data(db: Session, file_id_or_identifier: Union[int, str]):
+    file_id = resolve_file_id(db, file_id_or_identifier)
+    chunks = db.query(MasterDataChunk).filter(MasterDataChunk.file_id == file_id).order_by(asc(MasterDataChunk.chunk_index)).all()
     rows = []
     for chunk in chunks:
-        rows.extend(chunk.get("rows", []))
+        rows.extend(json.loads(chunk.data_json))
+    return rows
 
-    return rows, chunks
-
-
-@router.get("/sheet/{collection_name}")
+@router.get("/sheet/{identifier}")
 async def get_sheet_data(
-    collection_name: str,
+    identifier: str,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
     try:
-        db = get_database()
-        docs = list(db[collection_name].find())
-
-        cleaned_rows = []
-
-        for doc in docs:
-            # REMOVE chunk-level _id
-            doc.pop("_id", None)
-
-            rows = doc.get("rows", [])
-            for row in rows:
-                # REMOVE row-level _id if exists
-                if "_id" in row:
-                    row["_id"] = str(row["_id"])
-                # Replace illegal JSON values
-                for k, v in row.items():
-                    if v is None or v != v:  # NaN check (v != v is true for NaN)
-                        row[k] = ""
-                cleaned_rows.append(row)
-
-        return cleaned_rows
-
+        rows = load_full_sheet_data(db, identifier)
+        # Clean data for JSON response
+        for row in rows:
+            for k, v in row.items():
+                if v is None or (isinstance(v, float) and np.isnan(v)):
+                    row[k] = ""
+        return rows
+    except HTTPException:
+        raise
     except Exception as e:
         print("ERROR IN SHEET:", e)
         raise HTTPException(status_code=500, detail=str(e))
 
-
-from pydantic import BaseModel
-from typing import Dict, Any
+@router.get("/sheet/tab/{tab_name}")
+async def get_sheet_data_by_tab(
+    tab_name: str,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    return await get_sheet_data(tab_name, db, current_user)
 
 class AddRowRequest(BaseModel):
     new_row: Dict[str, Any]
@@ -328,38 +312,41 @@ class EditRowRequest(BaseModel):
 class DeleteRowRequest(BaseModel):
     row_index: int
 
-@router.post("/sheet/{collection_name}/add")
+@router.post("/sheet/{identifier}/add")
 def add_row(
-    collection_name: str, 
+    identifier: str, 
     request: AddRowRequest,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
-    db = get_database()
-    rows, chunks = load_full_sheet(collection_name)
-
+    file_id = resolve_file_id(db, identifier)
+    rows = load_full_sheet_data(db, file_id)
     rows.append(request.new_row)
 
-    # Save back in 5000-row chunks
+    # Rewrite chunks
+    db.query(MasterDataChunk).filter(MasterDataChunk.file_id == file_id).delete()
+    
     chunk_size = 5000
-    db[collection_name].delete_many({})
-
     for i in range(0, len(rows), chunk_size):
-        db[collection_name].insert_one({
-            "chunk_index": i // chunk_size,
-            "rows": rows[i:i + chunk_size]
-        })
-
+        chunk = MasterDataChunk(
+            file_id=file_id,
+            chunk_index=i // chunk_size,
+            data_json=json.dumps(rows[i:i + chunk_size], default=str)
+        )
+        db.add(chunk)
+    
+    db.commit()
     return {"status": "success", "total": len(rows)}
 
-
-@router.patch("/sheet/{collection_name}/edit")
+@router.patch("/sheet/{identifier}/edit")
 def edit_row(
-    collection_name: str, 
+    identifier: str, 
     request: EditRowRequest,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
-    db = get_database()
-    rows, chunks = load_full_sheet(collection_name)
+    file_id = resolve_file_id(db, identifier)
+    rows = load_full_sheet_data(db, file_id)
 
     if request.row_index >= len(rows):
         raise HTTPException(400, "Row index out of range")
@@ -367,44 +354,46 @@ def edit_row(
     rows[request.row_index] = request.updated_row
 
     # Rewrite chunks
+    db.query(MasterDataChunk).filter(MasterDataChunk.file_id == file_id).delete()
+    
     chunk_size = 5000
-    db[collection_name].delete_many({})
-
     for i in range(0, len(rows), chunk_size):
-        db[collection_name].insert_one({
-            "chunk_index": i // chunk_size,
-            "rows": rows[i:i + chunk_size]
-        })
-
+        chunk = MasterDataChunk(
+            file_id=file_id,
+            chunk_index=i // chunk_size,
+            data_json=json.dumps(rows[i:i + chunk_size], default=str)
+        )
+        db.add(chunk)
+    
+    db.commit()
     return {"status": "updated"}
 
-@router.delete("/sheet/{collection_name}/delete")
+@router.delete("/sheet/{identifier}/delete")
 def delete_row(
-    collection_name: str,
-    row_index: int,  # 👈 QUERY PARAM
+    identifier: str,
+    row_index: int,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
-    db = get_database()
-    rows, _ = load_full_sheet(collection_name)
+    file_id = resolve_file_id(db, identifier)
+    rows = load_full_sheet_data(db, file_id)
 
     if row_index < 0 or row_index >= len(rows):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Row index {row_index} out of range (total={len(rows)})"
-        )
+        raise HTTPException(status_code=400, detail="Row index out of range")
 
     rows.pop(row_index)
 
     # Rewrite chunks
+    db.query(MasterDataChunk).filter(MasterDataChunk.file_id == file_id).delete()
+    
     chunk_size = 5000
-    db[collection_name].delete_many({})
-
     for i in range(0, len(rows), chunk_size):
-        db[collection_name].insert_one({
-            "chunk_index": i // chunk_size,
-            "rows": rows[i:i + chunk_size]
-        })
-
+        chunk = MasterDataChunk(
+            file_id=file_id,
+            chunk_index=i // chunk_size,
+            data_json=json.dumps(rows[i:i + chunk_size], default=str)
+        )
+        db.add(chunk)
+    
+    db.commit()
     return {"status": "deleted"}
-
-

@@ -16,6 +16,6 @@ class CurrencyUpdate(BaseModel):
     code: Optional[str] = None
 
 class CurrencyResponse(CurrencyBase):
-    id: str
+    id: int
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None

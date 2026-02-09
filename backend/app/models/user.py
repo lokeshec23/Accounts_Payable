@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, Union
 from datetime import datetime
 
 class User(BaseModel):
@@ -11,10 +11,10 @@ class User(BaseModel):
     created_at: Optional[datetime] = None
 
 class UserInDB(User):
-    id: str
+    id: Union[str, int]
 
 class UserResponse(BaseModel):
-    id: str
+    id: Union[str, int]
     username: str
     email: EmailStr
     role: str

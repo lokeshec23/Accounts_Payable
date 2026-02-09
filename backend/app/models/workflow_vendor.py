@@ -20,7 +20,7 @@ class VendorWorkflowInDB(VendorWorkflow):
     id: str
 
 class VendorWorkflowResponse(BaseModel):
-    id: str
+    id: int
     vendor_name: str
     vendor_id: Optional[str] = None
     mandatory_approver_1: str
@@ -32,7 +32,7 @@ class VendorWorkflowResponse(BaseModel):
     approver_count: int
     entity: str
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

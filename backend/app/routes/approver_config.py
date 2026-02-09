@@ -16,11 +16,9 @@ from app.models.approver_amount import (
     ApproverAmountResponse,
     ApproverAmountUpdate
 )
-from app.database.mongodb import get_database
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
 from datetime import datetime
-from bson.objectid import ObjectId
 
 router = APIRouter()
 

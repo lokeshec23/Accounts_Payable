@@ -20,7 +20,7 @@ class CodificationWorkflowInDB(CodificationWorkflow):
     id: str
 
 class CodificationWorkflowResponse(BaseModel):
-    id: str
+    id: int
     lob: str
     department_id: str
     mandatory_approver_1: str
@@ -32,7 +32,7 @@ class CodificationWorkflowResponse(BaseModel):
     approver_count: int
     entity: str
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

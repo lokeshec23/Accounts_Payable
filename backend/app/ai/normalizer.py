@@ -32,9 +32,9 @@ def normalize_vendor(name: str) -> str:
 
     text = name.lower()
     text = text.replace("×", "x")
-    # Remove common corporate suffixes with word boundaries
-    # Added llc, plc, gmbh, co, ag
-    suffixes = r"\b(pvt|private|ltd|limited|inc|llp|corp|corporation|llc|plc|gmbh|co|ag)\b"
+    # Remove common corporate and geographic suffixes with word boundaries
+    # Expanded list to handle geographic descriptors often used in master data
+    suffixes = r"\b(pvt|private|ltd|limited|inc|llp|corp|corporation|llc|plc|gmbh|co|ag|us|usa|india|intl|international|asia|europe|uk)\b"
     text = re.sub(suffixes, "", text)
     
     # Remove all non-alphanumeric (keep spaces)

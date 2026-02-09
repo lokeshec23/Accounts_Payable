@@ -1,88 +1,91 @@
 from fastapi import APIRouter, HTTPException, Depends, Body
 from typing import List
 from datetime import datetime
-from bson import ObjectId
-from app.database.mongodb import get_database
+from sqlalchemy.orm import Session
+from app.database.database import get_db
+from app.models.db_models import Currency
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
 from app.models.currency import CurrencyCreate, CurrencyUpdate, CurrencyResponse
 
 router = APIRouter(tags=["Currencies"])
 
-def format_currency(doc):
-    doc["id"] = str(doc["_id"])
-    return doc
-
 @router.get("/", response_model=List[CurrencyResponse])
-async def get_currencies(current_user: UserResponse = Depends(get_current_user)):
-    db = get_database()
-    currencies = list(db["currencies"].find())
+async def get_currencies(
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    currencies = db.query(Currency).all()
     
     # Seed default currencies if none exist
     if not currencies:
         default_currencies = [
-            {"name": "US Dollar", "symbol": "$", "code": "USD", "created_at": datetime.utcnow(), "updated_at": datetime.utcnow()},
-            {"name": "Indian Rupee", "symbol": "₹", "code": "INR", "created_at": datetime.utcnow(), "updated_at": datetime.utcnow()}
+            Currency(name="US Dollar", symbol="$", code="USD"),
+            Currency(name="Indian Rupee", symbol="₹", code="INR")
         ]
-        db["currencies"].insert_many(default_currencies)
-        currencies = list(db["currencies"].find())
+        db.add_all(default_currencies)
+        db.commit()
+        currencies = db.query(Currency).all()
         
-    return [format_currency(c) for c in currencies]
+    return currencies
 
 @router.post("/", response_model=CurrencyResponse)
 async def create_currency(
     currency: CurrencyCreate,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can add currencies")
         
-    db = get_database()
-    new_currency = currency.dict()
-    new_currency["created_at"] = datetime.utcnow()
-    new_currency["updated_at"] = datetime.utcnow()
+    new_currency = Currency(
+        name=currency.name,
+        symbol=currency.symbol,
+        code=currency.code
+    )
+    db.add(new_currency)
+    db.commit()
+    db.refresh(new_currency)
     
-    result = db["currencies"].insert_one(new_currency)
-    new_currency["_id"] = result.inserted_id
-    
-    return format_currency(new_currency)
+    return new_currency
 
 @router.put("/{currency_id}", response_model=CurrencyResponse)
 async def update_currency(
-    currency_id: str,
+    currency_id: int,
     currency: CurrencyUpdate,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can update currencies")
         
-    db = get_database()
-    update_data = {k: v for k, v in currency.dict().items() if v is not None}
-    update_data["updated_at"] = datetime.utcnow()
-    
-    result = db["currencies"].update_one(
-        {"_id": ObjectId(currency_id)},
-        {"$set": update_data}
-    )
-    
-    if result.matched_count == 0:
+    db_currency = db.query(Currency).filter(Currency.id == currency_id).first()
+    if not db_currency:
         raise HTTPException(status_code=404, detail="Currency not found")
         
-    updated_doc = db["currencies"].find_one({"_id": ObjectId(currency_id)})
-    return format_currency(updated_doc)
+    if currency.name is not None: db_currency.name = currency.name
+    if currency.symbol is not None: db_currency.symbol = currency.symbol
+    if currency.code is not None: db_currency.code = currency.code
+    db_currency.updated_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(db_currency)
+    return db_currency
 
 @router.delete("/{currency_id}")
 async def delete_currency(
-    currency_id: str,
+    currency_id: int,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can delete currencies")
         
-    db = get_database()
-    result = db["currencies"].delete_one({"_id": ObjectId(currency_id)})
-    
-    if result.deleted_count == 0:
+    db_currency = db.query(Currency).filter(Currency.id == currency_id).first()
+    if not db_currency:
         raise HTTPException(status_code=404, detail="Currency not found")
         
+    db.delete(db_currency)
+    db.commit()
+    
     return {"message": "Currency deleted successfully"}

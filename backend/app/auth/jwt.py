@@ -4,7 +4,9 @@ from passlib.context import CryptContext
 from app.config.settings import settings
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from app.database.mongodb import get_database
+from sqlalchemy.orm import Session
+from app.database.database import get_db
+from app.models.db_models import User as UserDB
 from app.models.user import UserResponse
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -37,7 +39,7 @@ def verify_token(token: str):
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -48,18 +50,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     if email is None:
         raise credentials_exception
         
-    db = get_database()
-    user = db.users.find_one({"email": email})
+    user = db.query(UserDB).filter(UserDB.email == email).first()
     if user is None:
         raise credentials_exception
             
     user_response = UserResponse(
-        id=str(user["_id"]),
-        username=user["username"],
-        email=user["email"],
-        created_at=user["created_at"],
-        role=user.get("role", "coder"),
-        status=user.get("status", "active")
+        id=str(user.id),
+        username=user.username,
+        email=user.email,
+        created_at=user.created_at,
+        role=user.role,
+        status=user.status
     )
         
     return user_response

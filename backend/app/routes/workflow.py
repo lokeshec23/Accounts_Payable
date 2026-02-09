@@ -1,5 +1,20 @@
 from fastapi import APIRouter, HTTPException, Depends
-from typing import List,Optional
+from typing import List, Optional, Dict, Any
+from sqlalchemy.orm import Session
+from sqlalchemy import desc, asc
+import json
+import re
+from datetime import datetime
+
+from app.database.database import get_db
+from app.models.db_models import (
+    Invoice, WorkflowStep, VendorWorkflow, CodificationWorkflow, 
+    ExcelFile, MasterDataChunk, Coding as DBCoding,
+    ApproverAmount, ApproverGL, ApproverNumber, ApproverDefault
+)
+from app.auth.jwt import get_current_user
+from app.dependencies import get_current_entity
+from app.models.user import UserResponse
 from app.models.workflow import (
     WorkflowStepCreate,
     WorkflowStepResponse,
@@ -7,540 +22,360 @@ from app.models.workflow import (
     WorkflowStepType,
     WorkflowStepStatus
 )
-from app.database.mongodb import get_database
-from app.auth.jwt import get_current_user
-from app.dependencies import get_current_entity
-from app.models.user import UserResponse
-from datetime import datetime
-from bson.objectid import ObjectId
+from app.ai.vector_matcher import get_cached_vendors
+from app.ai.normalizer import normalize_vendor
 
 router = APIRouter()
 
-def get_vendor_data_from_invoice(db, invoice_id: str):
-    """Helper to extract vendor name and ID from invoice"""
-    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+def get_vendor_data_from_invoice(db: Session, invoice_id: int):
+    """Helper to extract vendor name and ID from invoice using SQLAlchemy"""
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         return None, None
     
-    # Check direct fields first (highest reliability)
-    v_name = invoice.get("vendor_name")
-    v_id = invoice.get("vendor_id")
+    # Check direct fields first
+    v_name = invoice.vendor_name
+    v_id = invoice.vendor_id
     if v_name and v_id:
         return v_name, v_id
 
-    extracted = invoice.get("extracted_data", {})
-    
-    # Check new nested structure
+    # Fallback to extraction data
+    extracted = {}
+    if invoice.extracted_data:
+        try:
+            extracted = json.loads(invoice.extracted_data) if isinstance(invoice.extracted_data, str) else invoice.extracted_data
+        except:
+            pass
+            
     if "vendor_info" in extracted:
         v_info = extracted["vendor_info"]
         if isinstance(v_info, dict):
-            name_obj = v_info.get("name", {})
-            if isinstance(name_obj, dict):
-                val = name_obj.get("value")
-                if val:
-                    v_name = str(val).strip()
+            name_val = v_info.get("name", {}).get("value") if isinstance(v_info.get("name"), dict) else v_info.get("name")
+            if name_val: v_name = str(name_val).strip()
+            
+            # Also try to get vendor_id if LLM extracted it (unlikely but possible) or it was stored in metadata
+            id_val = v_info.get("vendor_id", {}).get("value") if isinstance(v_info.get("vendor_id"), dict) else v_info.get("vendor_id")
+            if id_val: v_id = str(id_val).strip()
     
-    # Try common fields for vendor name if still None
     if not v_name:
         for field in ["VendorName", "MerchantName", "vendor_name", "merchant_name"]:
             if field in extracted and isinstance(extracted[field], dict):
                 val = extracted[field].get("value")
-                if val:
-                    v_name = str(val).strip()
-                    break
+                if val: v_name = str(val).strip()
     
+    if not v_id:
+    # Try to get from top level of extraction if LLM put it there
+        for field in ["VendorId", "vendor_id", "CustomerID", "customer_id"]:
+            if field in extracted and isinstance(extracted[field], dict):
+                val = extracted[field].get("value")
+                if val:
+                    v_id = str(val).strip()
+                    if not v_name:
+                        v_name = str(val).strip()
+                    break
+
     return v_name, v_id
 
-def get_invoice_total_from_invoice(db, invoice_id: str):
-    """Helper to extract total amount from invoice"""
-    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+
+def get_invoice_total_from_invoice(db: Session, invoice_id: int):
+    """Helper to extract total amount from invoice using SQLAlchemy"""
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         return None
         
-    extracted = invoice.get("extracted_data", {})
+    extracted = {}
+    if invoice.extracted_data:
+        try:
+            extracted = json.loads(invoice.extracted_data) if isinstance(invoice.extracted_data, str) else invoice.extracted_data
+        except:
+            pass
     
-    # helper to clean and parse float
     def parse_amount(val):
         if not val:
             return None
         try:
-            # Handle float/int directly
             if isinstance(val, (int, float)):
                 return float(val)
-                
-            val_str = str(val).strip()
-            # Use regex to find the number part. 
-            # Matches: optional negative sign, digits with optional commas, optional decimal part
-            import re
-            # Remove all non-numeric chars except . and -
-            # This handles "3,222.09 USD" -> "3222.09"
-            # It also handles "$3,222.09" -> "3222.09"
-            
-            # First, try to extract a clear number pattern
-            # Look for digits, commas, dots. 
-            # But "USD 300" -> "300"
-            
-            # Simple approach: Remove all chars that are NOT digits, dots, or minus signs
-            # But remove commas first to avoid confusion with decimals in some locales (assuming standard US/UK format based on example)
-            clean = val_str.replace(",", "")
-            
-            # Now extract the first valid float-like sequence
-            match = re.search(r'-?\d+(\.\d+)?', clean)
+            val_str = str(val).strip().replace(",", "")
+            match = re.search(r'-?\d+(\.\d+)?', val_str)
             if match:
                 return float(match.group())
-                
             return None
-        except Exception as e:
+        except:
             return None
 
-    # Check new nested structure first
     if "amounts" in extracted:
         amounts = extracted["amounts"]
         if isinstance(amounts, dict):
-            # Try total_invoice_amount
             total_obj = amounts.get("total_invoice_amount", {})
             if isinstance(total_obj, dict):
                 return parse_amount(total_obj.get("value"))
                 
-    # Try common fields for total amount
     for field in ["Total Invoice Amount", "TotalAmount", "InvoiceTotal", "Total", "total_amount"]:
         if field in extracted and isinstance(extracted[field], dict):
             return parse_amount(extracted[field].get("value"))
             
     return None
 
-def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None, invoice_data: dict = None, currency: str = "USD", entity: str = None, force_vendor_id: str = None, force_vendor_name: str = None):
+def get_required_approver_count(
+    db: Session, 
+    vendor_name: str, 
+    amount: float = None, 
+    invoice_id: int = None, 
+    invoice_data: Any = None, 
+    currency: str = "USD", 
+    entity: str = None, 
+    force_vendor_id: str = None, 
+    force_vendor_name: str = None
+):
     """
-    Get the required approvers based on new Workflow Redesign.
-    
-    Returns:
-    {
-        "required": int,
-        "assigned_approvers": List[str],
-        "workflow_type": str,
-        "breakdown": { ... }
-    }
+    Get the required approvers based on Workflow rules in SQL Server.
     """
-    
-    # 0. Check for persisted values on the invoice (SKIP if forcing preview)
-    if not force_vendor_name and not force_vendor_id and invoice_data and "required_approvers" in invoice_data and invoice_data["required_approvers"] is not None:
-        persisted_assigned = invoice_data.get("assigned_approvers", [])
-        if persisted_assigned and len(persisted_assigned) > 0:
-            return {
-                "required": invoice_data["required_approvers"],
-                "assigned_approvers": persisted_assigned,
-                "workflow_type": invoice_data.get("workflow_type", "persisted"),
-                "breakdown": invoice_data.get("approver_breakdown", {})
-            }
-        else:
-            print("DEBUG: Persisted count found but NO assigned_approvers list. Recalculating to fetch names.")
+    # 0. Check persisted values
+    if not force_vendor_name and not force_vendor_id and invoice_data:
+        if hasattr(invoice_data, "required_approvers") and invoice_data.required_approvers is not None:
+            # We need to map relationship models to strings for the response
+            assigned_approvers = []
+            if hasattr(invoice_data, "assigned_approvers_list"):
+                assigned_approvers = [a.approver_email for a in sorted(invoice_data.assigned_approvers_list, key=lambda x: x.sequence_order)]
+                
+            if assigned_approvers:
+                return {
+                    "required": invoice_data.required_approvers,
+                    "assigned_approvers": assigned_approvers,
+                    "workflow_type": getattr(invoice_data, "workflow_type", "persisted"),
+                    "breakdown": {} # Breakdown is usually not persisted in a structured way elsewhere
+                }
 
     assigned_approvers = []
     workflow_found = False
     workflow_type = None
-    
-    # Check Vendor Eligibility from Master Data
     vendor_eligible = False
     
+    # Resolve vendor identity
     if force_vendor_name or force_vendor_id:
          v_name_resolved = force_vendor_name
          v_id_resolved = force_vendor_id
     else:
         v_name_resolved, v_id_resolved = get_vendor_data_from_invoice(db, invoice_id) if invoice_id else (vendor_name, None)
 
- 
+    # 1. Check Vendor Eligibility in Vendor Master (Using Cache)
+    vendors, vendor_map, address_map = get_cached_vendors(db)
     
-    if v_name_resolved:
-        # 1. Targeted search for Vendor_Master tab (Matches workflow_config.py)
-        meta = db.excel_files.find_one({"tab_name": "Vendor_Master"})
-        if meta and "sheets" in meta and meta["sheets"]:
-            vendor_collection = meta["sheets"][0].get("collection_name")
-            if vendor_collection:
-                # Search by ID if available, else by name
-                inner_query = {}
-                if v_id_resolved:
-                    inner_query = {
-                        "$or": [
-                            {"VENDOR_ID": v_id_resolved}, {"Vendor ID": v_id_resolved}, {"vendor_id": v_id_resolved}, {"Customer_Id": v_id_resolved}
-                        ]
-                    }
-                else:
-                    inner_query = {
-                        "$or": [
-                            {"VENDOR_NAME": v_name_resolved}, {"Vendor Name": v_name_resolved}, {"vendor_name": v_name_resolved}, {"Name": v_name_resolved}
-                        ]
-                    }
-
-                # Search inside CHUNKED rows
-                chunk = db[vendor_collection].find_one({"rows": {"$elemMatch": inner_query}})
-                
-                if chunk:
-                    # Find the actual row in the chunk
-                    vendor_entry = next((row for row in chunk["rows"] if any(
-                        (str(row.get("VENDOR_ID")) == str(v_id_resolved) if v_id_resolved else False) or
-                        (str(row.get("Vendor ID")) == str(v_id_resolved) if v_id_resolved else False) or
-                        (str(row.get("vendor_id")) == str(v_id_resolved) if v_id_resolved else False) or
-                        (str(row.get("Customer_Id")) == str(v_id_resolved) if v_id_resolved else False) or
-                        (str(row.get("VENDOR_NAME")) == v_name_resolved if not v_id_resolved else False) or
-                        (str(row.get("Vendor Name")) == v_name_resolved if not v_id_resolved else False) or
-                        (str(row.get("vendor_name")) == v_name_resolved if not v_id_resolved else False) or
-                        (str(row.get("Name")) == v_name_resolved if not v_id_resolved else False)
-                        for _ in [1]
-                    )), None)
-
-                    if vendor_entry:
-                        workflow_applicable = None
-                        for key in vendor_entry.keys():
-                            kl = key.lower()
-                            if "workflow" in kl and ("applicable" in kl or "applicability" in kl or "eligible" in kl or "eligibility" in kl):
-                                workflow_applicable = vendor_entry[key]
-                                break
-                        
-                        if str(workflow_applicable).strip().lower() == "yes":
-                            vendor_eligible = True
-                        else:
-                            print(f"DEBUG: Vendor found but NOT workflow eligible. Value: '{workflow_applicable}'")
+    vendor_entry = None
+    if v_id_resolved:
+        # Search for vendor_id across all rows in the list (maps are by name/address)
+        # We could improve vector_matcher to cache by ID too, but let's do a simple list search for now
+        # or check if it's in the rows.
+        for row in vendors:
+            rid = row.get("Vendor ID") or row.get("VendorID") or row.get("vendor_id") or row.get("Customer_Id")
+            if str(rid) == str(v_id_resolved):
+                vendor_entry = row
+                break
     
+    if not vendor_entry and v_name_resolved:
+        norm_name = normalize_vendor(v_name_resolved)
+        vendor_entry = vendor_map.get(norm_name)
 
-    # 1. Try Vendor Based Workflow (Only if ELIGIBLE)
-    if vendor_eligible and v_name_resolved and entity:
-        # Try finding by vendor_id first for better precision
-        workflow_query = {"entity": entity}
+    if vendor_entry:
+        workflow_applicable = None
+        for key in vendor_entry.keys():
+            kl = key.lower()
+            if "workflow" in kl and ("applicable" in kl or "applicability" in kl or "eligible" in kl or "eligibility" in kl):
+                workflow_applicable = vendor_entry[key]
+                break
+        if str(workflow_applicable).strip().lower() == "yes":
+            vendor_eligible = True
+
+    # 2. Try Vendor Based Workflow
+    if entity:
+        v_workflow = None
         if v_id_resolved:
-            workflow_query["vendor_id"] = v_id_resolved
-        else:
-            workflow_query["vendor_name"] = v_name_resolved.strip()
+            v_workflow = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_id == v_id_resolved, VendorWorkflow.entity == entity).first()
             
-        vendor_workflow = db.vendor_workflows.find_one(workflow_query)
-        
-        # Fallback to name ONLY if ID was NOT provided/resolved
-        # (User Request: If ID is present, STRICTLY use ID)
-        if not vendor_workflow and not v_id_resolved and v_name_resolved:
-             vendor_workflow = db.vendor_workflows.find_one({
-                "vendor_name": v_name_resolved.strip(),
-                "entity": entity
-            })
-        
-        if vendor_workflow:
-            workflow_found = True
-            workflow_type = "vendor"
-            # Extract assigned approvers based on approver_count
-            count = vendor_workflow.get("approver_count", 3)
-            # ...
-            assigned_approvers = [
-                vendor_workflow.get("mandatory_approver_1"),
-                vendor_workflow.get("mandatory_approver_2"),
-                vendor_workflow.get("mandatory_approver_3")
-            ]
+            # Fallback fuzzy entity match if exact match fails
+            if not v_workflow and entity:
+                all_v_workflows = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_id == v_id_resolved).all()
+                for vw in all_v_workflows:
+                    if entity.lower() in vw.entity.lower() or vw.entity.lower() in entity.lower():
+                        v_workflow = vw
+                        break
             
-            if count >= 4:
-                threshold_amt = vendor_workflow.get("amount_threshold", 0)
-                threshold_appr = vendor_workflow.get("threshold_approver")
-                if threshold_appr and amount is not None:
-                    # STRICT GREATER THAN as per user request
-                    if amount > threshold_amt:
-                        assigned_approvers.append(threshold_appr)
-            
-            if count == 5:
-                optional_appr = vendor_workflow.get("optional_approver")
-                if optional_appr:
-                    assigned_approvers.append(optional_appr)
+            if v_workflow:
+                # If we found a workflow, we prioritize it
+                workflow_found = True
+                workflow_type = "vendor"
+                count = v_workflow.approver_count
+                assigned_approvers = [v_workflow.mandatory_approver_1, v_workflow.mandatory_approver_2, v_workflow.mandatory_approver_3]
+                
+                if count >= 4:
+                    # Check threshold (Changed to >= for robustness)
+                    if amount is not None and v_workflow.amount_threshold is not None:
+                         if amount >= v_workflow.amount_threshold:
+                            assigned_approvers.append(v_workflow.threshold_approver)
+                if count == 5:
+                    assigned_approvers.append(v_workflow.optional_approver)
 
-    # 2. Try Codification Based Workflow (Fallback if no Vendor Workflow found)
-    # This allows "Workflow Eligible" vendors to use Codification rules if they don't have a specific Vendor Workflow
+    # 3. Try Codification Based Workflow
     if not workflow_found and invoice_id and entity:
-        # Fetch coding data to get LOB and Dept ID
-        coding = db.coding.find_one({"invoice_id": invoice_id})
-        if coding and "line_items" in coding:
-            # Match against the first line item with LOB/Dept
-            for item in coding["line_items"]:
+        coding = db.query(DBCoding).filter(DBCoding.invoice_id == invoice_id).first()
+        if coding and coding.line_items:
+            items = json.loads(coding.line_items)
+            for item in items:
                 lob_raw = item.get("lob")
                 dept_raw = item.get("department_id") or item.get("department")
-                
-                # Extract ID from "ID - Name" if present
                 lob = lob_raw.split(" - ")[0].strip() if lob_raw and " - " in str(lob_raw) else lob_raw
                 dept = dept_raw.split(" - ")[0].strip() if dept_raw and " - " in str(dept_raw) else dept_raw
 
                 if lob and dept:
-                    cod_workflow = db.codification_workflows.find_one({
-                        "lob": lob,
-                        "department_id": dept,
-                        "entity": entity
-                    })
+                    cod_workflow = db.query(CodificationWorkflow).filter(
+                        CodificationWorkflow.lob == lob,
+                        CodificationWorkflow.department_id == dept,
+                        CodificationWorkflow.entity == entity
+                    ).first()
                     
                     if cod_workflow:
                         workflow_found = True
                         workflow_type = "codification"
-                        count = cod_workflow.get("approver_count", 3)
-                        assigned_approvers = [
-                            cod_workflow.get("mandatory_approver_1"),
-                            cod_workflow.get("mandatory_approver_2"),
-                            cod_workflow.get("mandatory_approver_3")
-                        ]
+                        count = cod_workflow.approver_count
+                        assigned_approvers = [cod_workflow.mandatory_approver_1, cod_workflow.mandatory_approver_2, cod_workflow.mandatory_approver_3]
                         
                         if count >= 4:
-                            threshold_amt = cod_workflow.get("amount_threshold", 0)
-                            threshold_appr = cod_workflow.get("threshold_approver")
-                            if threshold_appr and amount is not None:
-                                if amount >= threshold_amt:
-                                    assigned_approvers.append(threshold_appr)
-                        
+                            if amount is not None and amount >= cod_workflow.amount_threshold:
+                                assigned_approvers.append(cod_workflow.threshold_approver)
                         if count == 5:
-                            optional_appr = cod_workflow.get("optional_approver")
-                            if optional_appr:
-                                assigned_approvers.append(optional_appr)
+                            assigned_approvers.append(cod_workflow.optional_approver)
                         break
 
-    # 3. Fallback to Default Count
+    # 4. Fallback Logic (Progressive check of other config tables)
+    if not workflow_found and entity:
+        # A. Check GL based configuration
+        coding = db.query(DBCoding).filter(DBCoding.invoice_id == invoice_id).first() if invoice_id else None
+        if coding and coding.header_coding:
+            hc = json.loads(coding.header_coding)
+            gl_code = hc.get("gl_code")
+            if gl_code:
+                approver_gl = db.query(ApproverGL).filter(ApproverGL.gl_code == gl_code, ApproverGL.entity == entity).first()
+                if approver_gl:
+                    workflow_found = True
+                    workflow_type = "approver_gl"
+                    count = approver_gl.required_approvers
+                    emails = json.loads(approver_gl.approver_emails) if approver_gl.approver_emails else []
+                    assigned_approvers = [e for e in emails if e]
+
+        # B. Check Amount based configuration
+        if not workflow_found and amount is not None:
+            approver_amt = db.query(ApproverAmount).filter(
+                ApproverAmount.entity == entity,
+                ApproverAmount.min_amount <= amount,
+                ApproverAmount.max_amount >= amount
+            ).first()
+            if approver_amt:
+                workflow_found = True
+                workflow_type = "approver_amount"
+                count = approver_amt.required_approvers
+                emails = json.loads(approver_amt.approver_emails) if approver_amt.approver_emails else []
+                assigned_approvers = [e for e in emails if e]
+
+        # C. Check Approver Number (Count based)
+        if not workflow_found:
+            approver_num = db.query(ApproverNumber).filter(ApproverNumber.entity == entity).first()
+            if approver_num:
+                workflow_found = True
+                workflow_type = "approver_number"
+                count = approver_num.approver_count
+                emails = json.loads(approver_num.approver_emails) if approver_num.approver_emails else []
+                assigned_approvers = [e for e in emails if e]
+
+        # D. Check Default configuration
+        if not workflow_found:
+            approver_def = db.query(ApproverDefault).filter(ApproverDefault.entity == entity).first()
+            if approver_def:
+                workflow_found = True
+                workflow_type = "approver_default"
+                count = approver_def.required_approvers
+                emails = json.loads(approver_def.approver_emails) if approver_def.approver_emails else []
+                assigned_approvers = [e for e in emails if e]
+
     if not workflow_found:
-        workflow_type = "default"
-        required_count = 3
         return {
-            "required": required_count,
+            "required": 3,
             "assigned_approvers": [],
-            "workflow_type": "default",
-            "breakdown": {"default": required_count}
+            "workflow_type": "hardcoded_default",
+            "breakdown": {"default": 3}
         }
 
-    # Filter out None or empty approvers
     assigned_approvers = [a for a in assigned_approvers if a]
-    
     return {
         "required": len(assigned_approvers),
         "assigned_approvers": assigned_approvers,
         "workflow_type": workflow_type,
-        "breakdown": {
-            "type": workflow_type,
-            "vendor_eligible": vendor_eligible
-        }
+        "breakdown": {"type": workflow_type, "vendor_eligible": vendor_eligible}
     }
 
 @router.get("/{invoice_id}", response_model=WorkflowHistoryResponse)
 async def get_workflow_history(
-    invoice_id: str,
+    invoice_id: int,
     preview_vendor_id: Optional[str] = None,
     preview_vendor_name: Optional[str] = None,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
-    """Get complete workflow history for an invoice. Supports previewing workflow for unsaved vendor changes."""
-    db = get_database()
-    
-    # Verify invoice exists AND belongs to entity
-    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
+        raise HTTPException(404, "Invoice not found")
+    
+    # Use the entity stored on the invoice
+    entity = invoice.entity
         
-    # Entity Check
-    if invoice.get("entity") != entity:
-        raise HTTPException(status_code=403, detail="Access denied to this entity's data")
-    
-    # Get vendor name/ID (prefer preview, else fetch from DB)
-    if preview_vendor_name or preview_vendor_id:
-        vendor_name = preview_vendor_name
-        vendor_id = preview_vendor_id
-    else:
-        vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
-
+    vendor_name = preview_vendor_name if preview_vendor_name else (invoice.vendor_name or "Unknown")
+    vendor_id = preview_vendor_id if preview_vendor_id else invoice.vendor_id
     total_amount = get_invoice_total_from_invoice(db, invoice_id)
-    currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
+    
+    # Support currency extraction
+    extracted = {}
+    if invoice.extracted_data:
+        try:
+            extracted = json.loads(invoice.extracted_data) if isinstance(invoice.extracted_data, str) else invoice.extracted_data
+        except: pass
+    currency = extracted.get("invoice_details", {}).get("currency", {}).get("value", "USD")
 
-    # Pass resolved vendor data to calculation
-    # We must modify `get_required_approver_count` to accept explicit vendor_id/name overrides if we want to be clean, 
-    # OR we can hack `get_required_approver_count` to take them.
-    # Actually, `get_required_approver_count` takes `vendor_name` as arg2.
-    # But it calculates `v_name_resolved, v_id_resolved` internally again!
-    # We should update `get_required_approver_count` to take optional overrides too.
-    
-    # Let's inspect get_required_approver_count signature:
-    # def get_required_approver_count(db, vendor_name: str, amount: float = None, invoice_id: str = None, invoice_data: dict = None, currency: str = "USD", entity: str = None):
-    
-    # It takes `vendor_name`. But inside it calls `get_vendor_data_from_invoice(db, invoice_id)`.
-    # I need to update `get_required_approver_count` to respect the passed `vendor_name` if `invoice_id` is passed but we want to override.
-    
-    # Actually, let's look at `get_required_approver_count` implementation again.
-    # It does: `v_name_resolved, v_id_resolved = get_vendor_data_from_invoice(db, invoice_id) if invoice_id else (vendor_name, None)`
-    
-    # So if we pass `invoice_id`, it IGNORES the passed `vendor_name` argument! This is a bug for our use case.
-    # Fix: We will modify `get_required_approver_count` to verify if we want to FORCE the passed name/id.
-    
-    # However, simpler fix for now: Don't pass `invoice_id` to `get_required_approver_count` if we are in preview mode? 
-    # But `invoice_id` is needed for "Persisted values" check and "Codification workflow fallback" (fetching coding).
-    
-    # Best approach: Add `vendor_id` kwarg to `get_required_approver_count` and prioritize explicitly passed args.
-    
     requirement_data = get_required_approver_count(
-        db, 
-        vendor_name, 
-        total_amount, 
-        invoice_id, 
-        invoice_data=invoice, 
-        currency=currency, 
-        entity=entity,
-        force_vendor_id=vendor_id, 
-        force_vendor_name=vendor_name
+        db, vendor_name, total_amount, invoice_id, invoice_data=invoice, 
+        currency=currency, entity=entity, force_vendor_id=vendor_id, force_vendor_name=vendor_name
     )
-    required_approvers = requirement_data["required"]
-    approver_breakdown = requirement_data["breakdown"]
     
-    # Get all workflow steps for this invoice
-    steps = db.workflow_steps.find({"invoice_id": invoice_id}).sort("timestamp", 1)
+    steps = db.query(WorkflowStep).filter(WorkflowStep.invoice_id == invoice_id).order_by(asc(WorkflowStep.timestamp)).all()
     
-    step_list = []
-    for step in steps:
-        step["id"] = str(step["_id"])
-        step_list.append(WorkflowStepResponse(**step))
-    
-    # 🆕 Fetch Active Delegations for assigned approvers
+    # Fetch Delegations
     delegations_map = {}
     from app.models.delegation import check_active_delegation
     assigned_approvers = requirement_data.get("assigned_approvers", [])
-    for approver_email in assigned_approvers:
-        substitutes = check_active_delegation(db, approver_email, entity)
-        if substitutes:
-            delegations_map[approver_email.lower()] = substitutes
+    for email in assigned_approvers:
+        subs = check_active_delegation(db, email, entity)
+        if subs: delegations_map[email.lower()] = subs
 
     return WorkflowHistoryResponse(
-        invoice_id=invoice_id,
+        invoice_id=str(invoice_id),
         vendor_name=vendor_name,
-        required_approvers=required_approvers,
+        required_approvers=requirement_data["required"],
         assigned_approvers=assigned_approvers,
-        current_approver_level=invoice.get("current_approver_level", 1),
-        current_status=invoice.get("status"),
-        approver_breakdown=approver_breakdown,
+        current_approver_level=invoice.current_approver_level or 1,
+        current_status=invoice.status.value if hasattr(invoice.status, "value") else str(invoice.status),
+        approver_breakdown=requirement_data["breakdown"],
         delegations=delegations_map,
-        steps=step_list
+        steps=[
+            WorkflowStepResponse(
+                id=str(s.id),
+                invoice_id=str(s.invoice_id),
+                step_name=s.step_name,
+                step_type=s.step_type,
+                user=s.user,
+                status=s.status,
+                approver_number=s.approver_number,
+                comment=s.comment,
+                timestamp=s.timestamp
+            ) for s in steps
+        ]
     )
-
-@router.post("/step", response_model=WorkflowStepResponse)
-async def create_workflow_step(
-    step_data: WorkflowStepCreate,
-    current_user: UserResponse = Depends(get_current_user),
-    entity: str = Depends(get_current_entity)
-):
-    """Create a new workflow step"""
-    db = get_database()
-    
-    # Verify invoice exists AND belongs to entity
-    invoice = db.invoices.find_one({"_id": ObjectId(step_data.invoice_id)})
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-
-    # Entity Check
-    if invoice.get("entity") != entity:
-        raise HTTPException(status_code=403, detail="Access denied to this entity's data")
-    
-    # Validation: Check for duplicate approvers
-    if step_data.step_type in [WorkflowStepType.APPROVER_1, WorkflowStepType.APPROVER_2, 
-                                WorkflowStepType.APPROVER_3, WorkflowStepType.APPROVER_4]:
-        # Get all existing approver steps
-        existing_approvers = db.workflow_steps.find({
-            "invoice_id": step_data.invoice_id,
-            "step_type": {"$in": ["approver_1", "approver_2", "approver_3", "approver_4"]}
-        })
-        
-        approver_users = [step["user"] for step in existing_approvers]
-        
-        if step_data.user in approver_users:
-            # 🆕 RELAXED CHECK FOR DELEGATION
-            # If the user is an active substitute for the CURRENTLY EXPECTED approver, allow it.
-            current_level = (invoice.get("current_approver_level") or 1)
-            # Need requirement_data to find expected_email
-            from app.routes.workflow import (
-                get_vendor_data_from_invoice,
-                get_required_approver_count,
-                get_invoice_total_from_invoice
-            )
-            vendor_name, _ = get_vendor_data_from_invoice(db, step_data.invoice_id)
-            total_amount = get_invoice_total_from_invoice(db, step_data.invoice_id)
-            currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
-            
-            req_data = get_required_approver_count(
-                db, vendor_name, total_amount, step_data.invoice_id, invoice_data=invoice, currency=currency, entity=entity
-            )
-            assigned = req_data.get("assigned_approvers", [])
-            
-            is_delegate = False
-            if current_level <= len(assigned):
-                expected_email = assigned[current_level - 1].lower()
-                from app.models.delegation import check_active_delegation
-                substitutes = check_active_delegation(db, expected_email, entity)
-                if current_user.email.lower() in substitutes:
-                    is_delegate = True
-
-            if not is_delegate:
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"User {step_data.user} has already approved/rejected this invoice. Approvers must be unique."
-                )
-    
-    # Create the workflow step
-    step_dict = step_data.dict()
-    step_dict["timestamp"] = datetime.utcnow()
-    step_dict["entity"] = entity # Store entity on step too
-    
-    result = db.workflow_steps.insert_one(step_dict)
-    
-    created_step = db.workflow_steps.find_one({"_id": result.inserted_id})
-    created_step["id"] = str(created_step["_id"])
-    
-    return WorkflowStepResponse(**created_step)
-
-@router.get("/approvers/{invoice_id}")
-async def get_approver_status(
-    invoice_id: str,
-    current_user: UserResponse = Depends(get_current_user),
-    entity: str = Depends(get_current_entity)
-):
-    """Get the status of all approvers for an invoice"""
-    db = get_database()
-    
-    # Get invoice to check for persisted rules
-    invoice = db.invoices.find_one({"_id": ObjectId(invoice_id)})
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-
-    # Entity Check
-    if invoice.get("entity") != entity:
-        raise HTTPException(status_code=403, detail="Access denied to this entity's data")
-    
-    # Get vendor name/ID and total amount
-    vendor_name, vendor_id = get_vendor_data_from_invoice(db, invoice_id)
-    total_amount = get_invoice_total_from_invoice(db, invoice_id)
-    currency = invoice.get("extracted_data", {}).get("invoice_details", {}).get("currency", {}).get("value", "USD")
-    requirement_data = get_required_approver_count(db, vendor_name, total_amount, invoice_id, invoice_data=invoice, currency=currency, entity=entity)
-    required_approvers = requirement_data["required"]
-    
-    # Get all approver steps
-    approver_steps = db.workflow_steps.find({
-        "invoice_id": invoice_id,
-        "step_type": {"$in": ["approver_1", "approver_2", "approver_3", "approver_4"]}
-    }).sort("timestamp", 1)
-    
-    approvers = []
-    for step in approver_steps:
-        approvers.append({
-            "approver_number": step.get("approver_number"),
-            "user": step["user"],
-            "status": step["status"],
-            "timestamp": step["timestamp"],
-            "comment": step.get("comment")
-        })
-    
-    # 🆕 Fetch Active Delegations for assigned approvers
-    delegations_map = {}
-    from app.models.delegation import check_active_delegation
-    assigned_approvers = requirement_data.get("assigned_approvers", [])
-    for approver_email in assigned_approvers:
-        substitutes = check_active_delegation(db, approver_email, entity)
-        if substitutes:
-            delegations_map[approver_email.lower()] = substitutes
-
-    return {
-        "invoice_id": invoice_id,
-        "vendor_name": vendor_name,
-        "required_approvers": required_approvers,
-        "completed_approvers": len(approvers),
-        "approvers": approvers,
-        "delegations": delegations_map
-    }
