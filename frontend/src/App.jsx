@@ -1,20 +1,22 @@
-import React, { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { ConfigProvider, message } from 'antd';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
 import Header from './components/Header';
 import { EntityProvider } from './context/EntityContext';
 import { GlobalSettingsProvider } from './context/GlobalSettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import Loader from './components/Loader';
 import './styles/message-override.css';
 import './styles/table-headers.css';
 import './styles/global-table-styles.css';
 import { routeMap } from './routeMap';
-import DesignSystemPage from './pages/DesignSystemPage';
-import SelectEntity from './pages/SelectEntity';
-import InvoiceReview from './pages/InvoiceReviewPage';
-import CodingReview from './pages/CodingReviewPage';
+
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const DesignSystemPage = lazy(() => import('./pages/DesignSystemPage'));
+const SelectEntity = lazy(() => import('./pages/SelectEntity'));
+const InvoiceReview = lazy(() => import('./pages/InvoiceReviewPage'));
+const CodingReview = lazy(() => import('./pages/CodingReviewPage'));
 
 const AppContent = () => {
   const location = useLocation();
@@ -35,56 +37,66 @@ const AppContent = () => {
   return (
     <>
       {!hideHeader && <Header />}
-      <Routes>
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-         <Route
-    path="/select-entity"
-    element={
-      <ProtectedRoute>
-        <SelectEntity />
-      </ProtectedRoute>
-    }
-  />
-   <Route
-    path="/design-system"
-    element={
-      <ProtectedRoute>
-        <DesignSystemPage />
-      </ProtectedRoute>
-    }
-  />
-   <Route
-    path="/invoice/review"
-    element={
-      <ProtectedRoute>
-        <InvoiceReview />
-      </ProtectedRoute>
-    }
-  />
-   <Route
-    path="/coding/review"
-    element={
-      <ProtectedRoute>
-        <CodingReview />
-      </ProtectedRoute>
-    }
-  />
-        
-        {/* Dynamic Routes from routeMap - Drivers of the application */}
-        {Object.entries(routeMap).map(([path, component]) => (
-          <Route 
-            key={path} 
-            path={path} 
+      <Suspense fallback={<Loader />}>
+        <Routes>
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/select-entity"
             element={
-              <ProtectedRoute>
-                {component}
-              </ProtectedRoute>
-            } 
+              <Suspense fallback={<Loader />}>
+                <ProtectedRoute>
+                  <SelectEntity />
+                </ProtectedRoute>
+              </Suspense>
+            }
           />
-        ))}
+          <Route
+            path="/design-system"
+            element={
+              <Suspense fallback={<Loader />}>
+                <ProtectedRoute>
+                  <DesignSystemPage />
+                </ProtectedRoute>
+              </Suspense>
+            }
+          />
+          <Route
+            path="/invoice/review"
+            element={
+              <Suspense fallback={<Loader />}>
+                <ProtectedRoute>
+                  <InvoiceReview />
+                </ProtectedRoute>
+              </Suspense>
+            }
+          />
+          <Route
+            path="/coding/review"
+            element={
+              <Suspense fallback={<Loader />}>
+                <ProtectedRoute>
+                  <CodingReview />
+                </ProtectedRoute>
+              </Suspense>
+            }
+          />
 
-      </Routes>
+          {/* Dynamic Routes from routeMap - Drivers of the application */}
+          {Object.entries(routeMap).map(([path, component]) => (
+            <Route
+              key={path}
+              path={path}
+              element={
+                <ProtectedRoute>
+                  {component}
+                </ProtectedRoute>
+              }
+            />
+          ))}
+
+        </Routes>
+      </Suspense>
     </>
   );
 };
