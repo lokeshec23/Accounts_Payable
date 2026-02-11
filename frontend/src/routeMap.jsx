@@ -1,21 +1,24 @@
-import DashboardPage from './pages/DashboardPage';
-import InvoicePage from './pages/InvoicePage';
-import InvoiceReviewPage from './pages/InvoiceReviewPage';
-import CodingPage from './pages/CodingPage';
-import CodingReviewPage from './pages/CodingReviewPage';
-import ApprovalsPage from './pages/ApprovalsPage';
-import MasterDataPage from './pages/MasterDataPage';
-import SettingsPage from './pages/SettingsPage';
-import AdminPage from './pages/AdminPage';
+import { Suspense, lazy } from 'react';
+import Loader from './components/Loader';
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const InvoicePage = lazy(() => import('./pages/InvoicePage'));
+const InvoiceReviewPage = lazy(() => import('./pages/InvoiceReviewPage'));
+const CodingPage = lazy(() => import('./pages/CodingPage'));
+const CodingReviewPage = lazy(() => import('./pages/CodingReviewPage'));
+const ApprovalsPage = lazy(() => import('./pages/ApprovalsPage'));
+const MasterDataPage = lazy(() => import('./pages/MasterDataPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
 
 
 export const routeMap = {
-  "/dashboard": <DashboardPage />,
-  "/invoice": <InvoicePage />,
-  "/coding": <CodingPage />,
-  "/approvals": <ApprovalsPage />,
-  "/master-data": <MasterDataPage />,
-  "/settings": <SettingsPage />,
-  "/admin": <AdminPage />,
+  "/dashboard": <Suspense fallback={<Loader />}> <DashboardPage /> </Suspense>,
+  "/invoice": <Suspense fallback={<Loader />}> <InvoicePage /> </Suspense>,
+  "/coding": <Suspense fallback={<Loader />}> <CodingPage /> </Suspense>,
+  "/approvals": <Suspense fallback={<Loader />}> <ApprovalsPage /> </Suspense>,
+  "/master-data": <Suspense fallback={<Loader />}> <MasterDataPage /> </Suspense>,
+  "/settings": <Suspense fallback={<Loader />}> <SettingsPage /> </Suspense>,
+  "/admin": <Suspense fallback={<Loader />}> <AdminPage /> </Suspense>,
 };
 
