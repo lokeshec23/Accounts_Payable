@@ -772,16 +772,16 @@ const MainLayout = () => {
                     />
                 </div>
 
-                {/* ⭐ WRAPPER REQUIRED FOR STICKY HEADER */}
-                <div style={{ maxHeight: "70vh", overflow: "auto" }}>
+                {/* ⭐ WRAPPER REQUIRED FOR STICKY HEADER - Removed fixed height/overflow from here */}
+                <div>
                     <Table
                         dataSource={filteredViewFilesData}
                         className="invoice-fields-table"
                         rowKey="key"
-                        sticky={{ offsetHeader: 0 }}
+                        // sticky={{ offsetHeader: 0 }} // Removed sticky prop as scroll.y handles it
                         pagination={false}
                         size="small"
-                        scroll={{ x: 3000 }}   // ⭐ DO NOT use scroll.y here
+                        scroll={{ x: 3000, y: '70vh' }}   // ⭐ Added scroll.y here
                         columns={[
                             // ================= BASIC =================
                             {
