@@ -6,7 +6,7 @@ These models replace the MongoDB collections with SQL Server tables.
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, ForeignKey, 
     DECIMAL, Boolean, Index, UniqueConstraint, Enum as SQLEnum,
-    Float
+    Float, LargeBinary
 )
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.dialects.mssql import NVARCHAR
@@ -446,3 +446,18 @@ class CodingHistory(Base):
     __table_args__ = (
         Index('ix_coding_history_lookup', 'vendor_id', 'vendor_key', 'normalized_description'),
     )
+
+
+class RawExtractionData(Base):
+    __tablename__ = "raw_extraction_data"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    invoice_id = Column(Integer, ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
+    pdf_binary = Column(LargeBinary, nullable=True)  # Store PDF binary data
+    raw_azure_response = Column(Text, nullable=True) # Full Azure response (JSON string)
+    llm_prompt = Column(Text, nullable=True)         # Prompt sent to LLM
+    llm_raw_response = Column(Text, nullable=True)   # Raw response from LLM
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    # Relationships
+    invoice = relationship("Invoice", backref=backref("raw_data_record", uselist=False, cascade="all, delete-orphan"))

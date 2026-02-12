@@ -22,6 +22,8 @@ class InvoiceOrchestrator:
             initial_state: InvoiceState = InvoiceState(
                 file_path=file_path,
                 raw_azure_response=None,
+                llm_prompt=None,
+                llm_raw_response=None,
                 extracted_data={},
                 enhanced_data={},
                 validated_data={},

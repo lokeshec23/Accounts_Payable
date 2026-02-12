@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.models.db_models import (
     Invoice, WorkflowStep, WorkflowStepTypeEnum, 
     WorkflowStepStatusEnum, InvoiceStatusEnum, InvoiceStatusHistory,
-    VendorMetadata
+    VendorMetadata, RawExtractionData
 )
 from app.database.db_utils import (
     invoice_to_dict, serialize_json_field, deserialize_json_field
@@ -141,6 +141,27 @@ async def upload_invoices(
             print(f"[Backend] Starting full extraction for {invoice_id}")
             extraction = await invoice_processor.process_invoice_extraction(file_path)
             print(f"[Backend] Full extraction completed in {time.time() - extract_start:.2f}s")
+
+            # ---- SAVE RAW EXTRACTION DATA ----
+            try:
+                raw_start = time.time()
+                # Read PDF binary
+                with open(file_path, "rb") as f:
+                    pdf_bytes = f.read()
+                
+                raw_record = RawExtractionData(
+                    invoice_id=invoice_id,
+                    pdf_binary=pdf_bytes,
+                    raw_azure_response=serialize_json_field(extraction.get("raw_azure_full", {})),
+                    llm_prompt=extraction.get("llm_prompt"),
+                    llm_raw_response=extraction.get("llm_raw_response")
+                )
+                db.add(raw_record)
+                db.commit()
+                print(f"[Backend] Raw extraction data and PDF binary saved in {time.time() - raw_start:.2f}s")
+            except Exception as e:
+                print(f"[Backend] Warning: Failed to save raw extraction data: {e}")
+                # Don't fail the whole upload if this part fails
 
 
             # Update invoice instance with extraction results

@@ -16,6 +16,8 @@ load_dotenv()
 class InvoiceState(TypedDict):
     file_path: str
     raw_azure_response: Optional[Dict[str, Any]]
+    llm_prompt: Optional[str]
+    llm_raw_response: Optional[str]
     extracted_data: Dict[str, Any]
     enhanced_data: Dict[str, Any]
     validated_data: Dict[str, Any]
@@ -392,7 +394,10 @@ class InvoiceExtractionAgent:
             raw_content = state["raw_azure_response"].get("content", "") if state["raw_azure_response"] else ""
 
             prompt = self._create_header_enhancement_prompt(azure_data, raw_content)
-            enhanced_headers = await self._call_llm_for_enhancement(prompt)
+            state["llm_prompt"] = prompt
+            
+            enhanced_headers, raw_llm_response = await self._call_llm_for_enhancement(prompt)
+            state["llm_raw_response"] = raw_llm_response
 
             merged = self._merge_azure_and_llm(azure_data, enhanced_headers)
 
@@ -510,7 +515,7 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
 """
         return user_prompt
 
-    async def _call_llm_for_enhancement(self, prompt: str) -> Dict[str, Any]:
+    async def _call_llm_for_enhancement(self, prompt: str) -> tuple[Dict[str, Any], str]:
         try:
             messages = [
                 SystemMessage(content="You are an expert invoice data extraction specialist. Extract header fields only - DO NOT extract line items. Return ONLY valid JSON."),
@@ -520,21 +525,22 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
             response = await self.llm.ainvoke(messages)
             response_text = response.content.strip()
 
-            if response_text.startswith("```json"):
-                response_text = response_text[7:]
-            if response_text.endswith("```"):
-                response_text = response_text[:-3]
-            response_text = response_text.strip()
+            filtered_text = response_text
+            if filtered_text.startswith("```json"):
+                filtered_text = filtered_text[7:]
+            if filtered_text.endswith("```"):
+                filtered_text = filtered_text[:-3]
+            filtered_text = filtered_text.strip()
 
-            enhanced_data = json.loads(response_text)
-            return enhanced_data
+            enhanced_data = json.loads(filtered_text)
+            return enhanced_data, response_text
 
         except json.JSONDecodeError as e:
             print(f"Failed to parse LLM response as JSON: {e}")
-            return self._create_fallback_structure()
+            return self._create_fallback_structure(), response_text if 'response_text' in locals() else ""
         except Exception as e:
             print(f"LLM call failed: {e}")
-            return self._create_fallback_structure()
+            return self._create_fallback_structure(), response_text if 'response_text' in locals() else ""
 
     def _create_fallback_structure(self) -> Dict[str, Any]:
         return {
@@ -790,6 +796,11 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
 
             if state["raw_azure_response"] and "documents" in state["raw_azure_response"]:
                 final_output["azure_raw_data"] = state["raw_azure_response"]["documents"]
+            
+            # Include new raw data in final output
+            final_output["llm_prompt"] = state.get("llm_prompt")
+            final_output["llm_raw_response"] = state.get("llm_raw_response")
+            final_output["raw_azure_full"] = state.get("raw_azure_response")
 
             if state["errors"]:
                 final_output["errors"] = state["errors"]
@@ -797,7 +808,6 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
             state["final_output"] = final_output
             self.processing_steps.append("Final Output Generation Completed")
             print(f"Final output generated successfully in {time.time() - out_start:.2f}s")
-
             return state
 
         except Exception as e:
