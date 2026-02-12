@@ -59,7 +59,15 @@ const CodingTab = React.memo(({
             title: 'Due Date',
             dataIndex: 'dueDate',
             key: 'dueDate',
-            width: '15%'
+            width: '15%',
+            render: (text) => {
+                if (!text) return '';
+                const date = new Date(text);
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${month}-${day}-${year}`;
+            }
         },
         {
             title: 'Payment Terms',
