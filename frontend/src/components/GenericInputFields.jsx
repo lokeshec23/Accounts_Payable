@@ -36,6 +36,10 @@ import GLSummaryTab from './GLSummaryTab';
 
 const { TextArea } = Input;
 const { Panel } = Input;
+const PRESERVED_PAYTERMS = [
+    'net 7', 'net 10', 'net 15', 'net 27', 'net 30', 'net 45', 'net 60', 'net 90',
+    'due upon receipt', 'due on receipt', 'immediate', 'upon receipt'
+];
 
 const GenericInputFields = forwardRef(({
     data,
@@ -454,8 +458,11 @@ const GenericInputFields = forwardRef(({
             setVendorId(vId);
         }
 
+        const currentTerms = extractValue(formData['Payment Terms']);
+        const isPreserved = currentTerms && PRESERVED_PAYTERMS.includes(String(currentTerms).toLowerCase().trim());
+
         const paymentTerms = getVendorPaymentTerms(vendorDetails);
-        if (paymentTerms && !readOnly) {
+        if (paymentTerms && !readOnly && !isPreserved) {
             handleInputChange('Payment Terms', paymentTerms);
         }
 
@@ -1324,6 +1331,19 @@ const GenericInputFields = forwardRef(({
     useEffect(() => {
         if (readOnly || !invoiceDateValue) return;
 
+        // Skip recalculation if Due Date was originally extracted from the invoice
+        const extractedDueDate =
+            extractValue(extractionData?.['Due Date']) ||
+            extractValue(originalData?.extracted_data?.invoice_details?.due_date) ||
+            extractValue(data?.extracted_data?.invoice_details?.due_date) ||
+            extractValue(originalData?.extracted_data?.due_date) ||
+            extractValue(data?.extracted_data?.due_date);
+
+        if (extractedDueDate) {
+            console.log(`[GenericInputFields] Skipping due date recalculation as it was extracted: ${extractedDueDate}`);
+            return;
+        }
+
         const invoiceDate = parseStoredDate(invoiceDateValue, currencyValue);
         if (!invoiceDate || !invoiceDate.isValid()) return;
 
@@ -1331,10 +1351,15 @@ const GenericInputFields = forwardRef(({
         let days = extractNetDays(extractedTerms);
 
         if (days === null && selectedVendorDetails) {
-            const vendorTerms = getVendorPaymentTerms(selectedVendorDetails);
-            days = extractNetDays(vendorTerms);
-            if (vendorTerms && (!extractedTerms || days !== null)) {
-                handleInputChange('Payment Terms', vendorTerms);
+            const currentTerms = extractValue(formData['Payment Terms']);
+            const isPreserved = currentTerms && PRESERVED_PAYTERMS.includes(String(currentTerms).toLowerCase().trim());
+
+            if (!isPreserved) {
+                const vendorTerms = getVendorPaymentTerms(selectedVendorDetails);
+                days = extractNetDays(vendorTerms);
+                if (vendorTerms && (!extractedTerms || days !== null)) {
+                    handleInputChange('Payment Terms', vendorTerms);
+                }
             }
         }
 
@@ -1347,7 +1372,8 @@ const GenericInputFields = forwardRef(({
             handleInputChange('Due Date', newDueDate);
         }
     }, [invoiceDateValue, paymentTermsValue, currencyValue, selectedVendorDetails,
-        readOnly, extractValue, parseStoredDate, extractNetDays, getVendorPaymentTerms, handleInputChange]);
+        readOnly, extractValue, parseStoredDate, extractNetDays, getVendorPaymentTerms,
+        handleInputChange, data, originalData, extractionData]);
 
     // ==================== TDS CALCULATION & TOTALS - FIXED ====================
     // Calculate totals using useMemo instead of useEffect
