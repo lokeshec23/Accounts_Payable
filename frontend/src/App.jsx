@@ -13,6 +13,7 @@ import { routeMap } from './routeMap';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const DesignSystemPage = lazy(() => import('./pages/DesignSystemPage'));
 const SelectEntity = lazy(() => import('./pages/SelectEntity'));
 const InvoiceReview = lazy(() => import('./pages/InvoiceReviewPage'));
@@ -20,7 +21,7 @@ const CodingReview = lazy(() => import('./pages/CodingReviewPage'));
 
 const AppContent = () => {
   const location = useLocation();
-  const hideHeader = location.pathname === '/' || location.pathname === '/register' || location.pathname === '/select-entity';
+  const hideHeader = location.pathname === '/' || location.pathname === '/register' || location.pathname === '/select-entity' || location.pathname === '/forgot-password';
 
   // Configure message to appear in bottom right
   useEffect(() => {
@@ -41,6 +42,7 @@ const AppContent = () => {
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route
             path="/select-entity"
             element={

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.orm import Session
-from app.models.auth import LoginRequest, Token
+from app.models.auth import LoginRequest, Token, CheckEmailRequest, ResetPasswordRequest
 from app.models.user import User as UserPydantic, UserResponse
 from app.models.db_models import User as UserDB
 from app.database.database import get_db
@@ -82,3 +82,34 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
         "username": user.username,
         "role": user.role
     }
+
+@router.post("/check-email")
+async def check_email(request: CheckEmailRequest, db: Session = Depends(get_db)):
+    print(f"Checking email: '{request.email}'")
+    try:
+        user = db.query(UserDB).filter(UserDB.email == request.email).first()
+        print(f"User found: {user}")
+        if not user:
+            return {"exists": False, "message": "Email does not exist"}
+        return {"exists": True, "message": "Email exists"}
+    except Exception as e:
+        print(f"Error checking email: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+@router.post("/reset-password")
+async def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(UserDB).filter(UserDB.email == request.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    hashed_password = get_password_hash(request.new_password)
+    user.password = hashed_password
+    db.commit()
+    
+    return {"message": "Password updated successfully"}
