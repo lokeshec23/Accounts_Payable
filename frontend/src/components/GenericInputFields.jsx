@@ -1365,7 +1365,7 @@ const GenericInputFields = forwardRef(({
 
         if (days === null) return;
 
-        const newDueDate = invoiceDate.add(days, 'day').format('MM-DD-YYYY');
+        const newDueDate = invoiceDate.add(days, 'day').format('YYYY-MM-DD');
         const currentDueDate = extractValue(formData['Due Date']);
 
         if (currentDueDate !== newDueDate) {
