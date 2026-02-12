@@ -276,6 +276,11 @@ class InvoiceExtractionAgent:
                     if field_data:
                         line_item[normalized_field] = field_data
 
+            # Filter out line items with empty/missing description
+            desc_val = line_item.get("description", {}).get("value")
+            if not desc_val or str(desc_val).strip() == "":
+                return None
+
             line_item["item_number"] = {
                 "value": item_number,
                 "source": "system",
