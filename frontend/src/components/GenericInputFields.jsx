@@ -576,7 +576,7 @@ const GenericInputFields = forwardRef(({
                     <DatePicker style={{ width: '100%', ...disabledStyle }}
                         value={stringValue ? parseStoredDate(stringValue, extractValue(formData['Invoice Currency'])) : null}
                         onChange={(date, dateString) => handleInputChange(field, dateString)}
-                        format="YYYY-MM-DD" disabled={disableInputs} />
+                        format="MM-DD-YYYY" disabled={disableInputs} />
                 </div>
             );
         }
@@ -1365,7 +1365,7 @@ const GenericInputFields = forwardRef(({
 
         if (days === null) return;
 
-        const newDueDate = invoiceDate.add(days, 'day').format('YYYY-MM-DD');
+        const newDueDate = invoiceDate.add(days, 'day').format('MM-DD-YYYY');
         const currentDueDate = extractValue(formData['Due Date']);
 
         if (currentDueDate !== newDueDate) {
