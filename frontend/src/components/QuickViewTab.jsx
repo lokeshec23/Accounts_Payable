@@ -100,91 +100,93 @@ const QuickViewTab = React.memo(({
     const tableDataSource = useMemo(() => {
         const data = [];
         lineItems.forEach((item, index) => {
-            data.push({ ...item, key: `item_${index}` });
+            const desc = (extractValue(item.Description) || item.Description || '').toString().trim();
+            const isSystemRow = ['Total GST', 'Total GST (Ineligible)', 'TDS Deduction'].includes(desc);
+            if (!isSystemRow) {
+                data.push({ ...item, key: `item_${index}` });
+            }
         });
 
-        if (!isCodingData) {
-            // Single Aggregated GST Row
-            const formTaxValue = parseCurrencyValue(extractValue(formData['Total Tax Amount']));
-            const totalTaxAmount = lineItems.reduce((sum, item) => {
-                const t = parseCurrencyValue(
-                    extractValue(item.TaxAmount) ||
-                    extractValue(item.tax_amount) ||
-                    item.TaxAmount ||
-                    item.tax_amount
-                );
-                return sum + t;
-            }, 0) +
-                parseCurrencyValue(extractValue(formData['CGST'])) +
-                parseCurrencyValue(extractValue(formData['SGST'])) +
-                parseCurrencyValue(extractValue(formData['IGST']));
+        // Single Aggregated GST Row
+        const formTaxValue = parseCurrencyValue(extractValue(formData['Total Tax Amount']));
+        const totalTaxAmount = lineItems.reduce((sum, item) => {
+            const t = parseCurrencyValue(
+                extractValue(item.TaxAmount) ||
+                extractValue(item.tax_amount) ||
+                item.TaxAmount ||
+                item.tax_amount
+            );
+            return sum + t;
+        }, 0) +
+            parseCurrencyValue(extractValue(formData['CGST'])) +
+            parseCurrencyValue(extractValue(formData['SGST'])) +
+            parseCurrencyValue(extractValue(formData['IGST']));
 
-            const finalTaxToDisplay = formTaxValue || totalTaxAmount;
+        const finalTaxToDisplay = formTaxValue || totalTaxAmount;
 
-            data.push({
-                key: 'gst_total',
-                Description: { value: 'Total GST' },
-                Quantity: { value: 1 },
-                UnitPrice: { value: finalTaxToDisplay },
-                NetAmount: { value: finalTaxToDisplay },
-                TaxAmount: { value: 0 },
-                Discount: { value: 0 },
-                isSystemRow: true
+        data.push({
+            key: 'gst_total',
+            Description: { value: 'Total GST' },
+            Quantity: { value: 1 },
+            UnitPrice: { value: finalTaxToDisplay },
+            NetAmount: { value: finalTaxToDisplay },
+            TaxAmount: { value: 0 },
+            Discount: { value: 0 },
+            isSystemRow: true
+        });
+
+        // Dynamic TDS Row
+        const findTDSValue = (keys) => {
+            if (!selectedVendorDetails) return null;
+            const matchKey = Object.keys(selectedVendorDetails).find(k => {
+                const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
+                return keys.some(target => normK === target.toLowerCase().replace(/[\s_\\\-]/g, ''));
             });
+            return matchKey ? selectedVendorDetails[matchKey] : null;
+        };
 
-            // Dynamic TDS Row
-            const findTDSValue = (keys) => {
-                if (!selectedVendorDetails) return null;
-                const matchKey = Object.keys(selectedVendorDetails).find(k => {
-                    const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
-                    return keys.some(target => normK === target.toLowerCase().replace(/[\s_\\\-]/g, ''));
+        const tdsApplicabilityVal = findTDSValue([
+            'TDS/Withhold Tax Applicability Configuration',
+            'TDS Applicability',
+            'TDS Applicable',
+            'Withholding Tax Applicable'
+        ]);
+
+        if (tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes') {
+            const tdsRateVal = findTDSValue([
+                'TDS Percentage',
+                'Percentage',
+                'Rate',
+                'TDS Rate',
+                'Withholding Rate'
+            ]) || '0';
+            let tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
+            if (tdsRate > 1) tdsRate = tdsRate / 100;
+
+            const subtotal = lineItems.reduce((sum, item) => {
+                const net = parseCurrencyValue(
+                    extractValue(item.NetAmount) ||
+                    extractValue(item.amount) ||
+                    extractValue(item.net_amount) ||
+                    item.amount ||
+                    item.net_amount
+                );
+                return sum + net;
+            }, 0);
+
+            const tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
+
+            if (tdsAmount > 0) {
+                data.push({
+                    key: 'TDS_PREVIEW',
+                    Description: { value: `TDS Deduction` },
+                    Quantity: { value: 1 },
+                    UnitPrice: { value: -tdsAmount },
+                    NetAmount: { value: -tdsAmount },
+                    TaxAmount: { value: 0 },
+                    Discount: { value: 0 },
+                    isSystemRow: true
                 });
-                return matchKey ? selectedVendorDetails[matchKey] : null;
-            };
-
-            const tdsApplicabilityVal = findTDSValue([
-                'TDS/Withhold Tax Applicability Configuration',
-                'TDS Applicability',
-                'TDS Applicable',
-                'Withholding Tax Applicable'
-            ]);
-
-            if (tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes') {
-                const tdsRateVal = findTDSValue([
-                    'TDS Percentage',
-                    'Percentage',
-                    'Rate',
-                    'TDS Rate',
-                    'Withholding Rate'
-                ]) || '0';
-                let tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
-                if (tdsRate > 1) tdsRate = tdsRate / 100;
-
-                const subtotal = lineItems.reduce((sum, item) => {
-                    const net = parseCurrencyValue(
-                        extractValue(item.NetAmount) ||
-                        extractValue(item.amount) ||
-                        extractValue(item.net_amount) ||
-                        item.amount ||
-                        item.net_amount
-                    );
-                    return sum + net;
-                }, 0);
-
-                const tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
-
-                if (tdsAmount > 0) {
-                    data.push({
-                        key: 'TDS_PREVIEW',
-                        Description: { value: `TDS Deduction` },
-                        Quantity: { value: 1 },
-                        UnitPrice: { value: -tdsAmount },
-                        NetAmount: { value: -tdsAmount },
-                        TaxAmount: { value: 0 },
-                        Discount: { value: 0 },
-                        isSystemRow: true
-                    });
-                }
             }
         }
         return data;

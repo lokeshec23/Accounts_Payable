@@ -516,7 +516,7 @@ const GenericInputFields = forwardRef(({
             ];
             masterAddr = parts.filter(p => p).map(p => String(p).trim()).join(" ").trim();
         }
-        if (masterAddr) {
+        if (masterAddr && !readOnly) {
             handleInputChange('Vendor Address', masterAddr);
         }
 
@@ -1161,7 +1161,7 @@ const GenericInputFields = forwardRef(({
     useEffect(() => {
         const rawId = extractValue(formData['Vendor ID']);
         const currentId = String(rawId || '').trim();
-        if (readOnly || skipNextVendorLookup.current || !currentId || !vendorMasterData?.length) return;
+        if (skipNextVendorLookup.current || !currentId || !vendorMasterData?.length) return;
 
         const match = vendorMasterData.find(v => {
             const vId = v['Vendor ID'] || v['VendorID'] || v['vendor_id'] || v['VENDOR_ID'];
@@ -1174,7 +1174,7 @@ const GenericInputFields = forwardRef(({
             const officialName = match['Vendor Name'] || match['VendorName'] ||
                 match['Name'] || match['VENDOR_NAME'];
             const currentName = String(extractValue(formData['Vendor Name']) || '').trim();
-            if (officialName && (normalizeVendor(officialName) !== normalizeVendor(currentName) || !currentName)) {
+            if (officialName && !readOnly && (normalizeVendor(officialName) !== normalizeVendor(currentName) || !currentName)) {
                 handleInputChange('Vendor Name', officialName);
             }
             handleVendorChange(match);

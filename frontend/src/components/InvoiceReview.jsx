@@ -489,8 +489,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                                     const canEdit = codingRoles.includes(userRole) ||
                                         invoiceRoles.includes(userRole) ||
                                         codingRoles.includes('all') ||
-                                        invoiceRoles.includes('all') ||
-                                        userRole === 'admin';
+                                        invoiceRoles.includes('all')
                                     return !canEdit;
                                 })()}
                             />
