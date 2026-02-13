@@ -28,7 +28,7 @@ async def get_vendor_workflows(
     entity: str = Depends(get_current_entity)
 ):
     workflows = db.query(DBVendorWorkflow).filter(
-        or_(DBVendorWorkflow.entity == entity, DBVendorWorkflow.entity == None)
+        DBVendorWorkflow.entity == entity
     ).all()
     
     result = []
@@ -93,7 +93,7 @@ async def update_vendor_workflow(
 ):
     existing = db.query(DBVendorWorkflow).filter(
         DBVendorWorkflow.id == workflow_id,
-        or_(DBVendorWorkflow.entity == entity, DBVendorWorkflow.entity == None)
+        DBVendorWorkflow.entity == entity
     ).first()
     
     if not existing:
@@ -122,7 +122,7 @@ async def delete_vendor_workflow(
 ):
     result = db.query(DBVendorWorkflow).filter(
         DBVendorWorkflow.id == workflow_id,
-        or_(DBVendorWorkflow.entity == entity, DBVendorWorkflow.entity == None)
+        DBVendorWorkflow.entity == entity
     ).delete()
     
     if result == 0:
@@ -180,7 +180,7 @@ async def get_codification_workflows(
     entity: str = Depends(get_current_entity)
 ):
     workflows = db.query(DBCodificationWorkflow).filter(
-        or_(DBCodificationWorkflow.entity == entity, DBCodificationWorkflow.entity == None)
+        DBCodificationWorkflow.entity == entity
     ).all()
     
     result = []
@@ -246,7 +246,7 @@ async def update_codification_workflow(
 ):
     existing = db.query(DBCodificationWorkflow).filter(
         DBCodificationWorkflow.id == workflow_id,
-        or_(DBCodificationWorkflow.entity == entity, DBCodificationWorkflow.entity == None)
+        DBCodificationWorkflow.entity == entity
     ).first()
     
     if not existing:
@@ -275,7 +275,7 @@ async def delete_codification_workflow(
 ):
     result = db.query(DBCodificationWorkflow).filter(
         DBCodificationWorkflow.id == workflow_id,
-        or_(DBCodificationWorkflow.entity == entity, DBCodificationWorkflow.entity == None)
+        DBCodificationWorkflow.entity == entity
     ).delete()
     
     if result == 0:

@@ -193,14 +193,6 @@ def get_required_approver_count(
         if v_id_resolved:
             v_workflow = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_id == v_id_resolved, VendorWorkflow.entity == entity).first()
             
-            # Fallback fuzzy entity match if exact match fails
-            if not v_workflow and entity:
-                all_v_workflows = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_id == v_id_resolved).all()
-                for vw in all_v_workflows:
-                    if entity.lower() in vw.entity.lower() or vw.entity.lower() in entity.lower():
-                        v_workflow = vw
-                        break
-            
             if v_workflow:
                 # If we found a workflow, we prioritize it
                 workflow_found = True
