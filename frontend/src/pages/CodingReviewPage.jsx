@@ -4,15 +4,36 @@ import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin, Che
 const { Panel } = Collapse;
 import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined, RollbackOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { read, utils } from 'xlsx';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+dayjs.extend(customParseFormat);
 import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
 import WorkflowTab from '../components/WorkflowTab';
 import AuditTrail from '../components/AuditTrail';
+import QuickViewTab from '../components/QuickViewTab';
+import AllFieldsTab from '../components/AllFieldsTab';
+import { schemaMap } from '../config/schemaMap';
 import { invoiceService, codingService, masterDataService, approvalService, workflowService, currencyService } from '../services/api';
 
 const CodingReviewPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const invoiceData = location.state?.invoice;
+
+    // Parse extracted_data if it's a string
+    const rawExtractedData = React.useMemo(() => {
+        if (!invoiceData?.extracted_data) return {};
+        if (typeof invoiceData.extracted_data === 'string') {
+            try {
+                return JSON.parse(invoiceData.extracted_data);
+            } catch (e) {
+                console.error("Failed to parse extracted_data:", e);
+                return {};
+            }
+        }
+        return invoiceData.extracted_data;
+    }, [invoiceData]);
+
     const [currencySymbol, setCurrencySymbol] = useState('$');
 
     // Check if invoice is approved - make it read-only
@@ -98,6 +119,236 @@ const CodingReviewPage = () => {
         backgroundColor: 'white',
         opacity: 1
     };
+
+    // Helper functions for QuickView and AllFields tabs
+    const extractValue = (fieldValue) => {
+        if (fieldValue === null || fieldValue === undefined) return '';
+        if (typeof fieldValue === 'object' && fieldValue !== null && 'value' in fieldValue) {
+            return fieldValue.value ?? '';
+        }
+        return fieldValue;
+    };
+
+    const parseCurrencyValue = (value) => {
+        if (!value) return 0;
+        const cleanValue = String(value).replace(/[$,\s]/g, '');
+        const parsed = parseFloat(cleanValue);
+        return isNaN(parsed) ? 0 : parsed;
+    };
+
+    const formatDate = (dateVal) => {
+        if (!dateVal) return '';
+        const raw = extractValue(dateVal);
+        if (!raw) return '';
+
+        // Attempt to parse with common formats
+        const formats = ['YYYY-MM-DD', 'DD-MM-YYYY', 'MM/DD/YYYY', 'D-M-YYYY', 'YYYY/MM/DD', 'DD MMM YYYY', 'MM-DD-YYYY'];
+        const d = dayjs(raw, formats);
+
+        if (d.isValid()) {
+            return d.format('MM-DD-YYYY');
+        }
+        return raw; // Fallback to raw if unparseable
+    };
+
+    const renderFieldInput = (field, value) => {
+        const stringValue = extractValue(value);
+        return (
+            <Input
+                value={stringValue}
+                disabled
+                style={disabledStyle}
+            />
+        );
+    };
+
+    // Prepare formData for tabs
+    const formData = React.useMemo(() => {
+        const extracted = invoiceData?.rawData?.extracted_data || {};
+        return {
+            // Vendor Information
+            'Vendor ID': invoiceData?.vendorId || extracted?.vendor_info?.vendor_id?.value || '',
+            'Vendor Name': invoiceData?.vendor_name || invoiceData?.vendorName || extractValueNested(extracted?.vendor_info?.name) || '',
+            'Vendor Address': extracted?.vendor_info?.address?.value || '',
+            'Vendor Country': extracted?.vendor_info?.country?.value || '',
+            'Vendor Tax ID (VAT/GST/TIN/W9, etc.)': extracted?.vendor_info?.tax_id?.value || '',
+            'Vendor Contact Email': extracted?.vendor_info?.email?.value || '',
+            'Vendor Phone': extracted?.vendor_info?.phone?.value || '',
+            'Vendor Bank Name': extracted?.vendor_info?.bank_name?.value || '',
+            'Vendor Bank Account Number': extracted?.vendor_info?.bank_account?.value || '',
+            'Vendor Bank Details (Account/IBAN/SWIFT/Routing No)': extracted?.vendor_info?.bank_details?.value || '',
+            'Vendor Contact Person': extracted?.vendor_info?.contact_person?.value || '',
+            'Vendor Website (if applicable)': extracted?.vendor_info?.website?.value || '',
+
+            // Invoice Details
+            'Invoice Number': extracted?.invoice_details?.invoice_number?.value || '',
+            'Invoice Date': formatDate(extracted?.invoice_details?.invoice_date?.value) || '',
+            'Due Date': formatDate(extracted?.invoice_details?.due_date?.value) || '',
+            'Payment Terms': extracted?.invoice_details?.payment_terms?.value || '',
+            'Invoice Currency': extracted?.invoice_details?.currency?.value || 'USD',
+            'Invoice Type': extracted?.invoice_details?.invoice_type?.value || '',
+            'PO Number': extracted?.invoice_details?.po_number?.value || '',
+            'Payment Method': extracted?.invoice_details?.payment_method?.value || '',
+            'Cost Center / Project Code (if printed)': extracted?.invoice_details?.cost_center?.value || '',
+            'Service period start': formatDate(extracted?.invoice_details?.service_period_start?.value) || '',
+            'Service period end': formatDate(extracted?.invoice_details?.service_period_end?.value) || '',
+
+            // Buyer Information
+            'Client Name or Company Name': extracted?.client_info?.name?.value || '',
+            'Billing Address': extracted?.client_info?.billing_address?.value || '',
+            'Shipping Address (if different)': extracted?.client_info?.shipping_address?.value || '',
+            'Phone Number': extracted?.client_info?.phone?.value || '',
+            'Email Address (if applicable)': extracted?.client_info?.email?.value || '',
+            'Client Tax ID (if applicable)': extracted?.client_info?.tax_id?.value || '',
+            'Contact Person': extracted?.client_info?.contact_person?.value || '',
+
+            // Amounts
+            'Subtotal': extracted?.amounts?.subtotal?.value || '',
+            'Total Tax Amount': extracted?.amounts?.total_tax_amount?.value || '',
+            'CGST': extracted?.amounts?.CGST?.value || '',
+            'SGST': extracted?.amounts?.SGST?.value || '',
+            'IGST': extracted?.amounts?.IGST?.value || '',
+            'GST': extracted?.amounts?.GST?.value || '',
+            'Withholding Tax': extracted?.amounts?.withholding_tax?.value || '',
+            'Tax Type Breakdown (VAT/GST/PST/IGST etc.)': extracted?.amounts?.tax_breakdown?.value || '',
+            'Shipping / Handling / Fees': extracted?.amounts?.shipping_fees?.value || '',
+            'Surcharges': extracted?.amounts?.surcharges?.value || '',
+            'Total Invoice Amount': extracted?.amounts?.total_invoice_amount?.value || '',
+            'Total Amount Payable': extracted?.amounts?.total_amount_payable?.value || '',
+            'Amount Paid': extracted?.amounts?.amount_paid?.value || '',
+            'Amount Due': extracted?.amounts?.amount_due?.value || '',
+
+            // Compliance
+            'Notes / Terms': extracted?.additional_info?.notes?.value || '',
+            'QR Code / IRN / ZATCA ID (region-specific)': extracted?.additional_info?.qr_code?.value || '',
+            'Company Registration Number': extracted?.additional_info?.registration_number?.value || '',
+        };
+    }, [invoiceData]);
+
+    // Prepare line items for tabs
+    const lineItemsForTabs = React.useMemo(() => {
+
+        // If DB coding exists → use it
+        if (codingLineItems && codingLineItems.length > 0) {
+            return codingLineItems.map(item => ({
+                Description: item.description,
+                Quantity: item.quantity,
+                UnitPrice: item.unit_price,
+                NetAmount: item.net_amount,
+                TaxAmount: 0,
+                Discount: { value: 0 },
+                ItemCode: { value: item.item || '' },
+                UnitOfMeasure: { value: '' },
+                TaxRate: { value: '' },
+                GrossAmount: { value: item.net_amount }
+            }));
+        }
+
+        // Fallback → OCR data
+        const items = rawExtractedData?.Items?.value || rawExtractedData?.line_items || [];
+
+        return items.map(item => ({
+            Description: item.description || item.Description || '',
+            Quantity: item.quantity || item.Quantity || 0,
+            UnitPrice: item.unit_price || item.UnitPrice || 0,
+            NetAmount: item.amount || item.NetAmount || 0,
+            TaxAmount: item.tax_amount || item.TaxAmount || 0,
+            Discount: { value: item.discount || 0 },
+            ItemCode: { value: item.item_code || '' },
+            UnitOfMeasure: { value: item.unit_of_measure || '' },
+            TaxRate: { value: item.tax_rate || '' },
+            GrossAmount: { value: item.gross_amount || 0 }
+        }));
+
+    }, [codingLineItems, rawExtractedData]);
+
+
+    // Fetch vendor master details
+    const [selectedVendorDetails, setSelectedVendorDetails] = React.useState(null);
+    const [vendorMasterData, setVendorMasterData] = React.useState([]);
+
+    React.useEffect(() => {
+        const fetchVendorMaster = async () => {
+            try {
+                const files = await masterDataService.getFiles();
+                // Broader tab name matching consistent with GenericInputFields.jsx
+                const vendorFile = files.find(f =>
+                    f.tab_name === 'Vendor_Master' || f.tab_name === 'Vendor Master' ||
+                    f.tab_name === 'Vendors' || f.tab_name === 'Vendor'
+                );
+
+                if (vendorFile && vendorFile.sheets && vendorFile.sheets.length > 0) {
+                    const collectionName = vendorFile.sheets[0].collection_name;
+                    const vendors = await masterDataService.getSheetData(collectionName);
+                    setVendorMasterData(vendors);
+
+                    // Identify robust vendor ID
+                    const extracted = rawExtractedData || {};
+                    const vIdFromExtracted = typeof extracted?.vendor_info?.vendor_id === 'object'
+                        ? extracted.vendor_info.vendor_id?.value
+                        : extracted?.vendor_info?.vendor_id;
+
+                    const effectiveVendorId = invoiceData?.vendor_id || invoiceData?.vendorId || vIdFromExtracted || formData['Vendor ID'];
+
+                    if (effectiveVendorId && vendors) {
+                        const matchedVendor = vendors.find(v => {
+                            // Discover the correct ID key in master data case-insensitively
+                            const vIdKey = Object.keys(v).find(k => {
+                                const normK = k.toLowerCase().replace(/[\s_]/g, '');
+                                return normK === 'vendorid';
+                            });
+                            const vId = vIdKey ? v[vIdKey] : (v['Vendor ID'] || v['VendorID'] || v['vendor_id'] || v['VENDOR_ID']);
+                            return String(vId).trim() === String(effectiveVendorId).trim();
+                        });
+                        if (matchedVendor) {
+                            setSelectedVendorDetails(matchedVendor);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching vendor master data:', error);
+            }
+        };
+
+        const extracted = rawExtractedData || {};
+        const vIdFromExtracted = typeof extracted?.vendor_info?.vendor_id === 'object'
+            ? extracted.vendor_info.vendor_id?.value
+            : extracted?.vendor_info?.vendor_id;
+        const effectiveVendorId = invoiceData?.vendor_id || invoiceData?.vendorId || vIdFromExtracted || formData['Vendor ID'];
+
+        if (effectiveVendorId) {
+            fetchVendorMaster();
+        }
+    }, [invoiceData?.vendor_id, invoiceData?.vendorId, rawExtractedData, formData['Vendor ID']]);
+
+    // Line item columns for tabs (read-only version)
+    const lineItemColumnsForTabs = React.useMemo(() => [
+        { title: 'S.No', key: 'item_number', width: 50, render: (text, record, index) => index + 1 },
+        {
+            title: 'Description', dataIndex: 'Description', key: 'Description', width: 200,
+            render: (val) => <Input.TextArea rows={2} value={extractValue(val)} disabled style={disabledStyle} />
+        },
+        {
+            title: 'Qty', dataIndex: 'Quantity', key: 'Quantity', width: 80,
+            render: (val) => <InputNumber style={{ width: '100%', ...disabledStyle }} value={extractValue(val)} disabled />
+        },
+        {
+            title: 'Unit Price', dataIndex: 'UnitPrice', key: 'UnitPrice', width: 120,
+            render: (val) => <InputNumber style={{ width: '100%', ...disabledStyle }} value={parseCurrencyValue(extractValue(val))} step={0.01} prefix="$" disabled />
+        },
+        {
+            title: 'Discount', dataIndex: 'Discount', key: 'Discount', width: 120,
+            render: (val) => <InputNumber style={{ width: '100%', ...disabledStyle }} value={parseCurrencyValue(extractValue(val))} step={0.01} prefix="$" disabled />
+        },
+        {
+            title: 'Net Amount', dataIndex: 'NetAmount', key: 'NetAmount', width: 120,
+            render: (val) => <InputNumber style={{ width: '100%', ...disabledStyle }} value={parseCurrencyValue(extractValue(val))} step={0.01} prefix="$" disabled />
+        },
+        {
+            title: 'Tax Amt', dataIndex: 'TaxAmount', key: 'TaxAmount', width: 100,
+            render: (val) => <InputNumber style={{ width: '100%', ...disabledStyle }} value={parseCurrencyValue(extractValue(val))} step={0.01} disabled />
+        }
+    ], [disabledStyle]);
 
     useEffect(() => {
         setCurrencySymbol('$');
@@ -1277,6 +1528,64 @@ const CodingReviewPage = () => {
                     <Tabs
                         defaultActiveKey="coding"
                         items={[
+                            {
+                                key: 'quick_view',
+                                label: 'Quick View',
+                                children: (
+                                    <QuickViewTab
+                                        formData={formData}
+                                        lineItems={lineItemsForTabs}
+                                        vendorId={formData['Vendor ID']}
+                                        vendorIdOptions={[]}
+                                        vendorNameOptions={[]}
+                                        memo={formData['Notes / Terms']}
+                                        selectedVendorDetails={selectedVendorDetails}
+                                        isDuplicateError={false}
+                                        disableInputs={true}
+                                        disabledStyle={disabledStyle}
+                                        getCurrencySymbol={getCurrencySymbol}
+                                        extractValue={extractValue}
+                                        parseCurrencyValue={parseCurrencyValue}
+                                        renderFieldInput={renderFieldInput}
+                                        handleInputChange={() => { }}
+                                        handleLineItemChange={() => { }}
+                                        handleAddLineItem={() => { }}
+                                        setVendorId={() => { }}
+                                        setMemo={() => { }}
+                                        debouncedVendorIdSearch={() => { }}
+                                        debouncedVendorNameSearch={() => { }}
+                                        handleVendorChange={() => { }}
+                                        skipNextVendorLookup={{ current: false }}
+                                        exportToExcel={() => { }}
+                                        lineItemColumns={lineItemColumnsForTabs}
+                                        readOnly={true}
+                                        isCodingData={!!(codingLineItems && codingLineItems.length > 0)}
+                                    />
+                                )
+                            },
+                            {
+                                key: 'all_fields',
+                                label: 'All Fields',
+                                children: (
+                                    <AllFieldsTab
+                                        formData={formData}
+                                        lineItems={lineItemsForTabs}
+                                        selectedVendorDetails={selectedVendorDetails}
+                                        disableInputs={true}
+                                        disabledStyle={disabledStyle}
+                                        getCurrencySymbol={getCurrencySymbol}
+                                        extractValue={extractValue}
+                                        parseCurrencyValue={parseCurrencyValue}
+                                        renderFieldInput={renderFieldInput}
+                                        handleAddLineItem={() => { }}
+                                        exportToExcel={() => { }}
+                                        lineItemColumns={lineItemColumnsForTabs}
+                                        readOnly={true}
+                                        schema={schemaMap.invoice}
+                                        isCodingData={!!(codingLineItems && codingLineItems.length > 0)}
+                                    />
+                                )
+                            },
                             {
                                 key: 'coding',
                                 label: 'Coding Fields',
