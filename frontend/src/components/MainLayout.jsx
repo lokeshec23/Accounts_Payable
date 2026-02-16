@@ -7,7 +7,6 @@ import {
     Tag,
     Space,
     Modal,
-    Spin,
     message,
     Input,
     Tabs,
@@ -26,6 +25,7 @@ import {
 import InvoiceUpload from './InvoiceUpload';
 import { invoiceService, currencyService } from '../services/api';
 import ApDashboard from '../pages/ApDashboard'; // 📊 Dashboard
+import { TableSkeleton } from './SkeletonLoader';
 import { formatDateTimeIST } from '../utils/dateUtils';
 import '../styles/MainLayout.css';
 
@@ -707,7 +707,9 @@ const MainLayout = () => {
                         </div>
                     </div>
 
-                    <Spin spinning={loading} tip="Loading invoices...">
+                    {loading ? (
+                        <TableSkeleton />
+                    ) : (
                         <Table
                             columns={columns}
                             dataSource={filteredInvoices}
@@ -721,7 +723,7 @@ const MainLayout = () => {
                             className="invoices-table"
                             scroll={{ x: 1600, y: 'calc(100vh - 320px)' }}
                         />
-                    </Spin>
+                    )}
                 </>
             ),
         },

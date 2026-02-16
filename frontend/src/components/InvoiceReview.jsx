@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Spin } from 'antd';
+import { FormSkeleton, QuickViewSkeleton } from './SkeletonLoader';
 import { ArrowLeftOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons';
 import GenericInputFields from './GenericInputFields';
 import { schemaMap } from '../config/schemaMap';
@@ -462,12 +463,11 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                                 position: 'absolute',
                                 top: 0, left: 0, right: 0, bottom: 0,
                                 zIndex: 100,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                background: 'rgba(255, 255, 255, 0.7)'
+                                zIndex: 100,
+                                background: '#fff',
+                                padding: '20px'
                             }}>
-                                <Spin tip="Fetching vendor master details..." />
+                                <QuickViewSkeleton />
                             </div>
                         )}
                         {formattedData && (

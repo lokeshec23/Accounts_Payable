@@ -26,6 +26,7 @@ import {
     InboxOutlined
 } from "@ant-design/icons";
 import { masterDataService } from "../services/api";
+import { TableSkeleton } from "../components/SkeletonLoader";
 import "../styles/MainLayout.css";
 
 const { Title, Text } = Typography;
@@ -433,7 +434,7 @@ const MasterDataPage = () => {
 
 
                 {loading ? (
-                    <div style={{ textAlign: 'center', padding: '100px' }}><Spin size="large" /></div>
+                    <TableSkeleton />
                 ) : (
                     <>
                         {columns.length > 0 ? (

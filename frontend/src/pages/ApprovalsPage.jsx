@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import { invoiceService, currencyService, delegationService } from '../services/api';
 import DelegationManager from '../components/DelegationManager';
+import { TableSkeleton } from '../components/SkeletonLoader';
 
 const { confirm } = Modal;
 
@@ -374,34 +375,40 @@ const ApprovalsPage = () => {
         },
     ];
 
-    const ApprovalsTable = () => (
-        <>
-            <div className="table-toolbar" style={{ marginBottom: 16 }}>
-                <Input
-                    placeholder="Search approvals..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    allowClear
-                    className="table-search-input"
-                    style={{ width: 300 }}
-                />
-            </div>
+    const ApprovalsTable = () => {
+        if (loading && data.length === 0) {
+            return <TableSkeleton />;
+        }
 
-            <Table
-                columns={columns}
-                dataSource={filteredData}
-                loading={loading}
-                pagination={{
-                    defaultPageSize: 10,
-                    showSizeChanger: true,
-                    pageSizeOptions: ['5', '10', '20', '50'],
-                }}
-                scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
-                bordered
-                className="invoices-table approvals-table"
-            />
-        </>
-    );
+        return (
+            <>
+                <div className="table-toolbar" style={{ marginBottom: 16 }}>
+                    <Input
+                        placeholder="Search approvals..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        allowClear
+                        className="table-search-input"
+                        style={{ width: 300 }}
+                    />
+                </div>
+
+                <Table
+                    columns={columns}
+                    dataSource={filteredData}
+                    loading={loading}
+                    pagination={{
+                        defaultPageSize: 10,
+                        showSizeChanger: true,
+                        pageSizeOptions: ['5', '10', '20', '50'],
+                    }}
+                    scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
+                    bordered
+                    className="invoices-table approvals-table"
+                />
+            </>
+        );
+    };
 
     const items = [
         {
