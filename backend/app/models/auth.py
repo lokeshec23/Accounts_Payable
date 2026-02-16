@@ -5,6 +5,13 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+class CheckEmailRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    new_password: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str

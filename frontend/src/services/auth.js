@@ -10,6 +10,27 @@ export const authService = {
     }
   },
 
+  async checkEmail(email) {
+    try {
+      const response = await api.post('/auth/check-email', { email });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  async resetPassword(email, newPassword) {
+    try {
+      const response = await api.post('/auth/reset-password', {
+        email,
+        new_password: newPassword
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   async login(credentials) {
     try {
       const response = await api.post('/auth/login', credentials);
