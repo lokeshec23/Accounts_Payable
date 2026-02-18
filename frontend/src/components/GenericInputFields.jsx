@@ -1384,33 +1384,53 @@ const GenericInputFields = forwardRef(({
 
         isCalculating.current = true;
 
-        const calculatedSubtotal = lineItems.reduce((sum, item) => {
+        // Step 1: Calculate subtotal from line items
+        const calculatedSubtotal = lineItems.reduce((sum, item, idx) => {
             const val = parseCurrencyValue(extractValue(item.NetAmount) ||
                 extractValue(item.amount) || extractValue(item.net_amount));
+            console.log(`[Calc] Line Item ${idx + 1}: NetAmount = ${val} | Desc: ${extractValue(item.Description) || 'N/A'}`);
             return sum + val;
         }, 0);
+        console.log(`[Calc] ─── Sum of Line Items (Calculated Subtotal) = ${calculatedSubtotal}`);
 
-        const headerTax = parseCurrencyValue(extractValue(formData['CGST'])) +
-            parseCurrencyValue(extractValue(formData['SGST'])) +
-            parseCurrencyValue(extractValue(formData['IGST'])) +
-            parseCurrencyValue(extractValue(formData['GST']));
+        // Step 2: Get extracted subtotal from invoice
+        const extractedSubtotal = parseCurrencyValue(extractValue(formData['Subtotal']));
+        console.log(`[Calc] ─── Extracted Subtotal (from invoice) = ${extractedSubtotal}`);
+
+        // Step 3: Use extracted subtotal if it exists and differs from calculated
+        let subtotal = calculatedSubtotal;
+        if (extractedSubtotal > 0 && Math.abs(calculatedSubtotal - extractedSubtotal) > 0.01) {
+            console.log(`[Calc] ⚠ Mismatch: Line items sum (${calculatedSubtotal}) ≠ extracted subtotal (${extractedSubtotal}). Using extracted subtotal.`);
+            subtotal = extractedSubtotal;
+        } else {
+            console.log(`[Calc] ✓ Subtotal match. Using calculated subtotal = ${subtotal}`);
+        }
+
+        const cgst = parseCurrencyValue(extractValue(formData['CGST']));
+        const sgst = parseCurrencyValue(extractValue(formData['SGST']));
+        const igst = parseCurrencyValue(extractValue(formData['IGST']));
+        const gst = parseCurrencyValue(extractValue(formData['GST']));
+        const headerTax = cgst + sgst + igst + gst;
+        console.log(`[Calc] ─── CGST = ${cgst}, SGST = ${sgst}, IGST = ${igst}, GST = ${gst} → Header Tax = ${headerTax}`);
 
         const lineItemTax = lineItems.reduce((sum, item) => {
             const val = parseCurrencyValue(extractValue(item.TaxAmount) ||
                 extractValue(item.tax_amount));
             return sum + val;
         }, 0);
+        console.log(`[Calc] ─── Line Item Tax (sum of TaxAmount) = ${lineItemTax}`);
 
         const fieldTotalTax = parseCurrencyValue(extractValue(formData['Total Tax Amount']));
         const totalTax = fieldTotalTax > 0 ? fieldTotalTax : (headerTax + lineItemTax);
+        console.log(`[Calc] ─── Total Tax Amount field = ${fieldTotalTax} → Final Tax Used = ${totalTax} ${fieldTotalTax > 0 ? '(from field)' : '(header + line item)'}`);
 
         let tdsAmount = 0;
         if (selectedVendorDetails) {
             const findVal = (obj, keys) => {
                 if (!obj) return null;
                 const matchKey = Object.keys(obj).find(k => {
-                    const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
-                    return keys.some(target => normK === target.toLowerCase().replace(/[\s_\\\-]/g, ''));
+                    const normK = k.toLowerCase().replace(/[\s_\\-]/g, '');
+                    return keys.some(target => normK === target.toLowerCase().replace(/[\s_\\-]/g, ''));
                 });
                 return matchKey ? obj[matchKey] : null;
             };
@@ -1421,18 +1441,26 @@ const GenericInputFields = forwardRef(({
             ]);
 
             const isTDSApplicable = tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes';
+            console.log(`[Calc] ─── TDS Applicable = ${isTDSApplicable} (vendor value: "${tdsApplicabilityVal}")`);
 
             if (isTDSApplicable) {
                 const tdsRateVal = findVal(selectedVendorDetails, [
                     'TDS Percentage', 'Percentage', 'Rate', 'TDS Rate', 'Withholding Rate'
                 ]) || '0';
                 const tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
-                tdsAmount = parseFloat((calculatedSubtotal * tdsRate).toFixed(2));
+                tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
+                console.log(`[Calc] ─── TDS Rate = ${tdsRate} | TDS Amount = ${subtotal} × ${tdsRate} = ${tdsAmount}`);
             }
+        } else {
+            console.log(`[Calc] ─── No vendor selected, TDS = 0`);
         }
 
-        const invoiceTotal = parseFloat((calculatedSubtotal + totalTax).toFixed(2));
+        // Total Invoice Amount = subtotal + GST
+        const invoiceTotal = parseFloat((subtotal + totalTax).toFixed(2));
+        console.log(`[Calc] ═══ Total Invoice Amount = ${subtotal} (subtotal) + ${totalTax} (tax) = ${invoiceTotal}`);
+        // Total Amount Payable = Total Invoice Amount - TDS
         const payableAmount = parseFloat((invoiceTotal - tdsAmount).toFixed(2));
+        console.log(`[Calc] ═══ Total Amount Payable = ${invoiceTotal} (invoice total) - ${tdsAmount} (TDS) = ${payableAmount}`);
 
         isCalculating.current = false;
 
@@ -1635,9 +1663,14 @@ const GenericInputFields = forwardRef(({
                 let tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
                 if (tdsRate > 1) tdsRate = tdsRate / 100;
 
-                const subtotal = newCoding
+                const calculatedSubtotal = newCoding
                     .filter(l => l.original_index >= 0)
                     .reduce((sum, l) => sum + l.net_amount, 0);
+
+                // Use extracted subtotal if it differs from calculated
+                const extractedSubtotal = parseCurrencyValue(extractValue(formData['Subtotal']));
+                const subtotal = (extractedSubtotal > 0 && Math.abs(calculatedSubtotal - extractedSubtotal) > 0.01)
+                    ? extractedSubtotal : calculatedSubtotal;
 
                 const tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
 

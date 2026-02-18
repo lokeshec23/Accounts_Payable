@@ -1,5 +1,6 @@
 # agents/extraction_agent.py
 import os
+import logging
 import json
 import pandas as pd
 from datetime import datetime
@@ -12,6 +13,8 @@ from langchain_openai import AzureChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
 load_dotenv()
+
+logger = logging.getLogger("ai_app")
 
 class InvoiceState(TypedDict):
     file_path: str
@@ -813,6 +816,15 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
             state["final_output"] = final_output
             self.processing_steps.append("Final Output Generation Completed")
             print(f"Final output generated successfully in {time.time() - out_start:.2f}s")
+
+            # Log Total Invoice Amount and Total Amount Payable
+            amounts = validated_data.get("amounts", {})
+            total_invoice = amounts.get("total_invoice_amount", {})
+            total_payable = amounts.get("total_amount_payable", {}) or amounts.get("amount_due", {})
+            subtotal = amounts.get("subtotal", {})
+            logger.info(f"[Extraction] Subtotal: {subtotal.get('value', 'N/A')} (source: {subtotal.get('source', 'N/A')})")
+            logger.info(f"[Extraction] Total Invoice Amount: {total_invoice.get('value', 'N/A')} (source: {total_invoice.get('source', 'N/A')})")
+            logger.info(f"[Extraction] Total Amount Payable: {total_payable.get('value', 'N/A')} (source: {total_payable.get('source', 'N/A')})")
             return state
 
         except Exception as e:

@@ -182,7 +182,7 @@ const AllFieldsTab = React.memo(({
             let tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
             if (tdsRate > 1) tdsRate = tdsRate / 100;
 
-            const subtotal = lineItems.reduce((sum, item) => {
+            const calculatedSubtotal = lineItems.reduce((sum, item) => {
                 const net = parseCurrencyValue(
                     extractValue(item.NetAmount) ||
                     extractValue(item.amount) ||
@@ -192,6 +192,11 @@ const AllFieldsTab = React.memo(({
                 );
                 return sum + net;
             }, 0);
+
+            // Use extracted subtotal if it differs from calculated
+            const extractedSubtotal = parseCurrencyValue(extractValue(formData['Subtotal']));
+            const subtotal = (extractedSubtotal > 0 && Math.abs(calculatedSubtotal - extractedSubtotal) > 0.01)
+                ? extractedSubtotal : calculatedSubtotal;
 
             const tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
 
