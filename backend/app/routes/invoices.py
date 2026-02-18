@@ -182,6 +182,16 @@ async def upload_invoices(
             
             if extracted_vendor or extracted_address:
                 new_invoice.azure_vendor_name = extracted_vendor
+                new_invoice.azure_vendor_address = extracted_address
+                
+                # Check for exchange rate
+                invoice_details = extracted_data.get("invoice_details", {})
+                if "exchange_rate" in invoice_details:
+                    try:
+                        new_invoice.exchange_rate = float(invoice_details.get("exchange_rate", {}).get("value"))
+                    except (ValueError, TypeError):
+                        pass
+
                 vendor_start = time.time()
                 res_v_id, res_v_name, res_v_grouping, vendor_details = get_vendor_id_from_master(db, extracted_vendor, entity, extracted_address)
                 print(f"[Backend] Vendor matching completed in {time.time() - vendor_start:.2f}s")
@@ -794,9 +804,16 @@ async def update_invoice(
         new_vendor_name = extracted_data.get("vendor_info", {}).get("name", {}).get("value")
         
         old_vendor_id = invoice.vendor_id
+        old_vendor_name = invoice.vendor_name
         azure_vendor_name = invoice.azure_vendor_name
+        azure_vendor_address = invoice.azure_vendor_address
         
-        if azure_vendor_name and new_vendor_id and new_vendor_id != old_vendor_id:
+        # Determine if we should update metadata
+        # We update if the vendor_id has changed, OR if the vendor_name has changed for the same ID
+        vendor_changed = (new_vendor_id and new_vendor_id != old_vendor_id) or \
+                         (new_vendor_name and new_vendor_name != old_vendor_name)
+
+        if azure_vendor_name and new_vendor_id and vendor_changed:
             from app.ai.normalizer import normalize_vendor, normalize_address
             
             # Persist Name-based mapping
@@ -810,15 +827,20 @@ async def update_invoice(
                 if not mapping:
                     mapping = VendorMetadata(
                         extracted_name_normalized=norm_azure_name,
-                        entity=invoice.entity
+                        entity=invoice.entity,
+                        vendor_id=new_vendor_id,
+                        official_name=new_vendor_name or invoice.vendor_name,
+                        extracted_name=azure_vendor_name,
+                        extracted_address=azure_vendor_address,
+                        updated_by=current_user.username
                     )
                     db.add(mapping)
-                
-                mapping.extracted_name = azure_vendor_name
-                mapping.vendor_id = new_vendor_id
-                mapping.official_name = new_vendor_name or invoice.vendor_name
-                mapping.updated_at = datetime.utcnow()
-                mapping.updated_by = current_user.username
+                else:
+                    mapping.vendor_id = new_vendor_id
+                    mapping.official_name = new_vendor_name or invoice.vendor_name
+                    mapping.extracted_name = azure_vendor_name
+                    mapping.extracted_address = azure_vendor_address
+                    mapping.updated_by = current_user.username
             
             # Persist Address-based mapping if available
             vendor_info = extracted_data.get("vendor_info", {})
@@ -834,27 +856,31 @@ async def update_invoice(
                     if not addr_mapping:
                         addr_mapping = VendorMetadata(
                             extracted_address_normalized=norm_azure_addr,
-                            entity=invoice.entity
+                            entity=invoice.entity,
+                            vendor_id=new_vendor_id,
+                            official_name=new_vendor_name or invoice.vendor_name,
+                            extracted_address=azure_address,
+                            updated_by=current_user.username
                         )
                         db.add(addr_mapping)
-                    
-                    addr_mapping.extracted_address = azure_address
-                    addr_mapping.vendor_id = new_vendor_id
-                    addr_mapping.official_name = new_vendor_name or invoice.vendor_name
-                    addr_mapping.updated_at = datetime.utcnow()
-                    addr_mapping.updated_by = current_user.username
-                # Also update top-level vendor fields in the invoice
-                update_data["vendor_id"] = new_vendor_id
-                if new_vendor_name:
-                    update_data["vendor_name"] = new_vendor_name
-                
-                # Sync back to extracted_data.vendor_info for frontend consistency
-                if "vendor_info" not in extracted_data:
-                    extracted_data["vendor_info"] = {}
-                extracted_data["vendor_info"]["vendor_id"] = {"value": new_vendor_id}
-                if new_vendor_name:
-                    extracted_data["vendor_info"]["name"] = {"value": new_vendor_name}
-                update_data["extracted_data"] = extracted_data
+                    else:
+                        addr_mapping.vendor_id = new_vendor_id
+                        addr_mapping.official_name = new_vendor_name or invoice.vendor_name
+                        addr_mapping.extracted_address = azure_address
+                        addr_mapping.updated_by = current_user.username
+
+            # Also update top-level vendor fields in the invoice
+            update_data["vendor_id"] = new_vendor_id
+            if new_vendor_name:
+                update_data["vendor_name"] = new_vendor_name
+            
+            # Sync back to extracted_data.vendor_info for frontend consistency
+            if "vendor_info" not in extracted_data:
+                extracted_data["vendor_info"] = {}
+            extracted_data["vendor_info"]["vendor_id"] = {"value": new_vendor_id}
+            if new_vendor_name:
+                extracted_data["vendor_info"]["name"] = {"value": new_vendor_name}
+            update_data["extracted_data"] = extracted_data
 
     # Merge validation
     if "validation_results" in update_data:

@@ -79,6 +79,7 @@ class Invoice(Base):
     vendor_name = Column(String(500), nullable=True, index=True)
     invoice_number = Column(String(200), nullable=True, index=True)
     azure_vendor_name = Column(String(500), nullable=True)
+    azure_vendor_address = Column(String(500), nullable=True)
     line_grouping = Column(String(10), nullable=True)  # Yes/No
     
     # Financial data
@@ -388,10 +389,14 @@ class VendorMetadata(Base):
     entity = Column(String(100), nullable=True, index=True)
     vendor_id = Column(String(100), nullable=False, index=True)
     official_name = Column(String(500), nullable=False)
+    extracted_name = Column(String(500), nullable=True)
+    extracted_address = Column(String(1000), nullable=True)
     extracted_name_normalized = Column(String(500), nullable=True, index=True)
     extracted_address_normalized = Column(String(1000), nullable=True, index=True)
     line_grouping = Column(String(10), nullable=True, default="No")  # Yes/No
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True, onupdate=datetime.utcnow)
+    updated_by = Column(String(100), nullable=True)
 
     __table_args__ = (
         Index('ix_vendor_metadata_lookup', 'entity', 'extracted_name_normalized', 'extracted_address_normalized'),
