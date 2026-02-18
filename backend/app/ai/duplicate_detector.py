@@ -18,11 +18,13 @@ def _count_same_name_vendors(db: Session, normalized_name: str, entity: str = No
     if not normalized_name:
         return 0
 
-    records = get_cached_vendors(db)
-    count = 0
+    records, _, _ = get_cached_vendors(db)
 
+    count = 0
     for rec in records:
-        if rec.norm_name == normalized_name:
+        # rec is a raw row dict, not object
+        name = rec.get("VENDOR_NAME") or rec.get("Vendor Name") or ""
+        if normalize_vendor(name) == normalized_name:
             count += 1
 
     return count
