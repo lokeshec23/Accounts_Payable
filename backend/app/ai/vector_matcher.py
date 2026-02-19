@@ -261,13 +261,15 @@ class VendorMatcher:
         candidates.sort(key=lambda x: x["score"], reverse=True)
         best = candidates[0]
 
+        match_type = best["type"]
+
         if best["score"] < MATCH_THRESHOLD:
-            return {"match": None, "score": 0, "type": "no_match"}
+            match_type = "low_confidence_match"
 
         return {
             "match": best["record"],
             "score": round(best["score"], 2),
-            "type": best["type"]
+            "type": match_type
         }
 
 _matcher_instance = VendorMatcher()
