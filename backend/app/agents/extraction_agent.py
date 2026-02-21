@@ -626,10 +626,35 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
         final: Dict[str, Any] = {}
 
         def merge_section(section: str):
-            section_plain = enhanced_headers.get(section, {}) or {}
+            llm_section = enhanced_headers.get(section, {}) or {}
             final[section] = {}
+            
+            # Get all possible fields for this section from our mapping
+            section_mapping = {
+                "vendor_info": [
+                    "name", "address", "country", "tax_id", "contact_email", "phone",
+                    "bank_name", "bank_account_number", "bank_details", "contact_person", "website"
+                ],
+                "client_info": [
+                    "name", "billing_address", "shipping_address", "phone", "email", "tax_id", "contact_person"
+                ],
+                "invoice_details": [
+                    "invoice_number", "invoice_date", "due_date", "currency", "type", 
+                    "po_number", "payment_terms", "payment_method", "cost_center"
+                ],
+                "service_period": ["start_date", "end_date"],
+                "amounts": [
+                    "subtotal", "shipping_handling_fees", "surcharges", "total_tax_amount",
+                    "tax_type_breakdown", "CGST", "SGST", "IGST", "withholding_tax",
+                    "total_invoice_amount", "amount_paid", "amount_due", "previous_unpaid_balance"
+                ],
+                "additional_info": ["notes_terms", "qr_code_irn", "company_registration_number"]
+            }
 
-            for field, llm_value in section_plain.items():
+            fields_to_process = section_mapping.get(section, [])
+            
+            for field in fields_to_process:
+                llm_value = llm_section.get(field)
                 az_field_name = self._get_azure_field_for_section_field(section, field)
                 azure_entry = azure_data.get(az_field_name) if az_field_name else None
                 azure_value = azure_entry.get("value") if azure_entry else None
@@ -646,7 +671,7 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
                     }
                 else:
                     final[section][field] = {
-                        "value": llm_value,
+                        "value": llm_value if llm_value is not None else None,
                         "source": "llm", 
                         "confidence": None,
                         "bounding_regions": None
