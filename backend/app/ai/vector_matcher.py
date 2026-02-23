@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 from rapidfuzz import fuzz, process
 
-from app.models.db_models import ExcelFile, MasterDataChunk
+from app.models.db_models import VendorMaster
 
 logger = logging.getLogger(__name__)
 
@@ -98,10 +98,10 @@ class VendorMatcher:
             return 0.0
 
         db_addr = " ".join(filter(None, [
-            str(record.get('ADDRESS_LINE1', '')),
-            str(record.get('CITY', '')),
-            str(record.get('STATE_OR_TERITTORY', '')),
-            str(record.get('ZIP_OR_POSTAL_CODE', ''))
+            str(record.get('address_line1', record.get('ADDRESS_LINE1', ''))),
+            str(record.get('city', record.get('CITY', ''))),
+            str(record.get('state_or_territory', record.get('STATE_OR_TERITTORY', ''))),
+            str(record.get('zip_or_postal_code', record.get('ZIP_OR_POSTAL_CODE', '')))
         ])).lower().strip()
 
         if not db_addr:
@@ -115,30 +115,20 @@ class VendorMatcher:
     # LOAD MASTER DATA
     # ------------------------------------------------------
     def load_from_db(self, db: Session):
-
-        vendor_file = db.query(ExcelFile).filter(
-            ExcelFile.tab_name.in_(
-                ["Vendor_Master", "Vendor Master", "Vendors", "Vendor"]
-            )
-        ).order_by(ExcelFile.uploaded_at.desc()).first()
-
-        if not vendor_file:
-            logger.error("No Vendor Master file found")
+        """Load all vendors from structured VendorMaster table."""
+        vendors = db.query(VendorMaster).all()
+        
+        if not vendors:
+            logger.warning("No Vendor Master records found")
             return
 
-        chunks = db.query(MasterDataChunk).filter(
-            MasterDataChunk.file_id == vendor_file.id
-        ).all()
-
+        # Convert SQLAlchemy objects to dictionaries for compatibility
         all_rows = []
-        for chunk in chunks:
-            try:
-                data = json.loads(chunk.data_json) \
-                    if isinstance(chunk.data_json, str) else chunk.data_json
-                if isinstance(data, list):
-                    all_rows.extend(data)
-            except Exception as e:
-                logger.error(f"Chunk parsing error: {e}")
+        for v in vendors:
+            row_dict = {}
+            for column in v.__table__.columns:
+                row_dict[column.name] = getattr(v, column.name)
+            all_rows.append(row_dict)
 
         self.master_records.clear()
         self.clean_names.clear()
@@ -146,7 +136,8 @@ class VendorMatcher:
         self.acronym_map.clear()
 
         for row in all_rows:
-            name = str(row.get("VENDOR_NAME", "")).strip()
+            # Match code expects uppercase keys or snake_case
+            name = str(row.get("vendor_name", row.get("VENDOR_NAME", ""))).strip()
             if not name:
                 continue
 
@@ -331,15 +322,15 @@ def get_cached_vendors(db: Session):
     address_map = {}
 
     for record in rows:
-        name = str(record.get("VENDOR_NAME", "")).strip()
+        name = str(record.get("vendor_name", record.get("VENDOR_NAME", ""))).strip()
         if name:
             vendor_map[name.lower()] = record
 
         address = " ".join(filter(None, [
-            str(record.get('ADDRESS_LINE1', '')),
-            str(record.get('CITY', '')),
-            str(record.get('STATE_OR_TERITTORY', '')),
-            str(record.get('ZIP_OR_POSTAL_CODE', ''))
+            str(record.get('address_line1', record.get('ADDRESS_LINE1', ''))),
+            str(record.get('city', record.get('CITY', ''))),
+            str(record.get('state_or_territory', record.get('STATE_OR_TERITTORY', ''))),
+            str(record.get('zip_or_postal_code', record.get('ZIP_OR_POSTAL_CODE', '')))
         ])).strip()
 
         if address:

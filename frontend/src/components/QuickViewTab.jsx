@@ -215,7 +215,7 @@ const QuickViewTab = React.memo(({
                                 onSelect={(val, option) => {
                                     if (option.vendor) {
                                         skipNextVendorLookup.current = true;
-                                        const vName = option.vendor['Vendor Name'] || option.vendor['VendorName'] || option.vendor['Name'] || option.vendor['VENDOR_NAME'];
+                                        const vName = option.vendor['vendor_name'] || option.vendor['VendorName'] || option.vendor['Name'] || option.vendor['VENDOR_NAME'];
                                         if (vName) {
                                             handleInputChange('Vendor Name', vName);
                                         }

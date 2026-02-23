@@ -731,20 +731,10 @@ async def update_invoice(
     #     requires_check = True
     # ---- Line grouping toggle when vendor changes ----
     if "vendor_id" in update_data:
-        from app.models.db_models import ExcelFile, MasterDataChunk
+        from app.models.db_models import VendorMaster
         # Simplified vendor lookup for grouping logic
-        vendor_file = db.query(ExcelFile).filter(ExcelFile.tab_name.in_(["Vendor_Master", "Vendor Master"])).first()
-        new_grouping = "No"
-        if vendor_file:
-            chunks = db.query(MasterDataChunk).filter(MasterDataChunk.file_id == vendor_file.id).all()
-            for chunk in chunks:
-                chunk_data = json.loads(chunk.data_json) if isinstance(chunk.data_json, str) else chunk.data_json
-                rows = chunk_data.get("rows", [])
-                for r in rows:
-                    if r.get("Vendor ID") == new_vendor_id:
-                        new_grouping = r.get("Line Grouping", "No")
-                        break
-                if new_grouping != "No": break
+        vendor = db.query(VendorMaster).filter(VendorMaster.vendor_id == new_vendor_id).first()
+        new_grouping = vendor.line_grouping if vendor else "No"
 
         extracted_data = update_data.get("extracted_data") or deserialize_json_field(invoice.extracted_data) or {}
         items = extracted_data.get("Items", {}).get("value", [])

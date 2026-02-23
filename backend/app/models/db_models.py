@@ -333,37 +333,152 @@ class ApproverDefault(Base):
 
 # ==================== MASTER DATA ====================
 
-class ExcelFile(Base):
-    """Metadata for uploaded Excel files (vendor master, etc.)"""
-    __tablename__ = "excel_files"
+class EntityMaster(Base):
+    """
+    Entity Master table to store business entity details.
+    """
+    __tablename__ = "entity_master"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    original_filename = Column(String(500), nullable=False)
-    tab_name = Column(String(100), nullable=False, index=True) # e.g., "Vendor_Master"
-    sheet_name = Column(String(100), nullable=True) # Sub-sheet name
-    uploaded_by = Column(String(100), nullable=True)
-    columns_json = Column(Text, nullable=True) # JSON array of column names
-    uploaded_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    entity_id = Column(String(50), unique=True, nullable=False, index=True)
+    entity_name = Column(String(200), nullable=False)
+    registered_address = Column(Text, nullable=True)
+    address_line1 = Column(String(255), nullable=True)
+    address_line2 = Column(String(255), nullable=True)
+    address_line3 = Column(String(255), nullable=True)
+    city = Column(String(100), nullable=True)
+    state_or_territory = Column(String(100), nullable=True)
+    zip_or_postal_code = Column(String(20), nullable=True)
+    country_code = Column(String(10), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    __table_args__ = (
-        Index('ix_excel_tab_uploaded', 'tab_name', 'uploaded_at'),
-    )
 
-
-class MasterDataChunk(Base):
-    """Generic table for storing chunked master data (vendor master, etc.)"""
-    __tablename__ = "master_data_chunks"
+class VendorMaster(Base):
+    """
+    Vendor Master table to store vendor details.
+    """
+    __tablename__ = "vendor_master"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    file_id = Column(Integer, ForeignKey("excel_files.id", ondelete="CASCADE"), nullable=False, index=True)
-    chunk_index = Column(Integer, nullable=False)
-    data_json = Column(Text, nullable=False)  # JSON with rows array
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    vendor_id = Column(String(50), unique=True, nullable=False, index=True)
+    vendor_name = Column(String(200), nullable=False, index=True)
+    vendor_is_an_individual_person = Column(Boolean, default=False)
+    address_line1 = Column(String(255), nullable=True)
+    address_line2 = Column(String(255), nullable=True)
+    address_line3 = Column(String(255), nullable=True)
+    city = Column(String(100), nullable=True)
+    state_or_territory = Column(String(100), nullable=True)
+    zip_or_postal_code = Column(String(20), nullable=True)
+    country_code = Column(String(10), nullable=True)
+    country = Column(String(100), nullable=True)
+    primary_phone = Column(String(50), nullable=True)
+    secondary_phone_no = Column(String(50), nullable=True)
+    mobile_phone = Column(String(50), nullable=True)
+    primary_email_address = Column(String(255), nullable=True)
+    secondary_email_address = Column(String(255), nullable=True)
+    pay_terms = Column(String(100), nullable=True)
+    tax_id = Column(String(50), nullable=True)
+    
+    # Configuration Columns (Boolean for DB compatibility with BIT columns)
+    gst_eligibility = Column(Boolean, nullable=True, default=False)
+    tds_applicability = Column(Boolean, nullable=True, default=False)
+    tds_percentage = Column(String(20), nullable=True)
+    tds_section_code = Column(String(255), nullable=True)
+    workflow_applicable = Column(Boolean, nullable=True, default=True)
+    line_grouping = Column(Boolean, nullable=True, default=False)
+    
+    # Suggested Foreign Key to Entity
+    entity_id = Column(String(50), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    __table_args__ = (
-        Index('ix_master_data_file_chunk', 'file_id', 'chunk_index'),
-    )
 
+class TdsRate(Base):
+    """
+    TDS Rates table for tax calculations.
+    """
+    __tablename__ = "tds_rates"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    section = Column(String(50), nullable=False, index=True)
+    nature_of_payment = Column(String(255), nullable=False)
+    tds_rate = Column(DECIMAL(5, 2), nullable=False)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class GLMaster(Base):
+    """
+    General Ledger Master table.
+    """
+    __tablename__ = "gl_master"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_number = Column(String(50), unique=True, nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    normal_balance = Column(String(20), nullable=True) # Debit/Credit
+    require_department = Column(Boolean, default=False)
+    require_location = Column(Boolean, default=False)
+    period_end_closing_type = Column(String(50), nullable=True)
+    close_into_account = Column(String(50), nullable=True)
+    disallow_direct_posting = Column(Boolean, default=False)
+    internal_rate = Column(DECIMAL(18, 4), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+
+class LOBMaster(Base):
+    """
+    Line of Business Master table.
+    """
+    __tablename__ = "lob_master"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    lob_id = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    parent_id = Column(String(50), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class DepartmentMaster(Base):
+    """
+    Department Master table.
+    """
+    __tablename__ = "department_master"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    department_id = Column(String(50), unique=True, nullable=False, index=True)
+    department_name = Column(String(200), nullable=False)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class CustomerMaster(Base):
+    """
+    Customer Master table.
+    """
+    __tablename__ = "customer_master"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    customer_id = Column(String(50), unique=True, nullable=False, index=True)
+    customer_name = Column(String(200), nullable=False)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class ItemMaster(Base):
+    """
+    Item Master table.
+    """
+    __tablename__ = "item_master"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    item_id = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    product_line_id = Column(String(50), nullable=True)
+    gl_group = Column(String(50), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class InvoiceRegistry(Base):
     """Fast lookup registry for duplicate invoice detection"""

@@ -9,7 +9,7 @@ from app.database.database import get_db
 from app.models.db_models import (
     VendorWorkflow as DBVendorWorkflow, 
     CodificationWorkflow as DBCodificationWorkflow,
-    ExcelFile, MasterDataChunk, User as DBUser
+    VendorMaster, LOBMaster, DepartmentMaster, User as DBUser
 )
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
@@ -136,39 +136,25 @@ async def get_workflow_vendors(
     db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
-    vendor_file = db.query(ExcelFile).filter(ExcelFile.tab_name == "Vendor_Master").first()
-    if not vendor_file: return []
-    
-    chunks = db.query(MasterDataChunk).filter(MasterDataChunk.file_id == vendor_file.id).all()
+    vendors = db.query(VendorMaster).all()
     workflow_vendors = []
-    for chunk in chunks:
-        rows = json.loads(chunk.data_json)
-        for vendor in rows:
-            workflow_applicable = None
-            for key in vendor.keys():
-                kl = key.lower()
-                if "workflow" in kl and ("applicable" in kl or "applicability" in kl or "eligible" in kl or "eligibility" in kl):
-                    workflow_applicable = vendor[key]
-                    break
+    
+    for v in vendors:
+        # Robust check for both boolean (new) and legacy string "Yes"
+        is_val = v.workflow_applicable
+        if is_val is True or is_val == 1 or str(is_val).strip().lower() == "yes" or str(is_val).strip().lower() == "true":
+            vendor_name = v.vendor_name
+            vendor_id = v.vendor_id
             
-            if str(workflow_applicable).strip().lower() == "yes":
-                vendor_name = None
-                for key in ["VENDOR_NAME", "Vendor Name", "VendorName", "Name", "vendor_name"]:
-                    if key in vendor: vendor_name = vendor[key]; break
-                
-                vendor_id = None
-                for key in ["VENDOR_ID", "Vendor ID", "VendorID", "vendor_id", "Customer_Id"]:
-                    if key in vendor: vendor_id = vendor[key]; break
-                
-                if vendor_name:
-                    label = f"{vendor_id} - {vendor_name}" if vendor_id else str(vendor_name)
-                    unique_val = f"{vendor_id}|{vendor_name}" if vendor_id else str(vendor_name)
-                    workflow_vendors.append({
-                        "id": str(vendor_id) if vendor_id else "",
-                        "value": unique_val,
-                        "label": label,
-                        "vendor_name": str(vendor_name)
-                    })
+            if vendor_name:
+                label = f"{vendor_id} - {vendor_name}" if vendor_id else str(vendor_name)
+                unique_val = f"{vendor_id}|{vendor_name}" if vendor_id else str(vendor_name)
+                workflow_vendors.append({
+                    "id": str(vendor_id) if vendor_id else "",
+                    "value": unique_val,
+                    "label": label,
+                    "vendor_name": str(vendor_name)
+                })
     return workflow_vendors
 
 # ==================== CODIFICATION WORKFLOW ====================
@@ -286,39 +272,30 @@ async def delete_codification_workflow(
 
 @router.get("/codification/lobs")
 async def get_lobs(db: Session = Depends(get_db)):
-    lobs = {}
-    files = db.query(ExcelFile).all()
-    for file in files:
-        if "line_items" in file.tab_name.lower():
-            chunks = db.query(MasterDataChunk).filter(MasterDataChunk.file_id == file.id).all()
-            for chunk in chunks:
-                rows = json.loads(chunk.data_json)
-                for row in rows:
-                    lob_id, lob_name = None, None
-                    for k in ["LOB ID", "LOBID", "LOB"]:
-                        if k in row and row[k]: lob_id = str(row[k]).strip(); break
-                    for k in ["Name", "LOB Name", "Description"]:
-                        if k in row and row[k]: lob_name = str(row[k]).strip(); break
-                    if lob_id: lobs[lob_id] = f"{lob_id} - {lob_name}" if lob_name else lob_id
-    return [{"value": vid, "label": lbl} for vid, lbl in sorted(lobs.items())]
+    lobs = db.query(LOBMaster).all()
+    result = []
+    # lob_id and name are correct for LOBMaster
+    for w in sorted(lobs, key=lambda x: str(x.lob_id or "")):
+        val = str(w.lob_id) if w.lob_id is not None else str(w.id)
+        result.append({
+            "value": val,
+            "label": f"{val} - {w.name}" if getattr(w, 'name', None) else val
+        })
+    return result
 
 @router.get("/codification/departments")
 async def get_departments(db: Session = Depends(get_db)):
-    departments = {}
-    files = db.query(ExcelFile).all()
-    for file in files:
-        if any(x in file.tab_name.lower() for x in ["line_items", "department", "dept"]):
-            chunks = db.query(MasterDataChunk).filter(MasterDataChunk.file_id == file.id).all()
-            for chunk in chunks:
-                rows = json.loads(chunk.data_json)
-                for row in rows:
-                    dept_id, dept_name = None, None
-                    for k in ["Department ID", "DepartmentID", "dept_id", "Dept"]:
-                        if k in row and row[k]: dept_id = str(row[k]).strip(); break
-                    for k in ["Department name", "DeptName", "Name", "Description", "Department Description", "Department"]:
-                        if k in row and row[k]: dept_name = str(row[k]).strip(); break
-                    if dept_id: departments[dept_id] = f"{dept_id} - {dept_name}" if dept_name else dept_id
-    return [{"value": did, "label": lbl} for did, lbl in sorted(departments.items())]
+    depts = db.query(DepartmentMaster).all()
+    result = []
+    # DepartmentMaster uses department_name, not name
+    for w in sorted(depts, key=lambda x: str(x.department_id or "")):
+        val = str(w.department_id) if w.department_id is not None else str(w.id)
+        name = getattr(w, 'department_name', None) or getattr(w, 'name', None)
+        result.append({
+            "value": val,
+            "label": f"{val} - {name}" if name else val
+        })
+    return result
 
 @router.get("/approvers")
 async def get_approvers(db: Session = Depends(get_db)):

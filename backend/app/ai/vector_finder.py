@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 from rapidfuzz import fuzz, process
 
-from app.models.db_models import ExcelFile, MasterDataChunk
+from app.models.db_models import VendorMaster
 
 logger = logging.getLogger(__name__)
 
@@ -86,12 +86,12 @@ class VendorMatcher:
             return 0.0
 
         db_addr = " ".join(filter(None, [
-            str(record.get('ADDRESS_LINE1', '')),
-            str(record.get('ADDRESS_LINE2', '')),
-            str(record.get('ADDRESS_LINE3', '')),
-            str(record.get('CITY', '')),
-            str(record.get('STATE_OR_TERITTORY', '')),
-            str(record.get('ZIP_OR_POSTAL_CODE', ''))
+            str(record.get('address_line1', record.get('ADDRESS_LINE1', ''))),
+            str(record.get('address_line2', record.get('ADDRESS_LINE2', ''))),
+            str(record.get('address_line3', record.get('ADDRESS_LINE3', ''))),
+            str(record.get('city', record.get('CITY', ''))),
+            str(record.get('state_or_territory', record.get('STATE_OR_TERITTORY', ''))),
+            str(record.get('zip_or_postal_code', record.get('ZIP_OR_POSTAL_CODE', '')))
         ])).lower().strip()
 
         if not db_addr:
@@ -103,30 +103,20 @@ class VendorMatcher:
     # LOAD MASTER DATA
     # ------------------------------------------------------
     def load_from_db(self, db: Session):
-
-        vendor_file = db.query(ExcelFile).filter(
-            ExcelFile.tab_name.in_(
-                ["Vendor_Master", "Vendor Master", "Vendors", "Vendor"]
-            )
-        ).order_by(ExcelFile.uploaded_at.desc()).first()
-
-        if not vendor_file:
-            logger.error("No Vendor Master file found")
+        """Load all vendors from structured VendorMaster table."""
+        vendors = db.query(VendorMaster).all()
+        
+        if not vendors:
+            logger.warning("No Vendor Master records found")
             return
 
-        chunks = db.query(MasterDataChunk).filter(
-            MasterDataChunk.file_id == vendor_file.id
-        ).all()
-
+        # Convert SQLAlchemy objects to dictionaries for compatibility
         all_rows = []
-        for chunk in chunks:
-            try:
-                data = json.loads(chunk.data_json) \
-                    if isinstance(chunk.data_json, str) else chunk.data_json
-                if isinstance(data, list):
-                    all_rows.extend(data)
-            except Exception as e:
-                logger.error(f"Chunk parsing error: {e}")
+        for v in vendors:
+            row_dict = {}
+            for column in v.__table__.columns:
+                row_dict[column.name] = getattr(v, column.name)
+            all_rows.append(row_dict)
 
         self.master_records.clear()
         self.clean_names.clear()
@@ -135,27 +125,25 @@ class VendorMatcher:
         self.acronym_map.clear()
 
         for row in all_rows:
-            name = str(row.get("VENDOR_NAME", "")).strip()
+            # Match code expects uppercase keys or snake_case
+            name = str(row.get("vendor_name", row.get("VENDOR_NAME", ""))).strip()
             if not name:
                 continue
 
+            tax_id = str(row.get("tax_id", row.get("TAX_ID", ""))).strip()
             norm = self._normalize(name)
             deep_norm = self._normalize(name, deep_clean=True)
-
+            
             index = len(self.master_records)
-
             self.master_records.append(row)
             self.clean_names.append(norm)
             self.deep_clean_names.append(deep_norm)
 
-            # TAX ID INDEXING
-            tax_id = row.get("TAX ID") or row.get("TAX_ID")
             if tax_id:
-                clean_tax = self._clean_tax_id(str(tax_id))
+                clean_tax = self._clean_tax_id(tax_id)
                 if clean_tax:
                     self.tax_id_map[clean_tax] = index
 
-        self.last_updated = time.time()
         print(f"Loaded {len(self.master_records)} vendors into memory.")
         print(f"Indexed {len(self.tax_id_map)} tax IDs.")
 

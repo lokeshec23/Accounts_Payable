@@ -22,8 +22,8 @@ def _count_same_name_vendors(db: Session, normalized_name: str, entity: str = No
 
     count = 0
     for rec in records:
-        # rec is a raw row dict, not object
-        name = rec.get("VENDOR_NAME") or rec.get("Vendor Name") or ""
+        # rec is a raw row dict from VendorMaster object
+        name = rec.get("vendor_name") or rec.get("VENDOR_NAME") or ""
         if normalize_vendor(name) == normalized_name:
             count += 1
 
@@ -68,7 +68,7 @@ def get_vendor_id_from_master(
                 
                 # Fetch full record from cache/master
                 vendors, _, _ = get_cached_vendors(db)
-                full_v = next((v for v in vendors if str(v.get("Vendor ID") or v.get("VendorID") or v.get("VENDOR_ID") or v.get("VENDOR ID")) == str(mapping.vendor_id)), None)
+                full_v = next((v for v in vendors if str(v.get("vendor_id") or v.get("VENDOR_ID") or v.get("Vendor ID")) == str(mapping.vendor_id)), None)
 
                 return (
                     mapping.vendor_id,
@@ -89,7 +89,7 @@ def get_vendor_id_from_master(
                 logger.info(f"Vendor Mapping (Name): '{vendor_name}' -> '{mapping.official_name}'")
                 
                 vendors, _, _ = get_cached_vendors(db)
-                full_v = next((v for v in vendors if str(v.get("Vendor ID") or v.get("VendorID") or v.get("VENDOR_ID") or v.get("VENDOR ID")) == str(mapping.vendor_id)), None)
+                full_v = next((v for v in vendors if str(v.get("vendor_id") or v.get("VENDOR_ID") or v.get("Vendor ID")) == str(mapping.vendor_id)), None)
 
                 return (
                     mapping.vendor_id,
@@ -116,9 +116,9 @@ def get_vendor_id_from_master(
 
     if result and result.get("match"):
         match = result["match"]
-        vendor_id = str(match.get("Vendor ID") or match.get("VendorID") or match.get("vendor_id") or match.get("VENDOR_ID") or match.get("VENDOR ID") or "")
-        official_name = str(match.get("Vendor Name") or match.get("VendorName") or match.get("Name") or match.get("VENDOR_NAME") or match.get("VENDOR NAME") or "")
-        line_grouping = str(match.get("Line Grouping") or match.get("LINE GROUPING") or "No")
+        vendor_id = str(match.get("vendor_id") or match.get("VENDOR_ID") or "")
+        official_name = str(match.get("vendor_name") or match.get("VENDOR_NAME") or "")
+        line_grouping = str(match.get("line_grouping") or match.get("LINE GROUPING") or "No")
 
         if vendor_id:
             logger.info(f"Vendor matched via {result.get('method')}")
