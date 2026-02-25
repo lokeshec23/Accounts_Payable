@@ -9,7 +9,7 @@ from datetime import datetime
 from app.database.database import get_db
 from app.models.db_models import (
     Invoice, WorkflowStep, VendorWorkflow, CodificationWorkflow, 
-    ExcelFile, MasterDataChunk, Coding as DBCoding,
+    VendorMaster, Coding as DBCoding,
     ApproverAmount, ApproverGL, ApproverNumber, ApproverDefault
 )
 from app.auth.jwt import get_current_user
@@ -164,11 +164,9 @@ def get_required_approver_count(
     
     vendor_entry = None
     if v_id_resolved:
-        # Search for vendor_id across all rows in the list (maps are by name/address)
-        # We could improve vector_matcher to cache by ID too, but let's do a simple list search for now
-        # or check if it's in the rows.
+        # Search for vendor_id across all rows in the list
         for row in vendors:
-            rid = row.get("Vendor ID") or row.get("VendorID") or row.get("vendor_id") or row.get("Customer_Id")
+            rid = row.get("vendor_id") or row.get("VENDOR_ID") or row.get("Vendor ID")
             if str(rid) == str(v_id_resolved):
                 vendor_entry = row
                 break

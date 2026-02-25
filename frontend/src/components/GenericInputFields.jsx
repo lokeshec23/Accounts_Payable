@@ -368,7 +368,7 @@ const GenericInputFields = forwardRef(({
         for (const v of vendorMasterData) {
             if (matches.length >= 50) break;
             const id = v['Vendor ID'] || v['VendorID'] || v['vendor_id'] || v['VENDOR_ID'];
-            const name = v['Vendor Name'] || v['VendorName'] || v['Name'] || v['VENDOR_NAME'];
+            const name = v['vendor_name'] || v['VendorName'] || v['Name'] || v['VENDOR_NAME'];
             if (id && name) {
                 const display = `${id} - ${name}`;
                 if (display.toUpperCase().includes(searchText.toUpperCase())) {
@@ -388,7 +388,7 @@ const GenericInputFields = forwardRef(({
         for (const v of vendorMasterData) {
             if (matches.length >= 50) break;
             const id = v['Vendor ID'] || v['VendorID'] || v['vendor_id'] || v['VENDOR_ID'];
-            const name = v['Vendor Name'] || v['VendorName'] || v['Name'] || v['VENDOR_NAME'];
+            const name = v['vendor_name'] || v['VendorName'] || v['Name'] || v['VENDOR_NAME'];
             if (id && name) {
                 const display = `${id} - ${name}`;
                 if (display.toUpperCase().includes(searchText.toUpperCase())) {

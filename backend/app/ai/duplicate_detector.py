@@ -15,24 +15,18 @@ AZURE_DI_ENDPOINT = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT")
 AZURE_DI_KEY = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY")
 
 def _count_same_name_vendors(db: Session, normalized_name: str, entity: str = None) -> int:
-    """
-    Count how many vendors in the master data share the same normalized name.
-    """
     if not normalized_name:
         return 0
 
-    vendors, _, _ = get_cached_vendors(db)
+    records, _, _ = get_cached_vendors(db)
+
     count = 0
-    for v in vendors:
-        name = (
-            v.get("Vendor Name") or
-            v.get("VendorName") or
-            v.get("Name") or
-            v.get("VENDOR_NAME") or
-            v.get("VENDOR NAME")
-        )
-        if name and normalize_vendor(str(name)) == normalized_name:
+    for rec in records:
+        # rec is a raw row dict from VendorMaster object
+        name = rec.get("vendor_name") or rec.get("VENDOR_NAME") or ""
+        if normalize_vendor(name) == normalized_name:
             count += 1
+
     return count
 
 
@@ -56,23 +50,9 @@ def get_vendor_id_from_master(
     normalized_address = normalize_address(vendor_address) if vendor_address else None
 
     # -------------------------------------------------------
-    # 0. Ambiguity detection
+    # 1. Vendor Metadata Lookup (SQL Server) - LEARNED MAPPINGS
     # -------------------------------------------------------
-    is_ambiguous = False
-    if normalized_name:
-        count = _count_same_name_vendors(db, normalized_name, entity)
-        if count > 1:
-            is_ambiguous = True
-
-    # if is_ambiguous:
-    #     logger.warning(
-    #         f"⚠️ Ambiguous vendor name detected: '{vendor_name}'. "
-    #         f"Multiple vendors share this name. Name-based auto-mapping will be skipped."
-    #     )
-
-    # -------------------------------------------------------
-    # 1. Vendor Metadata Lookup (SQL Server)
-    # -------------------------------------------------------
+    # We check this FIRST because manual corrections should override any algorithmic ambiguity.
     if normalized_name or normalized_address:
 
         # 1A. Address-based mapping → ALWAYS SAFE
@@ -88,7 +68,7 @@ def get_vendor_id_from_master(
                 
                 # Fetch full record from cache/master
                 vendors, _, _ = get_cached_vendors(db)
-                full_v = next((v for v in vendors if (v.get("Vendor ID") or v.get("VendorID") or v.get("VENDOR_ID") or v.get("VENDOR ID")) == mapping.vendor_id), None)
+                full_v = next((v for v in vendors if str(v.get("vendor_id") or v.get("VENDOR_ID") or v.get("Vendor ID")) == str(mapping.vendor_id)), None)
 
                 return (
                     mapping.vendor_id,
@@ -97,8 +77,8 @@ def get_vendor_id_from_master(
                     full_v
                 )
 
-        # 1B. Name-based mapping → ONLY if NOT ambiguous
-        if normalized_name and not is_ambiguous:
+        # 1B. Name-based mapping → Learned mappings override ambiguity
+        if normalized_name:
             # Check Name-based Mapping
             query = db.query(VendorMetadata).filter(VendorMetadata.extracted_name_normalized == normalized_name)
             if entity:
@@ -109,7 +89,7 @@ def get_vendor_id_from_master(
                 logger.info(f"Vendor Mapping (Name): '{vendor_name}' -> '{mapping.official_name}'")
                 
                 vendors, _, _ = get_cached_vendors(db)
-                full_v = next((v for v in vendors if (v.get("Vendor ID") or v.get("VendorID") or v.get("VENDOR_ID") or v.get("VENDOR ID")) == mapping.vendor_id), None)
+                full_v = next((v for v in vendors if str(v.get("vendor_id") or v.get("VENDOR_ID") or v.get("Vendor ID")) == str(mapping.vendor_id)), None)
 
                 return (
                     mapping.vendor_id,
@@ -119,23 +99,33 @@ def get_vendor_id_from_master(
                 )
 
     # -------------------------------------------------------
-    # 2. AI / Vector Matching
+    # 2. Ambiguity detection (for algorithmic matching)
     # -------------------------------------------------------
-    # Relaxed ambiguity restriction to allow for tie-breaking via address/embeddings
+    is_ambiguous = False
+    if normalized_name:
+        count = _count_same_name_vendors(db, normalized_name, entity)
+        if count > 1:
+            is_ambiguous = True
+
+    # -------------------------------------------------------
+    # 3. AI / Vector Matching
+    # -------------------------------------------------------
+    # If it's ambiguous, AI matching might still help but we're cautious.
+    # In some systems we might block it, but find_best_vendor_match already handles scores.
     result = find_best_vendor_match(db, vendor_name, vendor_address)
 
     if result and result.get("match"):
         match = result["match"]
-        vendor_id = str(match.get("Vendor ID") or match.get("VendorID") or match.get("vendor_id") or match.get("VENDOR_ID") or match.get("VENDOR ID") or "")
-        official_name = str(match.get("Vendor Name") or match.get("VendorName") or match.get("Name") or match.get("VENDOR_NAME") or match.get("VENDOR NAME") or "")
-        line_grouping = str(match.get("Line Grouping") or match.get("LINE GROUPING") or "No")
+        vendor_id = str(match.get("vendor_id") or match.get("VENDOR_ID") or "")
+        official_name = str(match.get("vendor_name") or match.get("VENDOR_NAME") or "")
+        line_grouping = str(match.get("line_grouping") or match.get("LINE GROUPING") or "No")
 
         if vendor_id:
             logger.info(f"Vendor matched via {result.get('method')}")
             return vendor_id, official_name, line_grouping, match
 
     # -------------------------------------------------------
-    # 3. No safe match found
+    # 4. No safe match found
     # -------------------------------------------------------
     return None, None, "No", None
 

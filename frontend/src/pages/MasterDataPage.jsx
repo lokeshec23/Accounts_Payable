@@ -36,8 +36,12 @@ const { Dragger } = Upload;
 const MASTER_TABS = [
     { key: "Entity_Master", label: "Entity Master" },
     { key: "Vendor_Master", label: "Vendor Master" },
-    { key: "Line_Items", label: "Line Items" },
-    { key: "TDS_Rates", label: "TDS Rates" }
+    { key: "TDS_Rates", label: "TDS Rates" },
+    { key: "GL", label: "GL Master" },
+    { key: "LOB", label: "LOB Master" },
+    { key: "Department", label: "Department Master" },
+    { key: "Customer", label: "Customer Master" },
+    { key: "Item", label: "Item Master" }
 ];
 
 const MasterDataPage = () => {
@@ -325,7 +329,7 @@ const MasterDataPage = () => {
                 await masterDataService.addRow(collectionName, values);
                 message.success("Row added");
             } else {
-                await masterDataService.editRow(collectionName, editRecord.key, values);
+                await masterDataService.editRow(collectionName, editRecord.key, { ...editRecord, ...values });
                 message.success("Row updated");
             }
 

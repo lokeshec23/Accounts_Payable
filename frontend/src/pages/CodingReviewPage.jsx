@@ -455,30 +455,30 @@ const CodingReviewPage = () => {
                     item,
                     currData
                 ] = await Promise.all([
-                    // Look in Line_Items or Entity_Master for these options
-                    loadCollection(findCollection("Line_Items", "GL"), row => {
-                        const acc = getFieldLoose(row, ["Account number", "account_number", "Code", "GL Code", "AccountNumber", "GLCode"]);
-                        const title = getFieldLoose(row, ["Title", "Name", "Description", "GLName", "AccountName"]);
+                    // Look in their specific tabs instead of hardcoding "Line_Items"
+                    loadCollection(findCollection("GL"), row => {
+                        const acc = getFieldLoose(row, ["account_number", "Account number", "Code", "GL Code", "AccountNumber", "GLCode"]);
+                        const title = getFieldLoose(row, ["title", "Title", "Name", "Description", "GLName", "AccountName"]);
                         return acc && title ? `${acc} - ${title}` : (acc || title || "");
                     }),
-                    loadCollection(findCollection("Line_Items", "LOB"), row => {
-                        const id = getFieldLoose(row, ["LOB ID", "LOBID", "LOB", "LineOfBusiness"]);
-                        const name = getFieldLoose(row, ["Name", "LOB Name", "LOBName", "Description"]);
+                    loadCollection(findCollection("LOB"), row => {
+                        const id = getFieldLoose(row, ["lob_id", "LOB ID", "LOBID", "LOB", "LineOfBusiness"]);
+                        const name = getFieldLoose(row, ["name", "Name", "LOB Name", "LOBName", "Description"]);
                         return id && name ? `${id} - ${name}` : (id || name || "");
                     }),
-                    loadCollection(findCollection("Line_Items", "Department"), row => {
-                        const id = getFieldLoose(row, ["Department ID", "DeptID", "ID", "Dept", "DepartmentCode"]);
-                        const name = getFieldLoose(row, ["Department name", "Department Name", "DeptName", "Name"]);
+                    loadCollection(findCollection("Department"), row => {
+                        const id = getFieldLoose(row, ["department_id", "Department ID", "DeptID", "ID", "Dept", "DepartmentCode"]);
+                        const name = getFieldLoose(row, ["department_name", "Department name", "Department Name", "DeptName", "Name"]);
                         return id && name ? `${id} - ${name}` : (id || name || "");
                     }),
-                    loadCollection(findCollection("Line_Items", "Customer"), row => {
-                        const id = getFieldLoose(row, ["VENDOR_ID", "Vendor ID", "VendorID", "Customer_Id"]);
-                        const name = getFieldLoose(row, ["VENDOR_NAME", "Vendor Name", "VendorName", "CustomerName", "CUSTOMER_NAME"]);
+                    loadCollection(findCollection("Customer"), row => {
+                        const id = getFieldLoose(row, ["customer_id", "Customer ID", "CustomerID", "ID", "VENDOR_ID", "Vendor ID"]);
+                        const name = getFieldLoose(row, ["customer_name", "Customer Name", "CustomerName", "Name", "VENDOR_NAME", "Vendor Name"]);
                         return id && name ? `${id} - ${name}` : (id || name || "");
                     }),
-                    loadCollection(findCollection("Line_Items", "Item"), row => {
-                        const id = getFieldLoose(row, ["Item ID", "ItemID", "ID", "ItemCode"]);
-                        const name = getFieldLoose(row, ["Name", "Item Name", "ItemName", "Description"]);
+                    loadCollection(findCollection("Item"), row => {
+                        const id = getFieldLoose(row, ["item_id", "Item ID", "ItemID", "ID", "ItemCode"]);
+                        const name = getFieldLoose(row, ["name", "Item Name", "ItemName", "Description"]);
                         return id && name ? `${id} - ${name}` : (id || name || "");
                     }),
                     currencyService.getCurrencies()

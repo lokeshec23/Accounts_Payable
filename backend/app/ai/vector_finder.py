@@ -11,7 +11,7 @@ from app.models.db_models import VendorMaster
 logger = logging.getLogger(__name__)
 
 # ==========================================================
-# CONFIG
+# CONFIGURATION
 # ==========================================================
 
 STOP_WORDS = {
@@ -25,15 +25,12 @@ GENERIC_WORDS = {
     "systems", "staffing", "private", "bank"
 }
 
-MATCH_THRESHOLD = 0.75
+MATCH_THRESHOLD = 0.70
 ACRONYM_MIN_ADDRESS_SCORE = 0.40
-
-NAME_WEIGHT = 0.80
-ADDRESS_WEIGHT = 0.20
 
 
 # ==========================================================
-# MATCHER CLASS
+# VENDOR MATCHER
 # ==========================================================
 
 class VendorMatcher:
@@ -42,6 +39,7 @@ class VendorMatcher:
         self.master_records: List[Dict] = []
         self.clean_names: List[str] = []
         self.deep_clean_names: List[str] = []
+        self.tax_id_map: Dict[str, int] = {}
         self.acronym_map: Dict[str, List[int]] = {}
         self.last_updated = 0
 
@@ -54,7 +52,6 @@ class VendorMatcher:
 
         text = text.encode("utf-8", "ignore").decode("utf-8", "ignore")
         text = re.sub(r"[®©™Â]", "", text)
-
         text = text.lower()
         text = re.sub(r"[^\w\s]", " ", text)
 
@@ -67,27 +64,18 @@ class VendorMatcher:
         return " ".join(tokens).strip()
 
     # ------------------------------------------------------
+    # CLEAN TAX ID
+    # ------------------------------------------------------
+    def _clean_tax_id(self, tax_id: str) -> str:
+        return re.sub(r"\D", "", tax_id or "")
+
+    # ------------------------------------------------------
     # DBA EXTRACTION
     # ------------------------------------------------------
     def _extract_dba(self, text: str) -> Optional[str]:
         match = re.search(r"(d\.?b\.?a\.?|doing business as)\s+([^)]+)", text, re.I)
         if match:
             return match.group(2).strip()
-        return None
-
-    # ------------------------------------------------------
-    # ACRONYM EXTRACTION
-    # ------------------------------------------------------
-    def _get_acronym_key(self, text: str) -> Optional[str]:
-        words = text.strip().split()
-        if not words:
-            return None
-
-        first_word = words[0]
-
-        if first_word.isupper() and len(first_word) >= 2:
-            return first_word.lower()
-
         return None
 
     # ------------------------------------------------------
@@ -99,6 +87,8 @@ class VendorMatcher:
 
         db_addr = " ".join(filter(None, [
             str(record.get('address_line1', record.get('ADDRESS_LINE1', ''))),
+            str(record.get('address_line2', record.get('ADDRESS_LINE2', ''))),
+            str(record.get('address_line3', record.get('ADDRESS_LINE3', ''))),
             str(record.get('city', record.get('CITY', ''))),
             str(record.get('state_or_territory', record.get('STATE_OR_TERITTORY', ''))),
             str(record.get('zip_or_postal_code', record.get('ZIP_OR_POSTAL_CODE', '')))
@@ -108,8 +98,6 @@ class VendorMatcher:
             return 0.0
 
         return fuzz.token_set_ratio(input_addr.lower(), db_addr) / 100
-
-   
 
     # ------------------------------------------------------
     # LOAD MASTER DATA
@@ -133,6 +121,7 @@ class VendorMatcher:
         self.master_records.clear()
         self.clean_names.clear()
         self.deep_clean_names.clear()
+        self.tax_id_map.clear()
         self.acronym_map.clear()
 
         for row in all_rows:
@@ -141,21 +130,22 @@ class VendorMatcher:
             if not name:
                 continue
 
+            tax_id = str(row.get("tax_id", row.get("TAX_ID", ""))).strip()
             norm = self._normalize(name)
             deep_norm = self._normalize(name, deep_clean=True)
-            acronym_key = self._get_acronym_key(name)
-
+            
             index = len(self.master_records)
-
             self.master_records.append(row)
             self.clean_names.append(norm)
             self.deep_clean_names.append(deep_norm)
 
-            if acronym_key:
-                self.acronym_map.setdefault(acronym_key, []).append(index)
+            if tax_id:
+                clean_tax = self._clean_tax_id(tax_id)
+                if clean_tax:
+                    self.tax_id_map[clean_tax] = index
 
-        self.last_updated = time.time()
         print(f"Loaded {len(self.master_records)} vendors into memory.")
+        print(f"Indexed {len(self.tax_id_map)} tax IDs.")
 
     # ------------------------------------------------------
     # MAIN MATCH FUNCTION
@@ -163,13 +153,28 @@ class VendorMatcher:
     def find_match(
         self,
         input_name: str,
-        input_address: Optional[str] = None
+        input_address: Optional[str] = None,
+        input_tax_id: Optional[str] = None
     ) -> Dict[str, Any]:
 
         if not self.master_records:
             return {"match": None, "score": 0, "type": "no_data"}
 
-        # Extract DBA
+        # ==================================================
+        # 1️⃣ TAX ID PRIORITY MATCH
+        # ==================================================
+        if input_tax_id:
+            clean_input_tax = self._clean_tax_id(input_tax_id)
+
+            if clean_input_tax in self.tax_id_map:
+                idx = self.tax_id_map[clean_input_tax]
+                return {
+                    "match": self.master_records[idx],
+                    "score": 1.0,
+                    "type": "tax_id_match"
+                }
+
+        # Extract DBA if exists
         dba_name = self._extract_dba(input_name)
         if dba_name:
             input_name = dba_name
@@ -177,40 +182,21 @@ class VendorMatcher:
         input_clean = self._normalize(input_name)
         input_core = self._normalize(input_name, deep_clean=True)
 
+        candidates = []
+
         # ==================================================
-        # EXACT MATCH
+        # 2️⃣ EXACT NAME MATCH
         # ==================================================
         for idx, name in enumerate(self.deep_clean_names):
             if input_core == name:
                 return {
                     "match": self.master_records[idx],
-                    "score": 0.99,
-                    "type": "exact_match"
+                    "score": 0.98,
+                    "type": "exact_name_match"
                 }
 
-        candidates = []
-
         # ==================================================
-        # SAFE ACRONYM MATCH
-        # ==================================================
-        input_key = input_name.strip().upper()
-
-        if len(input_key) <= 5 and input_key.lower() in self.acronym_map:
-            for idx in self.acronym_map[input_key.lower()]:
-                record = self.master_records[idx]
-                addr_score = self._score_address(input_address, record)
-
-                if addr_score >= ACRONYM_MIN_ADDRESS_SCORE:
-                    final_score = 0.93 + (addr_score * 0.07)
-
-                    candidates.append({
-                        "record": record,
-                        "score": final_score,
-                        "type": "acronym_match"
-                    })
-
-        # ==================================================
-        # FUZZY MATCH
+        # 3️⃣ FUZZY MATCH + ADDRESS PRIORITY
         # ==================================================
         top = process.extract(
             input_core,
@@ -222,20 +208,22 @@ class VendorMatcher:
         for _, score, idx in top:
 
             record = self.master_records[idx]
-            name_score = score / 100
-
-            # Brand containment boost
+            base_score = score / 100
             master_core = self.deep_clean_names[idx]
-            if input_core in master_core or master_core in input_core:
-                name_score = max(name_score, 0.97)
+
+            if input_core and input_core in master_core:
+                base_score = max(base_score, 0.95)
 
             addr_score = self._score_address(input_address, record)
 
             if input_address:
-                combined = (name_score * NAME_WEIGHT) + \
-                           (addr_score * ADDRESS_WEIGHT)
+                combined = (base_score * 0.6) + (addr_score * 0.4)
+
+                # Strong address boost
+                if addr_score > 0.85:
+                    combined = max(combined, 0.96)
             else:
-                combined = name_score
+                combined = base_score
 
             candidates.append({
                 "record": record,
@@ -243,97 +231,114 @@ class VendorMatcher:
                 "type": "fuzzy_match"
             })
 
-        # ==================================================
-        # FINAL DECISION
-        # ==================================================
         if not candidates:
             return {"match": None, "score": 0, "type": "no_match"}
 
         candidates.sort(key=lambda x: x["score"], reverse=True)
         best = candidates[0]
 
-        match_type = best["type"]
-
         if best["score"] < MATCH_THRESHOLD:
-            match_type = "low_confidence_match"
+            return {"match": None, "score": 0, "type": "no_match"}
 
         return {
             "match": best["record"],
             "score": round(best["score"], 2),
-            "type": match_type
+            "type": best["type"]
         }
+# ==========================================================
+# MAIN EXECUTION
+# ==========================================================
 
-_matcher_instance = VendorMatcher()
+# ==========================================================
+# MAIN EXECUTION (HARDCODED VALUES)
+# ==========================================================
 
+# ==========================================================
+# MAIN EXECUTION (MULTIPLE TEST CASES)
+# ==========================================================
 
-def find_best_vendor_match(
-    db: Session,
-    input_vendor_name: str,
-    input_vendor_address: Optional[str] = None,
-    min_confidence: float = 0.0
-) -> Dict[str, Any]:
-    """
-    Backward-compatible function wrapper.
-    Keeps old API intact.
-    """
+if __name__ == "__main__":
 
-    # Reload data if not loaded
-    if not _matcher_instance.master_records:
-        _matcher_instance.load_from_db(db)
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
 
-    result = _matcher_instance.find_match(
-        input_name=input_vendor_name,
-        input_address=input_vendor_address
-    )
+    # --------------------------------------------
+    # DATABASE CONNECTION
+    # --------------------------------------------
+    DATABASE_URL = "mssql+pymssql://sa:varshu%4040067@localhost:1433/accounts_payable"
 
-    # Convert to old response format
-    if not result.get("match"):
-        return {
-            "match": None,
-            "score": 0.0,
-            "confidence": 0.0,
-            "method": "no_match",
-            "match_type": "no_match"
+    engine = create_engine(DATABASE_URL)
+    SessionLocal = sessionmaker(bind=engine)
+    db = SessionLocal()
+
+    # --------------------------------------------
+    # LOAD MATCHER
+    # --------------------------------------------
+    matcher = VendorMatcher()
+    matcher.load_from_db(db)
+
+    # --------------------------------------------
+    # 🔥 TEST CASE ARRAY
+    # --------------------------------------------
+
+    test_cases = [
+        {
+            "name": "Consolidated Analytics",
+            "address": "One Portland Square, 10th Floor Portland, Maine 04101-4054",
+            "tax_id": "01-0176171"
+        },
+        {
+            "name": "Richard Hayles",
+            "address": "472 Tufton Trl SE Dallas TX 75123",
+            "tax_id": None
+        },
+        {
+            "name": "Black Knight Technologies",
+            "address": "Jacksonville FL",
+            "tax_id": None
+        },
+        {
+            "name": "Arizent",
+            "address": "New York NY",
+            "tax_id": None
         }
+    ]
 
-    score = result["score"]
+    # --------------------------------------------
+    # RUN ALL TESTS
+    # --------------------------------------------
 
-    return {
-        "match": result["match"],
-        "score": score,
-        "confidence": score,
-        "method": result["type"],
-        "match_type": result["type"]
-    }
+    for i, case in enumerate(test_cases, start=1):
 
+        print("\n===================================================")
+        print(f"TEST CASE {i}")
+        print("===================================================")
 
-def get_cached_vendors(db: Session):
-    """
-    Backward-compatible cache loader.
-    Returns (rows, vendor_map, address_map)
-    """
+        result = matcher.find_match(
+            input_name=case["name"],
+            input_address=case["address"],
+            input_tax_id=case["tax_id"]
+        )
 
-    if not _matcher_instance.master_records:
-        _matcher_instance.load_from_db(db)
+        print("INPUT:")
+        print("Name:", case["name"])
+        print("Address:", case["address"])
+        print("Tax ID:", case["tax_id"])
 
-    rows = _matcher_instance.master_records
+        print("\nMATCH RESULT:")
 
-    vendor_map = {}
-    address_map = {}
+        if result["match"]:
+            matched = result["match"]
 
-    for record in rows:
-        name = str(record.get("vendor_name", record.get("VENDOR_NAME", ""))).strip()
-        if name:
-            vendor_map[name.lower()] = record
+            print("Matched Vendor ID:", matched.get("VENDOR_ID"))
+            print("Matched Vendor Name:", matched.get("VENDOR_NAME"))
+            print("Score:", result["score"])
+            print("Match Type:", result["type"])
 
-        address = " ".join(filter(None, [
-            str(record.get('address_line1', record.get('ADDRESS_LINE1', ''))),
-            str(record.get('city', record.get('CITY', ''))),
-            str(record.get('state_or_territory', record.get('STATE_OR_TERITTORY', ''))),
-            str(record.get('zip_or_postal_code', record.get('ZIP_OR_POSTAL_CODE', '')))
-        ])).strip()
-
-        if address:
-            address_map[address.lower()] = record
-
-    return rows, vendor_map, address_map
+            print("Matched Address:",
+                  matched.get("ADDRESS_LINE1"),
+                  matched.get("CITY"),
+                  matched.get("STATE_OR_TERITTORY"),
+                  matched.get("ZIP_OR_POSTAL_CODE"))
+        else:
+            print("❌ No Match Found")
