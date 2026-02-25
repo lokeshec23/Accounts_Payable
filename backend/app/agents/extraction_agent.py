@@ -184,6 +184,7 @@ class InvoiceExtractionAgent:
             "CustomerTaxId", "CustomerId",
             "InvoiceId", "InvoiceDate", "DueDate", "PurchaseOrder", "PaymentTerm",
             "SubTotal", "TotalTax", "InvoiceTotal", "AmountDue", "PreviousUnpaidBalance",
+            "AmountPaid",
             "ServiceStartDate", "ServiceEndDate",
         ]
 
@@ -277,9 +278,9 @@ class InvoiceExtractionAgent:
                         line_item[normalized_field] = field_data
 
             # Filter out line items with empty/missing description
-            desc_val = line_item.get("description", {}).get("value")
-            if not desc_val or str(desc_val).strip() == "":
-                return None
+            # desc_val = line_item.get("description", {}).get("value")
+            # if not desc_val or str(desc_val).strip() == "":
+            #     return None
 
             line_item["item_number"] = {
                 "value": item_number,
@@ -308,16 +309,16 @@ class InvoiceExtractionAgent:
             bounding_regions = self._extract_bounding_regions(field)
 
             value = None
-            if hasattr(field, 'content') and field.content:
-                value = field.content
-            elif hasattr(field, 'value_string'):
-                value = field.value_string
-            elif hasattr(field, 'value_number'):
-                value = field.value_number
-            elif hasattr(field, 'value_currency') and field.value_currency:
+            if hasattr(field, 'value_currency') and field.value_currency:
                 value = field.value_currency.amount
+            elif hasattr(field, 'value_number') and field.value_number is not None:
+                value = field.value_number
             elif hasattr(field, 'value_date') and field.value_date:
                 value = str(field.value_date)
+            elif hasattr(field, 'value_string') and field.value_string:
+                value = field.value_string
+            elif hasattr(field, 'content') and field.content:
+                value = field.content
 
             confidence = getattr(field, 'confidence', None)
             spans = self._extract_spans(field)
@@ -376,6 +377,17 @@ class InvoiceExtractionAgent:
                 value = str(field_obj.value_date)
             elif hasattr(field_obj, 'value_string') and field_obj.value_string:
                 value = field_obj.value_string
+            elif hasattr(field_obj, 'value') and isinstance(field_obj.value, list):
+                # Handle list of values (like Payments)
+                values = []
+                for item in field_obj.value:
+                    if hasattr(item, 'value_currency') and item.value_currency:
+                        values.append(str(item.value_currency.amount))
+                    elif hasattr(item, 'value_number') and item.value_number is not None:
+                        values.append(str(item.value_number))
+                    elif hasattr(item, 'content') and item.content:
+                        values.append(item.content)
+                value = ", ".join(values) if values else None
 
         spans = self._extract_spans(field_obj)
 
@@ -609,7 +621,7 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
                 "SGST": None,
                 "IGST": None,
                 "withholding_tax": None,
-                "amount_paid": None,
+                "amount_paid": "AmountPaid",
             },
             "additional_info": {
                 "notes_terms": None,

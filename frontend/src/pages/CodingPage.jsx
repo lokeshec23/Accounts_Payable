@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Button, Tag, Space, Spin, message } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
+import { TableSkeleton } from '../components/SkeletonLoader';
 import { invoiceService, currencyService } from '../services/api';
 import { formatDateTimeIST } from '../utils/dateUtils';
 import '../styles/MainLayout.css';
@@ -235,10 +236,13 @@ const CodingPage = () => {
             </div>
 
             <div className="layout-content">
-                <Spin spinning={loading} tip="Loading invoices...">
+                {loading && data.length === 0 ? (
+                    <TableSkeleton />
+                ) : (
                     <Table
                         columns={columns}
                         dataSource={data}
+                        loading={loading}
                         pagination={{
                             ...pagination,
                             showSizeChanger: true,
@@ -249,7 +253,7 @@ const CodingPage = () => {
                         className="invoices-table"
                         scroll={{ x: 1300, y: 'calc(100vh - 320px)' }}
                     />
-                </Spin>
+                )}
             </div>
         </div>
     );

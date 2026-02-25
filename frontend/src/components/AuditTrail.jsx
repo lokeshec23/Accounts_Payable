@@ -15,6 +15,7 @@ import { auditService } from '../services/api';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import { ListSkeleton } from './SkeletonLoader';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -99,30 +100,30 @@ const AuditTrail = ({ invoiceId }) => {
         );
     };
 
-    if (loading) return <Spin style={{ display: 'block', margin: '20px auto' }} />;
+    if (loading) return <ListSkeleton itemCount={5} />;
     if (!logs || logs.length === 0) return <Empty description="No audit history found" />;
 
     return (
         // <Card title="Audit Trail" bordered={false} bodyStyle={{ padding: '24px' }}>
-            <Timeline mode="left">
-                {logs.map((log) => (
-                    <Timeline.Item
-                        key={log.id}
-                        dot={getIcon(log.action)}
-                        color={getColor(log.action)}
-                        label={dayjs.utc(log.timestamp).local().format('MMM D, YYYY hh:mm A')}
-                    >
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                            <Space>
-                                <Tag color={getColor(log.action)}>{log.action}</Tag>
-                                <Text type="secondary">by</Text>
-                                <Text strong>{log.user}</Text>
-                            </Space>
-                            {renderDetails(log.details)}
+        <Timeline mode="left">
+            {logs.map((log) => (
+                <Timeline.Item
+                    key={log.id}
+                    dot={getIcon(log.action)}
+                    color={getColor(log.action)}
+                    label={dayjs.utc(log.timestamp).local().format('MMM D, YYYY hh:mm A')}
+                >
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space>
+                            <Tag color={getColor(log.action)}>{log.action}</Tag>
+                            <Text type="secondary">by</Text>
+                            <Text strong>{log.user}</Text>
                         </Space>
-                    </Timeline.Item>
-                ))}
-            </Timeline>
+                        {renderDetails(log.details)}
+                    </Space>
+                </Timeline.Item>
+            ))}
+        </Timeline>
         // </Card>
     );
 };

@@ -26,6 +26,7 @@ import {
   currencyService,
   workflowConfigService,
 } from "../services/api";
+import { TableSkeleton } from "../components/SkeletonLoader";
 
 const { Title, Text } = Typography;
 const { confirm } = Modal;
@@ -376,14 +377,17 @@ const SettingsPage = () => {
           </Button>
         )}
       </div>
-      <Table
-        columns={columns}
-        dataSource={data}
-        rowKey="id"
-        loading={loading}
-        scroll={{ x: true }}
-        pagination={{ pageSize: 10 }}
-      />
+      {loading ? (
+        <TableSkeleton />
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={data}
+          rowKey="id"
+          scroll={{ x: true }}
+          pagination={{ pageSize: 10 }}
+        />
+      )}
     </div>
   );
 

@@ -5,7 +5,7 @@ import Header from './components/Header';
 import { EntityProvider } from './context/EntityContext';
 import { GlobalSettingsProvider } from './context/GlobalSettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import Loader from './components/Loader';
+import { FormSkeleton } from './components/SkeletonLoader';
 import './styles/message-override.css';
 import './styles/table-headers.css';
 import './styles/global-table-styles.css';
@@ -16,8 +16,6 @@ const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const DesignSystemPage = lazy(() => import('./pages/DesignSystemPage'));
 const SelectEntity = lazy(() => import('./pages/SelectEntity'));
-const InvoiceReview = lazy(() => import('./pages/InvoiceReviewPage'));
-const CodingReview = lazy(() => import('./pages/CodingReviewPage'));
 
 const AppContent = () => {
   const location = useLocation();
@@ -38,7 +36,7 @@ const AppContent = () => {
   return (
     <>
       {!hideHeader && <Header />}
-      <Suspense fallback={<Loader />}>
+      <Suspense fallback={<FormSkeleton />}>
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -46,7 +44,7 @@ const AppContent = () => {
           <Route
             path="/select-entity"
             element={
-              <Suspense fallback={<Loader />}>
+              <Suspense fallback={<FormSkeleton />}>
                 <ProtectedRoute>
                   <SelectEntity />
                 </ProtectedRoute>
@@ -56,33 +54,14 @@ const AppContent = () => {
           <Route
             path="/design-system"
             element={
-              <Suspense fallback={<Loader />}>
+              <Suspense fallback={<FormSkeleton />}>
                 <ProtectedRoute>
                   <DesignSystemPage />
                 </ProtectedRoute>
               </Suspense>
             }
           />
-          <Route
-            path="/invoice/review"
-            element={
-              <Suspense fallback={<Loader />}>
-                <ProtectedRoute>
-                  <InvoiceReview />
-                </ProtectedRoute>
-              </Suspense>
-            }
-          />
-          <Route
-            path="/coding/review"
-            element={
-              <Suspense fallback={<Loader />}>
-                <ProtectedRoute>
-                  <CodingReview />
-                </ProtectedRoute>
-              </Suspense>
-            }
-          />
+
 
           {/* Dynamic Routes from routeMap - Drivers of the application */}
           {Object.entries(routeMap).map(([path, component]) => (

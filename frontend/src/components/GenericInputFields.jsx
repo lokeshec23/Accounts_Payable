@@ -11,7 +11,8 @@ import {
     message,
     Space,
     Tag,
-    Table
+    Table,
+    Collapse
 } from 'antd';
 import {
     SaveOutlined,
@@ -35,7 +36,7 @@ import CodingTab from './CodingTab';
 import GLSummaryTab from './GLSummaryTab';
 
 const { TextArea } = Input;
-const { Panel } = Input;
+const { Panel } = Collapse;
 const PRESERVED_PAYTERMS = [
     'net 7', 'net 10', 'net 15', 'net 27', 'net 30', 'net 45', 'net 60', 'net 90',
     'due upon receipt', 'due on receipt', 'immediate', 'upon receipt'
@@ -70,6 +71,8 @@ const GenericInputFields = forwardRef(({
     const navigate = useNavigate();
     const extractionData = data?.extraction_json || {};
     const lineItemsFromData = data?.items || data?.LineItems || [];
+
+    console.log("DEBUG: GenericInputFields initialization", { extractionDataKeys: Object.keys(extractionData), lineItemsCount: lineItemsFromData.length });
 
     // ==================== STATE MANAGEMENT ====================
     const [formData, setFormData] = useState({
@@ -124,6 +127,7 @@ const GenericInputFields = forwardRef(({
     // ==================== REFS FOR DEBOUNCING & PREVENTING LOOPS ====================
     const lastDuplicateCheck = useRef({ vendorId: '', invoiceNumber: '' });
     const isCalculating = useRef(false);
+    const lastCalculatedValues = useRef({ total: 0, payable: 0 });
     const renderCount = useRef(0);
     const lastFormUpdate = useRef({});
     const initialLoadDoneRef = useRef(false);
@@ -160,10 +164,23 @@ const GenericInputFields = forwardRef(({
     }, []);
 
     const parseCurrencyValue = useCallback((value) => {
-        if (!value) return 0;
-        const cleanValue = String(value).replace(/[$,\s]/g, '');
+        if (value === null || value === undefined) return 0;
+        let stringValue = String(value).trim();
+
+        // Handle bracketed negative numbers: (100.00) -> -100.00
+        let isNegative = false;
+        if (stringValue.startsWith('(') && stringValue.endsWith(')')) {
+            isNegative = true;
+            stringValue = stringValue.substring(1, stringValue.length - 1);
+        } else if (stringValue.startsWith('-')) {
+            isNegative = true;
+            stringValue = stringValue.substring(1);
+        }
+
+        const cleanValue = stringValue.replace(/[$,\s]/g, '');
         const parsed = parseFloat(cleanValue);
-        return isNaN(parsed) ? 0 : parsed;
+        if (isNaN(parsed)) return 0;
+        return isNegative ? -parsed : parsed;
     }, []);
 
     const parseStoredDate = useCallback((dateStr, currency = '') => {
@@ -558,13 +575,14 @@ const GenericInputFields = forwardRef(({
             !field.toLowerCase().includes('id') && !field.toLowerCase().includes('tin')) {
             const cleanValue = stringValue?.toString().replace(/[^\d.-]/g, '');
             const numValue = parseFloat(cleanValue);
+            const isAlwaysEditable = field === 'Total Invoice Amount' || field === 'Total Amount Payable';
             return (
                 <div onMouseEnter={() => setHoveredKey && setHoveredKey(field)}
                     onMouseLeave={() => setHoveredKey && setHoveredKey(null)} style={{ width: '100%' }}>
-                    <InputNumber style={{ width: '100%', ...disabledStyle }}
+                    <InputNumber style={{ width: '100%', ...(isAlwaysEditable ? {} : disabledStyle) }}
                         value={isNaN(numValue) ? null : numValue}
                         onChange={(val) => handleInputChange(field, val)}
-                        step={0.01} prefix="$" disabled={disableInputs} />
+                        step={0.01} prefix="$" disabled={isAlwaysEditable ? false : disableInputs} />
                 </div>
             );
         }
@@ -760,7 +778,8 @@ const GenericInputFields = forwardRef(({
                 ['CGST', 'amounts.CGST'], ['SGST', 'amounts.SGST'],
                 ['IGST', 'amounts.IGST'], ['GST', 'amounts.GST'],
                 ['Total Invoice Amount', 'amounts.total_invoice_amount'],
-                ['Total Amount Payable', 'amounts.total_amount_payable']
+                ['Total Amount Payable', 'amounts.total_amount_payable'],
+                ['Amount Paid', 'amounts.amount_paid']
             ];
             amountFields.forEach(([label, path]) => {
                 if (formData[label] !== undefined) {
@@ -1377,12 +1396,30 @@ const GenericInputFields = forwardRef(({
 
     // ==================== TDS CALCULATION & TOTALS - FIXED ====================
     // Calculate totals using useMemo instead of useEffect
-    const { invoiceTotal, payableAmount, tdsAmount } = useMemo(() => {
-        if (readOnly || isCalculating.current) {
-            return { invoiceTotal: 0, payableAmount: 0, tdsAmount: 0 };
+    const { invoiceTotal, payableAmount, tdsAmount, isAmountMismatch, calculationDetails } = useMemo(() => {
+        if (readOnly) {
+            return {
+                invoiceTotal: 0,
+                payableAmount: 0,
+                tdsAmount: 0,
+                isAmountMismatch: false,
+                calculationDetails: {
+                    lineItemsTotal: 0,
+                    totalTax: 0,
+                    extractedSubtotal: 0,
+                    amountPaid: 0,
+                    shipping: 0,
+                    surcharges: 0,
+                    calc1: 0,
+                    calc2: 0,
+                    calc3: 0,
+                    currentTotal: 0,
+                    baseTotalUsed: 0,
+                    baseTotalSource: "N/A",
+                    tdsAmount: 0
+                }
+            };
         }
-
-        isCalculating.current = true;
 
         const calculatedSubtotal = lineItems.reduce((sum, item) => {
             const val = parseCurrencyValue(extractValue(item.NetAmount) ||
@@ -1431,12 +1468,55 @@ const GenericInputFields = forwardRef(({
             }
         }
 
-        const invoiceTotal = parseFloat((calculatedSubtotal + totalTax).toFixed(2));
-        const payableAmount = parseFloat((invoiceTotal - tdsAmount).toFixed(2));
+        const invoiceTotal_calc1 = parseFloat((calculatedSubtotal + totalTax).toFixed(2));
 
-        isCalculating.current = false;
+        const extractedSubtotal = parseCurrencyValue(extractValue(formData['Subtotal']));
+        const invoiceTotal_calc2 = parseFloat((extractedSubtotal + totalTax).toFixed(2));
 
-        return { invoiceTotal, payableAmount, tdsAmount };
+        const amountPaid = parseCurrencyValue(extractValue(formData['Amount Paid']));
+        const shipping = parseCurrencyValue(extractValue(formData['Shipping / Handling / Fees']));
+        const surcharges = parseCurrencyValue(extractValue(formData['Surcharges']));
+
+        const invoiceTotal_calc3 = parseFloat((calculatedSubtotal + totalTax - amountPaid + shipping + surcharges).toFixed(2));
+
+        const currentTotal = parseCurrencyValue(extractValue(formData['Total Invoice Amount']));
+
+        // Identify which heuristic matches (if any)
+        const calculations = [
+            { value: invoiceTotal_calc1, name: "Heuristic 1: Line Items + Tax" },
+            { value: invoiceTotal_calc2, name: "Heuristic 2: Subtotal + Tax" },
+            { value: invoiceTotal_calc3, name: "Heuristic 3: Total Reconciliation" }
+        ];
+
+        const match = calculations.find(c => Math.abs(currentTotal - c.value) < 0.01);
+        const baseTotalForPayable = match ? match.value : invoiceTotal_calc1;
+        const baseTotalSource = match ? match.name : "Default Calculation (Heuristic 1)";
+
+        const isMismatch = match === undefined;
+
+        const payableAmount = parseFloat((baseTotalForPayable - tdsAmount).toFixed(2));
+
+        return {
+            invoiceTotal: invoiceTotal_calc1, // Default calculated total for display/update
+            payableAmount,
+            tdsAmount,
+            isAmountMismatch: isMismatch && currentTotal > 0,
+            calculationDetails: {
+                lineItemsTotal: calculatedSubtotal,
+                totalTax: totalTax,
+                extractedSubtotal: extractedSubtotal,
+                amountPaid: amountPaid,
+                shipping: shipping,
+                surcharges: surcharges,
+                calc1: invoiceTotal_calc1,
+                calc2: invoiceTotal_calc2,
+                calc3: invoiceTotal_calc3,
+                currentTotal: currentTotal,
+                baseTotalUsed: baseTotalForPayable,
+                baseTotalSource: baseTotalSource,
+                tdsAmount: tdsAmount
+            }
+        };
     }, [lineItems, selectedVendorDetails, formData, readOnly, extractValue, parseCurrencyValue]);
 
     // Update form data only when calculated values differ
@@ -1449,15 +1529,27 @@ const GenericInputFields = forwardRef(({
         let hasUpdates = false;
         const updates = {};
 
-        if (Math.abs(currentTotal - invoiceTotal) > 0.005) {
+        // Smart Update for Total Invoice Amount
+        // Update if currently 0 OR if current value matches our last calculated value (meaning no manual edit)
+        if ((currentTotal === 0 && invoiceTotal > 0) ||
+            (currentTotal !== invoiceTotal && currentTotal === lastCalculatedValues.current.total)) {
             updates['Total Invoice Amount'] = { value: invoiceTotal };
+            lastCalculatedValues.current.total = invoiceTotal;
             hasUpdates = true;
+        } else if (currentTotal === invoiceTotal) {
+            // Even if we don't update formData, keep our record in sync
+            lastCalculatedValues.current.total = invoiceTotal;
         }
 
-        if (Math.abs(currentPayable - payableAmount) > 0.005) {
+        // Smart Update for Total Amount Payable
+        if ((currentPayable === 0 && payableAmount > 0) ||
+            (currentPayable !== payableAmount && currentPayable === lastCalculatedValues.current.payable)) {
             updates['Total Amount Payable'] = { value: payableAmount };
             updates['Amount Due'] = { value: payableAmount };
+            lastCalculatedValues.current.payable = payableAmount;
             hasUpdates = true;
+        } else if (currentPayable === payableAmount) {
+            lastCalculatedValues.current.payable = payableAmount;
         }
 
         if (hasUpdates) {
@@ -1670,11 +1762,13 @@ const GenericInputFields = forwardRef(({
             formData, lineItems, selectedVendorDetails, disableInputs,
             disabledStyle, getCurrencySymbol, extractValue, parseCurrencyValue,
             renderFieldInput, handleInputChange, handleLineItemChange,
-            handleAddLineItem, exportToExcel, lineItemColumns, readOnly
+            handleAddLineItem, exportToExcel, lineItemColumns, readOnly,
+            isAmountMismatch, calculationDetails, schema
         };
 
         switch (activeTab) {
             case '1':
+                console.log("DEBUG: Rendering QuickViewTab case 1");
                 return <QuickViewTab {...commonProps} vendorId={vendorId}
                     vendorIdOptions={vendorIdOptions} vendorNameOptions={vendorNameOptions}
                     memo={memo} isDuplicateError={isDuplicateError} setVendorId={setVendorId}
@@ -1683,7 +1777,8 @@ const GenericInputFields = forwardRef(({
                     handleVendorChange={handleVendorChange} skipNextVendorLookup={skipNextVendorLookup}
                     exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} />;
             case '2':
-                return <AllFieldsTab {...commonProps} />;
+                console.log("DEBUG: Rendering AllFieldsTab case 2", { hasSchema: !!schema, activeTab });
+                return <AllFieldsTab {...commonProps} schema={schema?.flatFields || schema} />;
             case '3':
                 return <CodingTab formData={formData} codingLineItems={codingLineItems}
                     headerCoding={headerCoding} disableInputs={disableInputs}
@@ -1716,7 +1811,7 @@ const GenericInputFields = forwardRef(({
     }, [activeTab, formData, lineItems, vendorId, vendorIdOptions, vendorNameOptions, memo,
         selectedVendorDetails, isDuplicateError, disableInputs, disabledStyle, getCurrencySymbol,
         extractValue, parseCurrencyValue, renderFieldInput, handleInputChange, handleLineItemChange,
-        handleAddLineItem, exportToExcel, lineItemColumns, readOnly, codingLineItems, headerCoding,
+        handleAddLineItem, exportToExcel, lineItemColumns, readOnly, isAmountMismatch, calculationDetails, codingLineItems, headerCoding,
         handleHeaderCodingChange, handleCodingLineItemChange, handleDeleteLineItem, originalData,
         invoiceId, invoiceDisplayId, workflowRefreshTrigger, exchangeRate, setVendorId, setMemo,
         debouncedVendorIdSearch, debouncedVendorNameSearch, handleVendorChange, setExchangeRate]);
@@ -1748,7 +1843,7 @@ const GenericInputFields = forwardRef(({
                         ]}
                     />
 
-                    {(invoiceStatus === "approved" || invoiceStatus === "rejected") && (
+                    {renderStatusTag && (invoiceStatus === "approved" || invoiceStatus === "rejected") && (
                         <div style={{ marginLeft: '24px' }}>{renderStatusTag()}</div>
                     )}
 
