@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Tag, Space, Spin, message } from 'antd';
+import { Table, Button, Tag, Space, message } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
+import { TableSkeleton } from '../components/SkeletonLoader';
 import { invoiceService, currencyService } from '../services/api';
 import { formatDateTimeIST } from '../utils/dateUtils';
 import '../styles/MainLayout.css';
@@ -13,7 +14,7 @@ const CodingPage = () => {
     const [loading, setLoading] = useState(false);
     const [currencies, setCurrencies] = useState([]);
 
-    // 🔥 Fetch ONLY once
+    // ✅ Fetch invoices only once
     const fetchInvoices = async () => {
         try {
             setLoading(true);
@@ -88,7 +89,7 @@ const CodingPage = () => {
         fetchCurrencies();
     }, []);
 
-    // 🔥 Generate Filters Dynamically
+    // ✅ Dynamic filter generator
     const generateFilters = (field) => {
         return [
             ...new Set(
@@ -245,10 +246,13 @@ const CodingPage = () => {
     return (
         <div className="main-layout">
             <div className="layout-content">
-                <Spin spinning={loading} tip="Loading invoices...">
+                {loading && allCodingInvoices.length === 0 ? (
+                    <TableSkeleton />
+                ) : (
                     <Table
                         columns={columns}
                         dataSource={allCodingInvoices}
+                        loading={loading}
                         pagination={{
                             pageSize: 10,
                             showSizeChanger: true,
@@ -262,7 +266,7 @@ const CodingPage = () => {
                             y: 'calc(100vh - 320px)',
                         }}
                     />
-                </Spin>
+                )}
             </div>
         </div>
     );
