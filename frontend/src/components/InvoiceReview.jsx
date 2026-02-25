@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Button, Spin } from 'antd';
+import { FormSkeleton, QuickViewSkeleton } from './SkeletonLoader';
 import { ArrowLeftOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons';
 import GenericInputFields from './GenericInputFields';
 import { schemaMap } from '../config/schemaMap';
@@ -21,6 +22,30 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     const { settings } = useGlobalSettings();
     const [userRole, setUserRole] = useState(null);
     const [currencies, setCurrencies] = useState([]);
+
+    const computedReadOnly = useMemo(() => {
+        if (readOnly) return true;
+        if (!settings || !settings.navigation || !userRole) {
+            console.log("DEBUG: readOnly fallback to true", { settings: !!settings, nav: !!settings?.navigation, userRole });
+            return true;
+        }
+
+        try {
+            const codingRoles = settings.navigation.find(n => n.path === '/coding')?.roles || [];
+            const invoiceRoles = settings.navigation.find(n => n.path === '/invoice')?.roles || [];
+
+            const canEdit = codingRoles.includes(userRole) ||
+                invoiceRoles.includes(userRole) ||
+                codingRoles.includes('all') ||
+                invoiceRoles.includes('all');
+
+            console.log("DEBUG: computedReadOnly result", { canEdit, userRole });
+            return !canEdit;
+        } catch (err) {
+            console.error("Error computing readOnly status", err);
+            return true;
+        }
+    }, [readOnly, settings, userRole]);
 
     // Resizable state
     const [leftWidth, setLeftWidth] = useState(() => {
@@ -67,8 +92,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
 
     useEffect(() => {
         if (invoiceData && invoiceData.extracted_data) {
-            console.log("DEBUG: InvoiceReview invoiceData keys:", Object.keys(invoiceData));
-            console.log("DEBUG: InvoiceReview original_items:", invoiceData.original_items);
+            console.log("DEBUG: InvoiceReview invoiceData received", { id: invoiceData.id });
             const extractedData = invoiceData.extracted_data;
 
             const extraction_json = {};
@@ -201,6 +225,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                 });
             }
 
+            console.log("DEBUG: Setting formattedData", { itemsCount: items.length });
             setFormattedData({
                 doc_type: 'invoice',
                 extraction_json,
@@ -447,7 +472,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                                     icon={<SendOutlined />}
                                     onClick={handleSendForCoding}
                                     loading={genericInputRef.current?.saving}
-                                    disabled={genericInputRef.current?.disableInputs || isDuplicate}
+                                    disabled={isDuplicate}
                                 >
                                     Send for Coding
                                 </Button>
@@ -462,12 +487,11 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                                 position: 'absolute',
                                 top: 0, left: 0, right: 0, bottom: 0,
                                 zIndex: 100,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                background: 'rgba(255, 255, 255, 0.7)'
+                                zIndex: 100,
+                                background: '#fff',
+                                padding: '20px'
                             }}>
-                                <Spin tip="Fetching vendor master details..." />
+                                <QuickViewSkeleton />
                             </div>
                         )}
                         {formattedData && (
@@ -481,17 +505,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                                 currencies={currencies}
                                 onDuplicateChange={setIsDuplicate}
                                 onVendorLoadingChange={setIsVendorMasterLoading}
-                                readOnly={readOnly || (() => {
-                                    if (!settings.navigation || !userRole) return true;
-                                    const codingRoles = settings.navigation.find(n => n.path === '/coding')?.roles || [];
-                                    const invoiceRoles = settings.navigation.find(n => n.path === '/invoice')?.roles || [];
-
-                                    const canEdit = codingRoles.includes(userRole) ||
-                                        invoiceRoles.includes(userRole) ||
-                                        codingRoles.includes('all') ||
-                                        invoiceRoles.includes('all')
-                                    return !canEdit;
-                                })()}
+                                readOnly={computedReadOnly}
                             />
                         )}
                     </div>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { message, Spin } from 'antd';
+import { message, Button, Result } from 'antd';
 import InvoiceReview from '../components/InvoiceReview';
 import { invoiceService } from '../services/api';
+import { ReviewPageSkeleton } from '../components/SkeletonLoader';
 
 const InvoiceReviewPage = () => {
     const location = useLocation();
@@ -51,20 +52,24 @@ const InvoiceReviewPage = () => {
     };
 
     if (loading) {
-        return (
-            <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '100vh'
-            }}>
-                <Spin size="large" tip="Loading invoice..." />
-            </div>
-        );
+        return <ReviewPageSkeleton />;
     }
 
     if (!invoiceData || !pdfUrl) {
-        return null;
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <Result
+                    status="warning"
+                    title="Invoice data could not be loaded"
+                    subTitle="The invoice data or PDF is unavailable. Please try again from the invoice list."
+                    extra={
+                        <Button type="primary" onClick={() => navigate('/dashboard')}>
+                            Back to Dashboard
+                        </Button>
+                    }
+                />
+            </div>
+        );
     }
 
     // Check if invoice is approved - make it read-only

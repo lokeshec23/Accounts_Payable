@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import Loader from './components/Loader';
+import { DashboardSkeleton, TableSkeleton, FormSkeleton, ReviewPageSkeleton } from './components/SkeletonLoader';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const InvoicePage = lazy(() => import('./pages/InvoicePage'));
@@ -13,12 +13,14 @@ const AdminPage = lazy(() => import('./pages/AdminPage'));
 
 
 export const routeMap = {
-  "/dashboard": <Suspense fallback={<Loader />}> <DashboardPage /> </Suspense>,
-  "/invoice": <Suspense fallback={<Loader />}> <InvoicePage /> </Suspense>,
-  "/coding": <Suspense fallback={<Loader />}> <CodingPage /> </Suspense>,
-  "/approvals": <Suspense fallback={<Loader />}> <ApprovalsPage /> </Suspense>,
-  "/master-data": <Suspense fallback={<Loader />}> <MasterDataPage /> </Suspense>,
-  "/settings": <Suspense fallback={<Loader />}> <SettingsPage /> </Suspense>,
-  "/admin": <Suspense fallback={<Loader />}> <AdminPage /> </Suspense>,
+  "/dashboard": <Suspense fallback={<DashboardSkeleton />}> <DashboardPage /> </Suspense>,
+  "/invoice": <Suspense fallback={<FormSkeleton />}> <InvoicePage /> </Suspense>,
+  "/coding": <Suspense fallback={<TableSkeleton />}> <CodingPage /> </Suspense>,
+  "/approvals": <Suspense fallback={<TableSkeleton />}> <ApprovalsPage /> </Suspense>,
+  "/master-data": <Suspense fallback={<TableSkeleton />}> <MasterDataPage /> </Suspense>,
+  "/settings": <Suspense fallback={<TableSkeleton />}> <SettingsPage /> </Suspense>,
+  "/admin": <Suspense fallback={<TableSkeleton />}> <AdminPage /> </Suspense>,
+  "/coding/review": <Suspense fallback={<FormSkeleton />}> <CodingReviewPage /> </Suspense>,
+  "/invoice/review": <Suspense fallback={<ReviewPageSkeleton />}> <InvoiceReviewPage /> </Suspense>,
 };
 

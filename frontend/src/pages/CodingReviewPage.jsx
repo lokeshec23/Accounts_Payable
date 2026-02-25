@@ -8,6 +8,7 @@ import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 dayjs.extend(customParseFormat);
 import PdfViewerWithHighlight from '../components/PdfViewerWithHighlight';
+import { FormSkeleton } from '../components/SkeletonLoader';
 import WorkflowTab from '../components/WorkflowTab';
 import AuditTrail from '../components/AuditTrail';
 import QuickViewTab from '../components/QuickViewTab';
@@ -1589,7 +1590,7 @@ const CodingReviewPage = () => {
                             {
                                 key: 'coding',
                                 label: 'Coding Fields',
-                                children: (
+                                children: loadingMasterData ? <FormSkeleton /> : (
                                     <Collapse defaultActiveKey={['header', 'lineitems']}>
                                         <Panel header="Header Coding" key="header">
                                             <Table
@@ -1775,6 +1776,7 @@ const CodingReviewPage = () => {
                                             );
                                         })()}
                                     </div>
+
                                 )
                             },
                             {
@@ -1791,7 +1793,7 @@ const CodingReviewPage = () => {
                     />
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

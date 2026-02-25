@@ -1,5 +1,6 @@
 // src/pages/ApDashboard.jsx
 import React, { useEffect, useState } from "react";
+import { DashboardSkeleton } from "../components/SkeletonLoader";
 import Plot from "react-plotly.js";
 import api from "../services/api";   // ✅ FIX: Use our axios instance
 import {
@@ -75,7 +76,7 @@ const ApDashboard = () => {
     }, []);
 
     if (!summary || !vendorData || !aging || !statusBreakdown) {
-        return <div className="ap-loading">Loading dashboard…</div>;
+        return <DashboardSkeleton />;
     }
 
     // ---------- Aging chart data ----------

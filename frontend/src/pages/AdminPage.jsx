@@ -22,6 +22,7 @@ import {
 import { adminService } from "../services/api";
 import DelegationManager from "../components/DelegationManager";
 import { useGlobalSettings } from "../context/GlobalSettingsContext";
+import { TableSkeleton } from "../components/SkeletonLoader";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -312,12 +313,15 @@ const AdminPage = () => {
               label: "User Management",
               children: (
                 <>
-                  <Table
-                    columns={userColumns}
-                    dataSource={users}
-                    rowKey="id"
-                    loading={loadingUsers}
-                  />
+                  {loadingUsers ? (
+                    <TableSkeleton />
+                  ) : (
+                    <Table
+                      columns={userColumns}
+                      dataSource={users}
+                      rowKey="id"
+                    />
+                  )}
 
                   {/* ✅ EDIT USER MODAL (ADD HERE) */}
                   <Modal

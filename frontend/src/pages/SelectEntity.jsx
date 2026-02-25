@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useEntity } from "../context/EntityContext";
 import { authService } from "../services/auth";
 import { masterDataService } from "../services/api";
+import { DropdownSkeleton } from "../components/SkeletonLoader";
 import "../styles/SelectEntity.css";
 
 const { Text } = Typography;
@@ -119,7 +120,7 @@ const SelectEntity = () => {
         </Text>
 
         {loading ? (
-          <Spin style={{ marginTop: 30 }} />
+          <DropdownSkeleton />
         ) : (
           <Dropdown menu={entityMenu} trigger={["click"]}>
             <Button

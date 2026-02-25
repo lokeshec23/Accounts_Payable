@@ -12,6 +12,7 @@ import {
 import { workflowService, currencyService } from '../services/api';
 import { formatDateTimeIST } from '../utils/dateUtils';
 import './WorkflowTab.css';
+import { ListSkeleton } from './SkeletonLoader';
 
 const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId, previewVendorId, previewVendorName }) => {
   const [workflowData, setWorkflowData] = useState(null);
@@ -215,7 +216,7 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId, previewVendo
   /* ---------------- UI ---------------- */
 
   if (loading) {
-    return <Spin size="large" tip="Loading workflow history..." />;
+    return <div className="workflow-tab-container"><Card className="workflow-card"><ListSkeleton itemCount={4} /></Card></div>;
   }
 
   if (!workflowData?.steps?.length) {

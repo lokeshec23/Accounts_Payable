@@ -7,6 +7,9 @@ from app.models.invoice import InvoiceCreate, InvoiceResponse, InvoiceStatus, In
 from app.models.workflow import WorkflowStepType, WorkflowStepStatus
 from app.database.database import get_db
 from sqlalchemy.orm import Session
+from app.middleware.logger import logger
+
+
 from app.models.db_models import (
     Invoice, WorkflowStep, WorkflowStepTypeEnum, 
     WorkflowStepStatusEnum, InvoiceStatusEnum, InvoiceStatusHistory,
@@ -90,11 +93,21 @@ async def upload_invoices(
     failed_uploads = []  # Track failed uploads
 
     async def _process_single_file(file: UploadFile):
+        request_id = str(uuid.uuid4())
+
         clean_name = file.filename.replace("\\", "/").split("/")[-1]
         file_path = None
         try:
             import time
             total_start = time.time()
+
+            logger.info({
+            "request_id": request_id,
+            "event": "file_processing_started",
+            "filename": clean_name,
+            "user": current_user.username,
+            "entity": entity
+            })
             
             # ---- CLEAN FILENAME ----
             clean_name = file.filename.replace("\\", "/").split("/")[-1]
@@ -107,6 +120,17 @@ async def upload_invoices(
             with open(file_path, "wb") as f:
                 f.write(contents)
             print(f"[Backend] File saved in {time.time() - save_start:.2f}s: {file_path}")
+
+            logger.info({
+            "request_id": request_id,
+            "stage": "file_saved",
+            "file_path": file_path,
+            "size_bytes": len(contents)
+            })
+
+
+
+
 
             # ---- CREATE DB RECORD (INITIAL) ----
             new_invoice = Invoice(
@@ -135,12 +159,67 @@ async def upload_invoices(
             db.refresh(new_invoice)
             invoice_id = new_invoice.id
             print(f"[Backend] Initial DB record created in {time.time() - db_start:.2f}s: {invoice_id}")
+            logger.info({
+            "request_id": request_id,
+            "stage": "db_record_created",
+            "invoice_id": invoice_id
+            })
+
+
+
 
             # ---- RUN EXTRACTION ----
             extract_start = time.time()
             print(f"[Backend] Starting full extraction for {invoice_id}")
             extraction = await invoice_processor.process_invoice_extraction(file_path)
-            print(f"[Backend] Full extraction completed in {time.time() - extract_start:.2f}s")
+            extract_time = time.time() - extract_start
+            print(f"[Backend] Full extraction completed in {extract_time:.2f}s")
+
+            # Extract key values from Azure response
+            extracted_data = extraction.get("extracted_data", {})
+            raw_azure_response = extraction.get("raw_azure_full", {})
+            
+            # Extract raw OCR text from Azure response
+            raw_ocr_text = ""
+            if raw_azure_response and "content" in raw_azure_response:
+                raw_ocr_text = raw_azure_response.get("content", "")
+            
+            # Log raw OCR text separately
+            logger.info({
+                "request_id": request_id,
+                "stage": "azure_ocr_text_extracted",
+                "invoice_id": invoice_id,
+                "raw_ocr_text": raw_ocr_text
+            })
+            
+            # Log structured extraction data separately
+            logger.info({
+                "request_id": request_id,
+                "stage": "azure_extraction_completed",
+                "invoice_id": invoice_id,
+                "duration_sec": extract_time,
+                "confidence_score": extraction.get("metadata", {}).get("confidence_score"),
+                "azure_extracted_data": extracted_data
+            })
+            
+            # ---- LLM LOGGING ----
+            # Log LLM metadata
+            logger.info({
+                "request_id": request_id,
+                "stage": "llm_invocation",
+                "prompt_length": len(extraction.get("llm_prompt", "")),
+                "response_length": len(str(extraction.get("llm_raw_response", "")))
+            })
+            
+            # Log LLM response values separately
+            logger.info({
+                "request_id": request_id,
+                "stage": "llm_response_values",
+                "llm_response": extraction.get("llm_raw_response", "")
+            })
+
+
+
 
             # ---- SAVE RAW EXTRACTION DATA ----
             try:
@@ -159,10 +238,21 @@ async def upload_invoices(
                 db.add(raw_record)
                 db.commit()
                 print(f"[Backend] Raw extraction data and PDF binary saved in {time.time() - raw_start:.2f}s")
+                logger.info({
+                    "request_id": request_id,
+                    "stage": "raw_extraction_persisted",
+                    "invoice_id": invoice_id
+                })
+
+           
             except Exception as e:
                 print(f"[Backend] Warning: Failed to save raw extraction data: {e}")
                 # Don't fail the whole upload if this part fails
-
+                logger.warning({
+                    "request_id": request_id,
+                    "stage": "raw_extraction_save_failed",
+                    "error": str(e)
+                })
 
             # Update invoice instance with extraction results
             new_invoice.extracted_data = serialize_json_field(extraction.get("extracted_data", {}))
@@ -170,6 +260,13 @@ async def upload_invoices(
             new_invoice.validation_results = serialize_json_field(extraction.get("validation_results", {}))
             new_invoice.confidence_score = extraction.get("metadata", {}).get("confidence_score", "low")
             new_invoice.processed_at = datetime.utcnow()
+
+            logger.info({
+                "request_id": request_id,
+                "stage": "structured_extraction_completed",
+                "invoice_id": invoice_id,
+                "confidence_score": new_invoice.confidence_score
+            })
             
             # Update vendor_id and vendor_name from full extraction
             extracted_data = extraction.get("extracted_data", {})
@@ -209,6 +306,22 @@ async def upload_invoices(
                     extracted_data["vendor_info"]["name"] = {"value": res_v_name}
                     new_invoice.extracted_data = serialize_json_field(extracted_data)
             
+                logger.info({
+                    "request_id": request_id,
+                    "stage": "vendor_matching_completed",
+                    "vendor_matching_details": {
+                        "azure_extracted_vendor": extracted_vendor,
+                        "azure_extracted_address": extracted_address,
+                        "matched_vendor_id": res_v_id,
+                        "matched_vendor_name": res_v_name,
+                        "line_grouping": res_v_grouping,
+                        "vendor_details": vendor_details
+                    }
+                })
+
+
+
+
             if not new_invoice.invoice_number:
                 # Try to get invoice number from extraction
                 invoice_details = extracted_data.get("invoice_details", {})
@@ -238,6 +351,8 @@ async def upload_invoices(
                     extracted_data["Items"]["value"] = original_items
                     new_invoice.extracted_data = serialize_json_field(extracted_data)
 
+
+
             db.commit()
 
             # ---- POST-EXTRACTION DUPLICATE CHECK (Fallback) ----
@@ -261,7 +376,13 @@ async def upload_invoices(
                          "original_invoice_id": str(existing_duplicate.get("id"))
                     })
                     db.commit()
-
+                    logger.info({
+                        "request_id": request_id,
+                        "stage": "duplicate_check_completed",
+                        "vendor_id": final_vendor_id,
+                        "invoice_number": final_invoice_number,
+                        "is_duplicate": bool(existing_duplicate)
+                    })
 
 
             # ---- CREATE WORKFLOW STEP: PROCESSED ----
@@ -276,6 +397,12 @@ async def upload_invoices(
             )
             db.add(workflow_step)
             db.commit()
+
+            logger.info({
+                "request_id": request_id,
+                "stage": "workflow_step_created",
+                "invoice_id": invoice_id
+            })
             
             # [AUDIT] Log Upload (Passing DB Session)
             await audit_service.log_action(
@@ -304,16 +431,30 @@ async def upload_invoices(
                 print(f"[Backend] Registered in fast lookup registry in {time.time() - reg_start:.2f}s")
 
             print(f"[Backend] TOTAL processing for {invoice_id} completed in {time.time() - total_start:.2f}s")
-            
-            # ---- PREPARE JSON SAFE RESPONSE ----
+            # ✅ 6️⃣ SUCCESS LOGGER (ADD HERE)
+            total_time = round(time.time() - total_start, 2)
+
+            logger.info({
+                "request_id": request_id,
+                "event": "invoice_processing_completed",
+                "invoice_id": invoice_id,
+                "total_time_sec": total_time
+            })
+
             return {"success": True, "data": invoice_to_dict(new_invoice)}
 
         except Exception as e:
+            # ❌ FAILURE LOGGER (ADD HERE)
             if file_path and os.path.exists(file_path):
                 os.remove(file_path)
-            import traceback
-            print(f"❌ ERROR processing file {file.filename}: {e}")
-            traceback.print_exc()
+
+            logger.error({
+                "request_id": request_id,
+                "event": "invoice_processing_failed",
+                "filename": clean_name,
+                "error": str(e)
+            }, exc_info=True)
+
             return {"success": False, "filename": clean_name, "reason": str(e)}
 
     # Run processing tasks concurrently
