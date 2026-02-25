@@ -241,6 +241,13 @@ const AllFieldsTab = React.memo((props) => {
                         'Service period start', 'Service period end'
                     ])}
 
+                    {/* 4. Vendor Level */}
+                    {renderFieldGroup('Vendor Level', [
+                        'Vendor Name', 'Vendor Address', 'Vendor Country', 'Vendor Tax ID (VAT/GST/TIN/W9, etc.)',
+                        'Vendor Contact Email', 'Vendor Phone', 'Vendor Bank Name', 'Vendor Bank Account Number',
+                        'Vendor Bank Details (Account/IBAN/SWIFT/Routing No)', 'Vendor Contact Person', 'Vendor Website (if applicable)'
+                    ])}
+
                     {/* 2. Vendor Master Details */}
                     {vendorMasterDetailsPanel}
 
@@ -324,12 +331,6 @@ const AllFieldsTab = React.memo((props) => {
                         )}
                     </Panel>
 
-                    {/* 4. Vendor Level */}
-                    {renderFieldGroup('Vendor Level', [
-                        'Vendor Name', 'Vendor Address', 'Vendor Country', 'Vendor Tax ID (VAT/GST/TIN/W9, etc.)',
-                        'Vendor Contact Email', 'Vendor Phone', 'Vendor Bank Name', 'Vendor Bank Account Number',
-                        'Vendor Bank Details (Account/IBAN/SWIFT/Routing No)', 'Vendor Contact Person', 'Vendor Website (if applicable)'
-                    ])}
 
                     {/* 5. Buyer Information */}
                     {renderFieldGroup('Buyer Information', [
