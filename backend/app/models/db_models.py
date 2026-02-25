@@ -514,6 +514,7 @@ class VendorMetadata(Base):
     updated_by = Column(String(100), nullable=True)
 
     __table_args__ = (
+        UniqueConstraint('entity', 'vendor_id', name='uq_vendor_entity_metadata'),
         Index('ix_vendor_metadata_lookup', 'entity', 'extracted_name_normalized', 'extracted_address_normalized'),
     )
 

@@ -803,61 +803,66 @@ async def update_invoice(
         vendor_changed = (new_vendor_id and new_vendor_id != old_vendor_id) or \
                          (new_vendor_name and new_vendor_name != old_vendor_name)
 
-        if azure_vendor_name and new_vendor_id and vendor_changed:
+        if new_vendor_id and vendor_changed:
             from app.ai.normalizer import normalize_vendor, normalize_address
             
-            # Persist Name-based mapping
-            norm_azure_name = normalize_vendor(azure_vendor_name)
-            if norm_azure_name:
+            # Combine name and address mappings into a single VendorMetadata record per vendor_id
+            norm_azure_name = normalize_vendor(azure_vendor_name) if azure_vendor_name else None
+            
+            # Get address from extracted_data if possible
+            vendor_info = extracted_data.get("vendor_info", {})
+            azure_address = vendor_info.get("address", {}).get("value") or azure_vendor_address
+            norm_azure_addr = normalize_address(azure_address) if azure_address else None
+
+            if norm_azure_name or norm_azure_addr:
+                # 1. Search by vendor_id and entity (Canonical Record)
                 mapping = db.query(VendorMetadata).filter(
-                    VendorMetadata.extracted_name_normalized == norm_azure_name,
+                    VendorMetadata.vendor_id == new_vendor_id,
                     VendorMetadata.entity == invoice.entity
                 ).first()
                 
+                # 2. If not found, search by name or address to see if we should "take over" an existing record
+                # (Safety check to avoid redundant rows if ID was slightly different before)
                 if not mapping:
+                    if norm_azure_name:
+                        mapping = db.query(VendorMetadata).filter(
+                            VendorMetadata.extracted_name_normalized == norm_azure_name,
+                            VendorMetadata.entity == invoice.entity
+                        ).first()
+                    
+                    if not mapping and norm_azure_addr:
+                        mapping = db.query(VendorMetadata).filter(
+                            VendorMetadata.extracted_address_normalized == norm_azure_addr,
+                            VendorMetadata.entity == invoice.entity
+                        ).first()
+
+                if not mapping:
+                    # Create new unified record
                     mapping = VendorMetadata(
-                        extracted_name_normalized=norm_azure_name,
                         entity=invoice.entity,
                         vendor_id=new_vendor_id,
                         official_name=new_vendor_name or invoice.vendor_name,
                         extracted_name=azure_vendor_name,
-                        extracted_address=azure_vendor_address,
+                        extracted_name_normalized=norm_azure_name,
+                        extracted_address=azure_address,
+                        extracted_address_normalized=norm_azure_addr,
                         updated_by=current_user.username
                     )
                     db.add(mapping)
                 else:
+                    # Update existing record with the best available info
                     mapping.vendor_id = new_vendor_id
                     mapping.official_name = new_vendor_name or invoice.vendor_name
-                    mapping.extracted_name = azure_vendor_name
-                    mapping.extracted_address = azure_vendor_address
-                    mapping.updated_by = current_user.username
-            
-            # Persist Address-based mapping if available
-            vendor_info = extracted_data.get("vendor_info", {})
-            azure_address = vendor_info.get("address", {}).get("value")
-            if azure_address:
-                norm_azure_addr = normalize_address(azure_address)
-                if norm_azure_addr:
-                    addr_mapping = db.query(VendorMetadata).filter(
-                        VendorMetadata.extracted_address_normalized == norm_azure_addr,
-                        VendorMetadata.entity == invoice.entity
-                    ).first()
                     
-                    if not addr_mapping:
-                        addr_mapping = VendorMetadata(
-                            extracted_address_normalized=norm_azure_addr,
-                            entity=invoice.entity,
-                            vendor_id=new_vendor_id,
-                            official_name=new_vendor_name or invoice.vendor_name,
-                            extracted_address=azure_address,
-                            updated_by=current_user.username
-                        )
-                        db.add(addr_mapping)
-                    else:
-                        addr_mapping.vendor_id = new_vendor_id
-                        addr_mapping.official_name = new_vendor_name or invoice.vendor_name
-                        addr_mapping.extracted_address = azure_address
-                        addr_mapping.updated_by = current_user.username
+                    if norm_azure_name:
+                        mapping.extracted_name = azure_vendor_name
+                        mapping.extracted_name_normalized = norm_azure_name
+                    
+                    if norm_azure_addr:
+                        mapping.extracted_address = azure_address
+                        mapping.extracted_address_normalized = norm_azure_addr
+                        
+                    mapping.updated_by = current_user.username
 
             # Also update top-level vendor fields in the invoice
             update_data["vendor_id"] = new_vendor_id
