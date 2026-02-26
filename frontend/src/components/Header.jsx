@@ -16,7 +16,7 @@ const Header = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = sessionStorage.getItem("user");
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
@@ -51,12 +51,12 @@ const Header = () => {
         {/* NAVIGATION */}
         <nav className="header-nav">
           {settings.navigation && settings.navigation.map((navItem) => {
-             // Check if user has permission
-             const hasPermission = navItem.roles.includes("all") || navItem.roles.includes(role);
-             
-             if (!hasPermission) return null;
+            // Check if user has permission
+            const hasPermission = navItem.roles.includes("all") || navItem.roles.includes(role);
 
-             return (
+            if (!hasPermission) return null;
+
+            return (
               <Link
                 key={navItem.path}
                 to={navItem.path}
@@ -64,7 +64,7 @@ const Header = () => {
               >
                 {navItem.label}
               </Link>
-             );
+            );
           })}
         </nav>
 

@@ -283,7 +283,7 @@ const AllFieldsTab = React.memo((props) => {
                             borderTop: '1px solid #d9d9d9'
                         }}>
                             <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: '13px', color: '#8c8c8c', marginRight: '12px' }}>Total Line Items Net Amount:</span>
+                                <span style={{ fontSize: '13px', color: '#8c8c8c', marginRight: '12px' }}>Total Sum of Line Items <sub>( Excl GST )</sub>:</span>
                                 <span style={{ fontSize: '15px', fontWeight: 500, color: '#595959' }}>
                                     {getCurrencySymbol ? getCurrencySymbol() : '$'} {safeLineItems.reduce((sum, item) => {
                                         if (!item) return sum;

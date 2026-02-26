@@ -72,7 +72,7 @@ const CodingReviewPage = () => {
 
     // Resizable state
     const [leftWidth, setLeftWidth] = useState(() => {
-        const saved = localStorage.getItem('codingReviewSplitWidth');
+        const saved = sessionStorage.getItem('codingReviewSplitWidth');
         return saved ? parseFloat(saved) : 45;
     });
     const [isDragging, setIsDragging] = useState(false);
@@ -357,7 +357,7 @@ const CodingReviewPage = () => {
 
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('user');
+        const storedUser = sessionStorage.getItem('user');
         if (storedUser) {
             try {
                 const user = JSON.parse(storedUser);
@@ -951,7 +951,7 @@ const CodingReviewPage = () => {
 
         const handleMouseUp = () => {
             setIsDragging(false);
-            localStorage.setItem('codingReviewSplitWidth', leftWidthRef.current);
+            sessionStorage.setItem('codingReviewSplitWidth', leftWidthRef.current);
         };
 
         if (isDragging) {

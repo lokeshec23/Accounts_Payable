@@ -12,13 +12,13 @@ const api = axios.create({
 // Add token to requests
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
     // Add Entity header
-    const entity = localStorage.getItem('selected_entity');
+    const entity = sessionStorage.getItem('selected_entity');
     if (entity) {
       config.headers['X-Entity'] = entity;
     }
@@ -52,8 +52,8 @@ api.interceptors.response.use(
   (error) => {
     console.error(`[Trace ERROR] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error.response?.data || error.message);
     if (error.response?.status === 401 && !error.config.url.endsWith('/auth/login')) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
       window.location.href = '/';
     }
     return Promise.reject(error);

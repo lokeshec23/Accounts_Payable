@@ -49,7 +49,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
 
     // Resizable state
     const [leftWidth, setLeftWidth] = useState(() => {
-        const saved = localStorage.getItem('invoiceReviewSplitWidth');
+        const saved = sessionStorage.getItem('invoiceReviewSplitWidth');
         return saved ? parseFloat(saved) : 45;
     });
     const [isDragging, setIsDragging] = useState(false);
@@ -70,12 +70,12 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
     }, []);
 
     const handleCurrencyChange = (value) => {
-        // No global localStorage side effects
+        // No global sessionStorage side effects
         console.log("Currency changed to:", value);
     };
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('user');
+        const storedUser = sessionStorage.getItem('user');
         if (storedUser) {
             try {
                 const user = JSON.parse(storedUser);
@@ -365,7 +365,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
 
         const handleMouseUp = () => {
             setIsDragging(false);
-            localStorage.setItem('invoiceReviewSplitWidth', leftWidthRef.current);
+            sessionStorage.setItem('invoiceReviewSplitWidth', leftWidthRef.current);
         };
 
         if (isDragging) {

@@ -3,13 +3,13 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 const EntityContext = createContext();
 
 export const EntityProvider = ({ children }) => {
-    // Default to 'Consolidated Analytics Inc' if nothing in localStorage
+    // Default to 'Consolidated Analytics Inc' if nothing in sessionStorage
     const [entity, setEntity] = useState(() => {
-        return localStorage.getItem('selected_entity') || 'Consolidated Analytics Inc';
+        return sessionStorage.getItem('selected_entity') || 'Consolidated Analytics Inc';
     });
 
     useEffect(() => {
-        localStorage.setItem('selected_entity', entity);
+        sessionStorage.setItem('selected_entity', entity);
     }, [entity]);
 
     return (

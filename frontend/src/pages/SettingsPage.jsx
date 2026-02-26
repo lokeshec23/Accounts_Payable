@@ -136,7 +136,7 @@ const SettingsPage = () => {
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = sessionStorage.getItem("user");
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);

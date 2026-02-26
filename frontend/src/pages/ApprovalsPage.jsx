@@ -20,7 +20,7 @@ const ApprovalsPage = () => {
     const [loading, setLoading] = useState(false);
     const [allApprovalInvoices, setAllApprovalInvoices] = useState([]);
     const [currencies, setCurrencies] = useState([]);
-    const storedUser = JSON.parse(localStorage.getItem('user'));
+    const storedUser = JSON.parse(sessionStorage.getItem('user'));
 
     // Global search term for approvals table
     const [searchTerm, setSearchTerm] = useState('');

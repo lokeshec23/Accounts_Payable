@@ -26,7 +26,7 @@ const DelegationManager = ({ isAdmin = false, onUpdate }) => {
     const [loading, setLoading] = useState(false);
     const [delegations, setDelegations] = useState([]);
     const [approvers, setApprovers] = useState([]);
-    const storedUser = JSON.parse(localStorage.getItem('user'));
+    const storedUser = JSON.parse(sessionStorage.getItem('user'));
 
     const fetchDelegations = async () => {
         try {

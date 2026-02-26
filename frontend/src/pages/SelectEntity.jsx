@@ -18,7 +18,7 @@ const SelectEntity = () => {
   const [loading, setLoading] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState("Select Entity");
 
-  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const storedUser = JSON.parse(sessionStorage.getItem("user") || "{}");
   const username = storedUser.username || storedUser.email || "User";
   const userInitial = username.charAt(0).toUpperCase();
 
@@ -61,8 +61,8 @@ const SelectEntity = () => {
     const name = getFieldLoose(entity, ["ENTITY_NAME", "entity_name", "Name", "EntityName", "Entity Name"]) || "Unknown Entity";
     const no = getFieldLoose(entity, ["ENTITY_NO", "entity_no", "ID", "No", "Entity No", "ENTITYID"]) || "0";
 
-    localStorage.setItem("selected_entity", name);
-    localStorage.setItem("selected_entity_no", String(no));
+    sessionStorage.setItem("selected_entity", name);
+    sessionStorage.setItem("selected_entity_no", String(no));
 
     setEntity(name);
     setSelectedLabel(name);
