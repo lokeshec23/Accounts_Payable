@@ -369,3 +369,31 @@ async def get_workflow_history(
             ) for s in steps
         ]
     )
+    
+@router.get("/approvers/{invoice_id}")
+async def get_approver_status(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity)
+):
+    """
+    Get the workflow status/history for an invoice.
+    This is called by the frontend to show the approval timeline.
+    """
+    steps = db.query(WorkflowStep).filter(WorkflowStep.invoice_id == invoice_id).order_by(asc(WorkflowStep.timestamp)).all()
+    
+    return {
+        "approvers": [
+            {
+                "id": str(s.id),
+                "invoice_id": str(s.invoice_id),
+                "step_name": s.step_name,
+                "step_type": s.step_type,
+                "user": s.user,
+                "status": s.status,
+                "timestamp": s.timestamp.isoformat() if s.timestamp else None,
+                "comment": s.comment
+            } for s in steps
+        ]
+    }
