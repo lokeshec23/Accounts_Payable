@@ -143,8 +143,8 @@ const CodingReviewPage = () => {
         if (!raw) return '';
 
         // Attempt to parse with common formats
-        const formats = ['YYYY-MM-DD', 'DD-MM-YYYY', 'MM/DD/YYYY', 'D-M-YYYY', 'YYYY/MM/DD', 'DD MMM YYYY', 'MM-DD-YYYY'];
-        const d = dayjs(raw, formats);
+        const formats = ['YYYY-MM-DD', 'DD-MM-YYYY', 'MM/DD/YYYY', 'D-M-YYYY', 'YYYY/MM/DD', 'DD MMM YYYY', 'MM-DD-YYYY', 'DD.MM.YYYY'];
+        const d = dayjs(raw, formats, true);
 
         if (d.isValid()) {
             return d.format('MM-DD-YYYY');
@@ -153,7 +153,20 @@ const CodingReviewPage = () => {
     };
 
     const renderFieldInput = (field, value) => {
-        const stringValue = extractValue(value);
+        let stringValue = extractValue(value);
+
+        if (field === 'Payment Terms') {
+            const dueDate = extractValue(formData?.['Due Date']);
+            const invoiceDate = extractValue(formData?.['Invoice Date']);
+
+            const isSameDate = dueDate && invoiceDate && String(dueDate) === String(invoiceDate);
+            const isReceipt = dueDate && String(dueDate).toLowerCase().includes('receipt');
+
+            if (isSameDate || isReceipt) {
+                stringValue = 'due upon receipt';
+            }
+        }
+
         return (
             <Input
                 value={stringValue}
@@ -166,6 +179,7 @@ const CodingReviewPage = () => {
     // Prepare formData for tabs
     const formData = React.useMemo(() => {
         const extracted = invoiceData?.rawData?.extracted_data || {};
+        console.log("Invoice date:", invoiceData?.rawData?.extracted_data?.invoice_details?.invoice_date?.value)
         return {
             // Vendor Information
             'Vendor ID': invoiceData?.vendorId || extracted?.vendor_info?.vendor_id?.value || '',

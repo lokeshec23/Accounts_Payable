@@ -479,7 +479,9 @@ const GenericInputFields = forwardRef(({
         const isPreserved = currentTerms && PRESERVED_PAYTERMS.includes(String(currentTerms).toLowerCase().trim());
 
         const paymentTerms = getVendorPaymentTerms(vendorDetails);
-        if (paymentTerms && !readOnly && !isPreserved) {
+        const hasDueDate = !!extractValue(formData['Due Date']);
+
+        if (paymentTerms && !readOnly && !isPreserved && !hasDueDate) {
             handleInputChange('Payment Terms', paymentTerms);
         }
 
@@ -566,7 +568,19 @@ const GenericInputFields = forwardRef(({
 
     // ==================== RENDER FIELD INPUT ====================
     const renderFieldInput = useCallback((field, value) => {
-        const stringValue = extractValue(value);
+        let stringValue = extractValue(value);
+
+        if (field === 'Payment Terms') {
+            const dueDate = extractValue(formData?.['Due Date']);
+            const invoiceDate = extractValue(formData?.['Invoice Date']);
+
+            const isSameDate = dueDate && invoiceDate && String(dueDate) === String(invoiceDate);
+            const isReceipt = dueDate && String(dueDate).toLowerCase().includes('receipt');
+
+            if (isSameDate || isReceipt) {
+                stringValue = 'due upon receipt';
+            }
+        }
 
         if ((field.toLowerCase().includes('amount') || field.toLowerCase().includes('price') ||
             field.toLowerCase().includes('total') || field.toLowerCase().includes('subtotal') ||

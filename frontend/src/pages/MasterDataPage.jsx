@@ -245,7 +245,8 @@ const MasterDataPage = () => {
     };
 
     const generateColumns = (sampleRow, rows) => {
-        const colKeys = Object.keys(sampleRow).filter(k => k !== "key");
+        const HIDDEN_COLS = new Set(["key", "id", "created_at", "updated_at"]);
+        const colKeys = Object.keys(sampleRow).filter(k => !HIDDEN_COLS.has(k));
 
         const generated = colKeys.map((colKey) => {
             const values = rows.map(r => r[colKey]);

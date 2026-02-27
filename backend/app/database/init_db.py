@@ -7,7 +7,7 @@ then creates tables and inserts default data.
 from sqlalchemy import create_engine, text
 from app.database.database import Base, engine, SessionLocal
 from app.models.db_models import (
-    User, Currency, GlobalSetting, ApproverDefault
+    User, Currency, GlobalSetting, ApproverDefault, EntityMaster
 )
 from app.auth.jwt import get_password_hash
 from app.config.settings import settings
@@ -135,6 +135,34 @@ def create_default_settings(db):
         print("✓ Global settings already exist")
 
 
+def create_default_entity(db):
+    """Create a default entity if entity_master table is empty.
+    This placeholder entity is used until a real entity master file is uploaded.
+    """
+    existing_count = db.query(EntityMaster).count()
+
+    if existing_count == 0:
+        default_entity = EntityMaster(
+            entity_id="DEFAULT",
+            entity_name="Default Entity",
+            registered_address="",
+            address_line1="",
+            address_line2="",
+            address_line3="",
+            city="",
+            state_or_territory="",
+            zip_or_postal_code="",
+            country_code="",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        db.add(default_entity)
+        db.commit()
+        print("✓ Default entity created (entity_id='DEFAULT') — replace by uploading an entity master file")
+    else:
+        print(f"✓ Entity master already has {existing_count} record(s), skipping default")
+
+
 def init_database():
     """
     Initialize the database with tables and default data.
@@ -159,6 +187,7 @@ def init_database():
         create_admin_user(db)
         create_default_currencies(db)
         create_default_settings(db)
+        create_default_entity(db)
         
         print("\n" + "="*50)
         print("✓ DATABASE INITIALIZATION COMPLETE")
