@@ -188,7 +188,6 @@ const GenericInputFields = forwardRef(({
 
         let formats = [
             'YYYY-MM-DD',
-            'DD-MM-YYYY',
             'DD.MM.YYYY',
             'DD/MM/YYYY',
             'DD-MMM-YYYY',
