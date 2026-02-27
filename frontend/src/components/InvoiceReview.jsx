@@ -456,7 +456,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                         </Button>
 
                         {/* Action Buttons */}
-                        {formattedData && !readOnly && (
+                        {formattedData && !computedReadOnly && (
                             <Space>
                                 <Button
                                     type="primary"

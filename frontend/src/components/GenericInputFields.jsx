@@ -978,10 +978,10 @@ const GenericInputFields = forwardRef(({
     }, [currentExpectedApprover, workflowData, myEmail]);
 
     const isMyTurn = !isSequential || (currentExpectedApprover === myEmail) || isActiveDelegateForCurrentTurn;
-    const effectiveAlreadyActed = currentUserHasActed && !isMyTurn;
-    const approveDisabled = effectiveAlreadyActed || isRestrictedUser || !isMyTurn;
-    const rejectDisabled = effectiveAlreadyActed || isRestrictedUser || !isMyTurn;
-    const reworkDisabled = effectiveAlreadyActed || isRestrictedUser || !isMyTurn;
+
+    const approveDisabled = currentUserHasActed || isRestrictedUser || !isMyTurn;
+    const rejectDisabled = currentUserHasActed || isRestrictedUser || !isMyTurn;
+    const reworkDisabled = currentUserHasActed || isRestrictedUser || !isMyTurn;
 
     const renderStatusTag = useCallback(() => {
         let color = 'default', label = invoiceStatus;
