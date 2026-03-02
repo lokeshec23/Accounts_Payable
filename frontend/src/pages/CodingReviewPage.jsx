@@ -153,19 +153,7 @@ const CodingReviewPage = () => {
     };
 
     const renderFieldInput = (field, value) => {
-        let stringValue = extractValue(value);
-
-        if (field === 'Payment Terms') {
-            const dueDate = extractValue(formData?.['Due Date']);
-            const invoiceDate = extractValue(formData?.['Invoice Date']);
-
-            const isSameDate = dueDate && invoiceDate && String(dueDate) === String(invoiceDate);
-            const isReceipt = dueDate && String(dueDate).toLowerCase().includes('receipt');
-
-            if (isSameDate || isReceipt) {
-                stringValue = 'due upon receipt';
-            }
-        }
+        const stringValue = extractValue(value);
 
         return (
             <Input
