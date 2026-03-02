@@ -13,6 +13,7 @@ const CodingPage = () => {
     const [allCodingInvoices, setAllCodingInvoices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [currencies, setCurrencies] = useState([]);
+    const [pageSize, setPageSize] = useState(10);
 
     // ✅ Fetch invoices only once
     const fetchInvoices = async () => {
@@ -253,13 +254,16 @@ const CodingPage = () => {
                         columns={columns}
                         dataSource={allCodingInvoices}
                         loading={loading}
-                        pagination={{
-                            pageSize: 10,
-                            showSizeChanger: true,
-                            pageSizeOptions: ['5', '10', '20', '50'],
-                            showTotal: (total, range) =>
-                                `${range[0]}-${range[1]} of ${total} items`,
-                        }}
+                            pagination={{
+                                pageSize: pageSize,
+                                showSizeChanger: true,
+                                pageSizeOptions: ['5', '10', '20', '50'],
+                                onShowSizeChange: (current, size) => {
+                                    setPageSize(size);
+                                },
+                                showTotal: (total, range) =>
+                                    `${range[0]}-${range[1]} of ${total} items`,
+                            }}
                         className="invoices-table"
                         scroll={{
                             x: 1300,
