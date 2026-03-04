@@ -11,6 +11,7 @@ import {
     Input,
     Tabs,
     Upload,
+    Progress
 } from 'antd';
 import {
     PlusOutlined,
@@ -36,6 +37,7 @@ const { confirm } = Modal;
 const MainLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [allInvoices, setAllInvoices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -408,17 +410,28 @@ const MainLayout = () => {
             return;
         }
 
+        let eventSource = null;
+
         try {
             setUploading(true);
 
-            message.open({
-                type: 'loading',
-                content: 'Processing invoices...',
-                key: 'uploading',
-                duration: 0
-            });
+            const taskId = crypto.randomUUID();
+            
+            eventSource = new EventSource(invoiceService.getUploadProgressUrl(taskId));
+            let currentProgress = 25;
+            setUploadProgress(25);
 
-            const response = await invoiceService.uploadInvoices(fileList);
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.status === 'processing' && data.message) {
+                    if (data.progress && data.progress > currentProgress) {
+                        currentProgress = data.progress;
+                        setUploadProgress(currentProgress);
+                    }
+                }
+            }
+
+            const response = await invoiceService.uploadInvoices(fileList, taskId);
 
             message.open({
                 type: 'success',
@@ -444,6 +457,9 @@ const MainLayout = () => {
                 key: 'uploading'
             });
         } finally {
+            if (eventSource) {
+                eventSource.close();
+            }
             setUploading(false);
         }
     };
@@ -1042,16 +1058,30 @@ const MainLayout = () => {
                         </p>
                     </Dragger>
 
-                    {fileList.length > 0 && (
+                    {fileList.length > 0 && !uploading &&(
                         <Button
                             type="primary"
                             onClick={handleUpload}
                             icon={<UploadOutlined />}
-                            loading={uploading}
                             style={{ marginTop: 16, width: '100%' }}
                         >
                             Upload {fileList.length} File{fileList.length > 1 ? 's' : ''}
                         </Button>
+                    )}
+                    {uploading && (
+                        <div style={{ marginTop: 16, textAlign: 'center', padding: '10px 0' }}>
+                            <Progress
+                                percent={uploadProgress}
+                                status="active"
+                                strokeColor={{
+                                    '0%': '#108ee9',
+                                    '100%' : '#87d068',
+                                }}
+                            />
+                            <div style={{ marginTop: 8, fontWeight: 'bold', color: '#666' }}>
+                                Uploading... ({uploadProgress}%)
+                            </div>
+                        </div>
                     )}
                 </div>
             </Modal>

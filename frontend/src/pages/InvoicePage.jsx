@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Upload, Button, message, Modal } from "antd";
+import { Upload, Button, message, Modal, Progress } from "antd";
 import { UploadOutlined, InboxOutlined, FolderOpenOutlined } from "@ant-design/icons";
 import { invoiceService } from "../services/api";
 import Dragger from "antd/es/upload/Dragger";
@@ -10,6 +10,7 @@ const InvoicePage = () => {
     const navigate = useNavigate();
     const [fileList, setFileList] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     const [messageApi, contextHolder] = message.useMessage();
 
@@ -45,17 +46,28 @@ const InvoicePage = () => {
             return;
         }
 
+        let eventSource = null;
+
         try {
             setLoading(true);
 
-            messageApi.open({
-                type: "loading",
-                content: "Processing invoices...",
-                key: "uploading",
-                duration: 0
-            });
+            const taskId = crypto.randomUUID();
 
-            const response = await invoiceService.uploadInvoices(fileList);
+            eventSource = new EventSource(invoiceService.getUploadProgressUrl(taskId));
+            let currentProgress = 25;
+            setUploadProgress(25);
+
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.status === 'processing' && data.message) {
+                    if (data.progress && data.progress > currentProgress) {
+                        currentProgress = data.progress;
+                        setUploadProgress(currentProgress);
+                    }
+                }
+            };
+
+            const response = await invoiceService.uploadInvoices(fileList, taskId);
 
             const processedCount = response.count || 0;
             const failedCount = response.failed?.length || 0;
@@ -130,6 +142,9 @@ const InvoicePage = () => {
             }
 
         } finally {
+            if (eventSource) {
+                eventSource.close();
+            }
             setLoading(false);
         }
     };
@@ -178,17 +193,32 @@ const InvoicePage = () => {
                         </p>
                     </Dragger>
 
-                    {fileList.length > 0 && (
+                    {fileList.length > 0 && !loading && (
                         <Button
                             type="primary"
                             onClick={handleUpload}
                             icon={<UploadOutlined />}
-                            loading={loading}
                             className="upload-submit-btn"
                             style={{ marginTop: 16, width: "100%" }}
                         >
                             Upload {fileList.length} File{fileList.length > 1 ? "s" : ""}
                         </Button>
+                    )}
+
+                    {loading && (
+                        <div style={{ marginTop: 16, textAlign: 'center', padding: '10px 0' }}>
+                            <Progress
+                                percent={uploadProgress}
+                                status="active"
+                                strokeColor={{
+                                    '0%': '#108ee9',
+                                    '100%': '#87d068',
+                                }}
+                            />
+                            <div style={{ marginTop: 8, fontWeight: 'bold', color: '#666' }}>
+                                Uploading... ({uploadProgress}%)
+                            </div>
+                        </div>
                     )}
                 </div>
             </div >

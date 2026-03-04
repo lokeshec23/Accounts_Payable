@@ -62,11 +62,16 @@ api.interceptors.response.use(
 
 // Add invoice service methods
 export const invoiceService = {
-  async uploadInvoices(files) {
+  async uploadInvoices(files, taskId = null) {
     const formData = new FormData();
     files.forEach(f => formData.append("files", f));
 
-    const response = await api.post("/invoices/upload", formData, {
+    let url = "/invoices/upload";
+    if (taskId) {
+      url += `?task_id=${taskId}`;
+    }
+
+    const response = await api.post(url, formData, {
       headers: { "Content-Type": "multipart/form-data" }
     });
     return response.data;
@@ -125,6 +130,10 @@ export const invoiceService = {
   async checkDuplicate(data) {
     const response = await api.post('/invoices/check-duplicate', data);
     return response.data;
+  },
+
+  getUploadProgressUrl(taskId) {
+    return `${API_BASE_URL}/invoices/upload-progress/${taskId}`;
   }
 };
 

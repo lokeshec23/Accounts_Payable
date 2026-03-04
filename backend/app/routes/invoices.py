@@ -8,6 +8,10 @@ from app.models.workflow import WorkflowStepType, WorkflowStepStatus
 from app.database.database import get_db
 from sqlalchemy.orm import Session
 from app.middleware.logger import logger
+from fastapi import Query
+from fastapi.responses import StreamingResponse
+import json
+from typing import Dict, Optional
 
 
 from app.models.db_models import (
@@ -30,6 +34,29 @@ from app.models.audit_log import AuditAction
 
 router = APIRouter()
 invoice_processor = InvoiceProcessor()
+
+# Global dictionary to hold asyncio queues for each upload task (progress tracking)
+upload_progress_queues: Dict[str, asyncio.Queue] = {}
+
+@router.get("/upload-progress/{task_id}")
+async def get_upload_progress(task_id: str):
+    async def event_stream():
+        if task_id not in upload_progress_queues:
+            upload_progress_queues[task_id] = asyncio.Queue()
+        queue = upload_progress_queues[task_id]
+        try:
+            while True:
+                message = await queue.get()
+                yield f"data: {json.dumps(message)}\n\n"
+                if message.get("status") in ("completed", "error"):
+                    break
+        except asyncio.CancelledError:
+            print(f"[Backend] Client disconnected from progress stream {task_id}")
+        finally:
+            if task_id in upload_progress_queues:
+                del upload_progress_queues[task_id]
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.post("/check-duplicate")
@@ -77,6 +104,7 @@ async def check_duplicate_invoice_endpoint(
 @router.post("/upload")
 async def upload_invoices(
     files: List[UploadFile] = File(...),
+    task_id: Optional[str] = Query(None),
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity),
     db: Session = Depends(get_db)
@@ -92,8 +120,17 @@ async def upload_invoices(
     saved_invoices = []  # Track successfully uploaded invoices
     failed_uploads = []  # Track failed uploads
 
-    async def _process_single_file(file: UploadFile):
+    queue = upload_progress_queues.get(task_id) if task_id else None
+
+    async def emit_progress(status, message, data=None, progress=0):
+        if queue:
+            await queue.put({"status": status, "message": message, "data": data, "progress": progress})
+
+    async def _process_single_file(file: UploadFile, index: int, total_files: int):
         request_id = str(uuid.uuid4())
+        clean_name = file.filename.replace("\\", "/").split("/")[-1]
+        
+        await emit_progress("processing", f"[{index}/{total_files}] Starting processing for {clean_name}...", progress=25)
 
         clean_name = file.filename.replace("\\", "/").split("/")[-1]
         file_path = None
@@ -120,6 +157,8 @@ async def upload_invoices(
             with open(file_path, "wb") as f:
                 f.write(contents)
             print(f"[Backend] File saved in {time.time() - save_start:.2f}s: {file_path}")
+            await emit_progress("processing", f"[{index}/{total_files}] Processing file...", progress=50)
+
 
             logger.info({
             "request_id": request_id,
@@ -168,15 +207,18 @@ async def upload_invoices(
 
 
 
+
             # ---- RUN EXTRACTION ----
             extract_start = time.time()
             print(f"[Backend] Starting full extraction for {invoice_id}")
             extraction = await invoice_processor.process_invoice_extraction(file_path)
             extract_time = time.time() - extract_start
             print(f"[Backend] Full extraction completed in {extract_time:.2f}s")
+            await emit_progress("processing", f"[{index}/{total_files}] Extracting data...", progress=75)
 
             # Extract key values from Azure response
             extracted_data = extraction.get("extracted_data", {})
+
             raw_azure_response = extraction.get("raw_azure_full", {})
             
             # Extract raw OCR text from Azure response
@@ -305,6 +347,7 @@ async def upload_invoices(
                     extracted_data["vendor_info"]["vendor_id"] = {"value": res_v_id}
                     extracted_data["vendor_info"]["name"] = {"value": res_v_name}
                     new_invoice.extracted_data = serialize_json_field(extracted_data)
+                    await emit_progress("processing", f"[{index}/{total_files}] Finalizing...", progress=100)
             
                 logger.info({
                     "request_id": request_id,
@@ -440,6 +483,7 @@ async def upload_invoices(
                 "invoice_id": invoice_id,
                 "total_time_sec": total_time
             })
+            await emit_progress("processing", f"[{index}/{total_files}] Completed processing {clean_name}!", progress=100)
 
             return {"success": True, "data": invoice_to_dict(new_invoice)}
 
@@ -454,11 +498,20 @@ async def upload_invoices(
                 "filename": clean_name,
                 "error": str(e)
             }, exc_info=True)
+            await emit_progress("processing", f"[{index}/{total_files}] Failed processing {clean_name}: {str(e)}")
 
             return {"success": False, "filename": clean_name, "reason": str(e)}
 
+    # If task_id is provided, register queue (already done above)
+    if task_id and task_id not in upload_progress_queues:
+         upload_progress_queues[task_id] = asyncio.Queue()
+         queue = upload_progress_queues[task_id]
+
+    await emit_progress("processing", f"Starting upload for {len(files)} files...")
+
     # Run processing tasks concurrently
-    tasks = [_process_single_file(file) for file in files]
+    total_files = len(files)
+    tasks = [_process_single_file(file, idx + 1, total_files) for idx, file in enumerate(files)]
     results = await asyncio.gather(*tasks)
 
     # Handle results
@@ -467,6 +520,8 @@ async def upload_invoices(
             saved_invoices.append(res["data"])
         else:
             failed_uploads.append({"filename": res["filename"], "reason": res["reason"]})
+
+    await emit_progress("completed", f"Finished uploading {len(files)} files.")
 
     return {
         "count": len(saved_invoices),

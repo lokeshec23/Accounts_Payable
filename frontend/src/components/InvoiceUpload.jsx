@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, Button, message } from 'antd';
+import { Upload, Button, message, Progress } from 'antd';
 import { UploadOutlined, InboxOutlined } from '@ant-design/icons';
 import { invoiceService } from '../services/api';
 import '../styles/InvoicePage.css';
@@ -9,6 +9,7 @@ const { Dragger } = Upload;
 const InvoiceUpload = ({ onUploadSuccess }) => {
     const [fileList, setFileList] = useState([]);
     const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     // AntD v5 message hook
     const [messageApi, contextHolder] = message.useMessage();
@@ -38,20 +39,31 @@ const InvoiceUpload = ({ onUploadSuccess }) => {
             return;
         }
 
+        let eventSource = null;
+
         try {
             setUploading(true);
             const startTime = Date.now();
             console.log(`[Frontend] Upload and processing started at: ${new Date(startTime).toLocaleString()}`);
 
-            messageApi.open({
-                type: "loading",
-                content: "Uploading and processing invoices...",
-                key: "uploading",
-                duration: 0
-            });
+            const taskId = crypto.randomUUID();
 
-            // Correct multi-file upload
-            const response = await invoiceService.uploadInvoices(fileList);
+            eventSource = new EventSource(invoiceService.getUploadProgressUrl(taskId));
+            let currentProgress = 25;
+            setUploadProgress(25);
+
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.status === 'processing' && data.message) {
+                    if (data.progress && data.progress > currentProgress) {
+                        currentProgress = data.progress;
+                        setUploadProgress(currentProgress);
+                    }
+                }
+            };
+
+            // Correct multi-file upload with taskId
+            const response = await invoiceService.uploadInvoices(fileList, taskId);
 
             const endTime = Date.now();
             const duration = (endTime - startTime) / 1000;
@@ -79,6 +91,9 @@ const InvoiceUpload = ({ onUploadSuccess }) => {
             });
 
         } finally {
+            if (eventSource) {
+                eventSource.close();
+            }
             setUploading(false);
         }
     };
@@ -106,16 +121,31 @@ const InvoiceUpload = ({ onUploadSuccess }) => {
                     </p>
                 </Dragger>
 
-                {fileList.length > 0 && (
+                {fileList.length > 0 && !uploading && (
                     <Button
                         type="primary"
                         onClick={handleUpload}
-                        loading={uploading}
                         icon={<UploadOutlined />}
                         style={{ marginTop: 16, width: '100%' }}
                     >
                         Upload & Process
                     </Button>
+                )}
+
+                {uploading && (
+                    <div style={{ marginTop: 16, textAlign: 'center', padding: '10px 0' }}>
+                        <Progress
+                            percent={uploadProgress}
+                            status="active"
+                            strokeColor={{
+                                '0%': '#108ee9',
+                                '100%': '#87d068',
+                            }}
+                        />
+                        <div style={{ marginTop: 8, fontWeight: 'bold', color: '#666' }}>
+                            Uploading... ({uploadProgress}%)
+                        </div>
+                    </div>
                 )}
             </div>
         </>
