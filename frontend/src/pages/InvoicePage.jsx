@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Upload, Button, message, Modal } from "antd";
-import { UploadOutlined, InboxOutlined, FolderOpenOutlined } from "@ant-design/icons";
+import { UploadOutlined, InboxOutlined, FolderOpenOutlined, DeleteOutlined } from "@ant-design/icons";
 import { invoiceService } from "../services/api";
 import Dragger from "antd/es/upload/Dragger";
 import { useNavigate } from "react-router-dom";
@@ -168,7 +168,9 @@ const InvoicePage = () => {
                         </Button>
                     </div>
 
-                    <Dragger {...uploadProps} className="upload-dragger">
+                    <Dragger {...uploadProps }
+                    showUploadList={false}                    
+                    className="upload-dragger">
                         <p className="ant-upload-drag-icon">
                             <InboxOutlined />
                         </p>
@@ -190,6 +192,51 @@ const InvoicePage = () => {
                             Upload {fileList.length} File{fileList.length > 1 ? "s" : ""}
                         </Button>
                     )}
+                    {fileList.length > 0 && (
+                            <div
+                                style={{
+                                    marginTop: 20,
+                                    maxHeight: "200px",
+                                    overflowY: "auto",
+                                    border: "1px solid #f0f0f0",
+                                    borderRadius: "6px",
+                                    padding: "8px"
+                                }}
+                            >
+                                {fileList.map((file) => (
+                                    <div
+                                        key={file.uid}
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            padding: "6px 0",
+                                            borderBottom: "1px solid #f5f5f5"
+                                        }}
+                                    >
+                                        <span>{file.name}</span>
+
+                                        <Button
+                                            type="text"
+                                            danger
+                                            icon={<DeleteOutlined />}
+                                            onClick={() =>
+                                                setFileList((prev) =>
+                                                    prev.filter((f) => f.uid !== file.uid)
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                    )}
+
+
+
+
+
+
+
                 </div>
             </div >
         </>
