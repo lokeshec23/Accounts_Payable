@@ -80,32 +80,71 @@ const Header = () => {
 
                 {/* DROPDOWN CARD */}
                 <div className="mini-profile-dropdown">
+
+                  <div className="mini-profile-top">
+                    <span className="mini-profile-entity">{entity}</span>
+
+                    <span
+                      className="mini-profile-logout"
+                      onClick={handleLogout}
+                    >
+                      Logout
+                    </span>
+                  </div>
                   {/* BOX AVATAR */}
-                  <div className="mini-profile-avatar-box">{userInitial}</div>
+                  {/* <div className="mini-profile-avatar-box">{userInitial}</div> */}
 
                   {/* ENTITY NAME */}
-                  <div className="mini-profile-entity">{entity}</div>
+                  {/* <div className="mini-profile-entity">{entity}</div> */}
 
                   {/* MENU */}
-                  <div className="mini-profile-menu">
-                    {/* CHANGE ENTITY */}
+                  {/* <div className="mini-profile-menu"> */}
+
+                  {/* USER INFO */}
+                  <div className="mini-profile-divider"></div>
+
+                  <div className="mini-profile-user">
+                    <div className="mini-profile-avatar-box">{userInitial}</div>
+
+                    <div className="mini-profile-details">
+                      <div className="mini-profile-name">{username}</div>
+                      <div className="mini-profile-role">{role}</div>
+                    </div>
+                  </div>
+
+
+                  {/* DIVIDER */}
+                  <div className="mini-profile-divider-line"></div>
+
+                  {/* CHANGE ENTITY */}
+                  <div
+                    className="mini-profile-change"
+                    onClick={() => navigate("/select-entity")}
+                  >
+                    <SettingOutlined className="menu-icon blue" />
+                    <span>Change Entity</span>
+                  </div>
+
+
+
+                  {/* CHANGE ENTITY
                     <div
                       className="mini-profile-menu-item"
                       onClick={() => navigate("/select-entity")}
                     >
                       <SettingOutlined className="menu-icon blue" />
                       <span>Change Entity</span>
-                    </div>
+                    </div> */}
 
-                    {/* LOGOUT */}
-                    <div
+                  {/* LOGOUT */}
+                  {/* <div
                       className="mini-profile-menu-item logout"
                       onClick={handleLogout}
                     >
                       <LogoutOutlined className="menu-icon red" />
                       <span>Logout</span>
-                    </div>
-                  </div>
+                    </div> */}
+
                 </div>
               </div>
             )}

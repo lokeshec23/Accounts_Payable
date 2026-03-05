@@ -367,6 +367,7 @@ const MainLayout = () => {
             title: 'Actions',
             key: 'actions',
             width: 180,
+            fixed: 'right',
             render: (_, record) => (
                 <Space size="small">
                     <Button
@@ -1024,6 +1025,7 @@ const MainLayout = () => {
                         multiple
                         fileList={fileList}
                         accept=".pdf"
+                        showUploadList={false}
                         beforeUpload={(file) => {
                             setFileList((prev) => [...prev, file]);
                             return false;
@@ -1053,6 +1055,56 @@ const MainLayout = () => {
                             Upload {fileList.length} File{fileList.length > 1 ? 's' : ''}
                         </Button>
                     )}
+
+                    {/* File Names AFTER button */}
+                    {/* {fileList.length > 0 && (
+                        <div style={{ marginTop: 20 }}>
+                            {fileList.map((file) => (
+                                <div style={{ marginTop: 5 }}
+                                    key={file.uid}>
+                                    <span>{file.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )} */}
+                    {fileList.length > 0 && (
+                            <div
+                                style={{
+                                    marginTop: 20,
+                                    maxHeight: "200px",
+                                    overflowY: "auto",
+                                    border: "1px solid #f0f0f0",
+                                    borderRadius: "6px",
+                                    padding: "8px"
+                                }}
+                            >
+                                {fileList.map((file) => (
+                                    <div
+                                        key={file.uid}
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            padding: "6px 0",
+                                            borderBottom: "1px solid #f5f5f5"
+                                        }}
+                                    >
+                                        <span>{file.name}</span>
+
+                                        <Button
+                                            type="text"
+                                            danger
+                                            icon={<DeleteOutlined />}
+                                            onClick={() =>
+                                                setFileList((prev) =>
+                                                    prev.filter((f) => f.uid !== file.uid)
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                 </div>
             </Modal>
 

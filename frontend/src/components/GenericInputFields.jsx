@@ -1526,24 +1526,17 @@ const GenericInputFields = forwardRef(({
         const currentTotal = parseCurrencyValue(extractValue(formData['Total Invoice Amount']));
         const currentPayable = parseCurrencyValue(extractValue(formData['Total Amount Payable']));
 
+        // Just store extracted value (do not update formData)
+        lastCalculatedValues.current.total = currentTotal;
+
         let hasUpdates = false;
         const updates = {};
 
-        // Smart Update for Total Invoice Amount
-        // Update if currently 0 OR if current value matches our last calculated value (meaning no manual edit)
-        if ((currentTotal === 0 && invoiceTotal > 0) ||
-            (currentTotal !== invoiceTotal && currentTotal === lastCalculatedValues.current.total)) {
-            updates['Total Invoice Amount'] = { value: invoiceTotal };
-            lastCalculatedValues.current.total = invoiceTotal;
-            hasUpdates = true;
-        } else if (currentTotal === invoiceTotal) {
-            // Even if we don't update formData, keep our record in sync
-            lastCalculatedValues.current.total = invoiceTotal;
-        }
-
-        // Smart Update for Total Amount Payable
-        if ((currentPayable === 0 && payableAmount > 0) ||
-            (currentPayable !== payableAmount && currentPayable === lastCalculatedValues.current.payable)) {
+        // Only handle Total Amount Payable
+        if (
+            (currentPayable === 0 && payableAmount > 0) ||
+            (currentPayable !== payableAmount && currentPayable === lastCalculatedValues.current.payable)
+        ) {
             updates['Total Amount Payable'] = { value: payableAmount };
             updates['Amount Due'] = { value: payableAmount };
             lastCalculatedValues.current.payable = payableAmount;
@@ -1555,7 +1548,49 @@ const GenericInputFields = forwardRef(({
         if (hasUpdates) {
             setFormData((prev) => ({ ...prev, ...updates }));
         }
-    }, [invoiceTotal, payableAmount, readOnly, formData, extractValue, parseCurrencyValue]);
+
+    }, [payableAmount, readOnly, formData, extractValue, parseCurrencyValue]);
+
+
+
+
+
+    // useEffect(() => {
+    //     if (readOnly || isCalculating.current) return;
+
+    //     const currentTotal = parseCurrencyValue(extractValue(formData['Total Invoice Amount']));
+    //     const currentPayable = parseCurrencyValue(extractValue(formData['Total Amount Payable']));
+
+    //     let hasUpdates = false;
+    //     const updates = {};
+
+    //     // Smart Update for Total Invoice Amount
+    //     // Update if currently 0 OR if current value matches our last calculated value (meaning no manual edit)
+    //     if ((currentTotal === 0 && invoiceTotal > 0) ||
+    //         (currentTotal !== invoiceTotal && currentTotal === lastCalculatedValues.current.total)) {
+    //         updates['Total Invoice Amount'] = { value: invoiceTotal };
+    //         lastCalculatedValues.current.total = invoiceTotal;
+    //         hasUpdates = true;
+    //     } else if (currentTotal === invoiceTotal) {
+    //         // Even if we don't update formData, keep our record in sync
+    //         lastCalculatedValues.current.total = invoiceTotal;
+    //     }
+
+    //     // Smart Update for Total Amount Payable
+    //     if ((currentPayable === 0 && payableAmount > 0) ||
+    //         (currentPayable !== payableAmount && currentPayable === lastCalculatedValues.current.payable)) {
+    //         updates['Total Amount Payable'] = { value: payableAmount };
+    //         updates['Amount Due'] = { value: payableAmount };
+    //         lastCalculatedValues.current.payable = payableAmount;
+    //         hasUpdates = true;
+    //     } else if (currentPayable === payableAmount) {
+    //         lastCalculatedValues.current.payable = payableAmount;
+    //     }
+
+    //     if (hasUpdates) {
+    //         setFormData((prev) => ({ ...prev, ...updates }));
+    //     }
+    // }, [invoiceTotal, payableAmount, readOnly, formData, extractValue, parseCurrencyValue]);
 
     // ==================== LOAD SAVED CODING ====================
     useEffect(() => {
