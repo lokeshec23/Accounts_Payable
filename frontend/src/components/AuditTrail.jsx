@@ -72,7 +72,7 @@ const AuditTrail = ({ invoiceId }) => {
         if (entries.length === 0) return null;
 
         return (
-            <div style={{ marginTop: 8, background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+            <div style={{ marginTop: 8, background: 'var(--bg-content, #f5f5f5)', padding: 8, borderRadius: 4 }}>
                 {entries.map(([key, value]) => {
                     // Check if value is a "diff" object having 'old' and 'new' keys
                     if (value && typeof value === 'object' && 'old' in value && 'new' in value) {

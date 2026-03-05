@@ -395,7 +395,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                 display: 'flex',
                 height: 'calc(100vh - 10vh)',
                 width: '100%',
-                background: 'white'
+                background: 'var(--bg-main-layout, #f5f5f5)'
             }}
         >
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -406,7 +406,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                         flex: `0 0 ${leftWidth}%`,
                         borderRight: '1px solid #e8e8e8',
                         overflow: 'hidden',
-                        background: '#f5f5f5',
+                        background: 'var(--bg-pdf-viewer, #f5f5f5)',
                         display: 'flex',
                         flexDirection: 'column'
                     }}
@@ -423,7 +423,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                     style={{
                         width: '5px',
                         cursor: 'col-resize',
-                        background: isDragging ? '#1890ff' : '#ddd',
+                        background: isDragging ? '#1890ff' : 'var(--border-color, #ddd)',
                         transition: 'background 0.2s',
                         zIndex: 10
                     }}
@@ -434,7 +434,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                     style={{
                         flex: 1,
                         overflow: 'hidden', // Changed from 'auto' to ensure children can handle overflow
-                        background: 'white',
+                        background: 'var(--bg-content, white)',
                         padding: '20px',
                         display: 'flex',
                         flexDirection: 'column'
@@ -488,7 +488,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                                 top: 0, left: 0, right: 0, bottom: 0,
                                 zIndex: 100,
                                 zIndex: 100,
-                                background: '#fff',
+                                background: 'var(--bg-content, #fff)',
                                 padding: '20px'
                             }}>
                                 <QuickViewSkeleton />

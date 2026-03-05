@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Upload, Button, message, Modal } from "antd";
+import { Upload, Button, message, Modal, Progress } from "antd";
 import { UploadOutlined, InboxOutlined, FolderOpenOutlined, DeleteOutlined } from "@ant-design/icons";
 import { invoiceService } from "../services/api";
 import Dragger from "antd/es/upload/Dragger";
@@ -10,6 +10,7 @@ const InvoicePage = () => {
     const navigate = useNavigate();
     const [fileList, setFileList] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
 
     const [messageApi, contextHolder] = message.useMessage();
 
@@ -45,17 +46,28 @@ const InvoicePage = () => {
             return;
         }
 
+        let eventSource = null;
+
         try {
             setLoading(true);
 
-            messageApi.open({
-                type: "loading",
-                content: "Processing invoices...",
-                key: "uploading",
-                duration: 0
-            });
+            const taskId = crypto.randomUUID();
 
-            const response = await invoiceService.uploadInvoices(fileList);
+            eventSource = new EventSource(invoiceService.getUploadProgressUrl(taskId));
+            let currentProgress = 25;
+            setUploadProgress(25);
+
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.status === 'processing' && data.message) {
+                    if (data.progress && data.progress > currentProgress) {
+                        currentProgress = data.progress;
+                        setUploadProgress(currentProgress);
+                    }
+                }
+            };
+
+            const response = await invoiceService.uploadInvoices(fileList, taskId);
 
             const processedCount = response.count || 0;
             const failedCount = response.failed?.length || 0;
@@ -130,6 +142,9 @@ const InvoicePage = () => {
             }
 
         } finally {
+            if (eventSource) {
+                eventSource.close();
+            }
             setLoading(false);
         }
     };
@@ -158,11 +173,7 @@ const InvoicePage = () => {
                         <Button
                             icon={<FolderOpenOutlined />}
                             onClick={() => folderInputRef.current.click()}
-                            style={{
-                                borderColor: '#1890ff',
-                                color: '#1890ff',
-                                backgroundColor: '#e6f7ff'
-                            }}
+                            className="upload-folder-btn"
                         >
                             Upload Folder
                         </Button>
@@ -180,63 +191,71 @@ const InvoicePage = () => {
                         </p>
                     </Dragger>
 
-                    {fileList.length > 0 && (
+                    {fileList.length > 0 && !loading && (
                         <Button
                             type="primary"
                             onClick={handleUpload}
                             icon={<UploadOutlined />}
-                            loading={loading}
                             className="upload-submit-btn"
                             style={{ marginTop: 16, width: "100%" }}
                         >
                             Upload {fileList.length} File{fileList.length > 1 ? "s" : ""}
                         </Button>
                     )}
-                    {fileList.length > 0 && (
-                            <div
-                                style={{
-                                    marginTop: 20,
-                                    maxHeight: "200px",
-                                    overflowY: "auto",
-                                    border: "1px solid #f0f0f0",
-                                    borderRadius: "6px",
-                                    padding: "8px"
+
+                    {loading && (
+                        <div style={{ marginTop: 16, textAlign: 'center', padding: '10px 0' }}>
+                            <Progress
+                                percent={uploadProgress}
+                                status="active"
+                                strokeColor={{
+                                    '0%': '#108ee9',
+                                    '100%': '#87d068',
                                 }}
-                            >
-                                {fileList.map((file) => (
-                                    <div
-                                        key={file.uid}
-                                        style={{
-                                            display: "flex",
-                                            justifyContent: "space-between",
-                                            alignItems: "center",
-                                            padding: "6px 0",
-                                            borderBottom: "1px solid #f5f5f5"
-                                        }}
-                                    >
-                                        <span>{file.name}</span>
-
-                                        <Button
-                                            type="text"
-                                            danger
-                                            icon={<DeleteOutlined />}
-                                            onClick={() =>
-                                                setFileList((prev) =>
-                                                    prev.filter((f) => f.uid !== file.uid)
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                ))}
+                            />
+                            <div className="upload-progress-text">
+                                Uploading... ({uploadProgress}%)
                             </div>
+                        </div>
                     )}
+                    {fileList.length > 0 && (
+                        <div
+                            style={{
+                                marginTop: 20,
+                                maxHeight: "200px",
+                                overflowY: "auto",
+                                border: "1px solid #f0f0f0",
+                                borderRadius: "6px",
+                                padding: "8px"
+                            }}
+                        >
+                            {fileList.map((file) => (
+                                <div
+                                    key={file.uid}
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        padding: "6px 0",
+                                        borderBottom: "1px solid #f5f5f5"
+                                    }}
+                                >
+                                    <span>{file.name}</span>
 
-
-
-
-
-
-
+                                    <Button
+                                        type="text"
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={() =>
+                                            setFileList((prev) =>
+                                                prev.filter((f) => f.uid !== file.uid)
+                                            )
+                                        }
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div >
         </>

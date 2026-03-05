@@ -420,7 +420,7 @@ const QuickViewTab = React.memo(({
                                     </Descriptions.Item>
                                 </Descriptions>
 
-                                <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                                <div style={{ marginTop: '20px', padding: '12px', backgroundColor: 'var(--bg-content, #f5f5f5)', borderRadius: '4px' }}>
                                     <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Payable Amount Derivation:</div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                                         <span>Base Invoice Total Used:</span>
@@ -555,7 +555,7 @@ const QuickViewTab = React.memo(({
                         <div style={{
                             marginTop: '20px',
                             padding: '16px',
-                            background: '#f0f2f5',
+                            background: 'var(--bg-content, #f0f2f5)',
                             borderRadius: '6px',
                             display: 'flex',
                             flexDirection: 'column',

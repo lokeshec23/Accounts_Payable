@@ -27,10 +27,8 @@
 }
 
 .register-logo img {
-    width: 120px;
-    height: auto;
-    object-fit: contain;
-    display: block;
+    height: 45px;
+    width: auto;
     margin: 0 auto;
 }
 
@@ -61,7 +59,7 @@
     margin-bottom: 12px;
 }
 
-.register-form .ant-form-item-label>label {
+.register-form .ant-form-item-label > label {
     font-size: 13px;
     font-weight: 500;
     color: #333;

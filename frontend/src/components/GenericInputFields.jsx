@@ -142,11 +142,11 @@ const GenericInputFields = forwardRef(({
     const disabledStyle = useMemo(() =>
         disableInputs
             ? {
-                color: '#000000',
-                backgroundColor: '#ffffff',
+                color: 'var(--color-text-primary, #000000)',
+                backgroundColor: 'var(--bg-content, #ffffff)',
                 cursor: 'default',
-                borderColor: '#d9d9d9',
-                opacity: 1
+                borderColor: 'var(--color-border, #d9d9d9)',
+                opacity: 0.8
             }
             : {}
         , [disableInputs]);
@@ -1863,8 +1863,8 @@ const GenericInputFields = forwardRef(({
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div style={{
-                position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#fff',
-                borderBottom: '1px solid #f0f0f0', padding: '8px 20px'
+                position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'var(--bg-content, #fff)',
+                borderBottom: '1px solid var(--border-color, #f0f0f0)', padding: '8px 20px'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ margin: 0, flex: 1 }}
@@ -1912,7 +1912,7 @@ const GenericInputFields = forwardRef(({
 
                 {(invoiceStatus === "approved" || invoiceStatus === "rejected") && validationInfo?.approver_comment && (
                     <div style={{
-                        padding: '10px 16px', backgroundColor: '#f6f8fa', borderLeft: '3px solid #1890ff',
+                        padding: '10px 16px', backgroundColor: 'var(--bg-main-layout, #f6f8fa)', borderLeft: '3px solid #1890ff',
                         borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         gap: '16px', marginBottom: '8px'
                     }}>

@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Dropdown } from "antd";
-import { LogoutOutlined, SettingOutlined } from "@ant-design/icons";
+import { LogoutOutlined, SettingOutlined, BulbOutlined, BulbFilled } from "@ant-design/icons";
 import { authService } from "../services/auth";
 import "../styles/Header.css";
 import { useEntity } from "../context/EntityContext";
 import { useGlobalSettings } from "../context/GlobalSettingsContext";
+import { useTheme } from "../context/ThemeContext";
 
 const Header = () => {
   const [username, setUsername] = useState("User");
   const { entity } = useEntity();
   const { settings } = useGlobalSettings();
+  const { isDarkMode, toggleTheme } = useTheme();
   const [role, setRole] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
@@ -45,7 +47,7 @@ const Header = () => {
       <div className="header-container">
         {/* Logo */}
         <div className="header-logo">
-          <img src="/loandna-logo.png" alt="loanDNA" />
+          <img src={isDarkMode ? "/image.png" : "/loandna-logo.png"} alt="loanDNA" />
         </div>
 
         {/* NAVIGATION */}
@@ -70,6 +72,14 @@ const Header = () => {
 
         {/* RIGHT SIDE - USER DROPDOWN */}
         <div className="header-actions">
+
+          <div
+            className={`theme-toggle ${isDarkMode ? "dark" : "light"}`}
+            onClick={toggleTheme}
+            title="Toggle Theme"
+          >
+            {isDarkMode ? <BulbFilled /> : <BulbOutlined />}
+          </div>
           <Dropdown
             trigger={["click"]}
             placement="bottomRight"

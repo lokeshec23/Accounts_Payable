@@ -116,9 +116,9 @@ const CodingReviewPage = () => {
 
 
     const disabledStyle = {
-        color: 'black',
-        backgroundColor: 'white',
-        opacity: 1
+        color: 'var(--color-text-primary, black)',
+        backgroundColor: 'var(--bg-content, white)',
+        opacity: 0.8
     };
 
     // Helper functions for QuickView and AllFields tabs
@@ -1424,15 +1424,15 @@ const CodingReviewPage = () => {
             display: 'flex',
             height: 'calc(100vh - 10vh)',
             width: '100%',
-            background: 'white'
+            background: 'var(--bg-main-layout, white)'
         }}>
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                 {/* LEFT SIDE PDF VIEWER */}
                 <div style={{
                     flex: `0 0 ${leftWidth}%`,
-                    borderRight: '1px solid #e8e8e8',
+                    borderRight: '1px solid var(--border-color, #e8e8e8)',
                     overflow: 'hidden',
-                    background: '#f5f5f5',
+                    background: 'var(--bg-main-layout, #f5f5f5)',
                     display: 'flex',
                     flexDirection: 'column'
                 }}>
@@ -1458,7 +1458,7 @@ const CodingReviewPage = () => {
                 <div style={{
                     flex: 1,
                     overflow: 'auto',
-                    background: 'white',
+                    background: 'var(--bg-content, white)',
                     padding: '20px'
                 }}>
                     <div style={{
@@ -1467,7 +1467,7 @@ const CodingReviewPage = () => {
                         alignItems: 'center',
                         marginBottom: '20px',
                         paddingBottom: '16px',
-                        borderBottom: '1px solid #f0f0f0'
+                        borderBottom: '1px solid var(--border-color, #f0f0f0)'
                     }}>
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <Button
@@ -1686,8 +1686,8 @@ const CodingReviewPage = () => {
                                 key: 'gl_summary',
                                 label: 'GL Summary',
                                 children: (
-                                    <div style={{ padding: '20px', background: '#f9f9f9', borderRadius: '8px', border: '1px solid #e8e8e8', marginTop: '10px' }}>
-                                        <h3 style={{ marginBottom: '16px', borderBottom: '2px solid #1890ff', paddingBottom: '8px', color: '#001529' }}>GL Distribution Summary</h3>
+                                    <div style={{ padding: '20px', background: 'var(--bg-content, #f9f9f9)', borderRadius: '8px', border: '1px solid var(--border-color, #e8e8e8)', marginTop: '10px' }}>
+                                        <h3 style={{ marginBottom: '16px', borderBottom: '2px solid #1890ff', paddingBottom: '8px', color: 'var(--color-primary, #001529)' }}>GL Distribution Summary</h3>
 
                                         {(() => {
                                             // Use Total Amount from Header Coding (invoiceData)
@@ -1708,7 +1708,7 @@ const CodingReviewPage = () => {
                                                         justifyContent: 'space-between',
                                                         alignItems: 'center',
                                                         padding: '10px 15px',
-                                                        background: 'white',
+                                                        background: 'var(--bg-main-layout, white)',
                                                         borderRadius: '6px',
                                                         boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                                                         borderLeft: '4px solid #1890ff'
@@ -1740,7 +1740,7 @@ const CodingReviewPage = () => {
                                                             justifyContent: 'space-between',
                                                             alignItems: 'center',
                                                             padding: '10px 15px',
-                                                            background: 'white',
+                                                            background: 'var(--bg-main-layout, white)',
                                                             borderRadius: '6px',
                                                             boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                                                             borderLeft: '4px solid #1890ff'

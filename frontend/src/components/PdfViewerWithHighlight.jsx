@@ -271,7 +271,7 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
   /* ---------------- UI ---------------- */
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: 8, borderBottom: "1px solid #ddd", display: "flex", justifyContent: "space-between" }}>
+      <div style={{ padding: 8, borderBottom: "1px solid var(--border-color, #ddd)", background: "var(--bg-content, #fff)", display: "flex", justifyContent: "space-between" }}>
         <div>
           <Button icon={<LeftOutlined />} onClick={() => changePage(-1)} />
           <Button icon={<RightOutlined />} onClick={() => changePage(1)} />

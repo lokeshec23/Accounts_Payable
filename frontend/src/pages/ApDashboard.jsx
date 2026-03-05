@@ -21,10 +21,12 @@ import {
 
 import "../styles/ApDashboard.css";
 import API_CONFIG from "../config/api";
+import { useTheme } from "../context/ThemeContext";
 
 const { Title, Text } = Typography;
 
 const ApDashboard = () => {
+    const { isDarkMode } = useTheme();
     const [summary, setSummary] = useState(null);
     const [aging, setAging] = useState(null);
     const [statusBreakdown, setStatusBreakdown] = useState(null);
@@ -340,7 +342,8 @@ const ApDashboard = () => {
                                     y: 0.5,
                                     font: {
                                         size: 12,  // Very small legend
-                                        family: "'Inter', sans-serif"
+                                        family: "'Inter', sans-serif",
+                                        color: isDarkMode ? "#fff" : "#1d2939"
                                     },
                                 },
                                 plot_bgcolor: "rgba(0,0,0,0)",

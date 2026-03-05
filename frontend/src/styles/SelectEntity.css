@@ -43,7 +43,7 @@
     align-items: center;
     font-size: 17px;
     font-weight: 600;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
 }
 
 
@@ -52,7 +52,8 @@
    ============================================ */
 .entity-container {
     min-height: 100vh;
-    padding-top: 100px;  /* space below header */
+    padding-top: 100px;
+    /* space below header */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -72,7 +73,7 @@
     background: white;
     border-radius: 12px;
     padding: 30px 40px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
     width: 100%;
     max-width: 380px;
     text-align: center;
@@ -129,11 +130,11 @@
 }
 
 .entity-dropdown-btn {
-  width: 100%;
-  margin-top: 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+    width: 100%;
+    margin-top: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 

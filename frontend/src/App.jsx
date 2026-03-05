@@ -113,42 +113,45 @@
 
 import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
-import { ConfigProvider, message } from 'antd';
- 
+// import { ConfigProvider, message } from 'antd';
+
+
+import { ConfigProvider, message, theme } from 'antd';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import Header from './components/Header';
 import { EntityProvider } from './context/EntityContext';
 import { GlobalSettingsProvider } from './context/GlobalSettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { FormSkeleton } from './components/SkeletonLoader';
- 
+
 import './styles/message-override.css';
 import './styles/table-headers.css';
 import './styles/global-table-styles.css';
 import { routeMap } from './routeMap';
- 
+
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const DesignSystemPage = lazy(() => import('./pages/DesignSystemPage'));
 const SelectEntity = lazy(() => import('./pages/SelectEntity'));
- 
+
 /** No Header here */
 const AuthLayout = () => (
-<Suspense fallback={<FormSkeleton />}>
-<Outlet />
-</Suspense>
+  <Suspense fallback={<FormSkeleton />}>
+    <Outlet />
+  </Suspense>
 );
- 
+
 /** Header always present here */
 const MainLayout = () => (
-<>
-<Header />
-<Suspense fallback={<FormSkeleton />}>
-<Outlet />
-</Suspense>
-</>
+  <>
+    <Header />
+    <Suspense fallback={<FormSkeleton />}>
+      <Outlet />
+    </Suspense>
+  </>
 );
- 
+
 const AppRoutes = () => {
   // Configure antd message once
   useEffect(() => {
@@ -161,55 +164,70 @@ const AppRoutes = () => {
       prefixCls: 'ant-message',
     });
   }, []);
- 
+
   return (
-<Routes>
+    <Routes>
       {/* Auth routes (NO header) */}
-<Route element={<AuthLayout />}>
-<Route path="/" element={<LoginPage />} />
-<Route path="/register" element={<RegisterPage />} />
-<Route path="/forgot-password" element={<ForgotPasswordPage />} />
-</Route>
- 
+      <Route element={<AuthLayout />}>
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      </Route>
+
       {/* Protected routes (WITH header) */}
-<Route
+      <Route
         element={
-<ProtectedRoute>
-<MainLayout />
-</ProtectedRoute>
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
         }
->
-<Route path="/select-entity" element={<SelectEntity />} />
-<Route path="/design-system" element={<DesignSystemPage />} />
- 
+      >
+        <Route path="/select-entity" element={<SelectEntity />} />
+        <Route path="/design-system" element={<DesignSystemPage />} />
+
         {/* Dynamic Routes from routeMap */}
         {Object.entries(routeMap).map(([path, component]) => (
-<Route key={path} path={path} element={component} />
+          <Route key={path} path={path} element={component} />
         ))}
-</Route>
- 
+      </Route>
+
       {/* Optional fallback */}
-<Route path="*" element={<Navigate to="/" replace />} />
-</Routes>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
- 
+
+const AppConfigProvider = ({ children }) => {
+  const { isDarkMode } = useTheme();
+
+  return (
+    <ConfigProvider
+      theme={{
+        algorithm: isDarkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
+        token: {
+          colorPrimary: '#1890ff',
+        },
+      }}
+    >
+      {children}
+    </ConfigProvider>
+  );
+};
+
 const App = () => {
   return (
-<ConfigProvider
-      theme={{
-        token: { colorPrimary: '#1890ff' },
-      }}
->
-<EntityProvider>
-<GlobalSettingsProvider>
-<BrowserRouter>
-<AppRoutes />
-</BrowserRouter>
-</GlobalSettingsProvider>
-</EntityProvider>
-</ConfigProvider>
+    <ThemeProvider>
+      <AppConfigProvider>
+        <EntityProvider>
+          <GlobalSettingsProvider>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </GlobalSettingsProvider>
+        </EntityProvider>
+      </AppConfigProvider>
+    </ThemeProvider>
   );
 };
- 
+
 export default App;

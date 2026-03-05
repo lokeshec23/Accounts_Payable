@@ -46,7 +46,7 @@
 }
 
 /* Form Labels */
-.ant-form-item-label>label {
+.ant-form-item-label > label {
     font-size: 13px;
     font-weight: 500;
     color: #333;
