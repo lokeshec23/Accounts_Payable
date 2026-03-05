@@ -583,9 +583,13 @@ const CodingReviewPage = () => {
                     });
 
                     // Filter approvers that are after the last reset
+                    // const currentCycleApprovers = (statusData.approvers || []).filter(app => {
+                    //     const appTime = new Date(app.timestamp);
+                    //     return appTime > lastResetTime;
+                    // });
                     const currentCycleApprovers = (statusData.approvers || []).filter(app => {
                         const appTime = new Date(app.timestamp);
-                        return appTime > lastResetTime;
+                        return appTime > lastResetTime && app.status === "approved";
                     });
 
                     setCompletedApproversCount(currentCycleApprovers.length);
