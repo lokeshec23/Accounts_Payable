@@ -177,3 +177,7 @@ button,
     font-family: var(--font-secondary);
     font-size: var(--font-size-secondary);
 }
+
+.ant-progress-line.ant-progress-status-active .ant-progress-track::after {
+    display: none;
+}
