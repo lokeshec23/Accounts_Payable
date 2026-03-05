@@ -75,6 +75,7 @@
     right: 24px;
     display: flex;
     align-items: center;
+    gap: 14px;
 }
 
 /* Small header avatar */
@@ -110,7 +111,7 @@
     text-align: center;
     box-shadow: 0 10px 26px rgba(0, 0, 0, 0.12);
     animation: fadeIn 0.2s ease;
-} 
+}
 
 .mini-profile-dropdown {
     width: 260px;
@@ -389,4 +390,121 @@
 .theme-toggle.dark {
     color: #ffd700;
     text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+
+}
+
+/* ---------------------------------------------------
+    DARK MODE OVERRIDES (HEADER DROPDOWN)
+----------------------------------------------------- */
+body.dark-mode .mini-profile-name {
+    color: #f1f5f9;
+}
+
+body.dark-mode .mini-profile-role {
+    color: #94a3b8;
+}
+
+body.dark-mode .mini-profile-change {
+    color: #cbd5e1;
+}
+
+body.dark-mode .mini-profile-change:hover {
+    background: #334155;
+    color: #60a5fa;
+}
+
+body.dark-mode .mini-profile-divider,
+body.dark-mode .mini-profile-divider-line {
+    background: #334155;
+}
+
+body.dark-mode .dropdown-arrow {
+    border-bottom-color: #1f2937;
+}
+.theme-switch {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.switch-track {
+    width: 46px;
+    height: 24px;
+    border-radius: 20px;
+    background: transparent;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.theme-switch.dark .switch-track {
+    background: #1f2430;
+}
+
+.switch-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+    left: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.theme-switch.dark .switch-thumb {
+    left: 24px;
+    background: #111;
+    color: #ffd700;
+}
+
+.theme-switch {
+    padding: 4px 6px;
+    border-radius: 20px;
+    transition: all 0.25s ease;
+}
+
+/* Light Mode Highlight */
+.theme-switch.light {
+    background: #f3f3f3;
+}
+
+/* Dark Mode Highlight */
+.theme-switch.dark {
+    background: #111827;
+}
+
+.switch-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+    left: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.theme-switch.dark .switch-thumb {
+    left: 24px;
+    background: #111;
+    color: #facc15;
+
+    /* moon highlight */
+}
+
+.theme-switch.light .switch-thumb {
+    color: #f59e0b;
+    /* sun color */
+}
+
+.theme-switch.dark {
+    background: #1f2937;
+    border: 1px solid rgba(255, 255, 255, 0.6);
 }

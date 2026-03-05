@@ -207,6 +207,8 @@ body.dark-mode {
     --bg-pdf-viewer: #0f172a;
     --border-color: #334155;
     --color-text-primary: #f1f5f9;
+    --color-text-secondary: #cbd5e1;
+    --color-text-placeholder: #64748b;
 }
 
 /* header */

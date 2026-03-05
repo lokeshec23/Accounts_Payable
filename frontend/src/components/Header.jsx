@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Dropdown } from "antd";
-import { LogoutOutlined, SettingOutlined, BulbOutlined, BulbFilled } from "@ant-design/icons";
+import { LogoutOutlined, SettingOutlined, SunFilled, MoonFilled } from "@ant-design/icons";
 import { authService } from "../services/auth";
 import "../styles/Header.css";
 import { useEntity } from "../context/EntityContext";
@@ -74,11 +74,15 @@ const Header = () => {
         <div className="header-actions">
 
           <div
-            className={`theme-toggle ${isDarkMode ? "dark" : "light"}`}
+            className={`theme-switch ${isDarkMode ? "dark" : "light"}`}
             onClick={toggleTheme}
             title="Toggle Theme"
           >
-            {isDarkMode ? <BulbFilled /> : <BulbOutlined />}
+            <div className="switch-track">
+              <div className="switch-thumb">
+                {isDarkMode ? <MoonFilled /> : <SunFilled />}
+              </div>
+            </div>
           </div>
           <Dropdown
             trigger={["click"]}

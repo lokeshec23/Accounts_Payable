@@ -28,11 +28,19 @@ body.dark-mode .upload-container {
     text-align: center;
 }
 
+body.dark-mode .upload-title {
+    color: var(--color-text-primary);
+}
+
 .upload-description {
     font-size: 15px;
     color: var(--color-text-secondary, #666);
     margin: 0 0 32px 0;
     text-align: center;
+}
+
+body.dark-mode .upload-description {
+    color: var(--color-text-secondary);
 }
 
 /* Dragger Styles */
@@ -103,6 +111,14 @@ body.dark-mode .upload-dragger:hover {
     color: var(--color-text-placeholder, #888);
 }
 
+body.dark-mode .upload-dragger .ant-upload-text {
+    color: var(--color-text-primary);
+}
+
+body.dark-mode .upload-dragger .ant-upload-hint {
+    color: var(--color-text-placeholder);
+}
+
 .upload-submit-btn {
     width: 100%;
     height: 48px;
@@ -148,6 +164,10 @@ body.dark-mode .upload-folder-btn {
     margin-top: 8px;
     font-weight: bold;
     color: var(--color-text-secondary, #666);
+}
+
+body.dark-mode .upload-progress-text {
+    color: var(--color-text-primary);
 }
 
 /* Responsive Design */
