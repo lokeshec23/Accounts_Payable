@@ -1,6 +1,6 @@
 .invoice-page {
     min-height: 90vh;
-    background: #f5f5f5;
+    background: var(--bg-main-layout, #f5f5f5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -8,7 +8,7 @@
 }
 
 .upload-container {
-    background: white;
+    background: var(--bg-content, white);
     border-radius: 12px;
     padding: 48px 40px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
@@ -16,35 +16,48 @@
     width: 100%;
 }
 
+body.dark-mode .upload-container {
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
 .upload-title {
     font-size: 28px;
     font-weight: 600;
-    color: #333;
+    color: var(--color-text-primary, #333);
     margin: 0 0 12px 0;
     text-align: center;
 }
 
 .upload-description {
     font-size: 15px;
-    color: #666;
+    color: var(--color-text-secondary, #666);
     margin: 0 0 32px 0;
     text-align: center;
 }
 
 /* Dragger Styles */
 .upload-dragger {
-    background: #f9f9f9 !important;
+    background: var(--bg-main-layout, #f9f9f9) !important;
     border-radius: 8px !important;
     padding: 0 !important;
-    /* Remove padding from container to prevent double spacing */
     transition: all 0.3s ease !important;
     min-height: 280px;
     overflow: hidden;
+    border: 1px dashed var(--border-color, #d9d9d9) !important;
+}
+
+body.dark-mode .upload-dragger {
+    background: #0f172a !important;
+    border-color: #334155 !important;
 }
 
 .upload-dragger:hover {
-    border-color: #3ba5d8 !important;
-    background: #f5f9fc !important;
+    border-color: var(--color-primary, #3ba5d8) !important;
+    background: var(--color-bg-hover, #f5f9fc) !important;
+}
+
+body.dark-mode .upload-dragger:hover {
+    background: rgba(36, 161, 221, 0.05) !important;
 }
 
 /* Target the inner button span */
@@ -81,20 +94,20 @@
 .upload-dragger .ant-upload-text {
     font-size: 15px;
     font-weight: 500;
-    color: #333;
+    color: var(--color-text-primary, #333);
     margin-bottom: 8px;
 }
 
 .upload-dragger .ant-upload-hint {
     font-size: 13px;
-    color: #888;
+    color: var(--color-text-placeholder, #888);
 }
 
 .upload-submit-btn {
     width: 100%;
     height: 48px;
     margin-top: 24px;
-    background: #3ba5d8;
+    background: var(--color-primary, #3ba5d8);
     border: none;
     border-radius: 8px;
     font-size: 16px;
@@ -102,7 +115,7 @@
 }
 
 .upload-submit-btn:hover {
-    background: #2b8fc4;
+    background: var(--color-primary-hover, #2b8fc4);
 }
 
 /* File List Styling */
@@ -117,7 +130,24 @@
 }
 
 .upload-container .ant-upload-list-item:hover {
-    background: #f8f9fa;
+    background: var(--color-bg-hover, #f8f9fa);
+}
+
+/* Custom Styles for extracted button and text */
+.upload-folder-btn {
+    border-color: var(--color-primary, #1890ff) !important;
+    color: var(--color-primary, #1890ff) !important;
+    background-color: var(--color-bg-hover, #e6f7ff) !important;
+}
+
+body.dark-mode .upload-folder-btn {
+    background-color: rgba(36, 161, 221, 0.1) !important;
+}
+
+.upload-progress-text {
+    margin-top: 8px;
+    font-weight: bold;
+    color: var(--color-text-secondary, #666);
 }
 
 /* Responsive Design */

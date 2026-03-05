@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { ConfigProvider, message } from 'antd';
+import { ConfigProvider, message, theme } from 'antd';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import Header from './components/Header';
 import { EntityProvider } from './context/EntityContext';
 import { GlobalSettingsProvider } from './context/GlobalSettingsContext';
@@ -82,23 +83,36 @@ const AppContent = () => {
   );
 };
 
-const App = () => {
+const AppConfigProvider = ({ children }) => {
+  const { isDarkMode } = useTheme();
+
   return (
     <ConfigProvider
       theme={{
+        algorithm: isDarkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
           colorPrimary: '#1890ff',
         },
       }}
     >
-      <EntityProvider>
-        <GlobalSettingsProvider>
-          <BrowserRouter>
-            <AppContent />
-          </BrowserRouter>
-        </GlobalSettingsProvider>
-      </EntityProvider>
+      {children}
     </ConfigProvider>
+  );
+};
+
+const App = () => {
+  return (
+    <ThemeProvider>
+      <AppConfigProvider>
+        <EntityProvider>
+          <GlobalSettingsProvider>
+            <BrowserRouter>
+              <AppContent />
+            </BrowserRouter>
+          </GlobalSettingsProvider>
+        </EntityProvider>
+      </AppConfigProvider>
+    </ThemeProvider>
   );
 };
 

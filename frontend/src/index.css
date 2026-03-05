@@ -38,6 +38,10 @@
     --font-size-base: 16px;
     --font-size-secondary: 14px;
     /* Restored for compatibility */
+    --bg-main-layout: #f5f5f5;
+    --bg-content: #ffffff;
+    --bg-pdf-viewer: #f5f5f5;
+    --border-color: #e8e8e8;
 }
 
 /* Enforce 14px for actions in tables */
@@ -90,9 +94,9 @@ h6,
 }
 
 /* Table Headers - Primary Font (Inter), larger size */
-.ant-table-thead>tr>th,
-.ant-table-thead>tr>th .ant-table-column-title,
-.ant-table-thead>tr>th.ant-table-cell {
+.ant-table-thead > tr > th,
+.ant-table-thead > tr > th .ant-table-column-title,
+.ant-table-thead > tr > th.ant-table-cell {
     font-family: var(--font-secondary) !important;
     font-weight: 500 !important;
     font-size: 14px !important;
@@ -122,7 +126,7 @@ textarea,
 select,
 .ant-input,
 .ant-select,
-.ant-form-item-label>label,
+.ant-form-item-label > label,
 .ant-modal-body,
 .ant-card-body {
     font-family: var(--font-secondary);
@@ -139,8 +143,8 @@ button,
 }
 
 /* Table Body Rows - Secondary Font (Inter), smaller size */
-.ant-table-tbody>tr>td,
-.ant-table-tbody>tr>td * {
+.ant-table-tbody > tr > td,
+.ant-table-tbody > tr > td * {
     font-family: var(--font-secondary) !important;
     font-weight: 400 !important;
     font-size: var(--font-size-secondary) !important;
@@ -180,4 +184,431 @@ button,
 
 .ant-progress-line.ant-progress-status-active .ant-progress-track::after {
     display: none;
+}
+
+/* Toggle button */
+.theme-toggle {
+    font-size: 18px;
+    margin-right: 16px;
+    cursor: pointer;
+    color: var(--color-text-primary);
+}
+
+body.dark-mode .theme-toggle {
+    color: #f1f5f9;
+}
+
+/* DARK MODE */
+body.dark-mode {
+    background: #0f172a;
+    color: #e5e7eb;
+    --bg-main-layout: #0f172a;
+    --bg-content: #1e293b;
+    --bg-pdf-viewer: #0f172a;
+    --border-color: #334155;
+    --color-text-primary: #f1f5f9;
+}
+
+/* header */
+body.dark-mode .app-header {
+    background: #111827;
+    border-bottom: 1px solid #1f2937;
+}
+
+/* nav links */
+body.dark-mode .nav-tab {
+    color: #cbd5e1;
+}
+
+body.dark-mode .nav-tab.active {
+    color: #60a5fa;
+}
+
+/* dropdown */
+body.dark-mode .mini-profile-dropdown {
+    background: #1f2937 !important;
+    color: #e5e7eb !important;
+    border: 1px solid #334155 !important;
+}
+
+body.dark-mode .mini-profile-dropdown strong,
+body.dark-mode .mini-profile-dropdown .mini-profile-entity {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .mini-profile-dropdown .ant-dropdown-menu-item-inner {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .mini-profile-dropdown .ant-dropdown-menu-item:hover,
+body.dark-mode .mini-profile-menu-item:hover {
+    background: #334155 !important;
+}
+
+body.dark-mode .mini-profile-menu-item {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .mini-profile-menu-item span {
+    color: inherit !important;
+}
+
+/* Select Entity Page Dark Mode */
+body.dark-mode .entity-header {
+    background: #111827 !important;
+    border-bottom: 1px solid #1f2937 !important;
+}
+
+body.dark-mode .entity-card {
+    background: #1e293b !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4) !important;
+}
+
+body.dark-mode .entity-title {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .entity-subtitle {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .dropdown-arrow {
+    border-bottom-color: #1f2937 !important;
+}
+
+/* Force dark mode logo size
+body.dark-mode .header-logo img,
+body.dark-mode .header-logo,
+body.dark-mode .logo,
+body.dark-mode .register-logo img {
+    width: 128px !important;
+    height: 32px !important;
+    object-fit: contain !important;
+} */
+
+
+/* Ensure Ant Design Select dropdowns are dark */
+.ant-select-dropdown {
+    background-color: #ffffff !important;
+}
+
+body.dark-mode .ant-select-dropdown {
+    background-color: #1f2937 !important;
+    border: 1px solid #334155 !important;
+}
+
+body.dark-mode .ant-select-item {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .ant-select-item-option-active {
+    background-color: #334155 !important;
+}
+
+body.dark-mode .ant-select-item-option-selected {
+    background-color: #1e3a8a !important;
+    color: #fff !important;
+}
+
+/* GLOBAL COMPONENT OVERRIDES FOR DARK MODE */
+
+/* Shells and main containers */
+body.dark-mode .ap-dashboard-shell,
+body.dark-mode .ap-dashboard,
+body.dark-mode .ap-kpi-card,
+body.dark-mode .ap-chart-card,
+body.dark-mode .ap-table-card,
+body.dark-mode .workflow-tab,
+body.dark-mode .nav-header {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+/* Card bodies */
+body.dark-mode .ap-kpi-card .ant-card-body,
+body.dark-mode .ap-chart-card .ant-card-body,
+body.dark-mode .ap-table-card .ant-card-body {
+    background: #1e293b !important;
+}
+
+/* Texts and Titles */
+body.dark-mode .ap-header-title,
+body.dark-mode .ap-card-title,
+body.dark-mode .ap-kpi-value,
+body.dark-mode .layout-title,
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6,
+body.dark-mode .ant-typography {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .ap-header-subtitle,
+body.dark-mode .ap-kpi-label,
+body.dark-mode .ant-table-tbody > tr > td {
+    color: #cbd5e1 !important;
+}
+
+/* Component Headers */
+body.dark-mode .ap-chart-card .ant-card-head,
+body.dark-mode .ap-table-card .ant-card-head {
+    background: #0f172a !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+/* Borders and lines */
+body.dark-mode .ap-header,
+body.dark-mode .ant-table-tbody > tr > td {
+    border-bottom: 1px solid #334155 !important;
+}
+
+/* Tables in custom components */
+body.dark-mode .ap-table-card .ant-table-thead > tr > th {
+    background: #0f172a !important;
+    color: #f1f5f9 !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+body.dark-mode .ap-table-card .ant-table-tbody > tr:hover > td {
+    background: rgba(96, 165, 250, 0.1) !important;
+}
+
+/* Inputs and interactive elements */
+body.dark-mode .ap-select-inline {
+    background: #0f172a !important;
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .ant-input,
+body.dark-mode .ant-select-selector {
+    background-color: #0f172a !important;
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+}
+
+/* =========================================
+   AUTH & ENTITY PAGES DARK MODE
+   ========================================= */
+body.dark-mode .login-container,
+body.dark-mode .register-container,
+body.dark-mode .entity-container {
+    background-color: #0f172a !important;
+    background-blend-mode: overlay;
+}
+
+body.dark-mode .login-card,
+body.dark-mode .register-card,
+body.dark-mode .entity-card {
+    background: #1e293b !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+body.dark-mode .login-title,
+body.dark-mode .register-title,
+body.dark-mode .entity-title {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .login-footer,
+body.dark-mode .register-footer,
+body.dark-mode .entity-subtitle {
+    color: #9ca3af !important;
+}
+
+body.dark-mode .login-input,
+body.dark-mode .register-form .ant-input-affix-wrapper,
+body.dark-mode .ant-input-password {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .ant-input-password input {
+    background: transparent !important;
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .input-icon,
+body.dark-mode .register-form .ant-input-prefix {
+    color: #64748b !important;
+}
+
+body.dark-mode .entity-header {
+    background: #111827 !important;
+    border-color: #1f2937 !important;
+}
+
+/* =========================================
+   WORKFLOW TAB DARK MODE
+   ========================================= */
+body.dark-mode .workflow-tab-container {
+    background: transparent !important;
+}
+
+body.dark-mode .workflow-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .workflow-card .ant-card-head {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .workflow-step-name {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .workflow-step-user {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .workflow-step-user strong {
+    color: #f1f5f9 !important;
+}
+
+body.dark-mode .workflow-step-comment {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .workflow-tab-container .ant-timeline-item-head {
+    background: #1e293b !important;
+}
+
+/* =========================================
+   TABS & COLLAPSE DARK MODE
+   ========================================= */
+body.dark-mode .ant-tabs-nav {
+    background: transparent !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+body.dark-mode .ant-tabs-tab {
+    color: #9ca3af !important;
+}
+
+body.dark-mode .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: #60a5fa !important;
+}
+
+body.dark-mode .ant-tabs-ink-bar {
+    background: #60a5fa !important;
+}
+
+body.dark-mode .ant-collapse {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .ant-collapse-header {
+    color: #f1f5f9 !important;
+    background: #0f172a !important;
+}
+
+body.dark-mode .ant-collapse-content {
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+    border-top: 1px solid #334155 !important;
+}
+
+/* Fix for coding review page layouts */
+body.dark-mode .coding-review-header {
+    background: #111827 !important;
+    border-bottom: 1px solid #1f2937 !important;
+}
+
+/* Ant Design component overrides for Dark Mode */
+body.dark-mode .ant-input,
+body.dark-mode .ant-input-number,
+body.dark-mode .ant-input-number-input,
+body.dark-mode .ant-select-selector,
+body.dark-mode .ant-picker {
+    background-color: #1f2937 !important;
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .ant-input-disabled,
+body.dark-mode .ant-input-number-disabled,
+body.dark-mode .ant-select-disabled .ant-select-selector {
+    background-color: #111827 !important;
+    color: #94a3b8 !important;
+    border-color: #1f2937 !important;
+}
+
+body.dark-mode .ant-table {
+    background: transparent !important;
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .ant-table-thead > tr > th {
+    background-color: #1A729D !important;
+    color: #cbd5e1 !important;
+    border-bottom: 1px solid #1f2937 !important;
+}
+
+body.dark-mode .ant-table-tbody > tr > td {
+    border-bottom: 1px solid #1f2937 !important;
+}
+
+body.dark-mode .ant-table-tbody > tr:hover > td {
+    background-color: #1f2937 !important;
+}
+
+/* Ensure Ant Design Select dropdowns are dark */
+.ant-select-dropdown {
+    background-color: #ffffff !important;
+}
+
+body.dark-mode .ant-select-dropdown {
+    background-color: #1f2937 !important;
+    border: 1px solid #334155 !important;
+}
+
+body.dark-mode .ant-select-item {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .ant-select-item-option-active {
+    background-color: #334155 !important;
+}
+
+body.dark-mode .ant-select-item-option-selected {
+    background-color: #1e3a8a !important;
+    color: #fff !important;
+}
+
+body.dark-mode .ant-checkbox-inner {
+    background-color: #1f2937 !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .ant-checkbox-checked .ant-checkbox-inner {
+    background-color: #1890ff !important;
+    border-color: #1890ff !important;
+}
+
+/* Final refinements for disabled states in dark mode */
+body.dark-mode .ant-input-disabled,
+body.dark-mode .ant-input-number-disabled,
+body.dark-mode .ant-select-disabled .ant-select-selector,
+body.dark-mode .ant-picker-disabled {
+    background-color: #111827 !important;
+    color: #94a3b8 !important;
+    border-color: #1f2937 !important;
+    opacity: 0.8 !important;
+}
+
+body.dark-mode .ant-form-item-label > label {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .ant-collapse-content-box {
+    background-color: #1e293b !important;
 }

@@ -1,6 +1,6 @@
 .main-layout {
     padding: 24px 32px;
-    background: #f5f5f5;
+    background: var(--bg-main-layout, #f5f5f5);
     min-height: 90vh;
 }
 
@@ -49,7 +49,7 @@
 }
 
 .layout-content {
-    background: white;
+    background: var(--bg-content, white);
     border-radius: 8px;
     padding: 24px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -63,8 +63,8 @@
 
 .table-search-input {
     width: 250px;
-    background: #fff;
-    border: 1px solid #d9d9d9 !important;
+    background: var(--bg-input, #fff);
+    border: 1px solid var(--border-color, #d9d9d9) !important;
     height: 38px;
     padding: 6px 12px !important;
     border-radius: 6px !important;
@@ -78,7 +78,7 @@
 }
 
 .invoices-table .ant-table {
-    background: white;
+    background: transparent;
 }
 
 .invoices-table .ant-table-thead > tr > th,
@@ -185,7 +185,7 @@
     position: sticky !important;
     bottom: 0 !important;
     z-index: 10 !important;
-    background: #fff !important;
+    background: var(--bg-pagination, #fff) !important;
     padding: 16px 0 !important;
     margin: 0 !important;
     border-top: 1px solid #f0f0f0 !important;
@@ -222,7 +222,7 @@
 .master-data-table .ant-table-cell-fix-left,
 .master-data-table .ant-table-cell-fix-right {
     z-index: 5 !important;
-    background: #fff !important;
+    background: inherit !important;
 }
 
 /* Fixed column header cells need higher z-index */
@@ -255,7 +255,7 @@
     position: sticky !important;
     left: 0 !important;
     z-index: 30 !important;
-    background: white !important;
+    background: inherit !important;
 }
 
 /* Sticky body cells - Vendor Name */
@@ -320,4 +320,25 @@
 .main-tabs .ant-tabs-ink-bar {
     background: #11699E !important;
     /* Active Bar Color */
+}
+
+/* DARK MODE OVERRIDES */
+body.dark-mode {
+    --bg-main-layout: #0f172a;
+    --bg-content: #1e293b;
+    --bg-input: #1e293b;
+    --border-color: #334155;
+    --bg-pagination: #1e293b;
+}
+
+body.dark-mode .layout-title {
+    color: #e5e7eb;
+}
+
+body.dark-mode .main-tabs .ant-tabs-tab {
+    color: #94a3b8;
+}
+
+body.dark-mode .main-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: #60a5fa !important;
 }

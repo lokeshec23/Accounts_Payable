@@ -11,10 +11,11 @@ import {
 } from '@ant-design/icons';
 import { authService } from '../services/auth';
 import '../styles/Loginpage.css';
-
+import { useTheme } from '../context/ThemeContext';
 const { Text, Title } = Typography;
 
 const ForgotPasswordPage = () => {
+    const { isDarkMode } = useTheme();
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState(1);
     const [email, setEmail] = useState('');
@@ -72,7 +73,14 @@ const ForgotPasswordPage = () => {
 
             <div className="login-card">
                 <div className="logo-container">
-                    <img src="/loandna_logo.png" alt="LoanDNA Logo" className="logo" />
+                    <img
+                        src={isDarkMode ? "/image.png" : "/loandna-logo.png"}
+                        alt="loanDNA Logo"
+                        onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<h2 style="color: #3ba5d8; margin: 0;">loanDNA</h2>';
+                        }}
+                    />
                 </div>
 
                 <h2 className="login-title">Reset Password</h2>

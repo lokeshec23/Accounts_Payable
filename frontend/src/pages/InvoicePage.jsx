@@ -173,11 +173,7 @@ const InvoicePage = () => {
                         <Button
                             icon={<FolderOpenOutlined />}
                             onClick={() => folderInputRef.current.click()}
-                            style={{
-                                borderColor: '#1890ff',
-                                color: '#1890ff',
-                                backgroundColor: '#e6f7ff'
-                            }}
+                            className="upload-folder-btn"
                         >
                             Upload Folder
                         </Button>
@@ -215,7 +211,7 @@ const InvoicePage = () => {
                                     '100%': '#87d068',
                                 }}
                             />
-                            <div style={{ marginTop: 8, fontWeight: 'bold', color: '#666' }}>
+                            <div className="upload-progress-text">
                                 Uploading... ({uploadProgress}%)
                             </div>
                         </div>

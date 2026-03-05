@@ -285,7 +285,7 @@ const AllFieldsTab = React.memo((props) => {
                             gap: '8px',
                             alignItems: 'flex-end',
                             padding: '16px',
-                            background: '#f0f2f5',
+                            background: 'var(--bg-content, #f0f2f5)',
                             borderRadius: '6px',
                             borderTop: '1px solid #d9d9d9'
                         }}>
@@ -389,7 +389,7 @@ const AllFieldsTab = React.memo((props) => {
                         </Descriptions.Item>
                     </Descriptions>
 
-                    <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+                    <div style={{ marginTop: '20px', padding: '12px', backgroundColor: 'var(--bg-content, #f5f5f5)', borderRadius: '4px' }}>
                         <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Payable Amount Derivation:</div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                             <span>Base Invoice Total Used:</span>

@@ -9,6 +9,7 @@ import {
   LockOutlined,
 } from "@ant-design/icons";
 import { authService } from '../services/auth';
+import { useTheme } from '../context/ThemeContext';
 import "../styles/RegisterPage.css";
 
 const { Text } = Typography;
@@ -16,6 +17,7 @@ const { Text } = Typography;
 export default function RegisterPage() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
   const onFinish = async (values) => {
@@ -48,7 +50,7 @@ export default function RegisterPage() {
       <div className="register-card">
         <div className="register-logo">
           <img
-            src="/loandna-logo.png"
+            src={isDarkMode ? "/image.png" : "/loandna-logo.png"}
             alt="loanDNA Logo"
             onError={(e) => {
               e.target.style.display = 'none';

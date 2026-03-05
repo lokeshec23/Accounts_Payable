@@ -9,12 +9,14 @@ import {
   MailOutlined
 } from '@ant-design/icons';
 import { authService } from '../services/auth';
+import { useTheme } from '../context/ThemeContext';
 import '../styles/Loginpage.css';
 
 const { Text } = Typography;
 
 const LoginPage = () => {
   const [loading, setLoading] = useState(false);
+  const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
   const handleLogin = async (values) => {
@@ -38,7 +40,7 @@ const LoginPage = () => {
 
       <div className="login-card">
         <div className="logo-container">
-          <img src="/loandna_logo.png" alt="LoanDNA Logo" className="logo" />
+          <img src={isDarkMode ? "/image.png" : "/loandna_logo.png"} alt="LoanDNA Logo" className="logo" />
         </div>
 
         <h2 className="login-title">Log in</h2>

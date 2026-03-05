@@ -6,6 +6,7 @@ import { useEntity } from "../context/EntityContext";
 import { authService } from "../services/auth";
 import { masterDataService } from "../services/api";
 import { DropdownSkeleton } from "../components/SkeletonLoader";
+import { useTheme } from "../context/ThemeContext";
 import "../styles/SelectEntity.css";
 
 const { Text } = Typography;
@@ -13,6 +14,7 @@ const { Text } = Typography;
 const SelectEntity = () => {
   const navigate = useNavigate();
   const { setEntity } = useEntity();
+  const { isDarkMode } = useTheme();
 
   const [entities, setEntities] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -100,8 +102,15 @@ const SelectEntity = () => {
     <div className="entity-container">
       <header className="entity-header">
 
-        <img src="/loandna-logo.png" alt="LoanDNA Logo" className="header-logo" />
-
+        <img
+            src={isDarkMode ? "/image.png" : "/loandna-logo.png"}
+            alt="loanDNA Logo"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.parentElement.innerHTML = '<h2 style="color: #3ba5d8; margin: 0;">loanDNA</h2>';
+          }}
+          className="header-logo"
+          />
         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
           <div className="header-user">
             <div className="user-avatar">{userInitial}</div>

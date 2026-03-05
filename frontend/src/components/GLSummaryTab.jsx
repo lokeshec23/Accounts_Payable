@@ -39,16 +39,16 @@ const GLSummaryTab = React.memo(({
     return (
         <div style={{
             padding: '20px',
-            background: '#f9f9f9',
+            background: 'var(--bg-content, #f9f9f9)',
             borderRadius: '8px',
-            border: '1px solid #e8e8e8',
+            border: '1px solid var(--border-color, #e8e8e8)',
             marginTop: '10px'
         }}>
             <h3 style={{
                 marginBottom: '16px',
                 borderBottom: '2px solid #1890ff',
                 paddingBottom: '8px',
-                color: '#001529'
+                color: 'var(--color-text-primary, #001529)'
             }}>
                 GL Distribution Summary
             </h3>
@@ -67,7 +67,7 @@ const GLSummaryTab = React.memo(({
                                 justifyContent: 'space-between',
                                 alignItems: 'center',
                                 padding: '10px 15px',
-                                background: 'white',
+                                background: 'var(--bg-main-layout, white)',
                                 borderRadius: '6px',
                                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                                 borderLeft: '4px solid #1890ff'
@@ -90,15 +90,15 @@ const GLSummaryTab = React.memo(({
             <div style={{
                 marginTop: '20px',
                 padding: '16px',
-                background: 'white',
+                background: 'var(--bg-main-layout, white)',
                 borderRadius: '6px',
                 display: 'flex',
                 justifyContent: 'flex-end',
                 alignItems: 'center',
-                borderTop: '1px solid #d9d9d9'
+                borderTop: '1px solid var(--border-color, #d9d9d9)'
             }}>
                 <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '14px', color: '#595959', marginRight: '12px' }}>
+                    <span style={{ fontSize: '14px', color: 'var(--color-text-secondary, #595959)', marginRight: '12px' }}>
                         Total Amount Payable:
                     </span>
                     <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#1890ff' }}>
