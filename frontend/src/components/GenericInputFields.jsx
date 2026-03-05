@@ -1866,24 +1866,26 @@ const GenericInputFields = forwardRef(({
                 position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#fff',
                 borderBottom: '1px solid #f0f0f0', padding: '8px 20px'
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ margin: 0, flex: 1 }}
-                        items={[
-                            { key: '1', label: 'Quick View' },
-                            { key: '2', label: 'All Fields' },
-                            ...(readOnly ? [{ key: '3', label: 'Coding' }] : []),
-                            { key: 'gl_summary', label: 'GL Summary' },
-                            { key: '4', label: 'Workflow' },
-                            { key: '5', label: 'Audit Trail' }
-                        ]}
-                    />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '16px' }}>
+                    <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+                        <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ margin: 0 }}
+                            items={[
+                                { key: '1', label: 'Quick View' },
+                                { key: '2', label: 'All Fields' },
+                                ...(readOnly ? [{ key: '3', label: 'Coding' }] : []),
+                                { key: 'gl_summary', label: 'GL Summary' },
+                                { key: '4', label: 'Workflow' },
+                                { key: '5', label: 'Audit Trail' }
+                            ]}
+                        />
+                    </div>
 
                     {renderStatusTag && (invoiceStatus === "approved" || invoiceStatus === "rejected") && (
-                        <div style={{ marginLeft: '24px' }}>{renderStatusTag()}</div>
+                        <div style={{ flexShrink: 0 }}>{renderStatusTag()}</div>
                     )}
 
                     {readOnly && invoiceStatus === 'waiting_approval' && (
-                        <Space style={{ marginLeft: '24px' }}>
+                        <Space style={{ flexShrink: 0 }}>
                             <Button type="primary" icon={<CheckCircleOutlined />}
                                 style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
                                 onClick={handleApprove} disabled={approveDisabled}>
