@@ -51,7 +51,7 @@
    PAGE BACKGROUND
    ============================================ */
 .entity-container {
-    min-height: 100vh;
+    min-height: 90vh;
     padding-top: 100px;
     /* space below header */
     display: flex;
