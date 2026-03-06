@@ -5,6 +5,7 @@ import { invoiceService } from "../services/api";
 import Dragger from "antd/es/upload/Dragger";
 import { useNavigate } from "react-router-dom";
 import "../styles/InvoicePage.css";
+import { v4 as uuidv4 } from "uuid";
 
 const InvoicePage = () => {
     const navigate = useNavigate();
@@ -51,7 +52,7 @@ const InvoicePage = () => {
         try {
             setLoading(true);
 
-            const taskId = crypto.randomUUID();
+            const taskId = uuidv4();
 
             eventSource = new EventSource(invoiceService.getUploadProgressUrl(taskId));
             let currentProgress = 25;

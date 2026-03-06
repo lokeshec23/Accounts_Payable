@@ -3,6 +3,7 @@ import { Upload, Button, message, Progress } from 'antd';
 import { UploadOutlined, InboxOutlined } from '@ant-design/icons';
 import { invoiceService } from '../services/api';
 import '../styles/InvoicePage.css';
+import { v4 as uuidv4 } from "uuid";
 
 const { Dragger } = Upload;
 
@@ -46,7 +47,7 @@ const InvoiceUpload = ({ onUploadSuccess }) => {
             const startTime = Date.now();
             console.log(`[Frontend] Upload and processing started at: ${new Date(startTime).toLocaleString()}`);
 
-            const taskId = crypto.randomUUID();
+            const taskId = uuidv4();
 
             eventSource = new EventSource(invoiceService.getUploadProgressUrl(taskId));
             let currentProgress = 25;

@@ -29,6 +29,7 @@ import ApDashboard from '../pages/ApDashboard'; // 📊 Dashboard
 import { TableSkeleton } from './SkeletonLoader';
 import { formatDateTimeIST } from '../utils/dateUtils';
 import '../styles/MainLayout.css';
+import { v4 as uuidv4 } from "uuid";
 
 const { Dragger } = Upload;
 
@@ -416,7 +417,7 @@ const MainLayout = () => {
         try {
             setUploading(true);
 
-            const taskId = crypto.randomUUID();
+            const taskId = uuidv4(); 
 
             eventSource = new EventSource(invoiceService.getUploadProgressUrl(taskId));
             let currentProgress = 25;
