@@ -601,7 +601,10 @@ const GenericInputFields = forwardRef(({
 
         if (field.includes('Currency')) {
             const currentOptions = currencies.length > 0
-                ? currencies.map(c => ({ value: c.code, label: `${c.symbol} ${c.code}` }))
+                ? currencies.map(c => {
+                    const symbol = (c.code === 'INR' && c.symbol === '?') ? '₹' : c.symbol;
+                    return { value: c.code, label: `${symbol} ${c.code}` };
+                })
                 : [{ value: 'USD', label: '$ USD' }, { value: 'INR', label: '₹ INR' }];
             return (
                 <Select style={{ width: '100%', ...disabledStyle }} value={stringValue}

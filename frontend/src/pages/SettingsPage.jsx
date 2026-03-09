@@ -23,7 +23,6 @@ import {
 } from "@ant-design/icons";
 import {
   masterDataService,
-  currencyService,
   workflowConfigService,
 } from "../services/api";
 import { TableSkeleton } from "../components/SkeletonLoader";
@@ -40,58 +39,8 @@ const SettingsPage = () => {
   const [lobs, setLobs] = useState([]);
   const [departments, setDepartments] = useState([]);
 
-  const [currencies, setCurrencies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [userRole, setUserRole] = useState("");
-
-  const EXTRA_CURRENCIES = [
-    { code: "USD", name: "US Dollar", symbol: "$" },
-    { code: "EUR", name: "Euro", symbol: "€" },
-    { code: "INR", name: "Indian Rupee", symbol: "₹" },
-    { code: "GBP", name: "British Pound", symbol: "£" },
-    { code: "JPY", name: "Japanese Yen", symbol: "¥" },
-    { code: "AUD", name: "Australian Dollar", symbol: "A$" },
-    { code: "CAD", name: "Canadian Dollar", symbol: "C$" },
-    { code: "CHF", name: "Swiss Franc", symbol: "CHF" },
-    { code: "CNY", name: "Chinese Yuan", symbol: "¥" },
-    { code: "HKD", name: "Hong Kong Dollar", symbol: "HK$" },
-    { code: "SGD", name: "Singapore Dollar", symbol: "S$" },
-    { code: "NZD", name: "New Zealand Dollar", symbol: "NZ$" },
-    { code: "ZAR", name: "South African Rand", symbol: "R" },
-    { code: "AED", name: "UAE Dirham", symbol: "د.إ" },
-    { code: "SAR", name: "Saudi Riyal", symbol: "﷼" },
-    { code: "QAR", name: "Qatari Riyal", symbol: "﷼" },
-    { code: "KWD", name: "Kuwaiti Dinar", symbol: "KD" },
-    { code: "BHD", name: "Bahraini Dinar", symbol: "BD" },
-    { code: "OMR", name: "Omani Rial", symbol: "﷼" },
-    { code: "THB", name: "Thai Baht", symbol: "฿" },
-    { code: "IDR", name: "Indonesian Rupiah", symbol: "Rp" },
-    { code: "MYR", name: "Malaysian Ringgit", symbol: "RM" },
-    { code: "PHP", name: "Philippine Peso", symbol: "₱" },
-    { code: "KRW", name: "South Korean Won", symbol: "₩" },
-    { code: "VND", name: "Vietnamese Dong", symbol: "₫" },
-    { code: "BRL", name: "Brazilian Real", symbol: "R$" },
-    { code: "MXN", name: "Mexican Peso", symbol: "$" },
-    { code: "ARS", name: "Argentine Peso", symbol: "$" },
-    { code: "CLP", name: "Chilean Peso", symbol: "$" },
-    { code: "COP", name: "Colombian Peso", symbol: "$" },
-    { code: "EGP", name: "Egyptian Pound", symbol: "£" },
-    { code: "NGN", name: "Nigerian Naira", symbol: "₦" },
-    { code: "KES", name: "Kenyan Shilling", symbol: "KSh" },
-    { code: "PKR", name: "Pakistani Rupee", symbol: "₨" },
-    { code: "BDT", name: "Bangladeshi Taka", symbol: "৳" },
-    { code: "LKR", name: "Sri Lankan Rupee", symbol: "Rs" },
-    { code: "ILS", name: "Israeli Shekel", symbol: "₪" },
-    { code: "TRY", name: "Turkish Lira", symbol: "₺" },
-    { code: "RUB", name: "Russian Ruble", symbol: "₽" },
-  ];
-
-  const mergedCurrencies = [
-    ...currencies,
-    ...EXTRA_CURRENCIES.filter(
-      (extra) => !currencies.some((c) => c.code === extra.code)
-    ),
-  ];
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalType, setModalType] = useState(null);
@@ -104,8 +53,6 @@ const SettingsPage = () => {
       const [
         vendorWorkflowData,
         codificationWorkflowData,
-
-        currencyData,
         approversData,
         vendorsData,
         lobsData,
@@ -113,7 +60,6 @@ const SettingsPage = () => {
       ] = await Promise.all([
         workflowConfigService.getVendorWorkflows(),
         workflowConfigService.getCodificationWorkflows(),
-        currencyService.getCurrencies(),
         workflowConfigService.getApprovers(),
         workflowConfigService.getWorkflowVendors(),
         workflowConfigService.getLOBs(),
@@ -122,7 +68,6 @@ const SettingsPage = () => {
 
       setVendorWorkflows(vendorWorkflowData);
       setCodificationWorkflows(codificationWorkflowData);
-      setCurrencies(currencyData);
       setApprovers(approversData);
       setWorkflowVendors(vendorsData);
       setLobs(lobsData);
@@ -185,8 +130,6 @@ const SettingsPage = () => {
       deleteLabel = `Vendor Workflow: ${record.vendor_name}`;
     } else if (type === "codification-workflow") {
       deleteLabel = `Codification Workflow: ${record.lob} - ${record.department_id}`;
-    } else if (type === "currency") {
-      deleteLabel = `Currency: ${record.name} (${record.symbol})`;
     }
 
     confirm({
@@ -202,8 +145,6 @@ const SettingsPage = () => {
             await workflowConfigService.deleteVendorWorkflow(record.id);
           } else if (type === "codification-workflow") {
             await workflowConfigService.deleteCodificationWorkflow(record.id);
-          } else if (type === "currency") {
-            await currencyService.deleteCurrency(record.id);
           }
           message.success("Configuration deleted successfully");
           fetchRules();
@@ -228,12 +169,6 @@ const SettingsPage = () => {
           await workflowConfigService.updateCodificationWorkflow(editingRecord.id, values);
         } else {
           await workflowConfigService.createCodificationWorkflow(values);
-        }
-      } else if (modalType === "currency") {
-        if (editingRecord) {
-          await currencyService.updateCurrency(editingRecord.id, values);
-        } else {
-          await currencyService.createCurrency(values);
         }
       }
       setIsModalVisible(false);
@@ -352,22 +287,6 @@ const SettingsPage = () => {
     }] : []),
   ];
 
-  const currencyColumns = [
-    { title: "Currency Name", dataIndex: "name", key: "name" },
-    { title: "Symbol", dataIndex: "symbol", key: "symbol" },
-    { title: "Code", dataIndex: "code", key: "code" },
-    ...(userRole !== "coder" ? [{
-      title: "Actions",
-      key: "actions",
-      render: (_, record) => (
-        <Space size="middle">
-          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record, "currency")}>Edit</Button>
-          <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record, "currency")}>Delete</Button>
-        </Space>
-      ),
-    }] : []),
-  ];
-
   const renderTabContent = (type, columns, data) => (
     <div style={{ padding: "20px 0" }}>
       <div style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end" }}>
@@ -394,7 +313,6 @@ const SettingsPage = () => {
   const items = [
     { key: "1", label: "Vendor Based Workflow", children: renderTabContent("vendor-workflow", vendorWorkflowColumns, vendorWorkflows) },
     { key: "2", label: "Codification Based Workflow", children: renderTabContent("codification-workflow", codificationWorkflowColumns, codificationWorkflows) },
-    { key: "3", label: "Currency", children: renderTabContent("currency", currencyColumns, currencies) },
   ];
 
   const renderWorkflowForm = () => (
@@ -500,7 +418,7 @@ const SettingsPage = () => {
       </Card>
 
       <Modal
-        title={`${editingRecord ? 'Edit' : 'Add'} ${modalType === "vendor-workflow" ? "Vendor Workflow" : modalType === "codification-workflow" ? "Codification Workflow" : "Currency"}`}
+        title={`${editingRecord ? 'Edit' : 'Add'} ${modalType === "vendor-workflow" ? "Vendor Workflow" : "Codification Workflow"}`}
         open={isModalVisible}
         onOk={handleSave}
         onCancel={() => setIsModalVisible(false)}
@@ -508,20 +426,7 @@ const SettingsPage = () => {
         width={600}
       >
         <Form form={form} layout="vertical">
-          {modalType === "currency" ? (
-            <>
-              <Form.Item name="code" label="Currency Code" rules={[{ required: true }]}>
-                <Select showSearch onChange={(v) => {
-                  const s = mergedCurrencies.find(c => c.code === v);
-                  if (s) form.setFieldsValue({ name: s.name, symbol: s.symbol });
-                }}>
-                  {mergedCurrencies.map(c => <Select.Option key={c.code} value={c.code}>{c.code} - {c.name}</Select.Option>)}
-                </Select>
-              </Form.Item>
-              <Form.Item name="name" label="Currency Name" rules={[{ required: true }]}><Input /></Form.Item>
-              <Form.Item name="symbol" label="Symbol" rules={[{ required: true }]}><Input /></Form.Item>
-            </>
-          ) : renderWorkflowForm()}
+          {renderWorkflowForm()}
         </Form>
       </Modal>
     </div>

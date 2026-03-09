@@ -25,7 +25,7 @@ import {
     UploadOutlined,
     InboxOutlined
 } from "@ant-design/icons";
-import { masterDataService } from "../services/api";
+import { masterDataService, currencyService } from "../services/api";
 import { TableSkeleton } from "../components/SkeletonLoader";
 import "../styles/MainLayout.css";
 
@@ -42,7 +42,50 @@ const MASTER_TABS = [
     { key: "LOB", label: "LOB Master" },
     { key: "Department", label: "Department Master" },
     { key: "Customer", label: "Customer Master" },
-    { key: "Item", label: "Item Master" }
+    { key: "Item", label: "Item Master" },
+    { key: "Currency", label: "Currency" }
+];
+
+const EXTRA_CURRENCIES = [
+    { code: "USD", name: "US Dollar", symbol: "$" },
+    { code: "EUR", name: "Euro", symbol: "€" },
+    { code: "INR", name: "Indian Rupee", symbol: "₹" },
+    { code: "GBP", name: "British Pound", symbol: "£" },
+    { code: "JPY", name: "Japanese Yen", symbol: "¥" },
+    { code: "AUD", name: "Australian Dollar", symbol: "A$" },
+    { code: "CAD", name: "Canadian Dollar", symbol: "C$" },
+    { code: "CHF", name: "Swiss Franc", symbol: "CHF" },
+    { code: "CNY", name: "Chinese Yuan", symbol: "¥" },
+    { code: "HKD", name: "Hong Kong Dollar", symbol: "HK$" },
+    { code: "SGD", name: "Singapore Dollar", symbol: "S$" },
+    { code: "NZD", name: "New Zealand Dollar", symbol: "NZ$" },
+    { code: "ZAR", name: "South African Rand", symbol: "R" },
+    { code: "AED", name: "UAE Dirham", symbol: "د.إ" },
+    { code: "SAR", name: "Saudi Riyal", symbol: "﷼" },
+    { code: "QAR", name: "Qatari Riyal", symbol: "﷼" },
+    { code: "KWD", name: "Kuwaiti Dinar", symbol: "KD" },
+    { code: "BHD", name: "Bahraini Dinar", symbol: "BD" },
+    { code: "OMR", name: "Omani Rial", symbol: "﷼" },
+    { code: "THB", name: "Thai Baht", symbol: "฿" },
+    { code: "IDR", name: "Indonesian Rupiah", symbol: "Rp" },
+    { code: "MYR", name: "Malaysian Ringgit", symbol: "RM" },
+    { code: "PHP", name: "Philippine Peso", symbol: "₱" },
+    { code: "KRW", name: "South Korean Won", symbol: "₩" },
+    { code: "VND", name: "Vietnamese Dong", symbol: "₫" },
+    { code: "BRL", name: "Brazilian Real", symbol: "R$" },
+    { code: "MXN", name: "Mexican Peso", symbol: "$" },
+    { code: "ARS", name: "Argentine Peso", symbol: "$" },
+    { code: "CLP", name: "Chilean Peso", symbol: "$" },
+    { code: "COP", name: "Colombian Peso", symbol: "$" },
+    { code: "EGP", name: "Egyptian Pound", symbol: "£" },
+    { code: "NGN", name: "Nigerian Naira", symbol: "₦" },
+    { code: "KES", name: "Kenyan Shilling", symbol: "KSh" },
+    { code: "PKR", name: "Pakistani Rupee", symbol: "₨" },
+    { code: "BDT", name: "Bangladeshi Taka", symbol: "৳" },
+    { code: "LKR", name: "Sri Lankan Rupee", symbol: "Rs" },
+    { code: "ILS", name: "Israeli Shekel", symbol: "₪" },
+    { code: "TRY", name: "Turkish Lira", symbol: "₺" },
+    { code: "RUB", name: "Russian Ruble", symbol: "₽" },
 ];
 
 const MasterDataPage = () => {
@@ -55,6 +98,16 @@ const MasterDataPage = () => {
     const [tableData, setTableData] = useState([]);
     const [columns, setColumns] = useState([]);
     const [searchText, setSearchText] = useState("");
+
+    const [currencies, setCurrencies] = useState([]);
+    const mergedCurrencies = useMemo(() => {
+        return [
+            ...currencies,
+            ...EXTRA_CURRENCIES.filter(
+                (extra) => !currencies.some((c) => c.code === extra.code)
+            )
+        ];
+    }, [currencies]);
 
     // TDS Rates for dropdowns in Vendor Master
     const [tdsRates, setTdsRates] = useState([]);
@@ -101,12 +154,61 @@ const MasterDataPage = () => {
         loadTabStatus();
     }, []);
 
+    const loadCurrencyData = async () => {
+        try {
+            setLoading(true);
+            const data = await currencyService.getCurrencies();
+
+            // Fix INR symbol if it fetches '?'
+            const processedData = data.map(currency => {
+                if (currency.code === 'INR' && currency.symbol === '?') {
+                    return { ...currency, symbol: '₹' };
+                }
+                return currency;
+            });
+
+            setCurrencies(processedData);
+
+            const currencyCols = [
+                { title: "Currency Name", dataIndex: "name", key: "name" },
+                { title: "Symbol", dataIndex: "symbol", key: "symbol" },
+                { title: "Code", dataIndex: "code", key: "code" },
+            ];
+            if (userRole !== 'coder') {
+                currencyCols.push({
+                    title: "Actions",
+                    key: "actions",
+                    fixed: 'right',
+                    width: 150,
+                    render: (_, record) => (
+                        <Space>
+                            <Button type="link" icon={<EditOutlined />} onClick={() => openEditModal(record)}>Edit</Button>
+                            <Button type="link" danger icon={<DeleteOutlined />} onClick={() => confirmDelete(record.id)}>Delete</Button>
+                        </Space>
+                    ),
+                });
+            }
+            setColumns(currencyCols);
+            setTableData(processedData.map(d => ({ ...d, key: d.id })));
+        } catch (error) {
+            message.error("Failed to load currencies");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (activeTab) {
             // Immediately clear current view to avoid showing stale data from previous tab
             setTableData([]);
             setColumns([]);
             setSearchText("");
+
+            if (activeTab === "Currency") {
+                setActiveSubTab(null);
+                loadCurrencyData();
+                return;
+            }
 
             // Reset activeSubTab to the first sheet of this tab if available
             const status = tabStatus[activeTab];
@@ -117,7 +219,7 @@ const MasterDataPage = () => {
                 loadSheetData(`master_data_${activeTab}`);
             }
         }
-    }, [activeTab, tabStatus]);
+    }, [activeTab, tabStatus, userRole]);
 
     useEffect(() => {
         if (activeSubTab) {
@@ -325,6 +427,20 @@ const MasterDataPage = () => {
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
+
+            if (activeTab === "Currency") {
+                if (addMode) {
+                    await currencyService.createCurrency(values);
+                    message.success("Currency added successfully");
+                } else {
+                    await currencyService.updateCurrency(editRecord.id, values);
+                    message.success("Currency updated successfully");
+                }
+                setIsModalVisible(false);
+                loadCurrencyData();
+                return;
+            }
+
             const collectionName = activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`;
 
             if (addMode) {
@@ -335,7 +451,6 @@ const MasterDataPage = () => {
                 message.success("Row updated");
             }
 
-
             setIsModalVisible(false);
             loadSheetData();
         } catch (error) {
@@ -344,16 +459,29 @@ const MasterDataPage = () => {
         }
     };
 
-    const confirmDelete = (index) => {
+    const confirmDelete = (indexOrId) => {
+        let title = "Delete this row?";
+        if (activeTab === "Currency") {
+            const currency = tableData.find(c => c.id === indexOrId);
+            if (currency) title = `Currency: ${currency.name} (${currency.symbol})`;
+        }
+
         confirm({
-            title: "Delete this row?",
+            title: title,
             icon: <ExclamationCircleOutlined />,
             okText: "Yes",
             okType: "danger",
             onOk: async () => {
                 try {
+                    if (activeTab === "Currency") {
+                        await currencyService.deleteCurrency(indexOrId);
+                        message.success("Currency deleted successfully");
+                        loadCurrencyData();
+                        return;
+                    }
+
                     const collectionName = activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`;
-                    await masterDataService.deleteRow(collectionName, index);
+                    await masterDataService.deleteRow(collectionName, indexOrId);
                     message.success("Row deleted");
 
                     loadSheetData();
@@ -404,11 +532,15 @@ const MasterDataPage = () => {
                                 onChange={(e) => setSearchText(e.target.value)}
                                 style={{ width: 250 }}
                             />
-                            <Upload beforeUpload={handleFileUpload} showUploadList={false} accept=".xls,.xlsx,.csv">
-                                <Button icon={<UploadOutlined />}>Re-upload</Button>
-                            </Upload>
-                            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>Add Row</Button>
-                            <Button danger icon={<DeleteOutlined />} onClick={handleTabDelete}>Clear Tab</Button>
+                            {activeTab !== "Currency" && (
+                                <>
+                                    <Upload beforeUpload={handleFileUpload} showUploadList={false} accept=".xls,.xlsx,.csv">
+                                        <Button icon={<UploadOutlined />}>Re-upload</Button>
+                                    </Upload>
+                                    <Button danger icon={<DeleteOutlined />} onClick={handleTabDelete}>Clear Tab</Button>
+                                </>
+                            )}
+                            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>Add {activeTab === "Currency" ? "Currency" : "Row"}</Button>
                         </Space>
                     )}
                 </div>
@@ -456,7 +588,16 @@ const MasterDataPage = () => {
                                 className="master-data-table invoices-table"
                             />
                         ) : (
-                            renderUploadView()
+                            activeTab === "Currency" ? (
+                                <Empty
+                                    description="No Currencies Found"
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                >
+                                    <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
+                                        Add Currency
+                                    </Button>
+                                </Empty>
+                            ) : renderUploadView()
                         )}
                     </>
                 )}
@@ -470,156 +611,171 @@ const MasterDataPage = () => {
                     width={activeTab === "Vendor_Master" ? 700 : 520}
                 >
                     <Form form={form} layout="vertical" initialValues={editRecord}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
-                            {columns.filter(c => c.key !== 'actions').map((col) => {
-                                const fieldKey = col.key;
+                        {activeTab === "Currency" ? (
+                            <>
+                                <Form.Item name="code" label="Currency Code" rules={[{ required: true }]}>
+                                    <Select showSearch onChange={(v) => {
+                                        const s = mergedCurrencies.find(c => c.code === v);
+                                        if (s) form.setFieldsValue({ name: s.name, symbol: s.symbol });
+                                    }}>
+                                        {mergedCurrencies.map(c => <Select.Option key={c.code} value={c.code}>{c.code} - {c.name}</Select.Option>)}
+                                    </Select>
+                                </Form.Item>
+                                <Form.Item name="name" label="Currency Name" rules={[{ required: true }]}><Input /></Form.Item>
+                                <Form.Item name="symbol" label="Symbol" rules={[{ required: true }]}><Input /></Form.Item>
+                            </>
+                        ) : (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
+                                {columns.filter(c => c.key !== 'actions').map((col) => {
+                                    const fieldKey = col.key;
 
-                                // Specialized rendering for Vendor Master configuration fields
-                                if (activeTab === "Vendor_Master") {
-                                    if (fieldKey === "GST / Use Tax Eligibility Configuration") {
-                                        return (
-                                            <Form.Item
-                                                key={fieldKey}
-                                                label={fieldKey}
-                                                name={fieldKey}
-                                                style={{ width: 'calc(50% - 8px)' }}
-                                                valuePropName="checked"
-                                                getValueProps={(value) => ({ checked: value === 'Eligible' })}
-                                                getValueFromEvent={(val) => (val ? 'Eligible' : 'Ineligible')}
-                                            >
-                                                <Switch checkedChildren="Eligible" unCheckedChildren="Ineligible" />
-                                            </Form.Item>
-                                        );
-                                    }
-                                    if (fieldKey === "TDS/Withhold Tax Applicability Configuration") {
-                                        return (
-                                            <Form.Item
-                                                key={fieldKey}
-                                                label={fieldKey}
-                                                name={fieldKey}
-                                                style={{ width: 'calc(50% - 8px)' }}
-                                                valuePropName="checked"
-                                                getValueProps={(value) => ({ checked: value === 'Yes' })}
-                                                getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
-                                            >
-                                                <Switch checkedChildren="Yes" unCheckedChildren="No" />
-                                            </Form.Item>
-                                        );
-                                    }
-                                    if (fieldKey === "Workflow Applicability Configuration") {
-                                        return (
-                                            <Form.Item
-                                                key={fieldKey}
-                                                label={fieldKey}
-                                                name={fieldKey}
-                                                style={{ width: 'calc(50% - 8px)' }}
-                                                valuePropName="checked"
-                                                getValueProps={(value) => ({ checked: value === 'Yes' })}
-                                                getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
-                                            >
-                                                <Switch checkedChildren="Yes" unCheckedChildren="No" />
-                                            </Form.Item>
-                                        );
-                                    }
-                                    if (fieldKey === "Line Grouping") {
-                                        return (
-                                            <Form.Item
-                                                key={fieldKey}
-                                                label={fieldKey}
-                                                name={fieldKey}
-                                                style={{ width: 'calc(50% - 8px)' }}
-                                                valuePropName="checked"
-                                                getValueProps={(value) => ({ checked: value === 'Yes' })}
-                                                getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
-                                            >
-                                                <Switch checkedChildren="Yes" unCheckedChildren="No" />
-                                            </Form.Item>
-                                        );
-                                    }
+                                    // Specialized rendering for Vendor Master configuration fields
+                                    if (activeTab === "Vendor_Master") {
+                                        if (fieldKey === "GST / Use Tax Eligibility Configuration") {
+                                            return (
+                                                <Form.Item
+                                                    key={fieldKey}
+                                                    label={fieldKey}
+                                                    name={fieldKey}
+                                                    style={{ width: 'calc(50% - 8px)' }}
+                                                    valuePropName="checked"
+                                                    getValueProps={(value) => ({ checked: value === 'Eligible' })}
+                                                    getValueFromEvent={(val) => (val ? 'Eligible' : 'Ineligible')}
+                                                >
+                                                    <Switch checkedChildren="Eligible" unCheckedChildren="Ineligible" />
+                                                </Form.Item>
+                                            );
+                                        }
+                                        if (fieldKey === "TDS/Withhold Tax Applicability Configuration") {
+                                            return (
+                                                <Form.Item
+                                                    key={fieldKey}
+                                                    label={fieldKey}
+                                                    name={fieldKey}
+                                                    style={{ width: 'calc(50% - 8px)' }}
+                                                    valuePropName="checked"
+                                                    getValueProps={(value) => ({ checked: value === 'Yes' })}
+                                                    getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
+                                                >
+                                                    <Switch checkedChildren="Yes" unCheckedChildren="No" />
+                                                </Form.Item>
+                                            );
+                                        }
+                                        if (fieldKey === "Workflow Applicability Configuration") {
+                                            return (
+                                                <Form.Item
+                                                    key={fieldKey}
+                                                    label={fieldKey}
+                                                    name={fieldKey}
+                                                    style={{ width: 'calc(50% - 8px)' }}
+                                                    valuePropName="checked"
+                                                    getValueProps={(value) => ({ checked: value === 'Yes' })}
+                                                    getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
+                                                >
+                                                    <Switch checkedChildren="Yes" unCheckedChildren="No" />
+                                                </Form.Item>
+                                            );
+                                        }
+                                        if (fieldKey === "Line Grouping") {
+                                            return (
+                                                <Form.Item
+                                                    key={fieldKey}
+                                                    label={fieldKey}
+                                                    name={fieldKey}
+                                                    style={{ width: 'calc(50% - 8px)' }}
+                                                    valuePropName="checked"
+                                                    getValueProps={(value) => ({ checked: value === 'Yes' })}
+                                                    getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
+                                                >
+                                                    <Switch checkedChildren="Yes" unCheckedChildren="No" />
+                                                </Form.Item>
+                                            );
+                                        }
 
-                                    if (fieldKey === "TDS Percentage") {
-                                        const isApplicable = tdsApplicable === "Yes";
-                                        return (
-                                            <Form.Item key={fieldKey} label={fieldKey} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
-                                                <Select
-                                                    disabled={!isApplicable}
-                                                    options={tdsRates.map(r => ({
-                                                        value: r["TDS Percentage"] || r["Percentage"] || r["Rate"] || r["TDS Rate"],
-                                                        label: r["TDS Percentage"] || r["Percentage"] || r["Rate"] || r["TDS Rate"]
-                                                    }))}
-                                                    onChange={(value) => {
-                                                        const matched = tdsRates.find(r =>
-                                                            (r["TDS Percentage"] || r["Percentage"] || r["Rate"] || r["TDS Rate"]) === value
-                                                        );
-                                                        if (matched) {
-                                                            const descValue = matched["Section Code"] || matched["Description"] || matched["Code"] || matched["Section"];
-                                                            if (descValue) {
-                                                                form.setFieldValue("TDS Section Code and Description", descValue);
+                                        if (fieldKey === "TDS Percentage") {
+                                            const isApplicable = tdsApplicable === "Yes";
+                                            return (
+                                                <Form.Item key={fieldKey} label={fieldKey} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
+                                                    <Select
+                                                        disabled={!isApplicable}
+                                                        options={tdsRates.map(r => ({
+                                                            value: r["TDS Percentage"] || r["Percentage"] || r["Rate"] || r["TDS Rate"],
+                                                            label: r["TDS Percentage"] || r["Percentage"] || r["Rate"] || r["TDS Rate"]
+                                                        }))}
+                                                        onChange={(value) => {
+                                                            const matched = tdsRates.find(r =>
+                                                                (r["TDS Percentage"] || r["Percentage"] || r["Rate"] || r["TDS Rate"]) === value
+                                                            );
+                                                            if (matched) {
+                                                                const descValue = matched["Section Code"] || matched["Description"] || matched["Code"] || matched["Section"];
+                                                                if (descValue) {
+                                                                    form.setFieldValue("TDS Section Code and Description", descValue);
+                                                                }
                                                             }
-                                                        }
-                                                    }}
-                                                />
-                                            </Form.Item>
-                                        );
-                                    }
+                                                        }}
+                                                    />
+                                                </Form.Item>
+                                            );
+                                        }
 
 
-                                    if (fieldKey === "TDS Section Code and Description") {
-                                        const isApplicable = tdsApplicable === "Yes";
-                                        return (
-                                            <Form.Item
-                                                key={fieldKey}
-                                                label={fieldKey}
-                                                name={fieldKey}
-                                                style={{ width: '100%' }}
-                                            >
-                                                <Select
-                                                    disabled={!isApplicable}
-                                                    options={tdsRates.map(r => {
-                                                        const code = r["Section"] || r["Code"] || "";
-                                                        const desc = r["Description"] || r["Nature of Payment"] || "";
-                                                        const combined = `${code} - ${desc}`;
-
-                                                        return {
-                                                            value: combined,   // ✅ THIS gets stored in DB
-                                                            label: combined
-                                                        };
-                                                    })}
-                                                    onChange={(value) => {
-                                                        const matched = tdsRates.find(r => {
+                                        if (fieldKey === "TDS Section Code and Description") {
+                                            const isApplicable = tdsApplicable === "Yes";
+                                            return (
+                                                <Form.Item
+                                                    key={fieldKey}
+                                                    label={fieldKey}
+                                                    name={fieldKey}
+                                                    style={{ width: '100%' }}
+                                                >
+                                                    <Select
+                                                        disabled={!isApplicable}
+                                                        options={tdsRates.map(r => {
                                                             const code = r["Section"] || r["Code"] || "";
                                                             const desc = r["Description"] || r["Nature of Payment"] || "";
-                                                            return `${code} - ${desc}` === value;
-                                                        });
+                                                            const combined = `${code} - ${desc}`;
 
-                                                        if (matched) {
-                                                            const rateValue =
-                                                                matched["TDS Percentage"] ||
-                                                                matched["Percentage"] ||
-                                                                matched["Rate"] ||
-                                                                matched["TDS Rate"];
+                                                            return {
+                                                                value: combined,   // ✅ THIS gets stored in DB
+                                                                label: combined
+                                                            };
+                                                        })}
+                                                        onChange={(value) => {
+                                                            const matched = tdsRates.find(r => {
+                                                                const code = r["Section"] || r["Code"] || "";
+                                                                const desc = r["Description"] || r["Nature of Payment"] || "";
+                                                                return `${code} - ${desc}` === value;
+                                                            });
 
-                                                            if (rateValue) {
-                                                                form.setFieldValue("TDS Percentage", rateValue);
+                                                            if (matched) {
+                                                                const rateValue =
+                                                                    matched["TDS Percentage"] ||
+                                                                    matched["Percentage"] ||
+                                                                    matched["Rate"] ||
+                                                                    matched["TDS Rate"];
+
+                                                                if (rateValue) {
+                                                                    form.setFieldValue("TDS Percentage", rateValue);
+                                                                }
                                                             }
-                                                        }
-                                                    }}
-                                                />
-                                            </Form.Item>
+                                                        }}
+                                                    />
+                                                </Form.Item>
 
-                                        );
+                                            );
+                                        }
+
+
                                     }
 
-
-                                }
-
-                                return (
-                                    <Form.Item key={fieldKey} label={col.title} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
-                                        <Input />
-                                    </Form.Item>
-                                );
-                            })}
-                        </div>
+                                    return (
+                                        <Form.Item key={fieldKey} label={col.title} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
+                                            <Input />
+                                        </Form.Item>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </Form>
                 </Modal>
             </Card>
