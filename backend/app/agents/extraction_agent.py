@@ -418,6 +418,8 @@ class InvoiceExtractionAgent:
 
             merged = self._merge_azure_and_llm(azure_data, enhanced_headers)
 
+            merged = self._normalize_dates(merged)
+
             if "Items" in azure_data:
                 merged["Items"] = azure_data["Items"]
                 item_count = len(azure_data["Items"].get("value", []))
@@ -669,6 +671,84 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
         merge_section("additional_info")
         
         return final
+
+    def _normalize_dates(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        import re
+        from datetime import datetime
+
+        is_india = False
+
+        currency = data.get("invoice_details", {}).get("currency", {}).get("value")
+        if currency and "INR" in str(currency).upper():
+            is_india = True
+
+        address = data.get("vendor_info", {}).get("address", {}).get("value")
+        if address:
+            addr_upper = str(address).upper()
+            india_keywords = ["INDIA", "CHENNAI", "TAMIL NADU", "MAHARASHTRA", "DELHI", "KARNATAKA", "BENGALURU"]
+            if any(kw in addr_upper for kw in india_keywords):
+                is_india = True
+
+        tax_id = data.get("vendor_info", {}).get("tax_id", {}).get("value")
+        if tax_id and "GST" in str(tax_id).upper():
+            is_india = True
+
+        date_fields = [
+            ("invoice_details", "invoice_date"),
+            ("invoice_details", "due_date"),
+            ("service_period", "start_date"),
+            ("service_period", "end_date")
+        ]
+
+        for section, field in date_fields:
+            field_data = data.get(section, {}).get(field)
+            if not field_data:
+                continue
+            date_val = field_data.get("value")
+            if not date_val:
+                continue
+
+            date_str = str(date_val).strip()
+
+            if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+                continue
+
+            # Standard formats: DD-MM-YY or MM/DD/YYYY etc.
+            m = re.match(r'^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$', date_str)
+            parsed_date = None
+
+            if m:
+                part1, part2, part3 = m.groups()
+                year = int(part3)
+                if year < 100:
+                    year += 2000
+
+                p1 = int(part1)
+                p2 = int(part2)
+
+                if is_india:
+                    day, month = p1, p2
+                else:
+                    month, day = p1, p2
+
+                if month > 12 and day <= 12:
+                    month, day = day, month
+
+                try:
+                    parsed_date = datetime(year, month, day).strftime('%Y-%m-%d')
+                except ValueError:
+                    pass
+            else:
+                try:
+                    from dateutil import parser
+                    parsed_date = parser.parse(date_str).strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+
+            if parsed_date:
+                field_data["value"] = parsed_date
+
+        return data
 
     def validate_data(self, state: InvoiceState) -> InvoiceState:
         try:
