@@ -71,9 +71,15 @@ async def update_user_role(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    old_status = user.status
     user.role = update_data.role
     user.status = update_data.status
     db.commit()
     db.refresh(user)
+
+    # If user is approved (status changed to active), send notification
+    if old_status != "active" and user.status == "active":
+        from app.services.email_service import email_service
+        email_service.send_approval_notification(user.email, user.username, user.role)
 
     return user

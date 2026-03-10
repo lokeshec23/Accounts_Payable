@@ -103,14 +103,14 @@ const SelectEntity = () => {
       <header className="entity-header">
 
         <img
-            src={isDarkMode ? "/image.png" : "/loandna-logo.png"}
-            alt="loanDNA Logo"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.parentElement.innerHTML = '<h2 style="color: #3ba5d8; margin: 0;">loanDNA</h2>';
+          src={isDarkMode ? "/image.png" : "/loandna-logo.png"}
+          alt="loanDNA Logo"
+          onError={(e) => {
+            e.target.style.display = 'none';
+            e.target.parentElement.innerHTML = '<h2 style="color: #3ba5d8; margin: 0;">loanDNA</h2>';
           }}
           className="header-logo"
-          />
+        />
         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
           <div className="header-user">
             <div className="user-avatar">{userInitial}</div>

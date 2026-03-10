@@ -7,7 +7,8 @@ import {
     EyeInvisibleOutlined,
     EyeOutlined,
     ArrowRightOutlined,
-    CheckCircleOutlined
+    CheckCircleOutlined,
+    SafetyCertificateOutlined
 } from '@ant-design/icons';
 import { authService } from '../services/auth';
 import '../styles/Loginpage.css';
@@ -17,36 +18,39 @@ const { Text, Title } = Typography;
 const ForgotPasswordPage = () => {
     const { isDarkMode } = useTheme();
     const [loading, setLoading] = useState(false);
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(1); // 1: Email, 2: OTP, 3: Password
     const [email, setEmail] = useState('');
     const [form] = Form.useForm();
     const navigate = useNavigate();
 
-    const handleCheckEmail = async (values) => {
+    const handleSendOtp = async (values) => {
         setLoading(true);
         try {
-            const response = await authService.checkEmail(values.email);
-            if (response.exists) {
-                message.success('Email verified. Please set a new password.');
-                setEmail(values.email);
-                setStep(2);
-            } else {
-                message.error('Email does not exist. Please register first.');
-            }
+            await authService.sendOtp(values.email, "forgot_password");
+            message.success('OTP sent to your registered email.');
+            setEmail(values.email);
+            setStep(2);
         } catch (error) {
-            console.error("Check email error:", error);
-            message.error(error.detail || error.message || 'Failed to verify email.');
+            message.error(error.detail || 'Failed to send OTP.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyOtp = async (values) => {
+        setLoading(true);
+        try {
+            await authService.verifyOtp(email, values.otp, "forgot_password");
+            message.success('OTP verified. You can now reset your password.');
+            setStep(3);
+        } catch (error) {
+            message.error(error.detail || 'Invalid or expired OTP.');
         } finally {
             setLoading(false);
         }
     };
 
     const handleResetPassword = async (values) => {
-        if (values.new_password !== values.confirm_password) {
-            message.error('Passwords do not match!');
-            return;
-        }
-
         setLoading(true);
         try {
             await authService.resetPassword(email, values.new_password);
@@ -61,7 +65,9 @@ const ForgotPasswordPage = () => {
 
     const onFinish = (values) => {
         if (step === 1) {
-            handleCheckEmail(values);
+            handleSendOtp(values);
+        } else if (step === 2) {
+            handleVerifyOtp(values);
         } else {
             handleResetPassword(values);
         }
@@ -83,10 +89,27 @@ const ForgotPasswordPage = () => {
                     />
                 </div>
 
-                <h2 className="login-title">Reset Password</h2>
-                <p style={{ textAlign: 'center', marginBottom: 24, color: '#666' }}>
-                    {step === 1 ? "Enter your email to verify your account" : "Set a new password for your account"}
-                </p>
+                <h2 className="login-title" style={{ marginBottom: 8 }}>Reset Password</h2>
+
+                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                    <Text type="secondary" style={{ fontSize: '14px' }}>
+                        {step === 1 ? "Enter your email to receive a verification code" :
+                            step === 2 ? "Verify the 6-digit code sent to your email" :
+                                "Create a strong new password for your account"}
+                    </Text>
+                </div>
+
+                <Steps
+                    current={step - 1}
+                    size="small"
+                    labelPlacement="vertical"
+                    style={{ marginBottom: 32, padding: '0 10px' }}
+                    items={[
+                        { title: 'Email', icon: step > 1 ? <CheckCircleOutlined /> : <UserOutlined /> },
+                        { title: 'Verify', icon: step > 2 ? <CheckCircleOutlined /> : <SafetyCertificateOutlined /> },
+                        { title: 'Reset', icon: <LockOutlined /> },
+                    ]}
+                />
 
                 <Form
                     form={form}
@@ -94,25 +117,51 @@ const ForgotPasswordPage = () => {
                     onFinish={onFinish}
                     autoComplete="off"
                     layout="vertical"
+                    requiredMark={false}
                 >
 
-                    <Form.Item
-                        label="Email"
-                        name="email"
-                        rules={[
-                            { required: true, message: 'Enter your email!' },
-                            { type: 'email', message: 'Enter a valid email!' }
-                        ]}
-                    >
-                        <Input
-                            placeholder="Email"
-                            className="login-input"
-                            prefix={<UserOutlined className="input-icon" />}
-                            disabled={step === 2}
-                        />
-                    </Form.Item>
+                    {step === 1 && (
+                        <Form.Item
+                            label="Email Address"
+                            name="email"
+                            rules={[
+                                { required: true, message: 'Enter your email!' },
+                                { type: 'email', message: 'Enter a valid email!' }
+                            ]}
+                        >
+                            <Input
+                                placeholder="Email"
+                                className="login-input"
+                                prefix={<UserOutlined className="input-icon" />}
+                            />
+                        </Form.Item>
+                    )}
 
                     {step === 2 && (
+                        <>
+                            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                                <Text type="secondary">Verification code sent to </Text>
+                                <Text strong>{email}</Text>
+                            </div>
+                            <Form.Item
+                                label="Enter OTP"
+                                name="otp"
+                                rules={[
+                                    { required: true, message: 'Please enter the OTP!' },
+                                    { len: 6, message: 'OTP must be 6 digits!' }
+                                ]}
+                            >
+                                <Input
+                                    placeholder="6-digit code"
+                                    className="login-input"
+                                    prefix={<SafetyCertificateOutlined className="input-icon" />}
+                                    maxLength={6}
+                                />
+                            </Form.Item>
+                        </>
+                    )}
+
+                    {step === 3 && (
                         <>
                             <Form.Item
                                 label="New Password"
@@ -157,12 +206,22 @@ const ForgotPasswordPage = () => {
                         <Button
                             type="primary"
                             htmlType="submit"
+                            block
                             className="login-button"
                             loading={loading}
-                            icon={step === 1 ? <CheckCircleOutlined /> : <ArrowRightOutlined />}
                         >
-                            {step === 1 ? "Check Email" : "Update Password"}
+                            {step === 1 ? "Send OTP" : step === 2 ? "Verify OTP" : "Update Password"}
                         </Button>
+                        {step === 2 && (
+                            <Button
+                                type="link"
+                                block
+                                onClick={() => setStep(1)}
+                                style={{ marginTop: 8 }}
+                            >
+                                Change Email
+                            </Button>
+                        )}
                     </Form.Item>
 
                     <div className="login-footer">

@@ -60,6 +60,25 @@ class User(Base):
     invoices = relationship("Invoice", back_populates="uploader", foreign_keys="Invoice.uploaded_by_id")
 
 
+# ==================== OTP RECORD MODEL ====================
+
+class OTPRecord(Base):
+    __tablename__ = "otp_records"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), nullable=False, index=True)
+    otp_code = Column(String(10), nullable=False)
+    purpose = Column(String(50), nullable=False)  # registration, forgot_password
+    is_verified = Column(Boolean, default=False)
+    attempts = Column(Integer, default=0)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index('ix_otp_email_purpose', 'email', 'purpose'),
+    )
+
+
 # ==================== INVOICE MODEL ====================
 
 class Invoice(Base):

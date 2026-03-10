@@ -31,6 +31,28 @@ export const authService = {
     }
   },
 
+  async sendOtp(email, purpose) {
+    try {
+      const response = await api.post('/auth/send-otp', { email, purpose });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  async verifyOtp(email, otpCode, purpose) {
+    try {
+      const response = await api.post('/auth/verify-otp', {
+        email,
+        otp_code: otpCode,
+        purpose
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   async login(credentials) {
     try {
       const response = await api.post('/auth/login', credentials);

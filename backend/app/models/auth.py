@@ -12,6 +12,15 @@ class ResetPasswordRequest(BaseModel):
     email: EmailStr
     new_password: str
 
+class SendOTPRequest(BaseModel):
+    email: EmailStr
+    purpose: str # registration, forgot_password
+
+class VerifyOTPRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
+    purpose: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str
