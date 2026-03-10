@@ -265,7 +265,7 @@ if __name__ == "__main__":
     # --------------------------------------------
     # DATABASE CONNECTION
     # --------------------------------------------
-    DATABASE_URL = "mssql+pymssql://sa:varshu%4040067@localhost:1433/accounts_payable"
+    DATABASE_URL = "mssql+pymssql://sa:Loandna%402026@localhost:1433/accounts_payable"
 
     engine = create_engine(DATABASE_URL)
     SessionLocal = sessionmaker(bind=engine)

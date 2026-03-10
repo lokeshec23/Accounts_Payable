@@ -617,6 +617,13 @@ async def update_invoice_status(
 
     approver_name = current_user.username
     timestamp = datetime.utcnow()
+    
+    # DEBUG: Capture any request
+    try:
+        with open("output/requests_debug.txt", "a") as f:
+            f.write(f"REQUEST: ID={invoice_id}, Status={status}, User={approver_name}, Time={timestamp.isoformat()}\n")
+    except:
+        pass
 
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
@@ -817,6 +824,26 @@ async def update_invoice_status(
     db.commit()
 
     # =====================================================
+    # GENERATE APPROVAL PDF ON FINAL APPROVAL
+    # =====================================================
+    if main_status == InvoiceStatusEnum.APPROVED:
+        # DIAGNOSTIC: Write a small marker file
+        try:
+            with open("output/trigger_test.txt", "a") as f:
+                f.write(f"Approval triggered for invoice {invoice_id} at {datetime.now().isoformat()}\n")
+        except:
+            pass
+            
+        logger.info(f"[PDF] Final approval detected for invoice {invoice_id}. Starting PDF generation...")
+        try:
+            from app.services.pdf_service import generate_approval_pdf
+            pdf_path = generate_approval_pdf(db, invoice_id)
+            logger.info(f"[PDF] Approval report saved: {pdf_path}")
+        except Exception as pdf_err:
+            # Never block the approval response due to PDF errors
+            logger.error(f"[PDF] Error generating approval PDF for invoice {invoice_id}: {pdf_err}", exc_info=True)
+
+    # =====================================================
     # CREATE WORKFLOW STEP (RESET AFTER REWORK)
     # =====================================================
     if status in [
@@ -888,6 +915,50 @@ async def update_invoice_status(
         )
 
     return {"message": "Status updated", "main_status": main_status}
+
+
+@router.get("/{invoice_id}/approval-report")
+async def download_approval_report(
+    invoice_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Download (or regenerate) the approval PDF report for a fully-approved invoice.
+    Serves the PDF from the local output/ folder.
+    If the file does not exist yet it is regenerated on the fly.
+    """
+    from fastapi.responses import FileResponse as FR
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    if invoice.status != InvoiceStatusEnum.APPROVED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invoice {invoice_id} is not fully approved (current status: {invoice.status})."
+        )
+
+    from pathlib import Path
+    output_dir = Path(__file__).resolve().parent.parent.parent / "output"
+    pdf_file = output_dir / f"invoice_{invoice_id}_approval.pdf"
+
+    if not pdf_file.exists():
+        try:
+            from app.services.pdf_service import generate_approval_pdf
+            generate_approval_pdf(db, invoice_id)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {e}")
+
+    if not pdf_file.exists():
+        raise HTTPException(status_code=404, detail="PDF report could not be generated.")
+
+    return FR(
+        path=str(pdf_file),
+        media_type="application/pdf",
+        filename=f"invoice_{invoice_id}_approval_report.pdf",
+        headers={"Content-Disposition": f'attachment; filename="invoice_{invoice_id}_approval_report.pdf"'}
+    )
 
 
 @router.put("/{invoice_id}")
@@ -1227,3 +1298,31 @@ async def delete_invoice(
     db.commit()
 
     return {"message": "Invoice deleted successfully"}
+
+@router.get("/debug/last-approved")
+async def debug_last_approved(db: Session = Depends(get_db)):
+    from app.models.db_models import Invoice
+    invs = db.query(Invoice).filter(Invoice.status == InvoiceStatusEnum.APPROVED).order_by(Invoice.id.desc()).limit(10).all()
+    return [{"id": i.id, "number": i.invoice_number, "status": i.status, "approvals": len(i.approved_by_list or []), "required": i.required_approvers} for i in invs]
+
+@router.get("/{invoice_id}/generate-pdf-debug")
+async def generate_pdf_debug(invoice_id: int, db: Session = Depends(get_db)):
+    from app.services.pdf_service import generate_approval_pdf
+    try:
+        path = generate_approval_pdf(db, invoice_id)
+        return {"status": "success", "path": path}
+    except Exception as e:
+        import traceback
+        return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
+
+@router.get("/debug/log")
+async def debug_log(lines: int = 100):
+    try:
+        with open("application_error.log", "r") as f:
+            content = f.readlines()
+            return {"log": content[-lines:]}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+
