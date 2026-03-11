@@ -1,8 +1,11 @@
+import os
+from dotenv import load_dotenv
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from app.config.settings import settings
 import logging
+
+load_dotenv()
 
 logger = logging.getLogger("app")
 
@@ -48,7 +51,7 @@ class EmailService:
     def send_email(to_email: str, subject: str, title: str, name: str, body: str, action_text: str = None, is_otp: bool = False):
         try:
             msg = MIMEMultipart()
-            msg['From'] = settings.EMAIL_USER
+            msg['From'] = os.getenv("EMAIL_USER")
             msg['To'] = to_email
             msg['Subject'] = subject
 
@@ -68,9 +71,14 @@ class EmailService:
 
             msg.attach(MIMEText(html_content, 'html'))
 
-            with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT) as server:
+            smtp_server = os.getenv("SMTP_SERVER")
+            smtp_port = int(os.getenv("SMTP_PORT"))
+            email_user = os.getenv("EMAIL_USER")
+            email_pass = os.getenv("EMAIL_PASS")
+
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
                 server.starttls()
-                server.login(settings.EMAIL_USER, settings.EMAIL_PASS)
+                server.login(email_user, email_pass)
                 server.send_message(msg)
             
             logger.info(f"Email sent successfully to {to_email}")
