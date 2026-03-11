@@ -147,7 +147,16 @@ async def upload_invoices(
             
             # ---- CLEAN FILENAME ----
             clean_name = file.filename.replace("\\", "/").split("/")[-1]
-            new_name = f"{uuid.uuid4()}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{clean_name}"
+
+            # split filename and extension
+            name, ext = os.path.splitext(clean_name)
+
+            # create timestamp
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+
+            # new filename
+            new_name = f"{name}_{timestamp}{ext}"
+
             file_path = os.path.join(upload_dir, new_name)
 
             # ---- SAVE FILE ----
