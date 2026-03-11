@@ -5,7 +5,7 @@ from app.services.invoice_processor import InvoiceProcessor
 from app.services.line_grouping import aggregate_items
 from app.models.invoice import InvoiceCreate, InvoiceResponse, InvoiceStatus, InvoiceUpdate
 from app.models.workflow import WorkflowStepType, WorkflowStepStatus
-from app.database.database import get_db
+from app.database.database import get_db, SessionLocal
 
 from sqlalchemy.orm import Session
 from app.middleware.logger import logger
@@ -30,6 +30,7 @@ from datetime import datetime
 import os
 import uuid
 import asyncio
+import traceback
 from app.services.audit_service import audit_service
 from app.models.audit_log import AuditAction
 
@@ -114,6 +115,10 @@ async def upload_invoices(
     from app.utils.invoice_registry import check_registry_duplicate, register_invoice
     upload_dir = "uploads"
     os.makedirs(upload_dir, exist_ok=True)
+    
+    # ⚡️ Concurrency Control: limit to 3 concurrent extractions
+    # This prevents DB lock contention and API rate limiting
+    extraction_semaphore = asyncio.Semaphore(3)
 
     duplicates = []  # Track duplicate files
     saved_invoices = []  # Track successfully uploaded invoices
@@ -126,6 +131,8 @@ async def upload_invoices(
             await queue.put({"status": status, "message": message, "data": data, "progress": progress})
 
     async def _process_single_file(file: UploadFile, index: int, total_files: int):
+        # ⚡️ Isolated DB Session per Task
+        task_db = SessionLocal()
         request_id = str(uuid.uuid4())
         clean_name = file.filename.replace("\\", "/").split("/")[-1]
         
@@ -201,9 +208,9 @@ async def upload_invoices(
             new_invoice.status_history.append(history_item)
             
             db_start = time.time()
-            db.add(new_invoice)
-            db.commit()
-            db.refresh(new_invoice)
+            task_db.add(new_invoice)
+            task_db.commit()
+            task_db.refresh(new_invoice)
             invoice_id = new_invoice.id
             print(f"[Backend] Initial DB record created in {time.time() - db_start:.2f}s: {invoice_id}")
             logger.info({
@@ -211,10 +218,6 @@ async def upload_invoices(
             "stage": "db_record_created",
             "invoice_id": invoice_id
             })
-
-
-
-
 
             # ---- RUN EXTRACTION ----
             extract_start = time.time()
@@ -268,9 +271,6 @@ async def upload_invoices(
                 "llm_response": extraction.get("llm_raw_response", "")
             })
 
-
-
-
             # ---- SAVE RAW EXTRACTION DATA ----
             try:
                 raw_start = time.time()
@@ -285,8 +285,8 @@ async def upload_invoices(
                     llm_prompt=extraction.get("llm_prompt"),
                     llm_raw_response=extraction.get("llm_raw_response")
                 )
-                db.add(raw_record)
-                db.commit()
+                task_db.add(raw_record)
+                task_db.commit()
                 print(f"[Backend] Raw extraction data and PDF binary saved in {time.time() - raw_start:.2f}s")
                 logger.info({
                     "request_id": request_id,
@@ -294,7 +294,6 @@ async def upload_invoices(
                     "invoice_id": invoice_id
                 })
 
-           
             except Exception as e:
                 print(f"[Backend] Warning: Failed to save raw extraction data: {e}")
                 # Don't fail the whole upload if this part fails
@@ -340,7 +339,7 @@ async def upload_invoices(
                         pass
 
                 vendor_start = time.time()
-                res_v_id, res_v_name, res_v_grouping, vendor_details = get_vendor_id_from_master(db, extracted_vendor, entity, extracted_address)
+                res_v_id, res_v_name, res_v_grouping, vendor_details = get_vendor_id_from_master(task_db, extracted_vendor, entity, extracted_address)
                 print(f"[Backend] Vendor matching completed in {time.time() - vendor_start:.2f}s")
                 if res_v_id:
                     new_invoice.vendor_id = res_v_id
@@ -369,9 +368,6 @@ async def upload_invoices(
                         "vendor_details": vendor_details
                     }
                 })
-
-
-
 
             if not new_invoice.invoice_number:
                 # Try to get invoice number from extraction
@@ -402,9 +398,7 @@ async def upload_invoices(
                     extracted_data["Items"]["value"] = original_items
                     new_invoice.extracted_data = serialize_json_field(extracted_data)
 
-
-
-            db.commit()
+            task_db.commit()
 
             # ---- POST-EXTRACTION DUPLICATE CHECK (Fallback) ----
             # If quick extraction failed, check for duplicates after full extraction
@@ -414,7 +408,7 @@ async def upload_invoices(
             if final_vendor_id and final_invoice_number:
                 # Check if this combination already exists (excluding current invoice)
                 # Note: check_registry_duplicate now returns dict from invoice_to_dict
-                existing_duplicate = check_registry_duplicate(db, final_vendor_id, final_invoice_number, entity)
+                existing_duplicate = check_registry_duplicate(task_db, final_vendor_id, final_invoice_number, entity)
                 
                 if existing_duplicate and str(existing_duplicate.get("id")) != str(invoice_id):
                      # Duplicate found AFTER extraction - Flag it
@@ -426,7 +420,7 @@ async def upload_invoices(
                          "reason": f"Duplicate (Full): Vendor {new_invoice.vendor_name or final_vendor_id}, Invoice #{final_invoice_number} (Uploaded {date_str})",
                          "original_invoice_id": str(existing_duplicate.get("id"))
                     })
-                    db.commit()
+                    task_db.commit()
                     logger.info({
                         "request_id": request_id,
                         "stage": "duplicate_check_completed",
@@ -434,7 +428,6 @@ async def upload_invoices(
                         "invoice_number": final_invoice_number,
                         "is_duplicate": bool(existing_duplicate)
                     })
-
 
             # ---- CREATE WORKFLOW STEP: PROCESSED ----
             workflow_step = WorkflowStep(
@@ -446,8 +439,8 @@ async def upload_invoices(
                 timestamp=datetime.utcnow(),
                 entity=entity
             )
-            db.add(workflow_step)
-            db.commit()
+            task_db.add(workflow_step)
+            task_db.commit()
 
             logger.info({
                 "request_id": request_id,
@@ -457,7 +450,7 @@ async def upload_invoices(
             
             # [AUDIT] Log Upload (Passing DB Session)
             await audit_service.log_action(
-                db=db,
+                db=task_db,
                 invoice_id=invoice_id, 
                 action=AuditAction.UPLOADED, 
                 user=current_user.username,
@@ -472,7 +465,7 @@ async def upload_invoices(
             if final_vendor_id and final_invoice_number:
                 reg_start = time.time()
                 register_invoice(
-                    db,
+                    task_db,
                     vendor_id=final_vendor_id,
                     invoice_number=final_invoice_number,
                     entity=entity,
@@ -497,8 +490,14 @@ async def upload_invoices(
 
         except Exception as e:
             # ❌ FAILURE LOGGER (ADD HERE)
+            print(f"[Backend] ERROR in _process_single_file for {clean_name}: {str(e)}")
+            traceback.print_exc()
+            
             if file_path and os.path.exists(file_path):
-                os.remove(file_path)
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
 
             logger.error({
                 "request_id": request_id,
@@ -509,6 +508,8 @@ async def upload_invoices(
             await emit_progress("processing", f"[{index}/{total_files}] Failed processing {clean_name}: {str(e)}")
 
             return {"success": False, "filename": clean_name, "reason": str(e)}
+        finally:
+            task_db.close()
 
     # If task_id is provided, register queue (already done above)
     if task_id and task_id not in upload_progress_queues:
@@ -517,13 +518,22 @@ async def upload_invoices(
 
     await emit_progress("processing", f"Starting upload for {len(files)} files...")
 
-    # Run processing tasks concurrently
+    # Run processing tasks concurrently with semaphore control
+    async def _semaphore_wrapped_task(file, idx, total):
+        async with extraction_semaphore:
+            return await _process_single_file(file, idx, total)
+
     total_files = len(files)
-    tasks = [_process_single_file(file, idx + 1, total_files) for idx, file in enumerate(files)]
-    results = await asyncio.gather(*tasks)
+    tasks = [_semaphore_wrapped_task(file, idx + 1, total_files) for idx, file in enumerate(files)]
+    
+    # Use return_exceptions=True so one failure doesn't crash the whole batch
+    results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # Handle results
     for res in results:
+        if isinstance(res, Exception):
+            failed_uploads.append({"filename": "unknown", "reason": f"System Error: {str(res)}"})
+            continue
         if res["success"]:
             saved_invoices.append(res["data"])
         else:

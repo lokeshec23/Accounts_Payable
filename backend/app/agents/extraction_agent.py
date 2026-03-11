@@ -28,7 +28,6 @@ class InvoiceState(TypedDict):
 class InvoiceExtractionAgent:
     def __init__(self):
         self.doc_intel_client, self.llm = self.initialize_clients()
-        self.processing_steps: List[str] = []
 
     def initialize_clients(self):
         try:
@@ -57,7 +56,7 @@ class InvoiceExtractionAgent:
         try:
             import time
             start_time = time.time()
-            self.processing_steps.append("Azure Document Intelligence Extraction Started")
+            state["processing_steps"].append("Azure Document Intelligence Extraction Started")
             file_path = state["file_path"]
 
             print(f"Processing file: {file_path}")
@@ -78,7 +77,7 @@ class InvoiceExtractionAgent:
             extracted_data = self._parse_azure_response_advanced(result)
             state["extracted_data"] = extracted_data
 
-            self.processing_steps.append("Azure Document Intelligence Extraction Completed")
+            state["processing_steps"].append("Azure Document Intelligence Extraction Completed")
             print(f"Azure fields captured: {list(extracted_data.keys())}")
 
             return state
@@ -405,7 +404,7 @@ class InvoiceExtractionAgent:
         try:
             import time
             start_time = time.time()
-            self.processing_steps.append("LLM Enhancement Started")
+            state["processing_steps"].append("LLM Enhancement Started")
 
             azure_data = state["extracted_data"]
             raw_content = state["raw_azure_response"].get("content", "") if state["raw_azure_response"] else ""
@@ -428,7 +427,7 @@ class InvoiceExtractionAgent:
             state["enhanced_data"] = merged
             duration = time.time() - start_time
             print(f"LLM Enhancement took {duration:.2f}s")
-            self.processing_steps.append("LLM Enhancement Completed")
+            state["processing_steps"].append("LLM Enhancement Completed")
             return state
 
         except Exception as e:
@@ -754,7 +753,7 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
         try:
             import time
             v_start = time.time()
-            self.processing_steps.append("Data Validation Started")
+            state["processing_steps"].append("Data Validation Started")
 
             enhanced_data = state["enhanced_data"]
             validated_data = enhanced_data.copy()
@@ -764,7 +763,7 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
             validated_data["validation_results"] = validation_results
             state["validated_data"] = validated_data
 
-            self.processing_steps.append("Data Validation Completed")
+            state["processing_steps"].append("Data Validation Completed")
             print(f"Data validation completed in {time.time() - v_start:.2f}s")
 
             return state
@@ -859,7 +858,7 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
         try:
             import time
             out_start = time.time()
-            self.processing_steps.append("Final Output Generation Started")
+            state["processing_steps"].append("Final Output Generation Started")
 
             validated_data = state["validated_data"]
 
@@ -903,7 +902,7 @@ Return ONLY the JSON object. No explanations, no markdown formatting, just pure 
                 final_output["errors"] = state["errors"]
 
             state["final_output"] = final_output
-            self.processing_steps.append("Final Output Generation Completed")
+            state["processing_steps"].append("Final Output Generation Completed")
             print(f"Final output generated successfully in {time.time() - out_start:.2f}s")
             return state
 
