@@ -823,25 +823,6 @@ async def update_invoice_status(
 
     db.commit()
 
-    # =====================================================
-    # GENERATE APPROVAL PDF ON FINAL APPROVAL
-    # =====================================================
-    if main_status == InvoiceStatusEnum.APPROVED:
-        # DIAGNOSTIC: Write a small marker file
-        try:
-            with open("output/trigger_test.txt", "a") as f:
-                f.write(f"Approval triggered for invoice {invoice_id} at {datetime.now().isoformat()}\n")
-        except:
-            pass
-            
-        logger.info(f"[PDF] Final approval detected for invoice {invoice_id}. Starting PDF generation...")
-        try:
-            from app.services.pdf_service import generate_approval_pdf
-            pdf_path = generate_approval_pdf(db, invoice_id)
-            logger.info(f"[PDF] Approval report saved: {pdf_path}")
-        except Exception as pdf_err:
-            # Never block the approval response due to PDF errors
-            logger.error(f"[PDF] Error generating approval PDF for invoice {invoice_id}: {pdf_err}", exc_info=True)
 
     # =====================================================
     # CREATE WORKFLOW STEP (RESET AFTER REWORK)
@@ -913,6 +894,60 @@ async def update_invoice_status(
                 "approver_level": approver_number if status in [InvoiceStatusEnum.APPROVED, InvoiceStatusEnum.REJECTED, InvoiceStatusEnum.REWORKED] else None
             }
         )
+
+    # =====================================================
+    # GENERATE APPROVAL PDF ON FINAL APPROVAL
+    # =====================================================
+    if main_status == InvoiceStatusEnum.APPROVED:
+        logger.info(f"[PDF] Final approval detected for invoice {invoice_id}. Starting PDF generation...")
+        pdf_path = None
+        try:
+            from app.services.pdf_service import generate_approval_pdf
+            # Now all steps are committed, PDF will include the final approver
+            pdf_path = generate_approval_pdf(db, invoice_id)
+            logger.info(f"[PDF] Approval report saved: {pdf_path}")
+        except Exception as pdf_err:
+            logger.error(f"[PDF] Error generating approval PDF: {pdf_err}", exc_info=True)
+
+        # Post AP Bill to Sage Intacct
+        try:
+            from app.postapbill import post_ap_bill
+            fresh_invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+            inv = fresh_invoice or invoice
+            
+            # Extract logic (Improved extraction for dimensions)
+            hc = {}
+            if inv.coding and inv.coding.header_coding:
+                try:
+                    hc = json.loads(inv.coding.header_coding)
+                except:
+                    hc = {}
+            
+            # Extract from line items if not in header coding
+            if inv.coding and inv.coding.line_items:
+                try:
+                    line_items = json.loads(inv.coding.line_items)
+                    if line_items:
+                        first = line_items[0]
+                        if not hc.get("gl_code"): hc["gl_code"] = first.get("gl_code")
+                        if not hc.get("department"): hc["department"] = first.get("department") or first.get("department_id")
+                        if not hc.get("item"): hc["item"] = first.get("item") or first.get("item_id")
+                        if not hc.get("lob"): hc["lob"] = first.get("lob") or first.get("class")
+                except:
+                    pass
+            
+            post_ap_bill(
+                inv, 
+                pdf_path or "",
+                gl_account=hc.get("gl_code") or hc.get("glAccount"),
+                location=hc.get("location") or hc.get("location_id"),
+                dept=hc.get("department") or hc.get("department_id"),
+                vendor_dim=inv.vendor_id,
+                item=hc.get("item") or hc.get("item_id"),
+                class_lob=hc.get("lob") or hc.get("class") or hc.get("class_id")
+            )
+        except Exception as bill_err:
+            logger.error(f"[PostAPBill] Error: {bill_err}", exc_info=True)
 
     return {"message": "Status updated", "main_status": main_status}
 

@@ -13,7 +13,7 @@ Saves the output to the local 'output/' directory.
 import os
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -75,7 +75,8 @@ def _status_color(status: str):
 def _fmt_dt(dt: Optional[datetime]) -> str:
     if dt is None:
         return "—"
-    return dt.strftime("%d %b %Y  %H:%M UTC")
+    dt_ist = dt + timedelta(hours=5, minutes=30)
+    return dt_ist.strftime("%d %b %Y  %I:%M %p IST")
 
 
 def _safe_str(val, default="—") -> str:
@@ -156,8 +157,9 @@ def _page_template(canvas, doc):
     canvas.drawString(18 * mm, page_h - 14 * mm, "Accounts Payable — Final Approval Report")
 
     canvas.setFont("Helvetica", 9)
+    dt_now_ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
     canvas.drawRightString(page_w - 18 * mm, page_h - 14 * mm,
-                           f"Generated: {datetime.utcnow().strftime('%d %b %Y  %H:%M UTC')}")
+                           f"Generated: {dt_now_ist.strftime('%d %b %Y  %I:%M %p IST')}")
 
     # Accent stripe
     canvas.setFillColor(SECONDARY)
@@ -414,20 +416,7 @@ def generate_approval_pdf(db: Session, invoice_id: int) -> str:
         story += _section_heading("2.  GL Coding Summary", styles)
 
         # Header coding
-        hc = {}
-        try:
-            hc = json.loads(coding.header_coding) if coding.header_coding else {}
-        except Exception:
-            pass
-
-        hc_rows = [
-            ("GL Code",     _safe_str(hc.get("gl_code"))),
-            ("LOB",         _safe_str(hc.get("lob"))),
-            ("Department",  _safe_str(hc.get("department_id") or hc.get("department"))),
-            ("Cost Center",  _safe_str(hc.get("cost_center"))),
-            ("Description",  _safe_str(hc.get("description"))),
-        ]
-        story.append(_kv_table(hc_rows, col_widths=[5.5 * cm, 12.5 * cm]))
+        pass
 
         # Line items (if present)
         try:
@@ -443,7 +432,7 @@ def generate_approval_pdf(db: Session, invoice_id: int) -> str:
                                fontName="Helvetica-Bold", spaceBefore=4, spaceAfter=3)
             ))
             li_headers = ["#", "Description", "GL Code", "LOB", "Department", "Amount"]
-            li_col_w   = [0.6*cm, 5.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.4*cm]
+            li_col_w   = [0.8*cm, 5.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.4*cm]
             li_rows = []
             for idx, item in enumerate(line_items, start=1):
                 li_rows.append([
@@ -464,7 +453,7 @@ def generate_approval_pdf(db: Session, invoice_id: int) -> str:
 
     if workflow_steps:
         wf_headers = ["#", "Step Name", "Type", "Actioned By", "Status", "Timestamp", "Comment"]
-        wf_col_w   = [0.6*cm, 3.5*cm, 2.5*cm, 3*cm, 2.2*cm, 3.5*cm, 2.7*cm]
+        wf_col_w   = [0.8*cm, 3.5*cm, 2.5*cm, 3*cm, 2.2*cm, 3.5*cm, 2.7*cm]
         wf_rows = []
         for i, step in enumerate(workflow_steps, start=1):
             wf_rows.append([
@@ -492,7 +481,7 @@ def generate_approval_pdf(db: Session, invoice_id: int) -> str:
 
     if audit_logs:
         at_headers = ["#", "Action", "Performed By", "Entity", "Timestamp"]
-        at_col_w   = [0.6*cm, 4.5*cm, 3*cm, 2.5*cm, 3.5*cm, 4*cm]
+        at_col_w   = [0.8*cm, 4.5*cm, 3*cm, 2.5*cm, 3.5*cm, 4*cm]
         at_rows = []
         for i, log in enumerate(audit_logs, start=1):
             # Flatten details JSON into a short string
@@ -534,6 +523,7 @@ def generate_approval_pdf(db: Session, invoice_id: int) -> str:
     # ─────────────────────────────────────────────────────────────────────────
     # SECTION 5 — Final Approval Sign-Off Block
     # ─────────────────────────────────────────────────────────────────────────
+    story.append(PageBreak())
     story.append(Spacer(1, 10))
     story.append(HRFlowable(width="100%", thickness=1, color=SECONDARY))
     story.append(Spacer(1, 6))
@@ -556,7 +546,7 @@ def generate_approval_pdf(db: Session, invoice_id: int) -> str:
         [Paragraph("<b>Approved By</b>", signoff_style),
          Paragraph(", ".join(approved_emails) if approved_emails else "—", signoff_bold),
          Paragraph("<b>Report Date</b>", signoff_style),
-         Paragraph(datetime.utcnow().strftime("%d %b %Y"), signoff_style)],
+         Paragraph((datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime("%d %b %Y"), signoff_style)],
     ]
 
     so_tbl = Table(signoff_rows, colWidths=[3*cm, 6*cm, 3*cm, 6*cm])
