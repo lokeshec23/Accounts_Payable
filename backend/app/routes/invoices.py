@@ -6,18 +6,19 @@ from app.services.line_grouping import aggregate_items
 from app.models.invoice import InvoiceCreate, InvoiceResponse, InvoiceStatus, InvoiceUpdate
 from app.models.workflow import WorkflowStepType, WorkflowStepStatus
 from app.database.database import get_db
+
 from sqlalchemy.orm import Session
 from app.middleware.logger import logger
 from fastapi import Query
 from fastapi.responses import StreamingResponse
 import json
 from typing import Dict, Optional
-
+from app.services.email_service import email_service
 
 from app.models.db_models import (
     Invoice, WorkflowStep, WorkflowStepTypeEnum, 
     WorkflowStepStatusEnum, InvoiceStatusEnum, InvoiceStatusHistory,
-    VendorMetadata, RawExtractionData
+    VendorMetadata, RawExtractionData, User
 )
 from app.database.db_utils import (
     invoice_to_dict, serialize_json_field, deserialize_json_field
@@ -98,8 +99,6 @@ async def check_duplicate_invoice_endpoint(
         }
 
     return {"is_duplicate": False}
-
-
 
 @router.post("/upload")
 async def upload_invoices(
@@ -814,7 +813,65 @@ async def update_invoice_status(
         invoice.approved_by_list = []
         invoice.current_approver_level = 1
 
+        # TRIGGER NOTIFICATION TO CODER (REJECTED/REWORKED)
+        if status in [InvoiceStatusEnum.REJECTED, InvoiceStatusEnum.REWORKED]:
+            # Find the coder from WorkflowStep (most recent coding step)
+
+            
+            coding_step = db.query(WorkflowStep).filter(
+                WorkflowStep.invoice_id == invoice_id,
+                WorkflowStep.step_type == WorkflowStepTypeEnum.CODING
+            ).order_by(WorkflowStep.timestamp.desc()).first()
+
+            # Removed db.refresh(invoice) which was reverting status/level changes
+            
+            if coding_step:
+                coder_username = coding_step.user
+                coder_user = db.query(User).filter(User.username == coder_username).first()
+                if coder_user and coder_user.email:
+                    extracted_data = deserialize_json_field(invoice.extracted_data) or {}
+                    invoice_number = extracted_data.get("invoice_details", {}).get("invoice_number", {}).get("value")
+                    if not invoice_number:
+                        invoice_number = invoice.invoice_number
+
+                    email_service.send_rejection_notification(
+                        email=coder_user.email,
+                        username=coder_username,
+                        vendor_name=vendor_name or "Unknown",
+                        invoice_number=invoice_number or "N/A",
+                        status=status.value if hasattr(status, 'value') else status,
+                        comment=comment
+                    )
+
     db.commit()
+
+    # =====================================================
+    # TRIGGER NEXT APPROVER EMAIL (SEQUENTIAL)
+    # =====================================================
+    if status == InvoiceStatusEnum.APPROVED and main_status == InvoiceStatusEnum.WAITING_APPROVAL:
+        # We need the next approver's email
+        if assigned_approvers and (existing_approvals + 1) < len(assigned_approvers):
+            next_approver_email = assigned_approvers[existing_approvals + 1]
+            
+            # Use email service to notify next approver
+            next_approver_user = db.query(User).filter(User.email == next_approver_email).first()
+            next_approver_name = next_approver_user.username if next_approver_user else "Approver"
+
+            extracted_data = deserialize_json_field(invoice.extracted_data) or {}
+            invoice_number = extracted_data.get("invoice_details", {}).get("invoice_number", {}).get("value")
+            if not invoice_number:
+                invoice_number = invoice.invoice_number
+
+            email_service.send_approval_request_email(
+                email=next_approver_email,
+                username=next_approver_name,
+                vendor_name=vendor_name or "Unknown",
+                invoice_number=invoice_number or "N/A",
+                amount=str(total_amount),
+                currency=currency
+            )
+
+
 
     # =====================================================
     # CREATE WORKFLOW STEP (RESET AFTER REWORK)
@@ -855,6 +912,8 @@ async def update_invoice_status(
             comment=comment,
             entity=invoice.entity
         )
+
+        
         db.add(new_step)
         db.commit()
 
@@ -871,6 +930,8 @@ async def update_invoice_status(
         if status == InvoiceStatusEnum.APPROVED:
             level_suffix = f" ({approver_number}{['st','nd','rd','th'][min(approver_number-1,3)]} Approver)"
             display_action = base_action + level_suffix
+        elif status == InvoiceStatusEnum.REWORKED:
+            display_action = base_action
         else:
             display_action = base_action
             
@@ -1018,7 +1079,6 @@ async def update_invoice(
                 ).first()
                 
                 # 2. If not found, search by name or address to see if we should "take over" an existing record
-                # (Safety check to avoid redundant rows if ID was slightly different before)
                 if not mapping:
                     if norm_azure_name:
                         mapping = db.query(VendorMetadata).filter(
@@ -1060,18 +1120,30 @@ async def update_invoice(
                         
                     mapping.updated_by = current_user.username
 
-            # Also update top-level vendor fields in the invoice
+        # --- MANDATORY SYNCHRONIZATION (UI -> Columns) ---
+        # Ensure top-level columns match extraction data
+        if new_vendor_id:
             update_data["vendor_id"] = new_vendor_id
-            if new_vendor_name:
-                update_data["vendor_name"] = new_vendor_name
+        if new_vendor_name:
+            update_data["vendor_name"] = new_vendor_name
+        if new_invoice_number:
+            update_data["invoice_number"] = new_invoice_number
             
-            # Sync back to extracted_data.vendor_info for frontend consistency
-            if "vendor_info" not in extracted_data:
-                extracted_data["vendor_info"] = {}
-            extracted_data["vendor_info"]["vendor_id"] = {"value": new_vendor_id}
-            if new_vendor_name:
+        # Sync back to extracted_data for frontend consistency
+        if isinstance(extracted_data, dict):
+            if "vendor_info" not in extracted_data: extracted_data["vendor_info"] = {}
+            if new_vendor_id: 
+                extracted_data["vendor_info"]["vendor_id"] = {"value": new_vendor_id}
+            if new_vendor_name: 
                 extracted_data["vendor_info"]["name"] = {"value": new_vendor_name}
-            update_data["extracted_data"] = extracted_data
+                
+            if "invoice_details" not in extracted_data: extracted_data["invoice_details"] = {}
+            if new_invoice_number:
+                if "invoice_number" not in extracted_data["invoice_details"]: extracted_data["invoice_details"]["invoice_number"] = {}
+                extracted_data["invoice_details"]["invoice_number"]["value"] = new_invoice_number
+                
+            update_data["extracted_data"] = serialize_json_field(extracted_data)
+
 
     # Merge validation
     if "validation_results" in update_data:

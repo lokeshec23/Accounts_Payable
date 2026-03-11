@@ -133,4 +133,45 @@ class EmailService:
             body=f"Your account has been approved by the administrator. You have been assigned the role: <span class='highlight'>{role}</span>. You can now log in to the system."
         )
 
+    @classmethod
+    def send_approval_request_email(cls, email: str, username: str, vendor_name: str, invoice_number: str, amount: str, currency: str):
+        body = f"""
+        An invoice requires your approval:
+        <br><br>
+        <span class='highlight'>Vendor:</span> {vendor_name}<br>
+        <span class='highlight'>Invoice #:</span> {invoice_number}<br>
+        <span class='highlight'>Amount:</span> {amount} {currency}
+        <br><br>
+        Please log in to the APEX portal to review and take action.
+        """
+        return cls.send_email(
+            to_email=email,
+            subject=f"Approval Required: Invoice {invoice_number} from {vendor_name}",
+            title="Invoice Approval Request",
+            name=username,
+            body=body
+        )
+
+    @classmethod
+    def send_rejection_notification(cls, email: str, username: str, vendor_name: str, invoice_number: str, status: str, comment: str):
+        status_label = "Rejected" if status.lower() == "rejected" else "Rework"
+        body = f"""
+        Your submitted invoice has been <span class='highlight'>{status_label}</span>:
+        <br><br>
+        <span class='highlight'>Vendor:</span> {vendor_name}<br>
+        <span class='highlight'>Invoice #:</span> {invoice_number}<br>
+        <span class='highlight'>Approver Comment:</span> {comment or "No comment provided."}
+        <br><br>
+        Please log in to the APEX portal to review and address the issues.
+        """
+        return cls.send_email(
+            to_email=email,
+            subject=f"Action Required: Invoice {invoice_number} {status_label}",
+            title=f"Invoice {status_label}",
+            name=username,
+            body=body
+        )
+
+
+
 email_service = EmailService()

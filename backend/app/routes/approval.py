@@ -2,14 +2,14 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from datetime import datetime
 import json
-
 from app.models.invoice import InvoiceStatus
 from app.models.workflow import WorkflowStepType, WorkflowStepStatus
 from app.database.database import get_db
 from app.models.db_models import (
     Invoice, WorkflowStep, InvoiceStatusHistory, Coding as DBCoding,
-    InvoiceAssignedApprover
+    InvoiceAssignedApprover, User
 )
+
 from app.auth.jwt import get_current_user
 from app.dependencies import get_current_entity
 from app.models.user import UserResponse
@@ -20,6 +20,8 @@ from app.routes.workflow import (
     get_required_approver_count, 
     get_invoice_total_from_invoice
 )
+
+from app.services.email_service import email_service
 
 router = APIRouter()
 
@@ -78,6 +80,7 @@ async def send_to_approval(
                 approver_email=email,
                 sequence_order=idx + 1
             ))
+    import json
     
     # Update requirement breakdown if we want to persist it (using JSON field)
     invoice.approver_breakdown = json.dumps(requirement_data.get("breakdown", {}))
@@ -132,8 +135,40 @@ async def send_to_approval(
     
     db.commit()
 
+    # 7. TRIGGER FIRST APPROVAL EMAIL
+    if assigned_approvers:
+        first_approver_email = assigned_approvers[0]
+        # Get approver's name (optional, using "Approver" as default if user record not found)
+        approver_user = db.query(User).filter(User.email == first_approver_email).first()
+
+        approver_name = approver_user.username if approver_user else "Approver"
+        
+        # Prioritize invoice number from extracted_data with fallback
+        import json
+        extracted_data = {}
+        if invoice.extracted_data:
+            try:
+                extracted_data = json.loads(invoice.extracted_data) if isinstance(invoice.extracted_data, str) else invoice.extracted_data
+            except: pass
+            
+        invoice_number = extracted_data.get("invoice_details", {}).get("invoice_number", {}).get("value")
+        if not invoice_number:
+            invoice_number = invoice.invoice_number
+
+        email_service.send_approval_request_email(
+            email=first_approver_email,
+            username=approver_name,
+            vendor_name=vendor_name or "Unknown",
+            invoice_number=invoice_number or "N/A",
+            amount=str(total_amount),
+            currency=currency
+        )
+
+
+
     # [AUDIT]
     await audit_service.log_action(db, invoice_id, AuditAction.SENT_TO_APPROVAL, current_user.username, entity,
-                                  details={"approvers_required": requirement_data["required"]})
+                                   details={"approvers_required": requirement_data["required"]})
 
     return {"message": "Invoice sent to approval successfully"}
+
