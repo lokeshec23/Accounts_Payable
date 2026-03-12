@@ -224,6 +224,7 @@ const CodingPage = () => {
             title: 'Actions',
             key: 'actions',
             width: 100,
+            fixed: 'right',
             render: (_, record) => (
                 <Space size="small">
                     <Button

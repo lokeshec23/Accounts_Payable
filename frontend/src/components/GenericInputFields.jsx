@@ -894,36 +894,48 @@ const GenericInputFields = forwardRef(({
     const updateStatus = useCallback(async (newStatus) => {
         if (isDuplicateError) {
             message.error(`Cannot ${newStatus}: Duplicate invoice detected.`);
-            return;
+            return null;
         }
         if (!invoiceId) {
             message.error('No invoice ID provided');
-            return;
+            return null;
         }
         try {
             setSaving(true);
-            await invoiceService.updateInvoiceStatus(invoiceId, newStatus, approverComment);
+            const response = await invoiceService.updateInvoiceStatus(invoiceId, newStatus, approverComment);
             message.success(`Invoice ${newStatus} successfully!`);
+
+            // Show Sage posting toast only for approvals
+            if (newStatus === 'approved') {
+                const sageStatus = response?.sage_post_status;
+                if (sageStatus === 'success') {
+                    message.success('AP Bill posted to Sage successfully!', 5);
+                } else if (sageStatus === 'failure' || sageStatus === 'error') {
+                    message.warning('Invoice approved, but AP Bill posting to Sage failed. Please check the audit trail for details.', 8);
+                }
+            }
+            return response;
         } catch (error) {
             console.error('Error updating status:', error);
             message.error(error.response?.data?.detail || `Failed to ${newStatus} invoice.`);
+            return null;
         } finally {
             setSaving(false);
         }
     }, [isDuplicateError, invoiceId, approverComment]);
 
-    const handleApprove = useCallback(() => {
-        updateStatus('approved');
+    const handleApprove = useCallback(async () => {
+        await updateStatus('approved');
         navigate("/approvals");
     }, [updateStatus, navigate]);
 
-    const handleReject = useCallback(() => {
-        updateStatus('rejected');
+    const handleReject = useCallback(async () => {
+        await updateStatus('rejected');
         navigate("/approvals");
     }, [updateStatus, navigate]);
 
-    const handleRework = useCallback(() => {
-        updateStatus('reworked');
+    const handleRework = useCallback(async () => {
+        await updateStatus('reworked');
         navigate("/approvals");
     }, [updateStatus, navigate]);
 
@@ -1891,16 +1903,19 @@ const GenericInputFields = forwardRef(({
                         <Space style={{ flexShrink: 0 }}>
                             <Button type="primary" icon={<CheckCircleOutlined />}
                                 style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-                                onClick={handleApprove} disabled={approveDisabled}>
+                                onClick={handleApprove} disabled={approveDisabled || saving}
+                                loading={saving}>
                                 Approve
                             </Button>
                             <Button type="primary" icon={<CloseCircleOutlined />} danger
-                                onClick={handleReject} disabled={rejectDisabled}>
+                                onClick={handleReject} disabled={rejectDisabled || saving}
+                                loading={saving}>
                                 Reject
                             </Button>
                             <Button type="primary" icon={<RollbackOutlined />}
                                 style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
-                                onClick={handleRework} disabled={reworkDisabled}>
+                                onClick={handleRework} disabled={reworkDisabled || saving}
+                                loading={saving}>
                                 Rework
                             </Button>
                         </Space>

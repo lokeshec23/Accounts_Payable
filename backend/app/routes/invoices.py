@@ -643,9 +643,13 @@ async def update_invoice_status(
     except:
         pass
 
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).with_for_update().first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # Idempotency check: if already approved, return success immediately
+    if status == InvoiceStatusEnum.APPROVED and invoice.status == InvoiceStatusEnum.APPROVED:
+        return {"message": "Invoice already fully approved", "main_status": invoice.status, "sage_post_status": "success"}
 
     status_history = list(invoice.status_history) if invoice.status_history else []
 
@@ -802,6 +806,10 @@ async def update_invoice_status(
                 )
 
         if status == InvoiceStatusEnum.APPROVED:
+            if existing_approvals >= required_approvers:
+                # Already have enough approvals, likely a duplicate click
+                return {"message": "Invoice already has required approvals", "main_status": invoice.status, "sage_post_status": "success"}
+            
             approvals = existing_approvals + 1
             if approvals >= required_approvers:
                 main_status = InvoiceStatusEnum.APPROVED
@@ -978,6 +986,7 @@ async def update_invoice_status(
     # =====================================================
     # GENERATE APPROVAL PDF ON FINAL APPROVAL
     # =====================================================
+    sage_status = None
     if main_status == InvoiceStatusEnum.APPROVED:
         logger.info(f"[PDF] Final approval detected for invoice {invoice_id}. Starting PDF generation...")
         pdf_path = None
@@ -1016,7 +1025,7 @@ async def update_invoice_status(
                 except:
                     pass
             
-            post_ap_bill(
+            post_result = post_ap_bill(
                 inv, 
                 pdf_path or "",
                 gl_account=hc.get("gl_code") or hc.get("glAccount"),
@@ -1026,10 +1035,41 @@ async def update_invoice_status(
                 item=hc.get("item") or hc.get("item_id"),
                 class_lob=hc.get("lob") or hc.get("class") or hc.get("class_id")
             )
+            
+            if post_result and post_result.get("success"):
+                sage_status = "success"
+                await audit_service.log_action(
+                    db=db,
+                    invoice_id=invoice_id,
+                    action=AuditAction.SAGE_POSTED.value,
+                    user=current_user.username,
+                    entity=invoice.entity,
+                    details={"sage_response": post_result.get("data")}
+                )
+            else:
+                sage_status = "failure"
+                error_msg = post_result.get("error") if post_result else "Unknown error"
+                await audit_service.log_action(
+                    db=db,
+                    invoice_id=invoice_id,
+                    action=AuditAction.SAGE_POST_FAILED.value,
+                    user=current_user.username,
+                    entity=invoice.entity,
+                    details={"error": error_msg}
+                )
         except Exception as bill_err:
             logger.error(f"[PostAPBill] Error: {bill_err}", exc_info=True)
+            sage_status = "error"
+            await audit_service.log_action(
+                db=db,
+                invoice_id=invoice_id,
+                action=AuditAction.SAGE_POST_FAILED.value,
+                user=current_user.username,
+                entity=invoice.entity,
+                details={"error": str(bill_err)}
+            )
 
-    return {"message": "Status updated", "main_status": main_status}
+    return {"message": "Status updated", "main_status": main_status, "sage_post_status": sage_status}
 
 
 @router.get("/{invoice_id}/approval-report")
