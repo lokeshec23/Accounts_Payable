@@ -352,6 +352,7 @@ const ApprovalsPage = () => {
             title: 'Actions',
             key: 'actions',
             width: 180,
+            fixed: 'right',
             render: (_, record) => (
                 <Space size="small">
                     <Button
