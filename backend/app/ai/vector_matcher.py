@@ -25,11 +25,14 @@ GENERIC_WORDS = {
     "systems", "staffing", "private", "bank"
 }
 
-MATCH_THRESHOLD = 0.75
+MATCH_THRESHOLD = 0.85  # Increased from 0.75 to reduce false positives
 ACRONYM_MIN_ADDRESS_SCORE = 0.40
 
 NAME_WEIGHT = 0.80
 ADDRESS_WEIGHT = 0.20
+
+# Minimum word overlap requirement
+MIN_WORD_OVERLAP_LENGTH = 3  # Words must be at least 3 chars to count
 
 
 # ==========================================================
@@ -108,6 +111,55 @@ class VendorMatcher:
             return 0.0
 
         return fuzz.token_set_ratio(input_addr.lower(), db_addr) / 100
+
+    # ------------------------------------------------------
+    # WORD OVERLAP CHECK (PREVENTS FALSE MATCHES)
+    # ------------------------------------------------------
+    def _has_meaningful_overlap(self, input_words: str, candidate_words: str) -> bool:
+        """
+        Check if input and candidate share at least one meaningful word.
+        Prevents false matches like:
+        - 'proxy pics' → 'Troy Pierce' (no common words)
+        - 'proxy pics' → 'Roxy Enterprises' (roxy not a prefix of proxy)
+        """
+        input_tokens = set(input_words.split())
+        candidate_tokens = set(candidate_words.split())
+        
+        # Filter to significant words only (3+ characters)
+        input_significant = {w for w in input_tokens if len(w) >= MIN_WORD_OVERLAP_LENGTH}
+        candidate_significant = {w for w in candidate_tokens if len(w) >= MIN_WORD_OVERLAP_LENGTH}
+        
+        if not input_significant or not candidate_significant:
+            # If either has no significant words, allow fuzzy matching
+            return True
+        
+        # Check for exact word match
+        common_words = input_significant & candidate_significant
+        if common_words:
+            return True
+        
+        # Check for PREFIX-ONLY substring match (e.g., "tech" starts "technology")
+        # This prevents "roxy" matching "proxy" (roxy is at position 1, not 0)
+        for input_word in input_significant:
+            for candidate_word in candidate_significant:
+                # Skip if words are the same (already checked above)
+                if input_word == candidate_word:
+                    continue
+                
+                # Determine which is longer
+                if len(input_word) > len(candidate_word):
+                    longer, shorter = input_word, candidate_word
+                elif len(candidate_word) > len(input_word):
+                    longer, shorter = candidate_word, input_word
+                else:
+                    # Same length but different words - no prefix match possible
+                    continue
+                
+                # Only match if shorter is PREFIX of longer AND >= 4 chars
+                if len(shorter) >= 4 and longer.startswith(shorter):
+                    return True
+        
+        return False
 
    
 
@@ -223,9 +275,20 @@ class VendorMatcher:
 
             record = self.master_records[idx]
             name_score = score / 100
+            
+            master_core = self.deep_clean_names[idx]
+            
+            # 🔥 CRITICAL: Check for meaningful word overlap
+            # This prevents "proxy pics" from matching "troy pierce"
+            if not self._has_meaningful_overlap(input_core, master_core):
+                # Penalize heavily if no word overlap
+                name_score = name_score * 0.5  # Cut score in half
+                
+                # Skip if score drops below threshold
+                if name_score < 0.70:
+                    continue
 
             # Brand containment boost
-            master_core = self.deep_clean_names[idx]
             if input_core in master_core or master_core in input_core:
                 name_score = max(name_score, 0.97)
 
