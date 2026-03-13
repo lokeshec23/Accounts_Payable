@@ -10,7 +10,7 @@ load_dotenv(dotenv_path=env_path, override=True)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth, invoices, coding, dashboard, currency
+from app.routes import auth, invoices, coding, dashboard, currency, notifications
 from app.routes import master_data, workflow, approval, admin, settings as settings_route, workflow_config, delegation, audit
 from app.database.database import engine, Base
 from app.database.init_db import init_database
@@ -46,6 +46,7 @@ app.include_router(currency.router, prefix="/api/currency", tags=["Currencies"])
 app.include_router(workflow_config.router, prefix="/api/workflow-config", tags=["workflow-config"])
 app.include_router(delegation.router, prefix="/api/delegation", tags=["delegation"])
 app.include_router(audit.router, prefix="/api/audit", tags=["audit"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 
 
 @app.on_event("startup")

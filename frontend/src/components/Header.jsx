@@ -7,6 +7,7 @@ import "../styles/Header.css";
 import { useEntity } from "../context/EntityContext";
 import { useGlobalSettings } from "../context/GlobalSettingsContext";
 import { useTheme } from "../context/ThemeContext";
+import NotificationBell from "./NotificationBell";
 
 const Header = () => {
   const [username, setUsername] = useState("User");
@@ -84,6 +85,7 @@ const Header = () => {
               </div>
             </div>
           </div>
+          <NotificationBell />
           <Dropdown
             trigger={["click"]}
             placement="bottomRight"
