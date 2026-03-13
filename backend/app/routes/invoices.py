@@ -1023,7 +1023,9 @@ async def update_invoice_status(
                         if not hc.get("item"): hc["item"] = first.get("item") or first.get("item_id")
                         if not hc.get("lob"): hc["lob"] = first.get("lob") or first.get("class")
                 except:
-                    pass
+                    line_items = []
+            else:
+                line_items = []
             
             post_result = post_ap_bill(
                 inv, 
@@ -1033,7 +1035,8 @@ async def update_invoice_status(
                 dept=hc.get("department") or hc.get("department_id"),
                 vendor_dim=inv.vendor_id,
                 item=hc.get("item") or hc.get("item_id"),
-                class_lob=hc.get("lob") or hc.get("class") or hc.get("class_id")
+                class_lob=hc.get("lob") or hc.get("class") or hc.get("class_id"),
+                line_items=line_items if line_items else None
             )
             
             if post_result and post_result.get("success"):

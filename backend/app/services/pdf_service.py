@@ -431,8 +431,8 @@ def generate_approval_pdf(db: Session, invoice_id: int) -> str:
                 ParagraphStyle("li_h", fontSize=9, textColor=PRIMARY,
                                fontName="Helvetica-Bold", spaceBefore=4, spaceAfter=3)
             ))
-            li_headers = ["#", "Description", "GL Code", "LOB", "Department", "Amount"]
-            li_col_w   = [0.8*cm, 5.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.4*cm]
+            li_headers = ["#", "Description", "GL Code", "LOB", "Department","Item","Amount"]
+            li_col_w   = [0.8*cm, 5.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.4*cm,2.4*cm]
             li_rows = []
             for idx, item in enumerate(line_items, start=1):
                 li_rows.append([
@@ -441,7 +441,8 @@ def generate_approval_pdf(db: Session, invoice_id: int) -> str:
                     _safe_str(item.get("gl_code")),
                     _safe_str(item.get("lob")),
                     _safe_str(item.get("department_id") or item.get("department")),
-                    _safe_str(item.get("amount")),
+                    _safe_str(item.get("item")),
+                    _safe_str(item.get("net_amount")),
                 ])
             story.append(_data_table(li_headers, li_rows, li_col_w))
 
@@ -513,6 +514,7 @@ def generate_approval_pdf(db: Session, invoice_id: int) -> str:
                 _fmt_dt(log.timestamp),
                 # Paragraph(_safe_str(details_str), ParagraphStyle("td_wrap", fontSize=7.5, fontName="Helvetica", leading=10)),
             ])
+
         story.append(_data_table(at_headers, at_rows, at_col_w))
     else:
         story.append(Paragraph(

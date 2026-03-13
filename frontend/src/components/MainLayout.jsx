@@ -61,7 +61,7 @@ const MainLayout = () => {
 
     // Tab control - check if navigation state requests a specific tab
     const [activeTab, setActiveTab] = useState(() => {
-        return location.state?.activeTab || 'dashboard';
+        return location.state?.activeTab || 'invoices';
     });
 
     // Update active tab when location state changes
