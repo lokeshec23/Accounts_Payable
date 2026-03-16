@@ -56,6 +56,7 @@ class User(Base):
     status = Column(String(50), nullable=False, default="pending")  # pending, active, rejected
     last_notifications_read_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_notifications_read_at = Column(DateTime, nullable=True)
 
     # Relationships
     invoices = relationship("Invoice", back_populates="uploader", foreign_keys="Invoice.uploaded_by_id")
