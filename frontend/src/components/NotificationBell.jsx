@@ -3,6 +3,7 @@ import { Badge, Dropdown, Button } from "antd";
 import { BellOutlined, UserOutlined, FileTextOutlined, CheckCircleOutlined, CheckSquareOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { useEntity } from "../context/EntityContext";
 import "../styles/NotificationBell.css";
 
 const NotificationBell = () => {
@@ -10,6 +11,7 @@ const NotificationBell = () => {
     const [loading, setLoading] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const navigate = useNavigate();
+    const { entity } = useEntity();
 
     const fetchNotifications = useCallback(async () => {
         try {
@@ -18,20 +20,23 @@ const NotificationBell = () => {
         } catch (error) {
             console.error("Failed to fetch notifications:", error);
         }
-    }, []);
+    }, [entity]);
 
     useEffect(() => {
+        if (!entity || entity === "Select Entity") return; // Avoid fetching before login/entity selection
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 30000); // Poll every 30 seconds
         return () => clearInterval(interval);
-    }, [fetchNotifications]);
+    }, [fetchNotifications, entity]);
 
     const handleReadAll = async (e) => {
         e.stopPropagation();
         setLoading(true);
         try {
             await api.post("/notifications/read-all");
-            setNotifications({ total_count: 0, items: [] });
+            // Instead of clearing, fetch the latest state
+            // This ensures pending items stay visible but with unread_count = 0
+            await fetchNotifications();
             setDropdownOpen(false);
         } catch (error) {
             console.error("Failed to mark all as read:", error);
@@ -67,14 +72,17 @@ const NotificationBell = () => {
                         {notifications.items.length > 0 ? (
                             <div className="notification-list">
                                 {notifications.items.map(item => (
-                                    <div key={item.id} className="notification-item" onClick={() => handleItemClick(item.link)}>
+                                    <div key={item.id} className={`notification-item ${item.is_unread ? 'unread' : ''}`} onClick={() => handleItemClick(item.link)}>
                                         <div className={`notification-icon-wrapper ${item.type}`}>
                                             {item.type === 'admin' && <UserOutlined />}
                                             {item.type === 'coding' && <FileTextOutlined />}
                                             {item.type === 'approval' && <CheckCircleOutlined />}
                                         </div>
                                         <div className="notification-content">
-                                            <span className="notification-message">{item.message}</span>
+                                            <div className="notification-message-row">
+                                                <span className="notification-message">{item.message}</span>
+                                                {item.is_unread && <span className="unread-dot"></span>}
+                                            </div>
                                             <span className="notification-time">
                                                 {new Date(item.timestamp).toLocaleString([], {
                                                     month: 'short',

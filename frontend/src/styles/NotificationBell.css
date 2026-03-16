@@ -157,6 +157,30 @@
     font-weight: 500;
 }
 
+.notification-message-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.unread-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #1890ff;
+    border-radius: 50%;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.notification-item.unread {
+    background-color: #f0f7ff;
+}
+
+.dark .notification-item.unread {
+    background-color: #001529;
+}
+
 .dark .notification-message {
     color: #e0e0e0;
 }
