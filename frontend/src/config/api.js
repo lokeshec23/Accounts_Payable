@@ -2,26 +2,21 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8014';
 
 export const API_CONFIG = {
-    BASE_URL: API_BASE_URL,
+    BASE_URL: `${API_BASE_URL}/api`,
     ENDPOINTS: {
-        // Auth
-        LOGIN: `${API_BASE_URL}/api/auth/login`,
-        REGISTER: `${API_BASE_URL}/api/auth/register`,
+        LOGIN: "/auth/login",
+        REGISTER: "/auth/register",
 
-        // Invoices
-        INVOICES: `${API_BASE_URL}/api/invoices`,
+        INVOICES: "/invoices",
+        CODING: "/coding",
 
-        // Coding
-        CODING: `${API_BASE_URL}/api/coding`,
-
-        // Dashboard
         DASHBOARD: {
-            SUMMARY: `${API_BASE_URL}/api/dashboard/summary`,
-            AGING: `${API_BASE_URL}/api/dashboard/aging`,
-            STATUS_BREAKDOWN: `${API_BASE_URL}/api/dashboard/status_breakdown`,
-            VENDORS: `${API_BASE_URL}/api/dashboard/vendors`,
-            TOP_VENDORS: `${API_BASE_URL}/api/dashboard/top_vendors`,
-            PAYMENTS: `${API_BASE_URL}/api/dashboard/payments`,
+            SUMMARY: "/dashboard/summary",
+            AGING: "/dashboard/aging",
+            STATUS_BREAKDOWN: "/dashboard/status_breakdown",
+            VENDORS: "/dashboard/vendors",
+            TOP_VENDORS: "/dashboard/top_vendors",
+            PAYMENTS: "/dashboard/payments",
         }
     }
 };

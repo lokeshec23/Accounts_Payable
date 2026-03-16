@@ -197,17 +197,6 @@ const GenericInputFields = forwardRef(({
             'YYYY/MM/DD'
         ];
 
-        if (String(currency).toUpperCase() === 'INR') {
-            formats = [
-                'DD-MM-YYYY',
-                'DD.MM.YYYY',
-                'DD/MM/YYYY',
-                'YYYY-MM-DD',
-                'MM-DD-YYYY',
-                'MM.DD.YYYY'
-            ];
-        }
-
         const d = dayjs(dateStr, formats, true);
         if (d.isValid()) return d;
         const fallback = dayjs(dateStr);
