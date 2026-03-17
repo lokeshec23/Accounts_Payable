@@ -27,7 +27,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false, onRefresh 
         if (readOnly) return true;
         
         // Safety check: specific terminal statuses should always be read-only
-        const terminalStatuses = ['approved', 'rejected', 'sage_posted'];
+        const terminalStatuses = ['approved', 'rejected', 'sage_posted', 'sage_post_failed'];
         if (invoiceData?.status && terminalStatuses.includes(invoiceData.status)) {
             return true;
         }
@@ -511,6 +511,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false, onRefresh 
                                 onVendorLoadingChange={setIsVendorMasterLoading}
                                 readOnly={computedReadOnly}
                                 onRefresh={onRefresh}
+                                userRole={userRole}
                             />
                         )}
                     </div>

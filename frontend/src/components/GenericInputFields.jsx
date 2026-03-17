@@ -54,7 +54,8 @@ const GenericInputFields = forwardRef(({
     readOnly = false,
     onDuplicateChange,
     onVendorLoadingChange,
-    onRefresh
+    onRefresh,
+    userRole
 }, ref) => {
     // Expose methods and state to parent
     useImperativeHandle(ref, () => ({
@@ -67,7 +68,9 @@ const GenericInputFields = forwardRef(({
 
     // ==================== CURRENT USER & ROLE ====================
     const currentUser = authService.getCurrentUser?.();
-    const isCoder = currentUser?.role === 'coder';
+    // Use userRole prop if provided (from InvoiceReview), otherwise fall back to authService
+    const resolvedRole = (userRole || currentUser?.role || '').toLowerCase();
+    const isCoder = resolvedRole === 'coder';
     const initialStatus = originalData?.status || 'waiting_approval';
 
     const navigate = useNavigate();
@@ -1970,7 +1973,7 @@ const GenericInputFields = forwardRef(({
                         </Space>
                     )}
 
-                    {(invoiceStatus === 'approved' || invoiceStatus === 'sage_post_failed') && (
+                    {(invoiceStatus === 'approved' || invoiceStatus === 'sage_post_failed') && !isCoder && (
                         <Space style={{ flexShrink: 0 }}>
                             <Button
                                 type="primary"
