@@ -104,7 +104,17 @@ const CodingReviewPage = () => {
     const [userRole, setUserRole] = useState('');
 
     // Combined disable logic
-    const disableEditing = isApproved || isRejected || userRole === 'approver' || userRole === 'admin' || (isWaitingApproval && userRole === 'coder');
+    const normalizedRole = (userRole || '').toLowerCase();
+    const isSagePosted = invoiceData?.status === 'sage_posted';
+    const isProcessed = invoiceData?.status === 'processed';
+    
+    const isTerminalStatus = isApproved || isRejected || isSagePosted;
+    const isApprover = normalizedRole === 'approver';
+    const isAdmin = normalizedRole === 'admin';
+    const isCoder = normalizedRole === 'coder';
+
+    // Disable editing if terminal status OR (approver/admin viewing waiting_approval - unless they are the ones acting, but this page is for coding)
+    const disableEditing = isTerminalStatus || (isWaitingApproval && isCoder && !isAdmin);
 
     // Trigger workflow refresh
     const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);

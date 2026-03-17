@@ -20,7 +20,8 @@ import {
     CloseCircleOutlined,
     RollbackOutlined,
     SendOutlined,
-    DeleteOutlined
+    DeleteOutlined,
+    SyncOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
@@ -52,7 +53,8 @@ const GenericInputFields = forwardRef(({
     onCurrencyChange,
     readOnly = false,
     onDuplicateChange,
-    onVendorLoadingChange
+    onVendorLoadingChange,
+    onRefresh
 }, ref) => {
     // Expose methods and state to parent
     useImperativeHandle(ref, () => ({
@@ -107,6 +109,19 @@ const GenericInputFields = forwardRef(({
         originalData?.validation_results || {}
     );
 
+    useEffect(() => {
+        if (originalData?.status) {
+            console.log("DEBUG: GenericInputFields syncing status with originalData", {
+                current: invoiceStatus,
+                new: originalData.status
+            });
+            setInvoiceStatus(originalData.status);
+        }
+        if (originalData?.validation_results) {
+            setValidationInfo(originalData.validation_results);
+        }
+    }, [originalData]);
+
     // Coding tab
     const [headerCoding, setHeaderCoding] = useState('');
     const [codingLineItems, setCodingLineItems] = useState([]);
@@ -115,6 +130,7 @@ const GenericInputFields = forwardRef(({
     // Approver comment
     const [approverComment, setApproverComment] = useState('');
     const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
+    const [reposting, setReposting] = useState(false);
 
     // Duplicate Invoice State
     const [isDuplicateError, setIsDuplicateError] = useState(false);
@@ -134,9 +150,13 @@ const GenericInputFields = forwardRef(({
     const duplicateReadyRef = useRef(false);
 
     // ==================== DERIVED STATE ====================
-    const isCoderWaiting = (invoiceStatus === 'waiting_approval' && isCoder);
-    const isAdmin = currentUser?.role === 'admin';
-    const disableInputs = readOnly || isCoderWaiting || isAdmin;
+    const terminalStatuses = ['approved', 'rejected', 'sage_posted'];
+    const isTerminalStatus = terminalStatuses.includes(invoiceStatus);
+    const normalizedRole = (currentUser?.role || '').toLowerCase();
+    const isCoderRole = normalizedRole === 'coder';
+    const isAdminRole = normalizedRole === 'admin';
+    const isCoderWaiting = (invoiceStatus === 'waiting_approval' && isCoderRole);
+    const disableInputs = readOnly || isTerminalStatus || (isCoderWaiting && !isAdminRole);
 
     // Memoize disabled style
     const disabledStyle = useMemo(() =>
@@ -939,6 +959,28 @@ const GenericInputFields = forwardRef(({
         navigate("/approvals");
     }, [updateStatus, navigate]);
 
+    const handleRepostToSage = useCallback(async () => {
+        if (!invoiceId) return;
+        try {
+            setReposting(true);
+            message.loading({ content: 'Reposting to Sage...', key: 'repost' });
+            const result = await invoiceService.repostSage(invoiceId);
+            if (result.success) {
+                message.success({ content: 'Successfully reposted to Sage', key: 'repost' });
+                // Proactively update local state for immediate feedback
+                setInvoiceStatus('sage_posted');
+                if (onRefresh) onRefresh();
+            } else {
+                message.error({ content: `Failed to repost to Sage: ${result.error}`, key: 'repost', duration: 5 });
+            }
+        } catch (error) {
+            console.error('Error reposting to Sage:', error);
+            message.error({ content: 'Failed to trigger repost. Please try again.', key: 'repost' });
+        } finally {
+            setReposting(false);
+        }
+    }, [invoiceId]);
+
     // ==================== STATUS HELPERS ====================
     const currentUsername = currentUser?.username || currentUser?.email || '';
     const statusHistory = originalData?.status_history || [];
@@ -1007,6 +1049,8 @@ const GenericInputFields = forwardRef(({
             case 'approved': color = 'green'; label = 'Approved'; break;
             case 'rejected': color = 'red'; label = 'Rejected'; break;
             case 'reworked': color = 'purple'; label = 'Reworked'; break;
+            case 'sage_posted': color = 'geekblue'; label = 'Posted to Sage'; break;
+            case 'sage_post_failed': color = 'volcano'; label = 'Failed to Post to Sage'; break;
             default: color = 'default';
         }
         return <Tag color={color}>{label}</Tag>;
@@ -1895,11 +1939,16 @@ const GenericInputFields = forwardRef(({
                         />
                     </div>
 
-                    {renderStatusTag && (invoiceStatus === "approved" || invoiceStatus === "rejected") && (
+                    {renderStatusTag && (
+                        invoiceStatus === "approved" || 
+                        invoiceStatus === "rejected" || 
+                        invoiceStatus === "sage_posted" || 
+                        invoiceStatus === "sage_post_failed"
+                    ) && (
                         <div style={{ flexShrink: 0 }}>{renderStatusTag()}</div>
                     )}
 
-                    {readOnly && invoiceStatus === 'waiting_approval' && (
+                    {invoiceStatus === 'waiting_approval' && (
                         <Space style={{ flexShrink: 0 }}>
                             <Button type="primary" icon={<CheckCircleOutlined />}
                                 style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
@@ -1920,9 +1969,22 @@ const GenericInputFields = forwardRef(({
                             </Button>
                         </Space>
                     )}
+
+                    {(invoiceStatus === 'approved' || invoiceStatus === 'sage_post_failed') && (
+                        <Space style={{ flexShrink: 0 }}>
+                            <Button
+                                type="primary"
+                                icon={<SyncOutlined />}
+                                onClick={handleRepostToSage}
+                                loading={reposting}
+                            >
+                                Repost to Sage
+                            </Button>
+                        </Space>
+                    )}
                 </div>
 
-                {readOnly && isWaitingApproval && (
+                {isWaitingApproval && (
                     <div style={{ marginBottom: '8px' }}>
                         <TextArea rows={2} placeholder="Add a comment about this approval decision (optional)..."
                             value={approverComment} onChange={(e) => setApproverComment(e.target.value)}

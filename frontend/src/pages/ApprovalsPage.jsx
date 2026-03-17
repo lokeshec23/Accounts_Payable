@@ -21,6 +21,8 @@ const ApprovalsPage = () => {
     const [allApprovalInvoices, setAllApprovalInvoices] = useState([]);
     const [currencies, setCurrencies] = useState([]);
     const storedUser = JSON.parse(sessionStorage.getItem('user'));
+    const userRole = storedUser?.role || '';
+    const isAdmin = userRole === 'admin';
 
     // Global search term for approvals table
     const [searchTerm, setSearchTerm] = useState('');
@@ -100,11 +102,14 @@ const ApprovalsPage = () => {
                 const isActiveDelegate = active.includes(currentLevelEmail); // Use active from local scope!
 
                 // If user has already approved, they can only see it again if they are the DESIGNATED approver OR ACTIVE DELEGATE for the current level
-                if (hasApproved && !isDesignatedApprover && !isActiveDelegate) return false;
+                // Admins can always see it
+                if (!isAdmin && hasApproved && !isDesignatedApprover && !isActiveDelegate) return false;
 
-                if (item.status !== 'waiting_approval') return false;
+                // Define what statuses are considered "Unapproved" for this tab
+                const unapprovedStatuses = ['waiting_approval', 'sage_post_failed'];
+                if (!unapprovedStatuses.includes(item.status)) return false;
 
-                if (assignedApprovers.length > 0) {
+                if (!isAdmin && assignedApprovers.length > 0) {
                     return isDesignatedApprover || isActiveDelegate;
                 }
                 return true;
@@ -266,6 +271,8 @@ const ApprovalsPage = () => {
                 { text: 'Approved', value: 'approved' },
                 { text: 'Rejected', value: 'rejected' },
                 { text: 'Reworked', value: 'reworked' },
+                { text: 'Posted to Sage', value: 'sage_posted' },
+                { text: 'Failed to Post to Sage', value: 'sage_post_failed' },
             ],
             onFilter: (value, record) => record.status === value,
             render: (status) => {
@@ -296,6 +303,14 @@ const ApprovalsPage = () => {
                     case 'reworked':
                         color = 'purple';
                         text = 'Reworked';
+                        break;
+                    case 'sage_posted':
+                        color = 'geekblue';
+                        text = 'Posted to Sage';
+                        break;
+                    case 'sage_post_failed':
+                        color = 'volcano';
+                        text = 'Failed to Post to Sage';
                         break;
                     default:
                         color = 'default';

@@ -6,6 +6,7 @@ import uuid
 import requests
 
 logger = logging.getLogger("ai_app")
+error_logger = logging.getLogger("application_error")
 
 # --------------------------------------------------
 # CONFIG
@@ -60,7 +61,7 @@ def post_ap_bill(
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "locationid": LOCATION_ID,
+            "locationid": location if location else LOCATION_ID,
         }
         logger.info(f"[PostAPBill] Authenticated with Sage Intacct for invoice {invoice.id}")
 
@@ -112,9 +113,9 @@ def post_ap_bill(
         return {"success": True, "data": bill_response}
 
     except Exception as exc:
-        logger.error(
-            f"[PostAPBill] Failed to post AP Bill for invoice {invoice.id}: {exc}"
-        )
+        error_msg = f"[PostAPBill] Failed to post AP Bill for invoice {invoice.id} (Entity: {invoice.entity}): {str(exc)}"
+        logger.error(error_msg)
+        error_logger.error(error_msg)
         return {"success": False, "error": str(exc)}
 
 

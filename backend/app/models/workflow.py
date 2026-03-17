@@ -11,6 +11,7 @@ class WorkflowStepType(str, Enum):
     APPROVER_2 = "approver_2"
     APPROVER_3 = "approver_3"
     APPROVER_4 = "approver_4"
+    SAGE_POSTED = "sage_posted"
 
 class WorkflowStepStatus(str, Enum):
     COMPLETED = "completed"

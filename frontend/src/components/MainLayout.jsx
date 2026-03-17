@@ -302,6 +302,8 @@ const MainLayout = () => {
                 { text: 'Approved', value: 'approved' },
                 { text: 'Rejected', value: 'rejected' },
                 { text: 'Reworked', value: 'reworked' },
+                { text: 'Posted to Sage', value: 'sage_posted' },
+                { text: 'Failed to Post to Sage', value: 'sage_post_failed' },
             ],
             onFilter: (value, record) => record.status === value,
             render: (status) => {
@@ -332,6 +334,14 @@ const MainLayout = () => {
                     case 'reworked':
                         color = 'purple';
                         text = 'Reworked';
+                        break;
+                    case 'sage_posted':
+                        color = 'geekblue';
+                        text = 'Posted to Sage';
+                        break;
+                    case 'sage_post_failed':
+                        color = 'volcano';
+                        text = 'Failed to Post to Sage';
                         break;
                     default:
                         color = 'default';

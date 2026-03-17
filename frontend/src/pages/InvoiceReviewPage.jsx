@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { message, Button, Result } from 'antd';
 import InvoiceReview from '../components/InvoiceReview';
@@ -16,13 +16,12 @@ const InvoiceReviewPage = () => {
     const invoice = location.state?.invoice;
     const readOnly = location.state?.readOnly || false;
 
-    useEffect(() => {
-        const fetchInvoiceData = async () => {
-            if (!invoice || !invoice.id) {
-                message.error('No invoice selected');
-                navigate('/dashboard');
-                return;
-            }
+    const fetchInvoiceData = useCallback(async () => {
+        if (!invoice || !invoice.id) {
+            message.error('No invoice selected');
+            navigate('/dashboard');
+            return;
+        }
 
             try {
                 setLoading(true);
@@ -42,10 +41,11 @@ const InvoiceReviewPage = () => {
             } finally {
                 setLoading(false);
             }
-        };
-
-        fetchInvoiceData();
     }, [invoice, navigate]);
+
+    useEffect(() => {
+        fetchInvoiceData();
+    }, [fetchInvoiceData]);
 
     const handleBack = () => {
         navigate('/dashboard', { state: { activeTab: 'invoices' } });
@@ -72,10 +72,10 @@ const InvoiceReviewPage = () => {
         );
     }
 
-    // Check if invoice is approved - make it read-only
-    const isApproved = invoiceData?.status === 'approved';
-    const isRejected = invoiceData?.status === 'rejected';
-    const effectiveReadOnly = readOnly || isApproved || isRejected;
+    // Check if invoice is in a terminal/read-only status
+    const terminalStatuses = ['approved', 'rejected', 'sage_posted'];
+    const isTerminalStatus = terminalStatuses.includes(invoiceData?.status);
+    const effectiveReadOnly = readOnly || isTerminalStatus;
 
     return (
         <div style={{ height: 'calc(100vh - 10vh)', width: '100%' }}>
@@ -84,6 +84,7 @@ const InvoiceReviewPage = () => {
                 onBack={handleBack}
                 invoiceData={invoiceData}
                 readOnly={effectiveReadOnly}
+                onRefresh={fetchInvoiceData}
             />
         </div>
     );

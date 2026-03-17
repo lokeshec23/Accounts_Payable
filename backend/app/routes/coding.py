@@ -392,8 +392,7 @@ async def create_or_update_coding(
     
     db.commit()
 
-    await audit_service.log_action(db, inv_id, AuditAction.CODING_SAVED, current_user.username, entity, 
-                                  details={"line_items_count": len(coding_data.line_items)})
+    db.commit()
 
     saved = db.query(DBCoding).filter(DBCoding.invoice_id == inv_id).first()
     return CodingResponse(

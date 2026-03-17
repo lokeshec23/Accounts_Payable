@@ -13,7 +13,7 @@ import AuditTrail from './AuditTrail';
 
 const { Text } = Typography;
 
-const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
+const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false, onRefresh }) => {
 
     const [numPages, setNumPages] = useState(null);
     const [pageNumber, setPageNumber] = useState(1);
@@ -25,27 +25,32 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
 
     const computedReadOnly = useMemo(() => {
         if (readOnly) return true;
-        if (!settings || !settings.navigation || !userRole) {
-            console.log("DEBUG: readOnly fallback to true", { settings: !!settings, nav: !!settings?.navigation, userRole });
+        
+        // Safety check: specific terminal statuses should always be read-only
+        const terminalStatuses = ['approved', 'rejected', 'sage_posted'];
+        if (invoiceData?.status && terminalStatuses.includes(invoiceData.status)) {
             return true;
         }
 
-        try {
-            const codingRoles = settings.navigation.find(n => n.path === '/coding')?.roles || [];
-            const invoiceRoles = settings.navigation.find(n => n.path === '/invoice')?.roles || [];
+        const normalizedUserRole = (userRole || '').toLowerCase();
+        if (normalizedUserRole === 'admin') return false;
 
-            const canEdit = codingRoles.includes(userRole) ||
-                invoiceRoles.includes(userRole) ||
+        try {
+            const codingRoles = (settings.navigation.find(n => n.path === '/coding')?.roles || []).map(r => r.toLowerCase());
+            const invoiceRoles = (settings.navigation.find(n => n.path === '/invoice')?.roles || []).map(r => r.toLowerCase());
+
+            const canEdit = codingRoles.includes(normalizedUserRole) ||
+                invoiceRoles.includes(normalizedUserRole) ||
                 codingRoles.includes('all') ||
                 invoiceRoles.includes('all');
 
-            console.log("DEBUG: computedReadOnly result", { canEdit, userRole });
+            console.log("DEBUG: computedReadOnly result", { canEdit, userRole: normalizedUserRole });
             return !canEdit;
         } catch (err) {
             console.error("Error computing readOnly status", err);
             return true;
         }
-    }, [readOnly, settings, userRole]);
+    }, [readOnly, settings, userRole, invoiceData]);
 
     // Resizable state
     const [leftWidth, setLeftWidth] = useState(() => {
@@ -487,7 +492,6 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                                 position: 'absolute',
                                 top: 0, left: 0, right: 0, bottom: 0,
                                 zIndex: 100,
-                                zIndex: 100,
                                 background: 'var(--bg-content, #fff)',
                                 padding: '20px'
                             }}>
@@ -506,6 +510,7 @@ const InvoiceReview = ({ file, onBack, invoiceData, readOnly = false }) => {
                                 onDuplicateChange={setIsDuplicate}
                                 onVendorLoadingChange={setIsVendorMasterLoading}
                                 readOnly={computedReadOnly}
+                                onRefresh={onRefresh}
                             />
                         )}
                     </div>

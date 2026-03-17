@@ -17,6 +17,8 @@ class AuditAction(str, Enum):
     COMMENT_ADDED = "Comment Added"
     SAGE_POSTED = "AP Bill posted to Sage"
     SAGE_POST_FAILED = "Failed to post AP Bill to Sage"
+    SAGE_REPOSTED = "AP Bill reposted to Sage"
+    SAGE_REPOST_FAILED = "Failed to repost AP Bill to Sage"
 
 class AuditLogCreate(BaseModel):
     invoice_id: str

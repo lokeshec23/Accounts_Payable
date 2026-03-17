@@ -166,8 +166,25 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId, previewVendo
         timestamp: null
       });
     }
+  
+    /* 8️⃣ handle posted to sage */
+    const existingSage = currentCycleSteps.find(s => s.step_type === 'sage_posted');
+    if (!existingSage) {
+      const isSagePosted = workflowData.current_status === 'sage_posted';
+      const isSageFailed = workflowData.current_status === 'sage_post_failed';
+      const isApproved = workflowData.current_status === 'approved';
 
-    /* 8️⃣ render timeline */
+      steps.push({
+        id: 'pending_sage',
+        step_type: 'sage_posted',
+        status: isSagePosted ? 'completed' : (isApproved || isSageFailed ? 'pending' : 'queued'),
+        step_name: 'Posted to Sage',
+        user: isSagePosted ? 'System' : 'Pending',
+        timestamp: null
+      });
+    }
+
+    /* 9️⃣ render timeline */
     return steps.map((step, index) => {
       if (step.step_type === 'cycle_break') {
         return {

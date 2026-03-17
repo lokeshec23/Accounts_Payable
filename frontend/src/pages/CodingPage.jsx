@@ -23,16 +23,14 @@ const CodingPage = () => {
             const response = await invoiceService.getInvoices(0, 1000);
             const invoicesArray = Array.isArray(response) ? response : [];
 
-            const validStatuses = [
-                'coding',
-                'waiting_coding',
-                'reworked',
-                'waiting_approval',
-            ];
-
-            const codingInvoices = invoicesArray.filter(inv =>
-                validStatuses.includes(inv.status)
-            );
+            const codingInvoices = invoicesArray.filter(inv => {
+                if (inv.status === 'coding' || inv.status === 'waiting_coding') return true;
+                if (inv.status === 'waiting_approval') {
+                    const approvedBy = inv.approved_by || [];
+                    return approvedBy.length === 0;
+                }
+                return false;
+            });
 
             const transformedData = codingInvoices.map((invoice) => ({
                 key: invoice._id || invoice.id,
