@@ -24,6 +24,8 @@ class InvoiceStatusEnum(str, enum.Enum):
     REJECTED = "rejected"
     PROCESSED = "processed"
     REWORKED = "reworked"
+    SAGE_POSTED = "sage_posted"
+    SAGE_POST_FAILED = "sage_post_failed"
 
 
 class WorkflowStepTypeEnum(str, enum.Enum):
@@ -33,6 +35,7 @@ class WorkflowStepTypeEnum(str, enum.Enum):
     APPROVER_2 = "approver_2"
     APPROVER_3 = "approver_3"
     APPROVER_4 = "approver_4"
+    SAGE_POSTED = "sage_posted"
 
 
 class WorkflowStepStatusEnum(str, enum.Enum):

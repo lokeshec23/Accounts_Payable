@@ -129,6 +129,11 @@ export const invoiceService = {
 
   getUploadProgressUrl(taskId) {
     return `${API_BASE_URL}/invoices/upload-progress/${taskId}`;
+  },
+
+  async repostSage(invoiceId) {
+    const response = await api.post(`/invoices/${invoiceId}/repost-sage`);
+    return response.data;
   }
 };
 

@@ -69,7 +69,11 @@ const SelectEntity = () => {
     setEntity(name);
     setSelectedLabel(name);
 
-    navigate("/dashboard");
+    if (JSON.parse(sessionStorage.user)['role'] === 'approver') {
+      navigate("/approvals");
+    } else {
+      navigate("/dashboard");
+    }
   };
 
   const userMenuItems = [

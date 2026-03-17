@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status
+import logging
 from fastapi.responses import FileResponse
 from typing import List
 from app.services.invoice_processor import InvoiceProcessor
@@ -9,6 +10,7 @@ from app.database.database import get_db, SessionLocal
 
 from sqlalchemy.orm import Session
 from app.middleware.logger import logger
+error_logger = logging.getLogger("application_error")
 from fastapi import Query
 from fastapi.responses import StreamingResponse
 import json
@@ -18,7 +20,7 @@ from app.services.email_service import email_service
 from app.models.db_models import (
     Invoice, WorkflowStep, WorkflowStepTypeEnum, 
     WorkflowStepStatusEnum, InvoiceStatusEnum, InvoiceStatusHistory,
-    VendorMetadata, RawExtractionData, User
+    VendorMetadata, RawExtractionData, User, EntityMaster
 )
 from app.database.db_utils import (
     invoice_to_dict, serialize_json_field, deserialize_json_field
@@ -643,9 +645,13 @@ async def update_invoice_status(
     except:
         pass
 
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).with_for_update().first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # Idempotency check: if already approved, return success immediately
+    if status == InvoiceStatusEnum.APPROVED and invoice.status == InvoiceStatusEnum.APPROVED:
+        return {"message": "Invoice already fully approved", "main_status": invoice.status, "sage_post_status": "success"}
 
     status_history = list(invoice.status_history) if invoice.status_history else []
 
@@ -802,6 +808,10 @@ async def update_invoice_status(
                 )
 
         if status == InvoiceStatusEnum.APPROVED:
+            if existing_approvals >= required_approvers:
+                # Already have enough approvals, likely a duplicate click
+                return {"message": "Invoice already has required approvals", "main_status": invoice.status, "sage_post_status": "success"}
+            
             approvals = existing_approvals + 1
             if approvals >= required_approvers:
                 main_status = InvoiceStatusEnum.APPROVED
@@ -962,22 +972,32 @@ async def update_invoice_status(
         else:
             display_action = base_action
             
+        # Prepare specific audit details for approvals/rework
+        specific_details = {
+            "comment": comment,
+            "approver_level": approver_number if status in [InvoiceStatusEnum.APPROVED, InvoiceStatusEnum.REJECTED, InvoiceStatusEnum.REWORKED] else None
+        }
+        
+        # Only include status diff if it's NOT a standard approval update (keep it clean)
+        if status != InvoiceStatusEnum.APPROVED:
+             specific_details["status"] = {
+                 "old": invoice.status.value if hasattr(invoice.status, 'value') else invoice.status, 
+                 "new": main_status.value if hasattr(main_status, 'value') else main_status
+             }
+
         await audit_service.log_action(
             db=db,
             invoice_id=invoice_id, 
             action=display_action, 
             user=current_user.username,
             entity=invoice.entity,
-            details={
-                "status": {"old": invoice.status.value if hasattr(invoice.status, 'value') else invoice.status, "new": main_status.value if hasattr(main_status, 'value') else main_status},
-                "comment": comment,
-                "approver_level": approver_number if status in [InvoiceStatusEnum.APPROVED, InvoiceStatusEnum.REJECTED, InvoiceStatusEnum.REWORKED] else None
-            }
+            details=specific_details
         )
 
     # =====================================================
     # GENERATE APPROVAL PDF ON FINAL APPROVAL
     # =====================================================
+    sage_status = None
     if main_status == InvoiceStatusEnum.APPROVED:
         logger.info(f"[PDF] Final approval detected for invoice {invoice_id}. Starting PDF generation...")
         pdf_path = None
@@ -1014,22 +1034,217 @@ async def update_invoice_status(
                         if not hc.get("item"): hc["item"] = first.get("item") or first.get("item_id")
                         if not hc.get("lob"): hc["lob"] = first.get("lob") or first.get("class")
                 except:
-                    pass
+                    line_items = []
+            else:
+                line_items = []
             
-            post_ap_bill(
+            # Resolve Sage Location ID from EntityMaster partition mapping
+            entity_record = db.query(EntityMaster).filter(EntityMaster.entity_name == inv.entity).first()
+            sage_location = entity_record.entity_id if entity_record else (hc.get("location") or hc.get("location_id"))
+
+            post_result = post_ap_bill(
                 inv, 
                 pdf_path or "",
                 gl_account=hc.get("gl_code") or hc.get("glAccount"),
-                location=hc.get("location") or hc.get("location_id"),
+                location=sage_location,
                 dept=hc.get("department") or hc.get("department_id"),
                 vendor_dim=inv.vendor_id,
                 item=hc.get("item") or hc.get("item_id"),
-                class_lob=hc.get("lob") or hc.get("class") or hc.get("class_id")
+                class_lob=hc.get("lob") or hc.get("class") or hc.get("class_id"),
+                line_items=line_items if line_items else None
             )
+            
+            if post_result and post_result.get("success"):
+                sage_status = "success"
+                invoice.status = InvoiceStatusEnum.SAGE_POSTED
+                await audit_service.log_action(
+                    db=db,
+                    invoice_id=invoice_id,
+                    action=AuditAction.SAGE_POSTED.value,
+                    user=current_user.username,
+                    entity=invoice.entity,
+                    details={"sage_response": post_result.get("data")}
+                )
+                # Create/Update Workflow Step
+                db.add(WorkflowStep(
+                    invoice_id=invoice_id,
+                    step_name="Posted to Sage",
+                    step_type=WorkflowStepTypeEnum.SAGE_POSTED,
+                    user=current_user.username,
+                    status=WorkflowStepStatusEnum.COMPLETED,
+                    timestamp=datetime.utcnow(),
+                    entity=invoice.entity
+                ))
+            else:
+                sage_status = "failure"
+                invoice.status = InvoiceStatusEnum.SAGE_POST_FAILED
+                error_msg = post_result.get("error") if post_result else "Unknown error"
+                
+                # Log to application_error.log
+                error_logger.error(f"[Sage Post Failure] Invoice {invoice_id} ({invoice.entity}): {error_msg}")
+                
+                await audit_service.log_action(
+                    db=db,
+                    invoice_id=invoice_id,
+                    action=AuditAction.SAGE_POST_FAILED.value,
+                    user=current_user.username,
+                    entity=invoice.entity,
+                    details={"error": error_msg}
+                )
         except Exception as bill_err:
             logger.error(f"[PostAPBill] Error: {bill_err}", exc_info=True)
+            error_logger.error(f"[PostAPBill Critical Error] Invoice {invoice_id} ({invoice.entity}): {str(bill_err)}", exc_info=True)
+            sage_status = "error"
+            invoice.status = InvoiceStatusEnum.SAGE_POST_FAILED
+            await audit_service.log_action(
+                db=db,
+                invoice_id=invoice_id,
+                action=AuditAction.SAGE_POST_FAILED.value,
+                user=current_user.username,
+                entity=invoice.entity,
+                details={"error": str(bill_err)}
+            )
+        
+        db.commit()
 
-    return {"message": "Status updated", "main_status": main_status}
+    return {"message": "Status updated", "main_status": main_status, "sage_post_status": sage_status}
+
+
+@router.post("/{invoice_id}/repost-sage")
+async def repost_to_sage(
+    invoice_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Manually trigger AP Bill posting to Sage Intacct for an already approved invoice.
+    """
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    if invoice.status not in [InvoiceStatusEnum.APPROVED, InvoiceStatusEnum.SAGE_POST_FAILED]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invoice {invoice_id} is in status {invoice.status}. Only approved or failed-to-post invoices can be reposted to Sage."
+        )
+
+    # 1. Ensure Approval PDF exists (or regenerate it)
+    pdf_path = None
+    try:
+        from app.services.pdf_service import generate_approval_pdf
+        # This will return the path if it exists, or regenerate it
+        pdf_path = generate_approval_pdf(db, invoice_id)
+        logger.info(f"[RepostSage] Approval report path: {pdf_path}")
+    except Exception as pdf_err:
+        logger.error(f"[RepostSage] Error ensuring approval PDF: {pdf_err}", exc_info=True)
+        # We can still try to post even if PDF generation fails, but it's better to have it
+
+    # 2. Extract coding details
+    hc = {}
+    if invoice.coding and invoice.coding.header_coding:
+        try:
+            hc = json.loads(invoice.coding.header_coding)
+        except:
+            hc = {}
+    
+    line_items = []
+    if invoice.coding and invoice.coding.line_items:
+        try:
+            line_items = json.loads(invoice.coding.line_items)
+            if line_items and not hc.get("gl_code"):
+                first = line_items[0]
+                if not hc.get("gl_code"): hc["gl_code"] = first.get("gl_code")
+                if not hc.get("department"): hc["department"] = first.get("department") or first.get("department_id")
+                if not hc.get("item"): hc["item"] = first.get("item") or first.get("item_id")
+                if not hc.get("lob"): hc["lob"] = first.get("lob") or first.get("class")
+        except:
+            line_items = []
+
+    # 3. Call Sage Posting Logic
+    try:
+        from app.postapbill import post_ap_bill
+        
+        # Resolve Sage Location ID from EntityMaster partition mapping
+        entity_record = db.query(EntityMaster).filter(EntityMaster.entity_name == invoice.entity).first()
+        sage_location = entity_record.entity_id if entity_record else (hc.get("location") or hc.get("location_id"))
+
+        post_result = post_ap_bill(
+            invoice, 
+            pdf_path or "",
+            gl_account=hc.get("gl_code") or hc.get("glAccount"),
+            location=sage_location,
+            dept=hc.get("department") or hc.get("department_id"),
+            vendor_dim=invoice.vendor_id,
+            item=hc.get("item") or hc.get("item_id"),
+            class_lob=hc.get("lob") or hc.get("class") or hc.get("class_id"),
+            line_items=line_items if line_items else None
+        )
+        
+        if post_result and post_result.get("success"):
+            invoice.status = InvoiceStatusEnum.SAGE_POSTED
+            logger.info(f"[RepostSage] Success: Updating status for invoice {invoice_id} to {invoice.status.value}")
+            
+            # Ensure post_result data is serializable and not "[object Object]"
+            sage_data = post_result.get("data")
+            if isinstance(sage_data, str) and sage_data == "[object Object]":
+                sage_data = {"error": "Received [object Object] from Sage API"}
+            
+            await audit_service.log_action(
+                db=db,
+                invoice_id=invoice_id,
+                action=AuditAction.SAGE_REPOSTED.value,
+                user=current_user.username,
+                entity=invoice.entity,
+                details={"sage_response": sage_data}
+            )
+            
+            # Create/Update Workflow Step
+            db.add(WorkflowStep(
+                invoice_id=invoice_id,
+                step_name="Posted to Sage",
+                step_type=WorkflowStepTypeEnum.SAGE_POSTED,
+                user=current_user.username,
+                status=WorkflowStepStatusEnum.COMPLETED,
+                timestamp=datetime.utcnow(),
+                entity=invoice.entity
+            ))
+            
+            db.add(invoice)
+            db.commit()
+            return {"success": True, "message": "Manual repost to Sage successful", "status": invoice.status.value if hasattr(invoice.status, 'value') else invoice.status}
+        else:
+            invoice.status = InvoiceStatusEnum.SAGE_POST_FAILED
+            db.commit()
+            error_msg = post_result.get("error") if post_result else "Unknown error"
+            
+            # Log to application_error.log
+            error_logger.error(f"[Sage Repost Failure] Invoice {invoice_id} ({invoice.entity}): {error_msg}")
+            
+            await audit_service.log_action(
+                db=db,
+                invoice_id=invoice_id,
+                action=AuditAction.SAGE_REPOST_FAILED.value,
+                user=current_user.username,
+                entity=invoice.entity,
+                details={"error": error_msg}
+            )
+            return {"success": False, "error": error_msg, "status": invoice.status.value if hasattr(invoice.status, 'value') else invoice.status}
+            
+    except Exception as bill_err:
+        invoice.status = InvoiceStatusEnum.SAGE_POST_FAILED
+        db.commit()
+        logger.error(f"[RepostSage] Critical Error: {bill_err}", exc_info=True)
+        error_logger.error(f"[Sage Repost Critical Error] Invoice {invoice_id} ({invoice.entity}): {str(bill_err)}", exc_info=True)
+        await audit_service.log_action(
+            db=db,
+            invoice_id=invoice_id,
+            action=AuditAction.SAGE_POST_FAILED.value,
+            user=current_user.username,
+            entity=invoice.entity,
+            details={"error": str(bill_err), "type": "manual_repost"}
+        )
+        return {"success": False, "error": str(bill_err), "status": invoice.status}
 
 
 @router.get("/{invoice_id}/approval-report")
@@ -1331,7 +1546,12 @@ async def update_invoice(
     for field in simple_fields:
         old_val = old_invoice_dict.get(field)
         new_val = new_invoice_dict.get(field)
-        if old_val != new_val:
+        
+        # Normalize: Treat None as equivalent to "" for noise reduction
+        norm_old = "" if old_val is None else old_val
+        norm_new = "" if new_val is None else new_val
+        
+        if norm_old != norm_new:
             audit_details[field] = {"old": old_val, "new": new_val}
 
     # 2. Compare Extracted Data (Critical Fields)
@@ -1367,7 +1587,12 @@ async def update_invoice(
     for path, label in critical_checks:
         old_val = get_nested(old_extracted, path)
         new_val = get_nested(new_extracted, path)
-        if old_val != new_val:
+        
+        # Normalize: Treat None as equivalent to ""
+        norm_old = "" if old_val is None else old_val
+        norm_new = "" if new_val is None else new_val
+        
+        if norm_old != norm_new:
             audit_details[label] = {"old": old_val, "new": new_val}
             
     # Check Line Items Count (High level check)

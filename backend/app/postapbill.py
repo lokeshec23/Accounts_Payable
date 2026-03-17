@@ -6,6 +6,7 @@ import uuid
 import requests
 
 logger = logging.getLogger("ai_app")
+error_logger = logging.getLogger("application_error")
 
 # --------------------------------------------------
 # CONFIG
@@ -34,7 +35,8 @@ def post_ap_bill(
     dept: str = None,
     vendor_dim: str = None,
     item: str = None,
-    class_lob: str = None
+    class_lob: str = None,
+    line_items: list = None
 ) -> dict:
     """
     Post an AP Bill to Sage Intacct after a final invoice approval.
@@ -59,7 +61,7 @@ def post_ap_bill(
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "locationid": LOCATION_ID,
+            "locationid": location if location else LOCATION_ID,
         }
         logger.info(f"[PostAPBill] Authenticated with Sage Intacct for invoice {invoice.id}")
 
@@ -104,15 +106,16 @@ def post_ap_bill(
             dept=dept,
             vendor_dim=vendor_dim,
             item=item,
-            class_lob=class_lob
+            class_lob=class_lob,
+            line_items=line_items
         )
         logger.info(f"[PostAPBill] AP Bill created successfully for invoice {invoice.id}")
         return {"success": True, "data": bill_response}
 
     except Exception as exc:
-        logger.error(
-            f"[PostAPBill] Failed to post AP Bill for invoice {invoice.id}: {exc}"
-        )
+        error_msg = f"[PostAPBill] Failed to post AP Bill for invoice {invoice.id} (Entity: {invoice.entity}): {str(exc)}"
+        logger.error(error_msg)
+        error_logger.error(error_msg)
         return {"success": False, "error": str(exc)}
 
 
@@ -172,7 +175,8 @@ def _create_ap_bill(
     dept: str,
     vendor_dim: str,
     item: str,
-    class_lob: str
+    class_lob: str,
+    line_items: list = None
 ) -> dict:
     """POST an AP Bill to Sage Intacct and return the API response JSON."""
     import json as _json
@@ -287,6 +291,70 @@ def _create_ap_bill(
     print(_json.dumps(dimensions, indent=2))
 
     # --------------------------------------------------
+    # Build lines array
+    # --------------------------------------------------
+    # Helper to clean GL account strings like "50010 - Expense"
+    def _clean_gl(val: str) -> str:
+        val = str(val).strip() if val else ""
+        if val.lower() in ["none", "null", ""]:
+            return gl_account_clean
+        if " - " in val:
+            val = val.split(" - ", 1)[0].strip()
+        return val or gl_account_clean
+
+    if line_items and len(line_items) > 0:
+        logger.info(f"[PostAPBill] Building {len(line_items)} line(s) from coded line items")
+        sage_lines = []
+        for li in line_items:
+            # Each line item is a dict with keys matching LineItemCoding
+            li_gl = _clean_gl(li.get("gl_code") or "")
+            li_amount = li.get("net_amount") or li.get("amount") or 0
+            li_dept = _extract_id(li.get("department") or "")
+            li_item = _extract_id(li.get("item") or "")
+            li_lob  = _extract_id(li.get("lob") or "")
+            li_desc = li.get("description") or description
+
+            # Build dimensions per line — fall back to header dimensions when not set
+            li_dimensions = {
+                "location": dimensions.get("location") or {"id": LOCATION_ID},
+            }
+            if li_dept:
+                li_dimensions["department"] = {"id": li_dept}
+            elif dimensions.get("department"):
+                li_dimensions["department"] = dimensions["department"]
+
+            if dimensions.get("vendor"):
+                li_dimensions["vendor"] = dimensions["vendor"]
+
+            if li_item:
+                li_dimensions["item"] = {"id": li_item}
+            elif dimensions.get("item"):
+                li_dimensions["item"] = dimensions["item"]
+
+            if li_lob:
+                li_dimensions["class"] = {"id": li_lob}
+            elif dimensions.get("class"):
+                li_dimensions["class"] = dimensions["class"]
+
+            sage_lines.append({
+                "glAccount": {"id": li_gl},
+                "txnAmount": str(li_amount),
+                "dimensions": li_dimensions,
+                "memo": li_desc
+            })
+    else:
+        # Fallback: single line using total amount
+        logger.info("[PostAPBill] No line items provided — falling back to single line with total amount")
+        sage_lines = [
+            {
+                "glAccount": {"id": gl_account_clean},
+                "txnAmount": str(total_amount),
+                "dimensions": dimensions,
+                "memo": description
+            }
+        ]
+
+    # --------------------------------------------------
     # Bill payload
     # --------------------------------------------------
     bill_payload = {
@@ -304,19 +372,7 @@ def _create_ap_bill(
             "id": str(attachment_id)
         },
 
-        "lines": [
-            {
-                "glAccount": {
-                    "id": gl_account_clean
-                },
-
-                "txnAmount": str(total_amount),
-
-                "dimensions": dimensions,
-
-                "memo": description
-            }
-        ]
+        "lines": sage_lines
     }
 
     # Debug log
