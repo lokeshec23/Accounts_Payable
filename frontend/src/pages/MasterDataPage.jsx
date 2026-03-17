@@ -413,10 +413,18 @@ const MasterDataPage = () => {
         // Set defaults for Vendor Master
         if (activeTab === "Vendor_Master") {
             form.setFieldsValue({
+                "Vendor is an individual person": "No",
                 "GST / Use Tax Eligibility Configuration": "Eligible",
                 "TDS/Withhold Tax Applicability Configuration": "No",
                 "Workflow Applicability Configuration": "Yes",
                 "Line Grouping": "No"
+            });
+        }
+        if (activeTab === "GL") {
+            form.setFieldsValue({
+                "Require Department": "No",
+                "Require Location": "No",
+                "Disallow Direct Posting": "No"
             });
         }
         setIsModalVisible(true);
@@ -631,69 +639,42 @@ const MasterDataPage = () => {
                                 {columns.filter(c => c.key !== 'actions').map((col) => {
                                     const fieldKey = col.key;
 
-                                    // Specialized rendering for Vendor Master configuration fields
-                                    if (activeTab === "Vendor_Master") {
-                                        if (fieldKey === "GST / Use Tax Eligibility Configuration") {
-                                            return (
-                                                <Form.Item
-                                                    key={fieldKey}
-                                                    label={fieldKey}
-                                                    name={fieldKey}
-                                                    style={{ width: 'calc(50% - 8px)' }}
-                                                    valuePropName="checked"
-                                                    getValueProps={(value) => ({ checked: value === 'Eligible' })}
-                                                    getValueFromEvent={(val) => (val ? 'Eligible' : 'Ineligible')}
-                                                >
-                                                    <Switch checkedChildren="Eligible" unCheckedChildren="Ineligible" />
-                                                </Form.Item>
-                                            );
-                                        }
-                                        if (fieldKey === "TDS/Withhold Tax Applicability Configuration") {
-                                            return (
-                                                <Form.Item
-                                                    key={fieldKey}
-                                                    label={fieldKey}
-                                                    name={fieldKey}
-                                                    style={{ width: 'calc(50% - 8px)' }}
-                                                    valuePropName="checked"
-                                                    getValueProps={(value) => ({ checked: value === 'Yes' })}
-                                                    getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
-                                                >
-                                                    <Switch checkedChildren="Yes" unCheckedChildren="No" />
-                                                </Form.Item>
-                                            );
-                                        }
-                                        if (fieldKey === "Workflow Applicability Configuration") {
-                                            return (
-                                                <Form.Item
-                                                    key={fieldKey}
-                                                    label={fieldKey}
-                                                    name={fieldKey}
-                                                    style={{ width: 'calc(50% - 8px)' }}
-                                                    valuePropName="checked"
-                                                    getValueProps={(value) => ({ checked: value === 'Yes' })}
-                                                    getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
-                                                >
-                                                    <Switch checkedChildren="Yes" unCheckedChildren="No" />
-                                                </Form.Item>
-                                            );
-                                        }
-                                        if (fieldKey === "Line Grouping") {
-                                            return (
-                                                <Form.Item
-                                                    key={fieldKey}
-                                                    label={fieldKey}
-                                                    name={fieldKey}
-                                                    style={{ width: 'calc(50% - 8px)' }}
-                                                    valuePropName="checked"
-                                                    getValueProps={(value) => ({ checked: value === 'Yes' })}
-                                                    getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
-                                                >
-                                                    <Switch checkedChildren="Yes" unCheckedChildren="No" />
-                                                </Form.Item>
-                                            );
-                                        }
+                                    const BOOLEAN_FIELDS = [
+                                        "Vendor is an individual person",
+                                        "GST / Use Tax Eligibility Configuration",
+                                        "TDS/Withhold Tax Applicability Configuration",
+                                        "Workflow Applicability Configuration",
+                                        "Line Grouping",
+                                        "Require Department",
+                                        "Require Location",
+                                        "Disallow Direct Posting"
+                                    ];
 
+                                    if (BOOLEAN_FIELDS.includes(fieldKey)) {
+                                        const isEligibleSwitch = fieldKey === "GST / Use Tax Eligibility Configuration";
+                                        return (
+                                            <Form.Item
+                                                key={fieldKey}
+                                                label={fieldKey}
+                                                name={fieldKey}
+                                                style={{ width: 'calc(50% - 8px)' }}
+                                                valuePropName="checked"
+                                                getValueProps={(value) => ({ checked: isEligibleSwitch ? value === 'Eligible' : value === 'Yes' })}
+                                                getValueFromEvent={(val) => {
+                                                    if (isEligibleSwitch) return val ? 'Eligible' : 'Ineligible';
+                                                    return val ? 'Yes' : 'No';
+                                                }}
+                                            >
+                                                <Switch 
+                                                    checkedChildren={isEligibleSwitch ? "Eligible" : "Yes"} 
+                                                    unCheckedChildren={isEligibleSwitch ? "Ineligible" : "No"} 
+                                                />
+                                            </Form.Item>
+                                        );
+                                    }
+
+                                    // Special cases for Vendor Master TDS Selection
+                                    if (activeTab === "Vendor_Master") {
                                         if (fieldKey === "TDS Percentage") {
                                             const isApplicable = tdsApplicable === "Yes";
                                             return (
@@ -719,7 +700,6 @@ const MasterDataPage = () => {
                                                 </Form.Item>
                                             );
                                         }
-
 
                                         if (fieldKey === "TDS Section Code and Description") {
                                             const isApplicable = tdsApplicable === "Yes";
@@ -763,11 +743,8 @@ const MasterDataPage = () => {
                                                         }}
                                                     />
                                                 </Form.Item>
-
                                             );
                                         }
-
-
                                     }
 
                                     return (

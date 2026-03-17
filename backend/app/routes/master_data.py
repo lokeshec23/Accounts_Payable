@@ -49,6 +49,66 @@ TAB_MODEL_MAP = {
     "master_data_Item": ItemMaster
 }
 
+# Centralized Pretty Mappings for Frontend Display
+PRETTY_MAPS = {
+    "Vendor_Master": {
+        "vendor_is_an_individual_person": "Vendor is an individual person",
+        "gst_eligibility": "GST / Use Tax Eligibility Configuration",
+        "tds_applicability": "TDS/Withhold Tax Applicability Configuration",
+        "tds_percentage": "TDS Percentage",
+        "tds_section_code": "TDS Section Code and Description",
+        "workflow_applicable": "Workflow Applicability Configuration",
+        "line_grouping": "Line Grouping"
+    },
+    "GL": {
+        "account_number": "Account Number",
+        "title": "Title",
+        "normal_balance": "Normal Balance",
+        "require_department": "Require Department",
+        "require_location": "Require Location",
+        "period_end_closing_type": "Period End Closing Type",
+        "close_into_account": "Close Into Account",
+        "disallow_direct_posting": "Disallow Direct Posting",
+        "internal_rate": "Internal Rate"
+    },
+    "Entity_Master": {
+        "entity_id": "Entity ID",
+        "entity_name": "Entity Name",
+        "registered_address": "Registered Address",
+        "address_line1": "Address Line 1",
+        "address_line2": "Address Line 2",
+        "address_line3": "Address Line 3",
+        "city": "City",
+        "state_or_territory": "State or Territory",
+        "zip_or_postal_code": "Zip or Postal Code",
+        "country_code": "Country Code"
+    },
+    "TDS_Rates": {
+        "section": "Section",
+        "nature_of_payment": "Nature of Payment",
+        "tds_rate": "TDS Rate"
+    },
+    "LOB": {
+        "lob_id": "LOB ID",
+        "name": "Name",
+        "parent_id": "Parent ID"
+    },
+    "Department": {
+        "department_id": "Department ID",
+        "department_name": "Department Name"
+    },
+    "Customer": {
+        "customer_id": "Customer ID",
+        "customer_name": "Customer Name"
+    },
+    "Item": {
+        "item_id": "Item ID",
+        "name": "Name",
+        "product_line_id": "Product Line ID",
+        "gl_group": "GL Group"
+    }
+}
+
 def normalize_column(col_name: str) -> str:
     """Normalize Excel column names to snake_case attribute names."""
     # Remove special characters, replace spaces/hyphens with underscores, lowercase
@@ -338,6 +398,10 @@ async def get_sheet_data(
     total = query.count()
     rows = query.order_by(model.id.asc()).offset(skip).limit(limit).all()
     
+    # Normalize identifier for mapping lookup
+    clean_id = identifier.replace("master_data_", "")
+    pretty_map = PRETTY_MAPS.get(clean_id, {})
+    
     # Convert SQLAlchemy objects to dicts
     result = []
     for row in rows:
@@ -349,39 +413,19 @@ async def get_sheet_data(
             elif isinstance(val, (float)) and np.isnan(val):
                 val = None
 
-            # Map back to pretty names for Vendor Master
-            if identifier == "Vendor_Master" or identifier == "vendor_master":
-                pretty_map = {
-                    "gst_eligibility": "GST / Use Tax Eligibility Configuration",
-                    "tds_applicability": "TDS/Withhold Tax Applicability Configuration",
-                    "tds_percentage": "TDS Percentage",
-                    "tds_section_code": "TDS Section Code and Description",
-                    "workflow_applicable": "Workflow Applicability Configuration",
-                    "line_grouping": "Line Grouping"
-                }
-                
-                if column.name in pretty_map:
-                    pretty_val = val
-                    # Match frontend switch logic
+            if column.name in pretty_map:
+                pretty_val = val
+                # Handle boolean to Yes/No/Eligible conversion
+                col_info = model.__table__.columns.get(column.name)
+                if col_info is not None and isinstance(col_info.type, Boolean):
                     if column.name == "gst_eligibility":
                         pretty_val = "Eligible" if val is True or val == 1 else "Ineligible"
-                    elif column.name in ["tds_applicability", "workflow_applicable", "line_grouping"]:
+                    else:
                         pretty_val = "Yes" if val is True or val == 1 else "No"
-                    
-                    row_dict[pretty_map[column.name]] = pretty_val
-                    continue
-
-            if identifier == "TDS_Rates" or identifier == "tds_rates":
-                pretty_map = {
-                    "section": "Section",
-                    "nature_of_payment": "Nature of Payment",
-                    "tds_rate": "TDS Rate"
-                }
-                if column.name in pretty_map:
-                    row_dict[pretty_map[column.name]] = val
-                    continue
-
-            row_dict[column.name] = val
+                
+                row_dict[pretty_map[column.name]] = pretty_val
+            else:
+                row_dict[column.name] = val
         result.append(row_dict)
         
     return {"data": result, "total": total}
@@ -403,16 +447,9 @@ def add_row(
     data.pop('updated_at', None)
     
     # Reverse mapping for pretty names
-    reverse_map = {}
-    if identifier in ["Vendor_Master", "vendor_master"]:
-        reverse_map = {
-            "GST / Use Tax Eligibility Configuration": "gst_eligibility",
-            "TDS/Withhold Tax Applicability Configuration": "tds_applicability",
-            "TDS Percentage": "tds_percentage",
-            "TDS Section Code and Description": "tds_section_code",
-            "Workflow Applicability Configuration": "workflow_applicable",
-            "Line Grouping": "line_grouping"
-        }
+    clean_id = identifier.replace("master_data_", "")
+    pretty_map = PRETTY_MAPS.get(clean_id, {})
+    reverse_map = {v: k for k, v in pretty_map.items()}
     
     final_data = {}
     for k, v in data.items():
@@ -427,6 +464,8 @@ def add_row(
                 elif v_lower in ["no", "false", "0", "ineligible"]: v = False
             elif isinstance(v, (int, float)):
                 v = bool(v)
+            elif v is None:
+                v = False
         
         final_data[m_col] = v
 
@@ -461,16 +500,9 @@ def edit_row(
         raise HTTPException(404, "Record not found")
     
     # Reverse mapping for pretty names
-    reverse_map = {}
-    if identifier in ["Vendor_Master", "vendor_master"]:
-        reverse_map = {
-            "GST / Use Tax Eligibility Configuration": "gst_eligibility",
-            "TDS/Withhold Tax Applicability Configuration": "tds_applicability",
-            "TDS Percentage": "tds_percentage",
-            "TDS Section Code and Description": "tds_section_code",
-            "Workflow Applicability Configuration": "workflow_applicable",
-            "Line Grouping": "line_grouping"
-        }
+    clean_id = identifier.replace("master_data_", "")
+    pretty_map = PRETTY_MAPS.get(clean_id, {})
+    reverse_map = {v: k for k, v in pretty_map.items()}
         
     for k, v in updated_data.items():
         if k in ['id', 'created_at', 'updated_at']:
@@ -487,6 +519,8 @@ def edit_row(
                     elif v_lower in ["no", "false", "0", "ineligible"]: v = False
                 elif isinstance(v, (int, float)):
                     v = bool(v)
+                elif v is None:
+                    v = False
             
             setattr(record, m_col, v)
             
