@@ -10,8 +10,9 @@ import re
 import json
 from datetime import datetime
 from typing import Dict, Any, List, Union
+from concurrent.futures import ThreadPoolExecutor
 
-from app.database.database import get_db
+from app.database.database import get_db, SessionLocal
 from app.models.db_models import (
     EntityMaster, VendorMaster, TdsRate, GLMaster, 
     LOBMaster, DepartmentMaster, CustomerMaster, ItemMaster
@@ -67,6 +68,27 @@ def normalize_column(col_name: str) -> str:
         "line_grouping": "line_grouping"
     }
     return mapping.get(name, name)
+
+def insert_records_chunk(model_class, records_list: List[Dict[str, Any]]):
+    """Worker function for parallel insertion."""
+    if not records_list:
+        return
+    db = SessionLocal()
+    try:
+        db.bulk_insert_mappings(model_class, records_list)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Parallel Insert Error: {e}")
+        raise
+    finally:
+        db.close()
+
+def process_chunk_worker(model_class, chunk_df):
+    """Worker to convert chunk to dict and insert."""
+    # Convert to list of dicts inside the worker to save memory in main thread
+    records = chunk_df.to_dict('records')
+    insert_records_chunk(model_class, records)
 
 class SearchVendorRequest(BaseModel):
     vendor_name: str
@@ -156,7 +178,10 @@ async def upload_master_file(
     db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_user)
 ):
+    import time
+    start_time = time.time()
     try:
+        print(f"DEBUG: Starting upload for {tab_name}")
         model = TAB_MODEL_MAP.get(tab_name)
         if not model:
             raise HTTPException(400, f"Unsupported tab: {tab_name}")
@@ -164,78 +189,106 @@ async def upload_master_file(
         if not file.filename.endswith(('.xls', '.xlsx', '.csv')):
              raise HTTPException(400, "Invalid format. Use .xls, .xlsx, or .csv")
              
+        # Measure file read
+        t0 = time.time()
         contents = await file.read()
+        print(f"DEBUG: File read took {time.time() - t0:.4f}s")
         
+        # Measure Excel/CSV parsing
+        t1 = time.time()
         if file.filename.endswith('.csv'):
             df = pd.read_csv(io.BytesIO(contents))
         else:
+            # openpyxl can be slow; calamine is faster if installed
             df = pd.read_excel(io.BytesIO(contents))
+        print(f"DEBUG: Excel/CSV parsing took {time.time() - t1:.4f}s for {len(df)} rows")
             
-        df = df.replace({np.nan: None})
-        
-        # Normalize columns and prepare data
+        # Get model columns (excluding metadata)
         model_cols = [c.name for c in model.__table__.columns if c.name not in ['id', 'created_at', 'updated_at']]
         
-        records_to_insert = []
-        for _, row in df.iterrows():
-            record = {}
-            row_dict = row.to_dict()
+        # 1. Normalize DataFrame columns once
+        df.columns = [normalize_column(c) for c in df.columns]
+        
+        # 2. Filter to only columns that exist in the model
+        existing_cols = [c for c in df.columns if c in model_cols]
+        df = df[existing_cols].copy()
+        
+        # 3. Vectorized Type Conversions
+        t2 = time.time()
+        for m_col in existing_cols:
+            col_info = model.__table__.columns.get(m_col)
+            if col_info is None:
+                continue
+                
+            # Boolean Conversion
+            if isinstance(col_info.type, Boolean):
+                bool_map = {
+                    "yes": True, "true": True, "1": True, "y": True, "t": True, "eligible": True,
+                    "no": False, "false": False, "0": False, "n": False, "f": False, "ineligible": False
+                }
+                def convert_to_bool(val):
+                    if pd.isna(val) or val is None: return None
+                    if isinstance(val, (bool, np.bool_)): return bool(val)
+                    if isinstance(val, (int, float, np.integer, np.floating)): return bool(val)
+                    if isinstance(val, str): return bool_map.get(val.strip().lower(), None)
+                    return None
+                df[m_col] = df[m_col].apply(convert_to_bool)
             
-            # Map Excel column to model column
-            excel_cols_normalized = {normalize_column(c): c for c in row_dict.keys()}
-            
-            for m_col in model_cols:
-                # Direct match
-                if m_col in excel_cols_normalized:
-                    raw_val = row_dict[excel_cols_normalized[m_col]]
-                    
-                    # Boolean Conversion for SQLAlchemy Boolean columns
-                    col_info = model.__table__.columns.get(m_col)
-                    if col_info is not None and isinstance(col_info.type, Boolean):
-                        if isinstance(raw_val, str):
-                            rv_lower = raw_val.strip().lower()
-                            if rv_lower in ["yes", "true", "1", "y", "t", "eligible"]:
-                                raw_val = True
-                            elif rv_lower in ["no", "false", "0", "n", "f", "ineligible"]:
-                                raw_val = False
-                            else:
-                                raw_val = None # Or default
-                        elif isinstance(raw_val, (int, float)):
-                            raw_val = bool(raw_val)
-                    
-                    elif col_info is not None and isinstance(col_info.type, String):
-                        if raw_val is not None:
-                            # Handle numeric types becoming strings, remove .0 if it's an integer-like float
-                            if isinstance(raw_val, float) and raw_val.is_integer():
-                                raw_val = str(int(raw_val))
-                            else:
-                                raw_val = str(raw_val)
-                    
-                    record[m_col] = raw_val
-                # Also check some variations if needed
-            
-            if record:
-                # Defaults for Vendor Master Config
-                if tab_name == "Vendor_Master" or tab_name == "vendor_master":
-                    if record.get("gst_eligibility") is None: record["gst_eligibility"] = False
-                    if record.get("tds_applicability") is None: record["tds_applicability"] = False
-                    if record.get("workflow_applicable") is None: record["workflow_applicable"] = True
-                    if record.get("line_grouping") is None: record["line_grouping"] = False
+            # String Conversion
+            elif isinstance(col_info.type, String):
+                def convert_to_str(val):
+                    if pd.isna(val) or val is None: return None
+                    if isinstance(val, float) and val.is_integer(): return str(int(val))
+                    return str(val)
+                df[m_col] = df[m_col].apply(convert_to_str)
+        print(f"DEBUG: Type conversion took {time.time() - t2:.4f}s")
 
-                records_to_insert.append(record)
+        # 4. Handle Defaults for Vendor Master
+        if tab_name in ["Vendor_Master", "vendor_master", "Vendor"]:
+            defaults = {
+                "gst_eligibility": False,
+                "tds_applicability": False,
+                "workflow_applicable": True,
+                "line_grouping": False
+            }
+            for col, val in defaults.items():
+                if col in model_cols:
+                    if col not in df.columns:
+                        df[col] = val
+                    else:
+                        df[col] = df[col].fillna(val)
 
-        # Clear existing and insert in chunks
-        db.query(model).delete()
+        # 5. Clean up NAs to None for SQL - Use faster where/notna
+        t3 = time.time()
+        df = df.where(df.notna(), None)
+        print(f"DEBUG: NA cleanup took {time.time() - t3:.4f}s")
         
-        CHUNK_SIZE = 500
-        for i in range(0, len(records_to_insert), CHUNK_SIZE):
-            chunk = records_to_insert[i : i + CHUNK_SIZE]
-            db.bulk_insert_mappings(model, chunk)
-            db.flush() # Send to DB but don't commit yet
+        # 6. Prepare Parallel Insertion
+        if df.empty:
+             return {"message": f"No valid rows found to upload to {tab_name}"}
+
+        # Clear existing data - Use more efficient core delete
+        t4 = time.time()
+        db.execute(model.__table__.delete())
+        db.commit() 
+        print(f"DEBUG: Clear existing data took {time.time() - t4:.4f}s")
         
-        db.commit()
+        # Parallel Multi-threaded Insertion
+        t5 = time.time()
+        CHUNK_SIZE = 5000
+        # Use native pandas slicing to avoid numpy's deprecated swapaxes calls
+        df_chunks = [df.iloc[i : i + CHUNK_SIZE] for i in range(0, len(df), CHUNK_SIZE)]
         
-        return {"message": f"Uploaded {len(records_to_insert)} rows to {tab_name}"}
+        max_workers = min(len(df_chunks) if df_chunks else 1, 8)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Process each chunk in a separate thread
+            list(executor.map(lambda chunk: process_chunk_worker(model, chunk), df_chunks))
+            
+        print(f"DEBUG: Parallel insert ({len(df_chunks)} chunks) took {time.time() - t5:.4f}s")
+        
+        total_time = time.time() - start_time
+        print(f"DEBUG: Total upload process took {total_time:.4f}s")
+        return {"message": f"Uploaded {len(df)} rows using {max_workers} threads in {total_time:.2f}s."}
         
     except Exception as e:
         db.rollback()
@@ -272,9 +325,11 @@ async def get_sheet_data(
     
     if search:
         search_filter = []
+        search_term = f"%{search}%"
         for column in model.__table__.columns:
-            if isinstance(column.type, String):
-                search_filter.append(column.ilike(f"%{search}%"))
+            # Check for any string-like type (NVARCHAR, Text, String, etc.)
+            if hasattr(column.type, 'python_type') and column.type.python_type == str:
+                search_filter.append(column.ilike(search_term))
         
         if search_filter:
             from sqlalchemy import or_

@@ -94,7 +94,6 @@ const MasterDataPage = () => {
     const [activeTab, setActiveTab] = useState("Entity_Master");
     const [activeSubTab, setActiveSubTab] = useState(null); // { name, collection_name }
     const [tabStatus, setTabStatus] = useState({}); // { tabKey: { file_name, status, sheets: [] } }
-
     const [tableData, setTableData] = useState([]);
     const [columns, setColumns] = useState([]);
     const [searchText, setSearchText] = useState("");
