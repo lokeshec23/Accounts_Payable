@@ -230,9 +230,13 @@ export const masterDataService = {
   },
 
   // 3️⃣ Get sheet rows (merged from chunks)
-  async getSheetData(collectionName) {
+  async getSheetData(collectionName, skip = 0, limit = 10, search = "") {
     try {
-      const response = await api.get(`/master/sheet/${collectionName}`);
+      let url = `/master/sheet/${collectionName}?skip=${skip}&limit=${limit}`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+      }
+      const response = await api.get(url);
       return response.data;
     } catch (error) {
       console.error("getSheetData error:", error);

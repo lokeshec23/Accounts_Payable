@@ -224,10 +224,14 @@ async def upload_master_file(
 
                 records_to_insert.append(record)
 
-        # Clear existing and insert
+        # Clear existing and insert in chunks
         db.query(model).delete()
-        if records_to_insert:
-            db.bulk_insert_mappings(model, records_to_insert)
+        
+        CHUNK_SIZE = 500
+        for i in range(0, len(records_to_insert), CHUNK_SIZE):
+            chunk = records_to_insert[i : i + CHUNK_SIZE]
+            db.bulk_insert_mappings(model, chunk)
+            db.flush() # Send to DB but don't commit yet
         
         db.commit()
         
@@ -255,13 +259,29 @@ async def delete_tab_data(
 @router.get("/sheet/{identifier}")
 async def get_sheet_data(
     identifier: str,
+    skip: int = 0,
+    limit: int = 10,
+    search: str = None,
     db: Session = Depends(get_db)
 ):
     model = TAB_MODEL_MAP.get(identifier)
     if not model:
         raise HTTPException(404, "Table not found")
         
-    rows = db.query(model).all()
+    query = db.query(model)
+    
+    if search:
+        search_filter = []
+        for column in model.__table__.columns:
+            if isinstance(column.type, String):
+                search_filter.append(column.ilike(f"%{search}%"))
+        
+        if search_filter:
+            from sqlalchemy import or_
+            query = query.filter(or_(*search_filter))
+
+    total = query.count()
+    rows = query.order_by(model.id.asc()).offset(skip).limit(limit).all()
     
     # Convert SQLAlchemy objects to dicts
     result = []
@@ -309,7 +329,7 @@ async def get_sheet_data(
             row_dict[column.name] = val
         result.append(row_dict)
         
-    return result
+    return {"data": result, "total": total}
 
 @router.post("/sheet/{identifier}/add")
 def add_row(
@@ -380,7 +400,7 @@ def edit_row(
     
     if not record and row_index is not None:
         # Fallback to offset
-        record = db.query(model).offset(row_index).limit(1).first()
+        record = db.query(model).order_by(model.id.asc()).offset(row_index).limit(1).first()
 
     if not record:
         raise HTTPException(404, "Record not found")
@@ -431,7 +451,7 @@ def delete_row(
     # If row_index is actually the ID, use it directly. 
     # But usually frontend 'key' is index.
     # Let's try to find the ID from the offset if possible, or assume it's ID if large
-    record = db.query(model).offset(row_index).limit(1).first()
+    record = db.query(model).order_by(model.id.asc()).offset(row_index).limit(1).first()
     if record:
         db.delete(record)
         db.commit()

@@ -249,8 +249,8 @@ const MasterDataPage = () => {
                 );
                 collectionName = sheet ? sheet.collection_name : tdsStatus.sheets[0].collection_name;
             }
-            const data = await masterDataService.getSheetData(collectionName);
-            setTdsRates(data);
+            const data = await masterDataService.getSheetData(collectionName, 0, 100);
+            setTdsRates(data.data || []);
         } catch (error) {
             console.error("Failed to fetch TDS rates for dropdowns", error);
         }
@@ -274,19 +274,25 @@ const MasterDataPage = () => {
         }
     };
 
-    const loadSheetData = async (targetCollection) => {
+    const loadSheetData = async (targetCollection, page = 1, pageSize = 10, search = searchText) => {
         try {
             setLoading(true);
             const collectionName = targetCollection || (activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`);
-            const result = await masterDataService.getSheetData(collectionName);
+            const skip = (page - 1) * pageSize;
+            const result = await masterDataService.getSheetData(collectionName, skip, pageSize, search);
 
-
-            const rows = result.map((r, index) => ({
-                key: index,
+            const rows = (result.data || []).map((r, index) => ({
+                key: skip + index,
                 ...r,
             }));
 
             setTableData(rows);
+            setPagination(prev => ({ 
+                ...prev, 
+                current: page, 
+                pageSize: pageSize,
+                total: result.total || 0 
+            }));
 
             if (rows.length > 0) {
                 generateColumns(rows[0], rows);
@@ -294,10 +300,8 @@ const MasterDataPage = () => {
                 setColumns([]);
             }
 
-            setPagination(prev => ({ ...prev, current: 1 }));
         } catch (error) {
             console.log(error);
-            // Don't show error if it's just missing data
             setTableData([]);
             setColumns([]);
         } finally {
@@ -311,6 +315,8 @@ const MasterDataPage = () => {
             await masterDataService.uploadFile(activeTab, file);
             message.success(`${activeTab} uploaded successfully`);
             await loadTabStatus();
+            // Refresh table data after upload
+            loadSheetData(`master_data_${activeTab}`);
         } catch (error) {
 
             console.error(error);
@@ -492,14 +498,8 @@ const MasterDataPage = () => {
         });
     };
 
-    const filteredData = useMemo(() => {
-        if (!searchText) return tableData;
-        return tableData.filter((record) =>
-            Object.keys(record).some((key) =>
-                String(record[key] || "").toLowerCase().includes(searchText.toLowerCase())
-            )
-        );
-    }, [tableData, searchText]);
+    // Removed filteredData as we now use server-side search for performance.
+    const tableRows = tableData;
 
     const renderUploadView = () => (
         <div style={{ padding: '60px 0', textAlign: 'center' }}>
@@ -529,7 +529,10 @@ const MasterDataPage = () => {
                             <Search
                                 placeholder="Search table..."
                                 allowClear
-                                onChange={(e) => setSearchText(e.target.value)}
+                                onSearch={(value) => {
+                                    setSearchText(value);
+                                    loadSheetData(null, 1, pagination.pageSize, value);
+                                }}
                                 style={{ width: 250 }}
                             />
                             {activeTab !== "Currency" && (
@@ -577,12 +580,12 @@ const MasterDataPage = () => {
                         {columns.length > 0 ? (
                             <Table
                                 columns={columns}
-                                dataSource={filteredData}
+                                dataSource={tableRows}
                                 pagination={{
-                                    ...pagination,
                                     current: pagination.current,
-                                    total: filteredData.length,
-                                    onChange: (page, pageSize) => setPagination({ ...pagination, current: page, pageSize })
+                                    total: pagination.total,
+                                    pageSize: pagination.pageSize,
+                                    onChange: (page, pageSize) => loadSheetData(null, page, pageSize, searchText)
                                 }}
                                 scroll={{ x: "max-content", y: "calc(100vh - 400px)" }}
                                 className="master-data-table invoices-table"
