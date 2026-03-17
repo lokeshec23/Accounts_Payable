@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 
-const InputField = ({
+const InputField = React.memo(({
     label,
     placeholder,
     value,
@@ -99,7 +99,7 @@ const InputField = ({
             {error && <span style={errorStyle}>{error}</span>}
         </div>
     );
-};
+});
 
 InputField.propTypes = {
     label: PropTypes.string,

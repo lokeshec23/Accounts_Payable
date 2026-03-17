@@ -58,53 +58,80 @@ api.interceptors.response.use(
 // Add invoice service methods
 export const invoiceService = {
   async uploadInvoices(files, taskId = null) {
-    const formData = new FormData();
-    files.forEach(f => formData.append("files", f));
+    try {
+      const formData = new FormData();
+      files.forEach(f => formData.append("files", f));
 
-    let url = "/invoices/upload";
-    if (taskId) {
-      url += `?task_id=${taskId}`;
+      let url = "/invoices/upload";
+      if (taskId) {
+        url += `?task_id=${taskId}`;
+      }
+
+      const response = await api.post(url, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      return response.data;
+    } catch (error) {
+      console.error("uploadInvoices error:", error);
+      throw error;
     }
-
-    const response = await api.post(url, formData, {
-      headers: { "Content-Type": "multipart/form-data" }
-    });
-    return response.data;
   },
 
   async getInvoices(skip = 0, limit = 10) {
-    const response = await api.get(`/invoices/?skip=${skip}&limit=${limit}`);
-    return response.data;
+    try {
+      const response = await api.get(`/invoices/?skip=${skip}&limit=${limit}`);
+      return response.data;
+    } catch (error) {
+      console.error("getInvoices error:", error);
+      throw error;
+    }
   },
 
   async getInvoice(invoiceId) {
-    const response = await api.get(`/invoices/${invoiceId}/`);
-    return response.data;
+    try {
+      const response = await api.get(`/invoices/${invoiceId}/`);
+      return response.data;
+    } catch (error) {
+      console.error("getInvoice error:", error);
+      throw error;
+    }
   },
 
   async updateInvoiceStatus(invoiceId, status, comment = null) {
-    console.log(`[api.js] updateInvoiceStatus called for ${invoiceId} with status ${status}`);
-    const params = new URLSearchParams({ status });
-    if (comment) {
-      params.append('comment', comment);
+    try {
+      console.log(`[api.js] updateInvoiceStatus called for ${invoiceId} with status ${status}`);
+      const params = new URLSearchParams({ status });
+      if (comment) {
+        params.append('comment', comment);
+      }
+      const response = await api.put(`/invoices/${invoiceId}/status?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.error("updateInvoiceStatus error:", error);
+      throw error;
     }
-    const response = await api.put(`/invoices/${invoiceId}/status?${params.toString()}`);
-    return response.data;
   },
 
   async updateInvoice(invoiceId, data) {
-    console.log(`Calling PUT /invoices/${invoiceId}`, data);
-
-    // This should use PUT to update existing record
-    const response = await api.put(`/invoices/${invoiceId}`, data);
-
-    console.log('Update response:', response.data);
-    return response.data;
+    try {
+      console.log(`Calling PUT /invoices/${invoiceId}`, data);
+      const response = await api.put(`/invoices/${invoiceId}`, data);
+      console.log('Update response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error("updateInvoice error:", error);
+      throw error;
+    }
   },
 
   async deleteInvoice(invoiceId) {
-    const response = await api.delete(`/invoices/${invoiceId}/`);
-    return response.data;
+    try {
+      const response = await api.delete(`/invoices/${invoiceId}/`);
+      return response.data;
+    } catch (error) {
+      console.error("deleteInvoice error:", error);
+      throw error;
+    }
   },
 
   getPdfUrl(invoiceId) {
@@ -112,10 +139,15 @@ export const invoiceService = {
   },
 
   async getPdfBlob(invoiceId) {
-    const response = await api.get(`/invoices/${invoiceId}/file`, {
-      responseType: 'blob'
-    });
-    return URL.createObjectURL(response.data);
+    try {
+      const response = await api.get(`/invoices/${invoiceId}/file`, {
+        responseType: 'blob'
+      });
+      return URL.createObjectURL(response.data);
+    } catch (error) {
+      console.error("getPdfBlob error:", error);
+      throw error;
+    }
   },
 
   async recallInvoice(invoiceId, comment = null) {
@@ -123,8 +155,13 @@ export const invoiceService = {
   },
 
   async checkDuplicate(data) {
-    const response = await api.post('/invoices/check-duplicate', data);
-    return response.data;
+    try {
+      const response = await api.post('/invoices/check-duplicate', data);
+      return response.data;
+    } catch (error) {
+      console.error("checkDuplicate error:", error);
+      throw error;
+    }
   },
 
   getUploadProgressUrl(taskId) {
@@ -135,24 +172,44 @@ export const invoiceService = {
 // Add coding service methods
 export const codingService = {
   async saveCoding(codingData) {
-    const response = await api.post('/coding/', codingData);
-    return response.data;
+    try {
+      const response = await api.post('/coding/', codingData);
+      return response.data;
+    } catch (error) {
+      console.error("saveCoding error:", error);
+      throw error;
+    }
   },
 
   async getCoding(invoiceId) {
-    const response = await api.get(`/coding/${invoiceId}`);
-    return response.data;
+    try {
+      const response = await api.get(`/coding/${invoiceId}`);
+      return response.data;
+    } catch (error) {
+      console.error("getCoding error:", error);
+      throw error;
+    }
   },
 
   async getSuggestions(invoiceId, vendorId = null) {
-    const params = vendorId ? { vendor_id: vendorId } : {};
-    const response = await api.get(`/coding/${invoiceId}/suggestions`, { params });
-    return response.data;
+    try {
+      const params = vendorId ? { vendor_id: vendorId } : {};
+      const response = await api.get(`/coding/${invoiceId}/suggestions`, { params });
+      return response.data;
+    } catch (error) {
+      console.error("getSuggestions error:", error);
+      throw error;
+    }
   },
 
   async deleteCoding(invoiceId) {
-    const response = await api.delete(`/coding/${invoiceId}`);
-    return response.data;
+    try {
+      const response = await api.delete(`/coding/${invoiceId}`);
+      return response.data;
+    } catch (error) {
+      console.error("deleteCoding error:", error);
+      throw error;
+    }
   }
 };
 
@@ -163,71 +220,113 @@ export const masterDataService = {
 
   // 1️⃣ Get all uploaded master files
   async getFiles() {
-    const response = await api.get("/master/files");
-    return response.data;
+    try {
+      const response = await api.get("/master/files");
+      return response.data;
+    } catch (error) {
+      console.error("getFiles error:", error);
+      throw error;
+    }
   },
-
-  // No longer needed as we use fixed tabs
-
 
   // 3️⃣ Get sheet rows (merged from chunks)
   async getSheetData(collectionName) {
-    const response = await api.get(`/master/sheet/${collectionName}`);
-    return response.data;
+    try {
+      const response = await api.get(`/master/sheet/${collectionName}`);
+      return response.data;
+    } catch (error) {
+      console.error("getSheetData error:", error);
+      throw error;
+    }
   },
 
   // 4️⃣ Add row
   async addRow(collectionName, newRow) {
-    const response = await api.post(`/master/sheet/${collectionName}/add`, { new_row: newRow });
-    return response.data;
+    try {
+      const response = await api.post(`/master/sheet/${collectionName}/add`, { new_row: newRow });
+      return response.data;
+    } catch (error) {
+      console.error("addRow error:", error);
+      throw error;
+    }
   },
 
   // 5️⃣ Edit row
   async editRow(collectionName, rowIndex, updatedRow) {
-    const response = await api.patch(
-      `/master/sheet/${collectionName}/edit`,
-      { row_index: rowIndex, updated_row: updatedRow }
-    );
-    return response.data;
+    try {
+      const response = await api.patch(
+        `/master/sheet/${collectionName}/edit`,
+        { row_index: rowIndex, updated_row: updatedRow }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("editRow error:", error);
+      throw error;
+    }
   },
 
   // 6️⃣ Delete row
   async deleteRow(collectionName, rowIndex) {
-    const response = await api.delete(
-      `/master/sheet/${collectionName}/delete`,
-      { params: { row_index: rowIndex } }
-    );
-    return response.data;
+    try {
+      const response = await api.delete(
+        `/master/sheet/${collectionName}/delete`,
+        { params: { row_index: rowIndex } }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("deleteRow error:", error);
+      throw error;
+    }
   },
 
   async getEntities() {
-    const response = await api.get("/master/entities");
-    return response.data;
+    try {
+      const response = await api.get("/master/entities");
+      return response.data;
+    } catch (error) {
+      console.error("getEntities error:", error);
+      throw error;
+    }
   },
 
   // 7️⃣ Upload Excel file
   async uploadFile(tabName, file) {
-    const formData = new FormData();
-    formData.append("file", file);
-    const response = await api.post(`/master/upload?tab_name=${tabName}`, formData, {
-      headers: { "Content-Type": "multipart/form-data" }
-    });
-    return response.data;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await api.post(`/master/upload?tab_name=${tabName}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      return response.data;
+    } catch (error) {
+      console.error("uploadFile error:", error);
+      throw error;
+    }
   },
 
   // 8️⃣ Delete data for a tab
   async deleteFile(tabName) {
-    const response = await api.delete(`/master/files/${tabName}`);
-    return response.data;
+    try {
+      const response = await api.delete(`/master/files/${tabName}`);
+      return response.data;
+    } catch (error) {
+      console.error("deleteFile error:", error);
+      throw error;
+    }
   },
 
   // 9️⃣ Embedding Search
   async searchVendor(vendorName, vendorAddress = null) {
-    const response = await api.post("/master/search-vendor", {
-      vendor_name: vendorName,
-      vendor_address: vendorAddress
-    });
-    return response.data;
+    try {
+      const response = await api.post("/master/search-vendor", {
+        vendor_name: vendorName,
+        vendor_address: vendorAddress
+      });
+      return response.data;
+    } catch (error) {
+      console.error("searchVendor error:", error);
+      throw error;
+    }
   },
 
 };
@@ -235,27 +334,42 @@ export const masterDataService = {
 // Workflow service methods
 export const workflowService = {
   getWorkflowHistory: async (id, vendorId = null, vendorName = null) => {
-    let url = `/workflow/${id}`;
-    const params = new URLSearchParams();
-    if (vendorId) params.append('preview_vendor_id', vendorId);
-    if (vendorName) params.append('preview_vendor_name', vendorName);
+    try {
+      let url = `/workflow/${id}`;
+      const params = new URLSearchParams();
+      if (vendorId) params.append('preview_vendor_id', vendorId);
+      if (vendorName) params.append('preview_vendor_name', vendorName);
 
-    if (params.toString()) {
-      url += `?${params.toString()}`;
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error("getWorkflowHistory error:", error);
+      throw error;
     }
-
-    const response = await api.get(url);
-    return response.data;
   },
 
   async createWorkflowStep(stepData) {
-    const response = await api.post('/workflow/step', stepData);
-    return response.data;
+    try {
+      const response = await api.post('/workflow/step', stepData);
+      return response.data;
+    } catch (error) {
+      console.error("createWorkflowStep error:", error);
+      throw error;
+    }
   },
 
   async getApproverStatus(invoiceId) {
-    const response = await api.get(`/workflow/approvers/${invoiceId}`);
-    return response.data;
+    try {
+      const response = await api.get(`/workflow/approvers/${invoiceId}`);
+      return response.data;
+    } catch (error) {
+      console.error("getApproverStatus error:", error);
+      throw error;
+    }
   }
 };
 
@@ -265,52 +379,97 @@ export const workflowService = {
 // Approval service methods
 export const approvalService = {
   async sendToApproval(invoiceId) {
-    const response = await api.post(`/approval/send-to-approval/${invoiceId}`);
-    return response.data;
+    try {
+      const response = await api.post(`/approval/send-to-approval/${invoiceId}`);
+      return response.data;
+    } catch (error) {
+      console.error("sendToApproval error:", error);
+      throw error;
+    }
   }
 };
 
 // Admin service methods
 export const adminService = {
   async getAllUsers() {
-    const response = await api.get('/users/');
-    return response.data;
+    try {
+      const response = await api.get('/users/');
+      return response.data;
+    } catch (error) {
+      console.error("getAllUsers error:", error);
+      throw error;
+    }
   },
 
   async updateUserRole(userId, role, status) {
-    const response = await api.put(`/users/${userId}/role`, { role, status });
-    return response.data;
+    try {
+      const response = await api.put(`/users/${userId}/role`, { role, status });
+      return response.data;
+    } catch (error) {
+      console.error("updateUserRole error:", error);
+      throw error;
+    }
   }
 };
 
 export const settingsService = {
   async getSettings() {
-    const response = await api.get('/settings/');
-    return response.data;
+    try {
+      const response = await api.get('/settings/');
+      return response.data;
+    } catch (error) {
+      console.error("getSettings error:", error);
+      throw error;
+    }
   },
 
   async updateSettings(settings) {
-    const response = await api.put('/settings/', settings);
-    return response.data;
+    try {
+      const response = await api.put('/settings/', settings);
+      return response.data;
+    } catch (error) {
+      console.error("updateSettings error:", error);
+      throw error;
+    }
   }
 };
 
 export const currencyService = {
   async getCurrencies() {
-    const response = await api.get('/currency/');
-    return response.data;
+    try {
+      const response = await api.get('/currency/');
+      return response.data;
+    } catch (error) {
+      console.error("getCurrencies error:", error);
+      throw error;
+    }
   },
   async createCurrency(data) {
-    const response = await api.post('/currency/', data);
-    return response.data;
+    try {
+      const response = await api.post('/currency/', data);
+      return response.data;
+    } catch (error) {
+      console.error("createCurrency error:", error);
+      throw error;
+    }
   },
   async updateCurrency(id, data) {
-    const response = await api.put(`/currency/${id}`, data);
-    return response.data;
+    try {
+      const response = await api.put(`/currency/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error("updateCurrency error:", error);
+      throw error;
+    }
   },
   async deleteCurrency(id) {
-    const response = await api.delete(`/currency/${id}`);
-    return response.data;
+    try {
+      const response = await api.delete(`/currency/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("deleteCurrency error:", error);
+      throw error;
+    }
   }
 };
 
@@ -318,78 +477,158 @@ export const currencyService = {
 export const workflowConfigService = {
   // Vendor Workflow
   async getVendorWorkflows() {
-    const response = await api.get('/workflow-config/vendor');
-    return response.data;
+    try {
+      const response = await api.get('/workflow-config/vendor');
+      return response.data;
+    } catch (error) {
+      console.error("getVendorWorkflows error:", error);
+      throw error;
+    }
   },
   async createVendorWorkflow(data) {
-    const response = await api.post('/workflow-config/vendor', data);
-    return response.data;
+    try {
+      const response = await api.post('/workflow-config/vendor', data);
+      return response.data;
+    } catch (error) {
+      console.error("createVendorWorkflow error:", error);
+      throw error;
+    }
   },
   async updateVendorWorkflow(id, data) {
-    const response = await api.put(`/workflow-config/vendor/${id}`, data);
-    return response.data;
+    try {
+      const response = await api.put(`/workflow-config/vendor/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error("updateVendorWorkflow error:", error);
+      throw error;
+    }
   },
   async deleteVendorWorkflow(id) {
-    const response = await api.delete(`/workflow-config/vendor/${id}`);
-    return response.data;
+    try {
+      const response = await api.delete(`/workflow-config/vendor/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("deleteVendorWorkflow error:", error);
+      throw error;
+    }
   },
   async getWorkflowVendors() {
-    const response = await api.get('/workflow-config/vendor/vendors');
-    return response.data;
+    try {
+      const response = await api.get('/workflow-config/vendor/vendors');
+      return response.data;
+    } catch (error) {
+      console.error("getWorkflowVendors error:", error);
+      throw error;
+    }
   },
 
   // Codification Workflow
   async getCodificationWorkflows() {
-    const response = await api.get('/workflow-config/codification');
-    return response.data;
+    try {
+      const response = await api.get('/workflow-config/codification');
+      return response.data;
+    } catch (error) {
+      console.error("getCodificationWorkflows error:", error);
+      throw error;
+    }
   },
   async createCodificationWorkflow(data) {
-    const response = await api.post('/workflow-config/codification', data);
-    return response.data;
+    try {
+      const response = await api.post('/workflow-config/codification', data);
+      return response.data;
+    } catch (error) {
+      console.error("createCodificationWorkflow error:", error);
+      throw error;
+    }
   },
   async updateCodificationWorkflow(id, data) {
-    const response = await api.put(`/workflow-config/codification/${id}`, data);
-    return response.data;
+    try {
+      const response = await api.put(`/workflow-config/codification/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error("updateCodificationWorkflow error:", error);
+      throw error;
+    }
   },
   async deleteCodificationWorkflow(id) {
-    const response = await api.delete(`/workflow-config/codification/${id}`);
-    return response.data;
+    try {
+      const response = await api.delete(`/workflow-config/codification/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("deleteCodificationWorkflow error:", error);
+      throw error;
+    }
   },
   async getLOBs() {
-    const response = await api.get('/workflow-config/codification/lobs');
-    return response.data;
+    try {
+      const response = await api.get('/workflow-config/codification/lobs');
+      return response.data;
+    } catch (error) {
+      console.error("getLOBs error:", error);
+      throw error;
+    }
   },
   async getDepartments() {
-    const response = await api.get('/workflow-config/codification/departments');
-    return response.data;
+    try {
+      const response = await api.get('/workflow-config/codification/departments');
+      return response.data;
+    } catch (error) {
+      console.error("getDepartments error:", error);
+      throw error;
+    }
   },
 
   // Approvers
   async getApprovers() {
-    const response = await api.get('/workflow-config/approvers');
-    return response.data;
+    try {
+      const response = await api.get('/workflow-config/approvers');
+      return response.data;
+    } catch (error) {
+      console.error("getApprovers error:", error);
+      throw error;
+    }
   },
 };
 
 export const delegationService = {
   async getDelegations() {
-    const response = await api.get('/delegation/');
-    return response.data;
+    try {
+      const response = await api.get('/delegation/');
+      return response.data;
+    } catch (error) {
+      console.error("getDelegations error:", error);
+      throw error;
+    }
   },
   async createDelegation(data) {
-    const response = await api.post('/delegation/', data);
-    return response.data;
+    try {
+      const response = await api.post('/delegation/', data);
+      return response.data;
+    } catch (error) {
+      console.error("createDelegation error:", error);
+      throw error;
+    }
   },
   async revertDelegation(id) {
-    const response = await api.delete(`/delegation/${id}`);
-    return response.data;
+    try {
+      const response = await api.delete(`/delegation/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("revertDelegation error:", error);
+      throw error;
+    }
   }
 };
 
 export const auditService = {
   async getAuditTrail(invoiceId) {
-    const response = await api.get(`/audit/${invoiceId}`);
-    return response.data;
+    try {
+      const response = await api.get(`/audit/${invoiceId}`);
+      return response.data;
+    } catch (error) {
+      console.error("getAuditTrail error:", error);
+      throw error;
+    }
   }
 };
 

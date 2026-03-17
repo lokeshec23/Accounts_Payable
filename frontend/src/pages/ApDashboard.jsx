@@ -1,5 +1,5 @@
 // src/pages/ApDashboard.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { DashboardSkeleton } from "../components/SkeletonLoader";
 import Plot from "react-plotly.js";
 import api from "../services/api";   // ✅ FIX: Use our axios instance
@@ -20,19 +20,22 @@ import {
 } from "@ant-design/icons";
 
 import "../styles/ApDashboard.css";
-import API_CONFIG from "../config/api";
 import { useTheme } from "../context/ThemeContext";
+import { useDashboardData } from "../hooks/useDashboardData";
 
 const { Title, Text } = Typography;
 
 const ApDashboard = () => {
     const { isDarkMode } = useTheme();
-    const [summary, setSummary] = useState(null);
-    const [aging, setAging] = useState(null);
-    const [statusBreakdown, setStatusBreakdown] = useState(null);
-    const [vendorData, setVendorData] = useState(null);
-    const [topVendors, setTopVendors] = useState([]);
-    const [payments, setPayments] = useState(null);
+    const {
+        summary,
+        aging,
+        statusBreakdown,
+        vendorData,
+        topVendors,
+        loading,
+        error
+    } = useDashboardData();
 
     // Sorting states
     const [sortVendorCountAsc, setSortVendorCountAsc] = useState(false);
@@ -44,125 +47,94 @@ const ApDashboard = () => {
     const [vendorAmountLimit, setVendorAmountLimit] = useState(5);
     const [topLimit, setTopLimit] = useState(5);
 
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                const [
-                    summaryRes,
-                    agingRes,
-                    statusRes,
-                    vendorsRes,
-                    topRes,
-                    paymentsRes,
-                ] = await Promise.all([
-                    api.get(API_CONFIG.ENDPOINTS.DASHBOARD.SUMMARY),        // ✅ FIXED
-                    api.get(API_CONFIG.ENDPOINTS.DASHBOARD.AGING),          // ✅ FIXED
-                    api.get(API_CONFIG.ENDPOINTS.DASHBOARD.STATUS_BREAKDOWN), // FIXED
-                    api.get(API_CONFIG.ENDPOINTS.DASHBOARD.VENDORS),        // FIXED
-                    api.get(API_CONFIG.ENDPOINTS.DASHBOARD.TOP_VENDORS),    // FIXED
-                    api.get(API_CONFIG.ENDPOINTS.DASHBOARD.PAYMENTS),       // FIXED
-                ]);
-
-                setSummary(summaryRes.data);
-                setAging(agingRes.data);
-                setStatusBreakdown(statusRes.data);
-                setVendorData(vendorsRes.data);
-                setTopVendors(topRes.data);
-                setPayments(paymentsRes.data);
-            } catch (err) {
-                console.error("Dashboard error:", err);
-            }
-        };
-
-        loadData();
-    }, []);
-
-    if (!summary || !vendorData || !aging || !statusBreakdown) {
-        return <DashboardSkeleton />;
-    }
+    const handleSortVendorCount = useCallback(() => setSortVendorCountAsc(prev => !prev), []);
+    const handleSortVendorAmt = useCallback(() => setSortVendorAmtAsc(prev => !prev), []);
+    const handleSortTopVendor = useCallback(() => setSortTopVendorAsc(prev => !prev), []);
 
     // ---------- Aging chart data ----------
-    const agingLabels = ["0–30", "31–60", "61–90", "91–120", "120+"];
-    const agingValues = [
-        aging["0_30"],
-        aging["31_60"],
-        aging["61_90"],
-        aging["91_120"],
-        aging["120_plus"],
-    ];
-
-    const agingBarColors = [
-        'rgba(59, 124, 255, 0.9)',
-        'rgba(59, 124, 255, 0.8)',
-        'rgba(59, 124, 255, 0.7)',
-        'rgba(59, 124, 255, 0.6)',
-        'rgba(59, 124, 255, 0.5)'
-    ];
+    const agingData = React.useMemo(() => {
+        if (!aging) return null;
+        const labels = ["0–30", "31–60", "61–90", "91–120", "120+"];
+        const values = [
+            aging["0_30"],
+            aging["31_60"],
+            aging["61_90"],
+            aging["91_120"],
+            aging["120_plus"],
+        ];
+        const colors = [
+            'rgba(59, 124, 255, 0.9)',
+            'rgba(59, 124, 255, 0.8)',
+            'rgba(59, 124, 255, 0.7)',
+            'rgba(59, 124, 255, 0.6)',
+            'rgba(59, 124, 255, 0.5)'
+        ];
+        return { labels, values, colors };
+    }, [aging]);
 
     // ---------- Status chart ----------
-    const statusLabels = [
-        "Approved",
-        "Waiting Approval",
-        "Pending",
-        "Waiting Coding",
-        "Rejected",
-        "Reworked",
-        "Processed"
-    ];
-
-    const statusValues = [
-        statusBreakdown.approved || 0,
-        statusBreakdown.waiting_approval || 0,
-        statusBreakdown.pending || 0,
-        statusBreakdown.waiting_coding || 0,
-        statusBreakdown.rejected || 0,
-        statusBreakdown.reworked || 0,
-        statusBreakdown.processed || 0
-    ];
-
-    const statusPieColors = [
-        "#10b981",
-        "#3b82f6",
-        "#f59e0b",
-        "#8b5cf6",
-        "#ef4444",
-        "#ec4899",
-        "#14b8a6"
-    ];
+    const statusData = React.useMemo(() => {
+        if (!statusBreakdown) return null;
+        const labels = [
+            "Approved", "Waiting Approval", "Pending", "Waiting Coding",
+            "Rejected", "Reworked", "Processed"
+        ];
+        const values = [
+            statusBreakdown.approved || 0,
+            statusBreakdown.waiting_approval || 0,
+            statusBreakdown.pending || 0,
+            statusBreakdown.waiting_coding || 0,
+            statusBreakdown.rejected || 0,
+            statusBreakdown.reworked || 0,
+            statusBreakdown.processed || 0
+        ];
+        const colors = [
+            "#10b981", "#3b82f6", "#f59e0b", "#8b5cf6",
+            "#ef4444", "#ec4899", "#14b8a6"
+        ];
+        return { labels, values, colors };
+    }, [statusBreakdown]);
 
     // ---------- Vendor charts ----------
-    const vendorCount = [...vendorData.by_count]
-        .sort((a, b) => (sortVendorCountAsc ? a.count - b.count : b.count - a.count))
-        .slice(0, vendorCountLimit);
+    const vendorCountData = React.useMemo(() => {
+        if (!vendorData?.by_count) return [];
+        return [...vendorData.by_count]
+            .sort((a, b) => (sortVendorCountAsc ? a.count - b.count : b.count - a.count))
+            .slice(0, vendorCountLimit);
+    }, [vendorData, sortVendorCountAsc, vendorCountLimit]);
 
-    const vendorAmount = [...vendorData.by_amount]
-        .sort((a, b) =>
-            sortVendorAmtAsc ? a.amount - b.amount : b.amount - a.amount
-        )
-        .slice(0, vendorAmountLimit);
+    const vendorAmountData = React.useMemo(() => {
+        if (!vendorData?.by_amount) return [];
+        return [...vendorData.by_amount]
+            .sort((a, b) => (sortVendorAmtAsc ? a.amount - b.amount : b.amount - a.amount))
+            .slice(0, vendorAmountLimit);
+    }, [vendorData, sortVendorAmtAsc, vendorAmountLimit]);
 
-    const vendorCountColors = Array.from({ length: vendorCount.length }, (_, i) =>
-        `rgba(139, 92, 246, ${0.7 + (i * 0.05)})`
+    const vendorCountColors = React.useMemo(() =>
+        Array.from({ length: vendorCountData.length }, (_, i) => `rgba(139, 92, 246, ${0.7 + (i * 0.05)})`),
+        [vendorCountData.length]
     );
 
-    const vendorAmountColors = Array.from({ length: vendorAmount.length }, (_, i) =>
-        `rgba(16, 185, 129, ${0.7 + (i * 0.05)})`
+    const vendorAmountColors = React.useMemo(() =>
+        Array.from({ length: vendorAmountData.length }, (_, i) => `rgba(16, 185, 129, ${0.7 + (i * 0.05)})`),
+        [vendorAmountData.length]
     );
 
     // ---------- Top vendors table ----------
-    const sortedTopVendors = [...topVendors]
-        .sort((a, b) => (sortTopVendorAsc ? a.total - b.total : b.total - a.total))
-        .slice(0, topLimit);
+    const topVendorRows = React.useMemo(() => {
+        return [...topVendors]
+            .sort((a, b) => (sortTopVendorAsc ? a.total - b.total : b.total - a.total))
+            .slice(0, topLimit)
+            .map((v, i) => ({
+                key: i,
+                rank: i + 1,
+                vendor: v.vendor,
+                count: v.count,
+                total: v.total,
+            }));
+    }, [topVendors, sortTopVendorAsc, topLimit]);
 
-    const topVendorRows = sortedTopVendors.map((v, i) => ({
-        key: i,
-        rank: i + 1,
-        vendor: v.vendor,
-        count: v.count,
-        total: v.total,
-    }));
-
-    const topVendorColumns = [
+    const topVendorColumns = React.useMemo(() => [
         { title: "Rank", dataIndex: "rank", width: 70 },
         { title: "Vendor", dataIndex: "vendor" },
         { title: "Invoices", dataIndex: "count", width: 110 },
@@ -172,7 +144,19 @@ const ApDashboard = () => {
             width: 160,
             render: (v) => `${v.toFixed(2)}`,
         },
-    ];
+    ], []);
+
+    if (loading || !summary || !vendorData || !aging || !statusBreakdown) {
+        return <DashboardSkeleton />;
+    }
+
+    if (error) {
+        return (
+            <div className="ap-error-container">
+                <Text type="danger">Error loading dashboard data. Please try again later.</Text>
+            </div>
+        );
+    }
 
     return (
         // <div className="ap-dashboard-shell">
@@ -252,11 +236,11 @@ const ApDashboard = () => {
                         <Plot
                             data={[
                                 {
-                                    x: agingLabels,
-                                    y: agingValues,
+                                    x: agingData.labels,
+                                    y: agingData.values,
                                     type: "bar",
                                     marker: {
-                                        color: agingBarColors,
+                                        color: agingData.colors,
                                         line: {
                                             width: 1.5,
                                             color: 'rgba(59, 124, 255, 0.9)'
@@ -310,12 +294,12 @@ const ApDashboard = () => {
                         <Plot
                             data={[
                                 {
-                                    labels: statusLabels,
-                                    values: statusValues,
+                                    labels: statusData.labels,
+                                    values: statusData.values,
                                     type: "pie",
                                     hole: 0.4, // Smaller hole to make room for text
                                     marker: {
-                                        colors: statusPieColors,
+                                        colors: statusData.colors,
                                         line: { width: 1.5, color: "white" },
                                     },
                                     textinfo: "percent",
@@ -327,7 +311,7 @@ const ApDashboard = () => {
                                     },
                                     hovertemplate:
                                         "<b>%{label}</b><br>Count: %{value}<br>%{percent}<extra></extra>",
-                                    pull: statusLabels.map(() => 0.01), // Smaller pull effect
+                                    pull: statusData.labels.map(() => 0.01), // Smaller pull effect
                                 },
                             ]}
                             layout={{
@@ -381,9 +365,7 @@ const ApDashboard = () => {
                                 <Button
                                     size="small"
                                     className="ap-pill-button"
-                                    onClick={() =>
-                                        setSortVendorCountAsc((prev) => !prev)
-                                    }
+                                    onClick={handleSortVendorCount}
                                 >
                                     {sortVendorCountAsc ? "Asc" : "Desc"}
                                 </Button>
@@ -405,8 +387,8 @@ const ApDashboard = () => {
                         <Plot
                             data={[
                                 {
-                                    x: vendorCount.map((v) => v.vendor),
-                                    y: vendorCount.map((v) => v.count),
+                                    x: vendorCountData.map((v) => v.vendor),
+                                    y: vendorCountData.map((v) => v.count),
                                     type: "bar",
                                     marker: {
                                         color: vendorCountColors,
@@ -463,9 +445,7 @@ const ApDashboard = () => {
                                 <Button
                                     size="small"
                                     className="ap-pill-button"
-                                    onClick={() =>
-                                        setSortVendorAmtAsc((prev) => !prev)
-                                    }
+                                    onClick={handleSortVendorAmt}
                                 >
                                     {sortVendorAmtAsc ? "Asc" : "Desc"}
                                 </Button>
@@ -487,8 +467,8 @@ const ApDashboard = () => {
                         <Plot
                             data={[
                                 {
-                                    x: vendorAmount.map((v) => v.vendor),
-                                    y: vendorAmount.map((v) => v.amount),
+                                    x: vendorAmountData.map((v) => v.vendor),
+                                    y: vendorAmountData.map((v) => v.amount),
                                     type: "bar",
                                     marker: {
                                         color: vendorAmountColors,
@@ -546,7 +526,7 @@ const ApDashboard = () => {
                                 <Button
                                     size="small"
                                     className="ap-pill-button"
-                                    onClick={() => setSortTopVendorAsc((prev) => !prev)}
+                                    onClick={handleSortTopVendor}
                                 >
                                     {sortTopVendorAsc ? "Asc" : "Desc"}
                                 </Button>

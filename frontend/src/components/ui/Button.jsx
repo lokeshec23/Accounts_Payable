@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-const Button = ({
+const Button = React.memo(({
     children,
     variant = 'primary',
     size = 'large',
@@ -117,7 +117,7 @@ const Button = ({
             {children}
         </button>
     );
-};
+});
 
 Button.propTypes = {
     children: PropTypes.node,
