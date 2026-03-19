@@ -8,7 +8,8 @@ import {
   FullscreenOutlined,
   ColumnWidthOutlined,
   RotateLeftOutlined,
-  RotateRightOutlined
+  RotateRightOutlined,
+  ReloadOutlined
 } from "@ant-design/icons";
 import { Button, Tooltip } from "antd";
 
@@ -73,19 +74,19 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
   }, [containerWidth]);
 
   /* ---------------- Helpers ---------------- */
-  const getEffectiveRotation = pageObj =>
-    ((rotation + (pageObj.rotate || 0)) % 360 + 360) % 360;
+  const getEffectiveRotation = (pageObj, rot = rotation) =>
+    ((rot + (pageObj.rotate || 0)) % 360 + 360) % 360;
 
-  const getViewport = (pageObj, scaleVal) =>
+  const getViewport = (pageObj, scaleVal, rot = rotation) =>
     pageObj.getViewport({
       scale: scaleVal,
-      rotation: getEffectiveRotation(pageObj)
+      rotation: getEffectiveRotation(pageObj, rot)
     });
 
   /* ---------------- Render Page ---------------- */
-  const renderPage = async (pdf, pageNum, scaleVal, rotationVal) => {
+  const renderPage = async (pdf, pageNum, scaleVal, rotationVal = rotation) => {
     const pageObj = await pdf.getPage(pageNum);
-    const viewport = getViewport(pageObj, scaleVal);
+    const viewport = getViewport(pageObj, scaleVal, rotationVal);
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -216,9 +217,9 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
   }, [highlightedRegions, page, scale, rotation]);
 
   /* ---------------- Fit Width ---------------- */
-  const autoFitWidth = async (pdf, pageNum, rotationVal) => {
+  const autoFitWidth = async (pdf, pageNum, rotationVal = rotation) => {
     const pageObj = await pdf.getPage(pageNum);
-    const viewport = getViewport(pageObj, 1);
+    const viewport = getViewport(pageObj, 1, rotationVal);
 
     const width = viewerRef.current.clientWidth - 20;
     const newScale = width / viewport.width;
@@ -243,7 +244,7 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
   };
 
   const zoom = d => {
-    setAutoFit(true);
+    setAutoFit(false);
     const s = Math.max(0.3, scale + d);
     setScale(s);
     renderPage(pdfObj, page, s, rotation);
@@ -266,6 +267,13 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
     setAutoFit(false);
     setScale(s);
     renderPage(pdfObj, page, s, rotation);
+  };
+
+  const resetView = () => {
+    if (!pdfObj) return;
+    setRotation(0);
+    setAutoFit(true);
+    autoFitWidth(pdfObj, page, 0);
   };
 
   /* ---------------- UI ---------------- */
@@ -299,6 +307,10 @@ const PdfViewerWithHighlight = ({ file, highlightedRegions = [] }) => {
 
           <Tooltip title="Fit Page">
             <Button icon={<FullscreenOutlined />} onClick={fitToPage} />
+          </Tooltip>
+
+          <Tooltip title="Reset View">
+            <Button icon={<ReloadOutlined />} onClick={resetView} />
           </Tooltip>
 
           <span style={{ marginLeft: 8 }}>{Math.round(scale * 100)}%</span>

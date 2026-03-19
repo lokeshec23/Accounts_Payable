@@ -94,6 +94,14 @@ const AdminPage = () => {
 
   const handleSaveUser = async () => {
     const values = await userForm.validateFields();
+
+    // Prevent admin from changing their own role
+    const currentUser = JSON.parse(sessionStorage.getItem("user") || "{}");
+    if (editingUser && editingUser.email === currentUser.email) {
+      message.error("Admin cannot change the role");
+      return;
+    }
+
     await adminService.updateUserRole(
       editingUser.id,
       values.role,
