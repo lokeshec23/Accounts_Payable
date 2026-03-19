@@ -570,7 +570,7 @@ async def get_invoices(
     return [InvoiceResponse(**invoice_to_dict(inv)) for inv in invoices]
 
 
-@router.get("/{invoice_id}", response_model=InvoiceResponse)
+@router.get("/{invoice_id}/", response_model=InvoiceResponse)
 async def get_invoice(
     invoice_id: int,
     current_user: UserResponse = Depends(get_current_user),
@@ -1631,7 +1631,7 @@ async def update_invoice(
     return InvoiceResponse(**invoice_to_dict(invoice))
 
 
-@router.delete("/{invoice_id}")
+@router.delete("/{invoice_id}/")
 async def delete_invoice(
     invoice_id: int,
     current_user: UserResponse = Depends(get_current_user),
