@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
 from typing import List
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 from app.database.database import get_db
 from app.models.db_models import User as DBUser
 from app.models.user import UserResponse
@@ -29,7 +30,9 @@ async def get_all_users(
     current_user: UserResponse = Depends(get_current_admin)
 ):
     """Get all users (Admin only)"""
-    users = db.query(DBUser).all()
+    users = db.query(DBUser)\
+              .order_by(desc(DBUser.id))\
+              .all()    
     return users
 
 
@@ -37,6 +40,7 @@ async def get_all_users(
 async def update_user_role(
     user_id: int,
     update_data: UserRoleUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: UserResponse = Depends(get_current_admin)
 ):
@@ -64,15 +68,8 @@ async def update_user_role(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Prevent admin from changing any user's role
-    if user.role != update_data.role:
-        raise HTTPException(
-            status_code=400,
-            detail="admin cannot change the role"
-        )
-
-    # Prevent admin removing own admin role (redundant but kept for specific case)
-    if current_user.id == user_id and update_data.role != "admin":
+    # Prevent admin from removing own admin role
+    if current_user.id == user_id:
         raise HTTPException(
             status_code=400,
             detail="admin cannot change the role"
@@ -88,6 +85,6 @@ async def update_user_role(
     # If user is approved (status changed to active), send notification
     if old_status != "active" and user.status == "active":
         from app.services.email_service import email_service
-        email_service.send_approval_notification(user.email, user.username, user.role)
+        background_tasks.add_task(email_service.send_approval_notification, user.email, user.username, user.role)
 
     return user
