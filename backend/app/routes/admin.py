@@ -60,16 +60,24 @@ async def update_user_role(
             detail=f"Invalid status: {update_data.status}"
         )
 
-    # Prevent admin removing own admin role
-    if current_user.id == user_id and update_data.role != "admin":
-        raise HTTPException(
-            status_code=400,
-            detail="Admin cannot remove own admin role"
-        )
-
     user = db.query(DBUser).filter(DBUser.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Prevent admin from changing any user's role
+    if user.role != update_data.role:
+        raise HTTPException(
+            status_code=400,
+            detail="admin cannot change the role"
+        )
+
+    # Prevent admin removing own admin role (redundant but kept for specific case)
+    if current_user.id == user_id and update_data.role != "admin":
+        raise HTTPException(
+            status_code=400,
+            detail="admin cannot change the role"
+        )
+
 
     old_status = user.status
     user.role = update_data.role

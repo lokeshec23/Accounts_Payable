@@ -94,6 +94,13 @@ const AdminPage = () => {
 
   const handleSaveUser = async () => {
     const values = await userForm.validateFields();
+
+    // Prevent role changes
+    if (editingUser.role !== values.role) {
+      message.error("Admin cannot change the role");
+      return;
+    }
+
     await adminService.updateUserRole(
       editingUser.id,
       values.role,
