@@ -551,9 +551,11 @@ class VendorWorkflow(Base):
     mandatory_approver_1 = Column(String(200), nullable=True)
     mandatory_approver_2 = Column(String(200), nullable=True)
     mandatory_approver_3 = Column(String(200), nullable=True)
+    mandatory_approver_4 = Column(String(200), nullable=True)
+    mandatory_approver_5 = Column(String(200), nullable=True)
+    is_threshold_enabled = Column(Boolean, default=False)
     amount_threshold = Column(Float, default=0.0)
     threshold_approver = Column(String(200), nullable=True)
-    optional_approver = Column(String(200), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 class CodificationWorkflow(Base):
@@ -567,9 +569,11 @@ class CodificationWorkflow(Base):
     mandatory_approver_1 = Column(String(200), nullable=True)
     mandatory_approver_2 = Column(String(200), nullable=True)
     mandatory_approver_3 = Column(String(200), nullable=True)
+    mandatory_approver_4 = Column(String(200), nullable=True)
+    mandatory_approver_5 = Column(String(200), nullable=True)
+    is_threshold_enabled = Column(Boolean, default=False)
     amount_threshold = Column(Float, default=0.0)
     threshold_approver = Column(String(200), nullable=True)
-    optional_approver = Column(String(200), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 

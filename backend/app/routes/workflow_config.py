@@ -41,9 +41,11 @@ async def get_vendor_workflows(
             "mandatory_approver_1": w.mandatory_approver_1,
             "mandatory_approver_2": w.mandatory_approver_2,
             "mandatory_approver_3": w.mandatory_approver_3,
+            "mandatory_approver_4": w.mandatory_approver_4,
+            "mandatory_approver_5": w.mandatory_approver_5,
+            "is_threshold_enabled": w.is_threshold_enabled or False,
             "amount_threshold": w.amount_threshold,
             "threshold_approver": w.threshold_approver,
-            "optional_approver": w.optional_approver,
             "entity": w.entity,
             "created_at": w.created_at
         })
@@ -72,9 +74,11 @@ async def create_vendor_workflow(
         mandatory_approver_1=workflow.mandatory_approver_1,
         mandatory_approver_2=workflow.mandatory_approver_2,
         mandatory_approver_3=workflow.mandatory_approver_3,
+        mandatory_approver_4=workflow.mandatory_approver_4,
+        mandatory_approver_5=workflow.mandatory_approver_5,
+        is_threshold_enabled=workflow.is_threshold_enabled,
         amount_threshold=workflow.amount_threshold,
         threshold_approver=workflow.threshold_approver,
-        optional_approver=workflow.optional_approver,
         created_at=datetime.utcnow()
     )
     db.add(new_workflow)
@@ -105,9 +109,11 @@ async def update_vendor_workflow(
     existing.mandatory_approver_1 = workflow.mandatory_approver_1
     existing.mandatory_approver_2 = workflow.mandatory_approver_2
     existing.mandatory_approver_3 = workflow.mandatory_approver_3
+    existing.mandatory_approver_4 = workflow.mandatory_approver_4
+    existing.mandatory_approver_5 = workflow.mandatory_approver_5
+    existing.is_threshold_enabled = workflow.is_threshold_enabled
     existing.amount_threshold = workflow.amount_threshold
     existing.threshold_approver = workflow.threshold_approver
-    existing.optional_approver = workflow.optional_approver
     existing.entity = entity
     
     db.commit()
@@ -179,9 +185,11 @@ async def get_codification_workflows(
             "mandatory_approver_1": w.mandatory_approver_1,
             "mandatory_approver_2": w.mandatory_approver_2,
             "mandatory_approver_3": w.mandatory_approver_3,
+            "mandatory_approver_4": w.mandatory_approver_4,
+            "mandatory_approver_5": w.mandatory_approver_5,
+            "is_threshold_enabled": w.is_threshold_enabled or False,
             "amount_threshold": w.amount_threshold,
             "threshold_approver": w.threshold_approver,
-            "optional_approver": w.optional_approver,
             "entity": w.entity,
             "created_at": w.created_at
         })
@@ -211,9 +219,11 @@ async def create_codification_workflow(
         mandatory_approver_1=workflow.mandatory_approver_1,
         mandatory_approver_2=workflow.mandatory_approver_2,
         mandatory_approver_3=workflow.mandatory_approver_3,
+        mandatory_approver_4=workflow.mandatory_approver_4,
+        mandatory_approver_5=workflow.mandatory_approver_5,
+        is_threshold_enabled=workflow.is_threshold_enabled,
         amount_threshold=workflow.amount_threshold,
         threshold_approver=workflow.threshold_approver,
-        optional_approver=workflow.optional_approver,
         created_at=datetime.utcnow()
     )
     db.add(new_workflow)
@@ -244,9 +254,11 @@ async def update_codification_workflow(
     existing.mandatory_approver_1 = workflow.mandatory_approver_1
     existing.mandatory_approver_2 = workflow.mandatory_approver_2
     existing.mandatory_approver_3 = workflow.mandatory_approver_3
+    existing.mandatory_approver_4 = workflow.mandatory_approver_4
+    existing.mandatory_approver_5 = workflow.mandatory_approver_5
+    existing.is_threshold_enabled = workflow.is_threshold_enabled
     existing.amount_threshold = workflow.amount_threshold
     existing.threshold_approver = workflow.threshold_approver
-    existing.optional_approver = workflow.optional_approver
     existing.entity = entity
     
     db.commit()

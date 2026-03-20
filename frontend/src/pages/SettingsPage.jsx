@@ -14,6 +14,7 @@ import {
   Select,
   Spin,
   Tag,
+  Radio,
 } from "antd";
 import {
   PlusOutlined,
@@ -109,9 +110,11 @@ const SettingsPage = () => {
     // Ensure approver_count exists for old records
     const recordToEdit = { ...record };
     if (!recordToEdit.approver_count) {
-      if (record.optional_approver) recordToEdit.approver_count = 5;
-      else if (record.threshold_approver) recordToEdit.approver_count = 4;
-      else recordToEdit.approver_count = 3;
+      recordToEdit.approver_count = 3; // Default for old records
+    }
+    // Ensure is_threshold_enabled for old records
+    if (recordToEdit.is_threshold_enabled === undefined) {
+      recordToEdit.is_threshold_enabled = !!recordToEdit.threshold_approver;
     }
     // Ensure unique value for select if vendor_id exists
     if (recordToEdit.vendor_id && recordToEdit.vendor_name) {
@@ -205,23 +208,19 @@ const SettingsPage = () => {
     { title: "Approver 1", dataIndex: "mandatory_approver_1", key: "mandatory_approver_1" },
     { title: "Approver 2", dataIndex: "mandatory_approver_2", key: "mandatory_approver_2" },
     { title: "Approver 3", dataIndex: "mandatory_approver_3", key: "mandatory_approver_3" },
+    { title: "Approver 4", dataIndex: "mandatory_approver_4", key: "mandatory_approver_4" },
+    { title: "Approver 5", dataIndex: "mandatory_approver_5", key: "mandatory_approver_5" },
     {
-      title: "Approver 4 (Threshold)",
+      title: "Threshold Approver",
       dataIndex: "threshold_approver",
       key: "threshold_approver",
-      render: (val) => val || "-"
-    },
-    {
-      title: "Approver 5 (Optional)",
-      dataIndex: "optional_approver",
-      key: "optional_approver",
-      render: (val) => val || "-"
+      render: (val, record) => record.is_threshold_enabled ? (val || "-") : "Disabled"
     },
     {
       title: "Threshold",
       dataIndex: "amount_threshold",
       key: "amount_threshold",
-      render: (val) => val ? `$${val.toLocaleString()}` : "-"
+      render: (val, record) => record.is_threshold_enabled ? (val ? `$${val.toLocaleString()}` : "-") : "-"
     },
     ...(userRole !== "coder" ? [{
       title: "Actions",
@@ -257,23 +256,19 @@ const SettingsPage = () => {
     { title: "Approver 1", dataIndex: "mandatory_approver_1", key: "mandatory_approver_1" },
     { title: "Approver 2", dataIndex: "mandatory_approver_2", key: "mandatory_approver_2" },
     { title: "Approver 3", dataIndex: "mandatory_approver_3", key: "mandatory_approver_3" },
+    { title: "Approver 4", dataIndex: "mandatory_approver_4", key: "mandatory_approver_4" },
+    { title: "Approver 5", dataIndex: "mandatory_approver_5", key: "mandatory_approver_5" },
     {
-      title: "Approver 4 (Threshold)",
+      title: "Threshold Approver",
       dataIndex: "threshold_approver",
       key: "threshold_approver",
-      render: (val) => val || "-"
-    },
-    {
-      title: "Approver 5 (Optional)",
-      dataIndex: "optional_approver",
-      key: "optional_approver",
-      render: (val) => val || "-"
+      render: (val, record) => record.is_threshold_enabled ? (val || "-") : "Disabled"
     },
     {
       title: "Threshold",
       dataIndex: "amount_threshold",
       key: "amount_threshold",
-      render: (val) => val ? `$${val.toLocaleString()}` : "-"
+      render: (val, record) => record.is_threshold_enabled ? (val ? `$${val.toLocaleString()}` : "-") : "-"
     },
     ...(userRole !== "coder" ? [{
       title: "Actions",
@@ -351,12 +346,21 @@ const SettingsPage = () => {
         </>
       )}
 
-      <Form.Item name="approver_count" label="Number of Approvers" initialValue={3} rules={[{ required: true }]}>
+      <Form.Item name="approver_count" label="Number of Approvers" initialValue={1} rules={[{ required: true }]}>
         <Select options={[
-          { value: 3, label: '3 Approvers (Mandatory)' },
-          { value: 4, label: '4 Approvers (With Threshold)' },
-          { value: 5, label: '5 Approvers (1 Optional)' },
+          { value: 1, label: '1 Approver' },
+          { value: 2, label: '2 Approvers' },
+          { value: 3, label: '3 Approvers' },
+          { value: 4, label: '4 Approvers' },
+          { value: 5, label: '5 Approvers' },
         ]} />
+      </Form.Item>
+
+      <Form.Item name="is_threshold_enabled" label="Enable Threshold Approver" initialValue={false}>
+        <Radio.Group>
+          <Radio value={true}>Yes</Radio>
+          <Radio value={false}>No</Radio>
+        </Radio.Group>
       </Form.Item>
 
       <Form.Item noStyle shouldUpdate>
@@ -364,45 +368,56 @@ const SettingsPage = () => {
           const a1 = getFieldValue('mandatory_approver_1');
           const a2 = getFieldValue('mandatory_approver_2');
           const a3 = getFieldValue('mandatory_approver_3');
-          const a4 = getFieldValue('threshold_approver');
-          const a5 = getFieldValue('optional_approver');
-          const count = getFieldValue('approver_count') || 3;
+          const a4 = getFieldValue('mandatory_approver_4');
+          const a5 = getFieldValue('mandatory_approver_5');
+          const thresholdApp = getFieldValue('threshold_approver');
+          
+          const count = getFieldValue('approver_count') || 1;
+          const isThresholdEnabled = getFieldValue('is_threshold_enabled');
 
           const getFilteredOptions = (currentValue) => {
-            const allSelected = [a1, a2, a3];
-            if (count >= 4) allSelected.push(a4);
-            if (count === 5) allSelected.push(a5);
-
+            const allSelected = [a1, a2, a3, a4, a5, thresholdApp];
             const selectedOther = allSelected.filter(v => v && v !== currentValue);
             return approvers.filter(opt => !selectedOther.includes(opt.value));
           };
 
           return (
             <>
-              <Form.Item name="mandatory_approver_1" label="Approver 1 (Mandatory)" rules={[{ required: true }]}>
-                <Select showSearch options={getFilteredOptions(a1)} placeholder="Select Approver 1" />
-              </Form.Item>
-              <Form.Item name="mandatory_approver_2" label="Approver 2 (Mandatory)" rules={[{ required: true }]}>
-                <Select showSearch options={getFilteredOptions(a2)} placeholder="Select Approver 2" />
-              </Form.Item>
-              <Form.Item name="mandatory_approver_3" label="Approver 3 (Mandatory)" rules={[{ required: true }]}>
-                <Select showSearch options={getFilteredOptions(a3)} placeholder="Select Approver 3" />
-              </Form.Item>
-
+              {count >= 1 && (
+                <Form.Item name="mandatory_approver_1" label="Approver 1 (Mandatory)" rules={[{ required: true }]}>
+                  <Select showSearch options={getFilteredOptions(a1)} placeholder="Select Approver 1" />
+                </Form.Item>
+              )}
+              {count >= 2 && (
+                <Form.Item name="mandatory_approver_2" label="Approver 2 (Mandatory)" rules={[{ required: true }]}>
+                  <Select showSearch options={getFilteredOptions(a2)} placeholder="Select Approver 2" />
+                </Form.Item>
+              )}
+              {count >= 3 && (
+                <Form.Item name="mandatory_approver_3" label="Approver 3 (Mandatory)" rules={[{ required: true }]}>
+                  <Select showSearch options={getFilteredOptions(a3)} placeholder="Select Approver 3" />
+                </Form.Item>
+              )}
               {count >= 4 && (
+                <Form.Item name="mandatory_approver_4" label="Approver 4 (Mandatory)" rules={[{ required: true }]}>
+                  <Select showSearch options={getFilteredOptions(a4)} placeholder="Select Approver 4" />
+                </Form.Item>
+              )}
+              {count >= 5 && (
+                <Form.Item name="mandatory_approver_5" label="Approver 5 (Mandatory)" rules={[{ required: true }]}>
+                  <Select showSearch options={getFilteredOptions(a5)} placeholder="Select Approver 5" />
+                </Form.Item>
+              )}
+
+              {isThresholdEnabled && (
                 <>
-                  <Form.Item name="threshold_approver" label="Approver 4 (Threshold)" rules={[{ required: true }]}>
-                    <Select showSearch options={getFilteredOptions(a4)} placeholder="Select Approver 4" />
+                  <Form.Item name="threshold_approver" label="Threshold Approver" rules={[{ required: true }]}>
+                    <Select showSearch options={getFilteredOptions(thresholdApp)} placeholder="Select Threshold Approver" />
                   </Form.Item>
                   <Form.Item name="amount_threshold" label="Amount Threshold" rules={[{ required: true }]}>
                     <InputNumber style={{ width: "100%" }} min={0} placeholder="Enter threshold amount" />
                   </Form.Item>
                 </>
-              )}
-              {count === 5 && (
-                <Form.Item name="optional_approver" label="Approver 5 (Optional)">
-                  <Select showSearch options={getFilteredOptions(a5)} allowClear placeholder="Select Approver 5" />
-                </Form.Item>
               )}
             </>
           );

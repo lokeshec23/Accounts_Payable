@@ -196,15 +196,19 @@ def get_required_approver_count(
                 workflow_found = True
                 workflow_type = "vendor"
                 count = v_workflow.approver_count
-                assigned_approvers = [v_workflow.mandatory_approver_1, v_workflow.mandatory_approver_2, v_workflow.mandatory_approver_3]
+                mandatory_fields = [
+                    v_workflow.mandatory_approver_1, v_workflow.mandatory_approver_2, 
+                    v_workflow.mandatory_approver_3, v_workflow.mandatory_approver_4, 
+                    v_workflow.mandatory_approver_5
+                ]
+                assigned_approvers = [a for a in mandatory_fields[:count] if a]
                 
-                if count >= 4:
-                    # Check threshold (Changed to >= for robustness)
+                # Threshold Approver
+                if getattr(v_workflow, 'is_threshold_enabled', False):
                     if amount is not None and v_workflow.amount_threshold is not None:
-                         if amount >= v_workflow.amount_threshold:
+                         if amount >= v_workflow.amount_threshold and v_workflow.threshold_approver:
                             assigned_approvers.append(v_workflow.threshold_approver)
-                if count == 5:
-                    assigned_approvers.append(v_workflow.optional_approver)
+
 
     # 3. Try Codification Based Workflow
     if not workflow_found and invoice_id and entity:
@@ -228,13 +232,17 @@ def get_required_approver_count(
                         workflow_found = True
                         workflow_type = "codification"
                         count = cod_workflow.approver_count
-                        assigned_approvers = [cod_workflow.mandatory_approver_1, cod_workflow.mandatory_approver_2, cod_workflow.mandatory_approver_3]
+                        mandatory_fields = [
+                            cod_workflow.mandatory_approver_1, cod_workflow.mandatory_approver_2, 
+                            cod_workflow.mandatory_approver_3, cod_workflow.mandatory_approver_4, 
+                            cod_workflow.mandatory_approver_5
+                        ]
+                        assigned_approvers = [a for a in mandatory_fields[:count] if a]
                         
-                        if count >= 4:
-                            if amount is not None and amount >= cod_workflow.amount_threshold:
+                        # Threshold Approver
+                        if getattr(cod_workflow, 'is_threshold_enabled', False):
+                            if amount is not None and amount >= cod_workflow.amount_threshold and cod_workflow.threshold_approver:
                                 assigned_approvers.append(cod_workflow.threshold_approver)
-                        if count == 5:
-                            assigned_approvers.append(cod_workflow.optional_approver)
                         break
 
     # 4. Fallback Logic (Progressive check of other config tables)
@@ -289,10 +297,10 @@ def get_required_approver_count(
 
     if not workflow_found:
         return {
-            "required": 3,
+            "required": 1,
             "assigned_approvers": [],
             "workflow_type": "hardcoded_default",
-            "breakdown": {"default": 3}
+            "breakdown": {"default": 1}
         }
 
     assigned_approvers = [a for a in assigned_approvers if a]
