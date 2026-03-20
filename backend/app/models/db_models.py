@@ -413,6 +413,11 @@ class VendorMaster(Base):
     # Suggested Foreign Key to Entity
     entity_id = Column(String(50), nullable=True)
     
+    # Sage Intacct Sync Fields
+    vendor_key = Column(String(100), unique=True, index=True, nullable=True)
+    status = Column(String(50), nullable=True)
+    raw_data = Column(Text, nullable=True) # Full JSON response
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

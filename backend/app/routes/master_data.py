@@ -86,6 +86,19 @@ def search_vendor(
         return {"match": result["match"], "score": result["score"], "method": result["method"]}
     return {"match": None, "score": 0.0, "method": "none"}
 
+@router.post("/sync-vendors")
+async def trigger_vendor_sync(
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    Trigger manual sync of vendors from Sage Intacct.
+    """
+    from app.services.vendor_sync_service import VendorSyncService
+    sync_service = VendorSyncService(db)
+    result = await sync_service.sync_vendors()
+    return result
+
 @router.get("/entities")
 def get_entities(
     db: Session = Depends(get_db),
@@ -129,13 +142,14 @@ def list_files(
             continue
             
         count = db.query(func.count(model.id)).scalar()
+        is_vendor = tab in ["Vendor_Master", "vendor_master", "Vendor"]
         
-        if count > 0:
+        if count > 0 or is_vendor:
             result.append({
                 "id": tab,
                 "tab_name": tab,
-                "file_name": f"Structured Table ({count} rows)",
-                "uploaded_at": None, # Could track this separately if needed
+                "file_name": f"API Sync ({count} rows)" if is_vendor else f"Structured Table ({count} rows)",
+                "uploaded_at": None,
                 "uploaded_by": "system",
                 "status": "active",
                 "sheets": [{"name": "Default", "collection_name": tab}]
@@ -160,6 +174,9 @@ async def upload_master_file(
         model = TAB_MODEL_MAP.get(tab_name)
         if not model:
             raise HTTPException(400, f"Unsupported tab: {tab_name}")
+
+        if tab_name in ["Vendor_Master", "vendor_master"]:
+            raise HTTPException(400, "Vendor Master upload is disabled. Please use the Sync API.")
 
         if not file.filename.endswith(('.xls', '.xlsx', '.csv')):
              raise HTTPException(400, "Invalid format. Use .xls, .xlsx, or .csv")
@@ -261,7 +278,12 @@ async def get_sheet_data(
     if not model:
         raise HTTPException(404, "Table not found")
         
-    rows = db.query(model).all()
+    if identifier in ["Vendor_Master", "vendor_master", "Vendor"]:
+        from app.services.vendor_sync_service import VendorSyncService
+        sync_service = VendorSyncService(db)
+        rows = await sync_service.get_all_vendors()
+    else:
+        rows = db.query(model).all()
     
     # Convert SQLAlchemy objects to dicts
     result = []
