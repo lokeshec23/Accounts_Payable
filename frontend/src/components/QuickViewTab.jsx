@@ -119,9 +119,7 @@ const QuickViewTab = React.memo(({
                     low.includes('gst @') || low.includes('tax @') || low.includes('vat @');
             };
  
-            if (!isSystemRow) {
-                // Reverted: Skip condition removed. Taxes should stay as visible line items.
-                // if (!isGstApplicable && isGstLike(desc)) return;
+            if (!isSystemRow && !isGstLike(desc)) {
                 data.push({ ...item, key: `item_${index}` });
             }
         });
@@ -593,6 +591,15 @@ const QuickViewTab = React.memo(({
                                 <span style={{ fontSize: '16px', fontWeight: 500, color: '#595959' }}>
                                     {getCurrencySymbol()} {(Array.isArray(lineItems) ? lineItems : []).reduce((sum, item) => {
                                         if (!item) return sum;
+                                        const desc = (extractValue(item.Description) || item.description || '').toString().trim();
+                                        const lowDesc = desc.toLowerCase();
+                                        const isGstLike = lowDesc === 'gst' || lowDesc === 'vat' || lowDesc === 'tax' || lowDesc === 'igst' || lowDesc === 'cgst' || lowDesc === 'sgst' ||
+                                            lowDesc.includes('total gst') || lowDesc.includes('total tax') || lowDesc.includes('total vat') ||
+                                            lowDesc.includes('gst @') || lowDesc.includes('tax @') || lowDesc.includes('vat @');
+
+                                        if (desc === 'Total GST' || desc === 'Total GST (Ineligible)' || desc === 'TDS Deduction' || isGstLike) {
+                                            return sum;
+                                        }
                                         return sum + parseCurrencyValue(
                                             extractValue(item.NetAmount) ||
                                             extractValue(item.amount) ||

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin, Checkbox, Tabs } from 'antd';
 const { Panel } = Collapse;
@@ -116,6 +116,40 @@ const CodingReviewPage = () => {
     // Disable editing if terminal status OR (approver/admin viewing waiting_approval - unless they are the ones acting, but this page is for coding)
     const disableEditing = isTerminalStatus || (isWaitingApproval && isCoder && !isAdmin);
 
+    const [isGstApplicable, setIsGstApplicable] = useState(true);
+
+    // Entity Master config for GST
+    useEffect(() => {
+        const fetchEntityDetails = async () => {
+            try {
+                const res = await masterDataService.getSheetData('Entity_Master');
+                const sessionEntity = sessionStorage.getItem('selected_entity');
+                const originalEntity = invoiceData?.entity;
+                const currEntity = sessionEntity || originalEntity;
+
+                const entities = Array.isArray(res) ? res : [];
+                if (entities.length > 0 && currEntity) {
+                    const normalizedCurr = String(currEntity).trim().toLowerCase();
+                    const entityData = entities.find(e => {
+                        const name = (e['Entity Name'] || e['entity_name'] || '').toString().trim().toLowerCase();
+                        const id = (e['Entity ID'] || e['entity_id'] || '').toString().trim().toLowerCase();
+                        return (name === normalizedCurr || id === normalizedCurr);
+                    });
+
+                    if (entityData) {
+                        const gstApp = entityData['GST Applicable'];
+                        const gstAppStr = String(gstApp || '').trim().toLowerCase();
+                        const isApp = (gstAppStr !== 'no' && gstAppStr !== 'false' && gstAppStr !== 'ineligible');
+                        setIsGstApplicable(isApp);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch entity details:", err);
+            }
+        };
+        fetchEntityDetails();
+    }, [invoiceData?.entity]);
+
     // Trigger workflow refresh
     const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
     const [completedApproversCount, setCompletedApproversCount] = useState(0);
@@ -164,6 +198,23 @@ const CodingReviewPage = () => {
 
     const renderFieldInput = (field, value) => {
         const stringValue = extractValue(value);
+
+        if ((field.toLowerCase().includes('amount') || field.toLowerCase().includes('price') ||
+            field.toLowerCase().includes('total') || field.toLowerCase().includes('subtotal') ||
+            (field.toLowerCase().includes('tax') && !field.toLowerCase().includes('breakdown')) ||
+            field.toLowerCase().includes('fees') || field.toLowerCase().includes('surcharges')) &&
+            !field.toLowerCase().includes('id') && !field.toLowerCase().includes('tin')) {
+            const numValue = parseCurrencyValue(stringValue);
+            return (
+                <InputNumber
+                    style={{ width: '100%', ...disabledStyle }}
+                    value={isNaN(numValue) ? null : numValue}
+                    step={0.01}
+                    prefix={getCurrencySymbol()}
+                    disabled
+                />
+            );
+        }
 
         return (
             <Input
@@ -521,7 +572,9 @@ const CodingReviewPage = () => {
 
     // Extract line items
     useEffect(() => {
-        if (invoiceData?.rawData?.extracted_data?.Items?.value) {
+        const status = invoiceData?.status;
+        const isFreshCoding = status === 'processed' || status === 'waiting_coding';
+        if (isFreshCoding && invoiceData?.rawData?.extracted_data?.Items?.value) {
             const items = invoiceData.rawData.extracted_data.Items.value.map((item, index) => ({
                 key: index,
                 original_index: index,
@@ -662,6 +715,105 @@ const CodingReviewPage = () => {
             setHighlightedRegions([]);
         }
     }, [hoveredKey, invoiceData]);
+
+    const lineItemsForCalculations = useMemo(() => {
+        return invoiceData?.rawData?.extracted_data?.Items?.value || [];
+    }, [invoiceData]);
+
+    // Implement identical calculationDetails logic as in GenericInputFields.jsx
+    const { calculationDetails, isAmountMismatch } = useMemo(() => {
+        const calculatedSubtotal = lineItemsForCalculations.reduce((sum, item) => {
+            const desc = (extractValue(item.description) || item.description?.value || '').toString().trim();
+            const lowDesc = desc.toLowerCase();
+            // Safeguard: Skip system tax lines and OCR-extracted generic tax lines
+            if (desc === 'Total GST' || desc === 'Total GST (Ineligible)' || desc === 'TDS Deduction' || desc === 'Tax' || 
+                lowDesc === 'gst' || lowDesc === 'vat' || lowDesc === 'igst' || lowDesc === 'cgst' || lowDesc === 'sgst') {
+                return sum;
+            }
+            const val = parseCurrencyValue(extractValue(item.amount) || extractValue(item.NetAmount) || extractValue(item.net_amount));
+            return sum + val;
+        }, 0);
+
+        const headerTax = parseCurrencyValue(formData['CGST']) +
+            parseCurrencyValue(formData['SGST']) +
+            parseCurrencyValue(formData['IGST']) +
+            parseCurrencyValue(formData['GST']);
+
+        const lineItemTax = lineItemsForCalculations.reduce((sum, item) => {
+            const val = parseCurrencyValue(extractValue(item.tax_amount) || extractValue(item.TaxAmount));
+            return sum + val;
+        }, 0);
+
+        const fieldTotalTax = parseCurrencyValue(formData['Total Tax Amount']);
+        let totalTax = fieldTotalTax > 0 ? fieldTotalTax : (headerTax + lineItemTax);
+
+        let tdsAmount = 0;
+        if (selectedVendorDetails) {
+            const findVal = (obj, keys) => {
+                if (!obj) return null;
+                const matchKey = Object.keys(obj).find(k => {
+                    const normK = k.toLowerCase().replace(/[\s_\\\-]/g, '');
+                    return keys.some(target => normK === target.toLowerCase().replace(/[\s_\\\-]/g, ''));
+                });
+                return matchKey ? obj[matchKey] : null;
+            };
+
+            const tdsApplicabilityVal = findVal(selectedVendorDetails, [
+                'TDS/Withhold Tax Applicability Configuration',
+                'TDS Applicability', 'TDS Applicable', 'Withholding Tax Applicable'
+            ]);
+
+            const isTDSApplicable = tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes';
+
+            if (isTDSApplicable && isGstApplicable) {
+                const tdsRateVal = findVal(selectedVendorDetails, [
+                    'TDS Percentage', 'Percentage', 'Rate', 'TDS Rate', 'Withholding Rate'
+                ]) || '0';
+                const tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
+                tdsAmount = parseFloat((calculatedSubtotal * tdsRate).toFixed(2));
+            }
+        }
+
+        const invoiceTotal_calc1 = parseFloat((calculatedSubtotal + totalTax).toFixed(2));
+        const extractedSubtotal = parseCurrencyValue(formData['Subtotal']);
+        const invoiceTotal_calc2 = parseFloat((extractedSubtotal + totalTax).toFixed(2));
+
+        const amountPaid = parseCurrencyValue(formData['Amount Paid']);
+        const shipping = parseCurrencyValue(formData['Shipping / Handling / Fees']);
+        const surcharges = parseCurrencyValue(formData['Surcharges']);
+
+        const invoiceTotal_calc3 = parseFloat((calculatedSubtotal + totalTax - amountPaid + shipping + surcharges).toFixed(2));
+        const currentTotal = parseCurrencyValue(formData['Total Invoice Amount']);
+
+        const calculations = [
+            { value: invoiceTotal_calc1, name: "Heuristic 1: Line Items + Tax" },
+            { value: invoiceTotal_calc2, name: "Heuristic 2: Subtotal + Tax" },
+            { value: invoiceTotal_calc3, name: "Heuristic 3: Total Reconciliation" }
+        ];
+
+        const match = calculations.find(c => Math.abs(currentTotal - c.value) < 0.01);
+        const baseTotalForPayable = match ? match.value : invoiceTotal_calc1;
+        const isMismatch = match === undefined;
+
+        return {
+            isAmountMismatch: isMismatch && currentTotal > 0,
+            calculationDetails: {
+                lineItemsTotal: calculatedSubtotal,
+                totalTax: totalTax,
+                extractedSubtotal: extractedSubtotal,
+                amountPaid: amountPaid,
+                shipping: shipping,
+                surcharges: surcharges,
+                calc1: invoiceTotal_calc1,
+                calc2: invoiceTotal_calc2,
+                calc3: invoiceTotal_calc3,
+                currentTotal: currentTotal,
+                baseTotalUsed: baseTotalForPayable,
+                baseTotalSource: match ? match.name : "Default Calculation (Heuristic 1)",
+                tdsAmount: tdsAmount
+            }
+        };
+    }, [lineItemsForCalculations, formData, selectedVendorDetails, isGstApplicable]);
 
     const handleHeaderCodingChange = (value) => {
         setHeaderCoding(value);
@@ -1576,6 +1728,9 @@ const CodingReviewPage = () => {
                                         exportToExcel={() => { }}
                                         lineItemColumns={lineItemColumnsForTabs}
                                         readOnly={true}
+                                        isAmountMismatch={isAmountMismatch}
+                                        calculationDetails={calculationDetails}
+                                        isGstApplicable={isGstApplicable}
                                         isCodingData={!!(codingLineItems && codingLineItems.length > 0)}
                                     />
                                 )
@@ -1598,6 +1753,7 @@ const CodingReviewPage = () => {
                                         exportToExcel={() => { }}
                                         lineItemColumns={lineItemColumnsForTabs}
                                         readOnly={true}
+                                        isGstApplicable={isGstApplicable}
                                         schema={schemaMap.invoice}
                                         isCodingData={!!(codingLineItems && codingLineItems.length > 0)}
                                     />

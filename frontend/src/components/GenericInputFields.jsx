@@ -1545,6 +1545,16 @@ const GenericInputFields = forwardRef(({
     // Calculate totals using useMemo instead of useEffect
     const { invoiceTotal, payableAmount, tdsAmount, isAmountMismatch, calculationDetails } = useMemo(() => {
         const calculatedSubtotal = lineItems.reduce((sum, item) => {
+            const desc = (extractValue(item.Description) || item.description || '').toString();
+            const lowDesc = desc.toLowerCase().trim();
+            const isGstLike = lowDesc === 'gst' || lowDesc === 'vat' || lowDesc === 'tax' || lowDesc === 'igst' || lowDesc === 'cgst' || lowDesc === 'sgst' ||
+                lowDesc.includes('total gst') || lowDesc.includes('total tax') || lowDesc.includes('total vat') ||
+                lowDesc.includes('gst @') || lowDesc.includes('tax @') || lowDesc.includes('vat @');
+
+            // Safeguard: Skip system tax lines if they somehow got into lineItems
+            if (desc === 'Total GST' || desc === 'Total GST (Ineligible)' || desc === 'TDS Deduction' || isGstLike) {
+                return sum;
+            }
             const val = parseCurrencyValue(extractValue(item.NetAmount) ||
                 extractValue(item.amount) || extractValue(item.net_amount));
             return sum + val;
