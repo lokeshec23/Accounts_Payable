@@ -101,6 +101,10 @@ const GenericInputFields = forwardRef(({
     const [exchangeRate, setExchangeRate] = useState(null);
     const [isVendorLoading, setIsVendorLoading] = useState(false);
 
+    // Entity Master config
+    const [isGstApplicable, setIsGstApplicable] = useState(true);
+ 
+
     // Line Grouping state
     const [lineGrouping, setLineGrouping] = useState('No');
     const [originalLineItems, setOriginalLineItems] = useState([]);
@@ -134,6 +138,61 @@ const GenericInputFields = forwardRef(({
     const [approverComment, setApproverComment] = useState('');
     const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
     const [reposting, setReposting] = useState(false);
+
+
+    useEffect(() => {
+        const fetchEntityDetails = async () => {
+            try {
+                const res = await masterDataService.getSheetData('Entity_Master');
+                const sessionEntity = sessionStorage.getItem('selected_entity');
+                const originalEntity = originalData?.entity;
+                const currEntity = sessionEntity || originalEntity;
+               
+                const entities = Array.isArray(res) ? res : [];
+                console.log("[DEBUG GST] fetchEntityDetails", {
+                    sessionEntity,
+                    originalEntity,
+                    chosenEntity: currEntity,
+                    allEntities: entities.map(e => e['Entity Name'] || e['entity_name'])
+                });
+
+                if (entities.length > 0 && currEntity) {
+                    const normalizedCurr = String(currEntity).trim().toLowerCase();
+                    const entityData = entities.find(e => {
+                        const name = (e['Entity Name'] || e['entity_name'] || '').toString().trim().toLowerCase();
+                        const id = (e['Entity ID'] || e['entity_id'] || '').toString().trim().toLowerCase();
+                        const match = (name === normalizedCurr || id === normalizedCurr);
+                        if (match) console.log("[DEBUG GST] Match found!", { name, id, normalizedCurr });
+                        return match;
+                    });
+ 
+                    if (entityData) {
+                        const gstApp = entityData['GST Applicable'];
+                        const gstAppStr = String(gstApp || '').trim().toLowerCase();
+                        const isApp = (gstAppStr !== 'no' && gstAppStr !== 'false' && gstAppStr !== 'ineligible');
+                        console.log("[DEBUG GST] Entity policy found:", { 
+                            entity: entityData['Entity Name'], 
+                            rawGstFlag: gstApp, 
+                            finalIsGstApplicable: isApp 
+                        });
+                        setIsGstApplicable(isApp);
+                    } else {
+                        console.warn("[DEBUG GST] No matching entity found in Master Data for:", currEntity);
+                    }
+                } else if (!currEntity) {
+                    console.warn("[DEBUG GST] No entity name found in session or originalData");
+                }
+            } catch (err) {
+                console.error("[DEBUG GST] Failed to fetch entity details:", err);
+            }
+        };
+        fetchEntityDetails();
+    }, [originalData?.entity]);
+
+
+
+
+
 
     // Duplicate Invoice State
     const [isDuplicateError, setIsDuplicateError] = useState(false);
@@ -309,6 +368,10 @@ const GenericInputFields = forwardRef(({
     const handleLineItemChange = useCallback((index, field, value) => {
         setLineItems((prev) => {
             const updatedItems = [...prev];
+            if (!updatedItems[index]) {
+                console.warn(`[handleLineItemChange] Invalid index ${index} for lineItems of length ${updatedItems.length}. This usually happens on system rows.`);
+                return prev;
+            }
             updatedItems[index][field] = { value };
             return updatedItems;
         });
@@ -655,7 +718,10 @@ const GenericInputFields = forwardRef(({
                 <div onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_Description`)}
                     onMouseLeave={() => setHoveredKey && setHoveredKey(null)}>
                     <Input.TextArea rows={2} value={extractValue(val)}
-                        onChange={(e) => handleLineItemChange(index, 'Description', e.target.value)}
+                        onChange={(e) => {
+                            if (record.isSystemRow) return; // Ignore for system rows
+                            handleLineItemChange(index, 'Description', e.target.value);
+                        }}
                         disabled={disableInputs} style={disabledStyle} />
                 </div>
             )
@@ -666,7 +732,10 @@ const GenericInputFields = forwardRef(({
                 <div onMouseEnter={() => setHoveredKey && setHoveredKey(`LineItem_${index}_Quantity`)}
                     onMouseLeave={() => setHoveredKey && setHoveredKey(null)}>
                     <InputNumber style={{ width: '100%', ...disabledStyle }} value={extractValue(val)}
-                        onChange={(value) => handleLineItemChange(index, 'Quantity', value)}
+                        onChange={(value) => {
+                            if (record.isSystemRow) return; // Ignore for system rows
+                            handleLineItemChange(index, 'Quantity', value);
+                        }}
                         disabled={disableInputs} />
                 </div>
             )
@@ -678,7 +747,15 @@ const GenericInputFields = forwardRef(({
                     onMouseLeave={() => setHoveredKey && setHoveredKey(null)}>
                     <InputNumber style={{ width: '100%', ...disabledStyle }}
                         value={parseCurrencyValue(extractValue(val))}
-                        onChange={(value) => handleLineItemChange(index, 'UnitPrice', value)}
+                        onChange={(value) => {
+                            if (record.key === 'gst_total') {
+                                handleInputChange('Total Tax Amount', value);
+                            } else if (record.key === 'TDS_PREVIEW') {
+                                handleInputChange('Withholding Tax', value);
+                            } else {
+                                handleLineItemChange(index, 'UnitPrice', value);
+                            }
+                        }}
                         step={0.01} prefix="$" disabled={readOnly} />
                 </div>
             )
@@ -690,7 +767,10 @@ const GenericInputFields = forwardRef(({
                     onMouseLeave={() => setHoveredKey && setHoveredKey(null)}>
                     <InputNumber style={{ width: '100%', ...disabledStyle }}
                         value={parseCurrencyValue(extractValue(val))}
-                        onChange={(value) => handleLineItemChange(index, 'Discount', value)}
+                        onChange={(value) => {
+                            if (record.isSystemRow) return; // Ignore for system rows
+                            handleLineItemChange(index, 'Discount', value);
+                        }}
                         step={0.01} prefix="$" disabled={readOnly} />
                 </div>
             )
@@ -702,7 +782,15 @@ const GenericInputFields = forwardRef(({
                     onMouseLeave={() => setHoveredKey && setHoveredKey(null)}>
                     <InputNumber style={{ width: '100%', ...disabledStyle }}
                         value={parseCurrencyValue(extractValue(val))}
-                        onChange={(value) => handleLineItemChange(index, 'NetAmount', value)}
+                        onChange={(value) => {
+                            if (record.key === 'gst_total') {
+                                handleInputChange('Total Tax Amount', value);
+                            } else if (record.key === 'TDS_PREVIEW') {
+                                handleInputChange('Withholding Tax', value);
+                            } else {
+                                handleLineItemChange(index, 'NetAmount', value);
+                            }
+                        }}
                         step={0.01} prefix="$" disabled={readOnly} />
                 </div>
             )
@@ -714,7 +802,15 @@ const GenericInputFields = forwardRef(({
                     onMouseLeave={() => setHoveredKey && setHoveredKey(null)}>
                     <InputNumber style={{ width: '100%', ...disabledStyle }}
                         value={parseCurrencyValue(extractValue(val))}
-                        onChange={(value) => handleLineItemChange(index, 'TaxAmount', value)}
+                        onChange={(value) => {
+                            if (record.key === 'gst_total') {
+                                handleInputChange('Total Tax Amount', value);
+                            } else if (record.isSystemRow) {
+                                return; // Ignore or handle other system rows
+                            } else {
+                                handleLineItemChange(index, 'TaxAmount', value);
+                            }
+                        }}
                         step={0.01} disabled={readOnly} />
                 </div>
             )
@@ -737,7 +833,7 @@ const GenericInputFields = forwardRef(({
             }
         }
     ], [disableInputs, disabledStyle, extractValue, handleLineItemChange, setHoveredKey,
-        parseCurrencyValue, readOnly, removeLineItem]);
+        parseCurrencyValue, readOnly, removeLineItem, handleInputChange]);
 
     // ==================== SAVE FUNCTIONS ====================
     const saveInvoiceData = useCallback(async () => {
@@ -1490,8 +1586,13 @@ const GenericInputFields = forwardRef(({
         }, 0);
 
         const fieldTotalTax = parseCurrencyValue(extractValue(formData['Total Tax Amount']));
-        const totalTax = fieldTotalTax > 0 ? fieldTotalTax : (headerTax + lineItemTax);
+        let totalTax = fieldTotalTax > 0 ? fieldTotalTax : (headerTax + lineItemTax);
 
+        // Keep totalTax even if GST is not applicable (per user request)
+        // if (!isGstApplicable) {
+        //     totalTax = 0;
+        // }
+    
         let tdsAmount = 0;
         if (selectedVendorDetails) {
             const findVal = (obj, keys) => {
@@ -1510,7 +1611,7 @@ const GenericInputFields = forwardRef(({
 
             const isTDSApplicable = tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes';
 
-            if (isTDSApplicable) {
+            if (isTDSApplicable && isGstApplicable) {
                 const tdsRateVal = findVal(selectedVendorDetails, [
                     'TDS Percentage', 'Percentage', 'Rate', 'TDS Rate', 'Withholding Rate'
                 ]) || '0';
@@ -1568,7 +1669,7 @@ const GenericInputFields = forwardRef(({
                 tdsAmount: tdsAmount
             }
         };
-    }, [lineItems, selectedVendorDetails, formData, readOnly, extractValue, parseCurrencyValue]);
+    }, [lineItems, selectedVendorDetails, formData, readOnly, extractValue, parseCurrencyValue, isGstApplicable]);
 
     // Update form data only when calculated values differ
     useEffect(() => {
@@ -1709,31 +1810,42 @@ const GenericInputFields = forwardRef(({
             //     return prevCoding;
             // }
 
+
             const newCoding = [];
             let currentSNo = 1;
-
+ 
+            const isGstLike = (d) => {
+                const low = d.toLowerCase().trim();
+                return low === 'gst' || low === 'vat' || low === 'tax' || low === 'igst' || low === 'cgst' || low === 'sgst' ||
+                    low.includes('total gst') || low.includes('total tax') || low.includes('total vat') ||
+                    low.includes('gst @') || low.includes('tax @') || low.includes('vat @');
+            };
+ 
             const pureBaseItemsWithIndex = lineItems
                 .map((item, idx) => ({ item, idx }))
                 .filter(({ item }) => {
                     const desc = (extractValue(item.Description) || item.description || '').toString().trim();
-                    return !desc.startsWith('GST for item');
+                    if (desc.startsWith('GST for item')) return false;
+                    // Reverted: Taxes should be captured (kept) in line items even if GST is not applicable
+                    // if (!isGstApplicable && isGstLike(desc)) return false;
+                    return true;
                 });
-
-
+ 
+ 
             pureBaseItemsWithIndex.forEach(({ item, idx }) => {
                 const lineKey = getLineKey(item);
-
+ 
                 const preserved = codingByLineKeyRef.current[lineKey];
-
+ 
                 const existingBase =
                     prevCoding.find(pc => pc.original_index === idx) ||
                     preserved;
-
+ 
                 const unitPrice = parseCurrencyValue(extractValue(item.UnitPrice) ||
                     extractValue(item.unit_price));
                 const netAmount = parseCurrencyValue(extractValue(item.NetAmount) ||
                     extractValue(item.amount) || extractValue(item.net_amount));
-
+ 
                 newCoding.push({
                     s_no: currentSNo++,
                     description: extractValue(item.Description) || item.description || '',
@@ -1749,7 +1861,7 @@ const GenericInputFields = forwardRef(({
                     original_index: idx
                 });
             });
-
+ 
             const formTaxValue = parseCurrencyValue(extractValue(formData['Total Tax Amount']));
             const calculatedTotalTax = pureBaseItemsWithIndex.reduce((sum, { item }) => {
                 const t = parseCurrencyValue(extractValue(item.TaxAmount) ||
@@ -1759,38 +1871,55 @@ const GenericInputFields = forwardRef(({
                 parseCurrencyValue(extractValue(formData['SGST'])) +
                 parseCurrencyValue(extractValue(formData['IGST'])) +
                 parseCurrencyValue(extractValue(formData['GST']));
-
+ 
             const finalGstValue = (formTaxValue !== undefined && formTaxValue !== null && formTaxValue !== '')
                 ? formTaxValue : calculatedTotalTax
-
+ 
             const gstAmount = finalGstValue;
-
+ 
             if (readOnly) return prevCoding;
-
+ 
             const gstEligibilityRaw =
                 selectedVendorDetails?.['GST / Use Tax Eligibility Configuration']
                     ?.toString()
                     .trim();
-
+ 
             const isEligible = ['Eligible', 'yes', 'y'].includes(gstEligibilityRaw);
-
+ 
             if (gstAmount > 0) {
-                newCoding.push({
-                    s_no: currentSNo++,
-                    description: isEligible ? 'Total GST' : 'Total GST (Ineligible)',
-                    line_type: isEligible ? 'Tax' : 'Expense',
-                    quantity: 1,
-                    unit_price: gstAmount,
-                    net_amount: gstAmount,
-                    gl_code: isEligible ? 'GST_INPUT' : (newCoding[0]?.gl_code || ''),
-                    lob: newCoding[0]?.lob || '',
-                    department: newCoding[0]?.department || '',
-                    customer: newCoding[0]?.customer || '',
-                    item: newCoding[0]?.item || '',
-                    original_index: -2
-                });
+                if (isGstApplicable) {
+                    newCoding.push({
+                        s_no: currentSNo++,
+                        description: isEligible ? 'Total GST' : 'Total GST (Ineligible)',
+                        line_type: isEligible ? 'Tax' : 'Expense',
+                        quantity: 1,
+                        unit_price: gstAmount,
+                        net_amount: gstAmount,
+                        gl_code: isEligible ? 'GST_INPUT' : (newCoding[0]?.gl_code || ''),
+                        lob: newCoding[0]?.lob || '',
+                        department: newCoding[0]?.department || '',
+                        customer: newCoding[0]?.customer || '',
+                        item: newCoding[0]?.item || '',
+                        original_index: -2
+                    });
+                } else {
+                    newCoding.push({
+                        s_no: currentSNo++,
+                        description: 'Tax',
+                        line_type: 'Tax',
+                        quantity: 1,
+                        unit_price: gstAmount,
+                        net_amount: gstAmount,
+                        gl_code: newCoding[0]?.gl_code || '',
+                        lob: newCoding[0]?.lob || '',
+                        department: newCoding[0]?.department || '',
+                        customer: newCoding[0]?.customer || '',
+                        item: newCoding[0]?.item || '',
+                        original_index: -2
+                    });
+                }
             }
-
+ 
             const findTDSValue = (keys) => {
                 if (!selectedVendorDetails) return null;
                 const matchKey = Object.keys(selectedVendorDetails).find(k => {
@@ -1799,26 +1928,26 @@ const GenericInputFields = forwardRef(({
                 });
                 return matchKey ? selectedVendorDetails[matchKey] : null;
             };
-
+ 
             const tdsApplicabilityVal = findTDSValue([
                 'TDS/Withhold Tax Applicability Configuration',
                 'TDS Applicability', 'TDS Applicable', 'Withholding Tax Applicable'
             ]);
-
-            if (tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes') {
+ 
+            if (tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes' && isGstApplicable) {
                 const tdsRateVal = findTDSValue([
                     'TDS Percentage', 'Percentage', 'Rate', 'TDS Rate', 'Withholding Rate'
                 ]) || '0';
-
+ 
                 let tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
                 if (tdsRate > 1) tdsRate = tdsRate / 100;
-
+ 
                 const subtotal = newCoding
                     .filter(l => l.original_index >= 0)
                     .reduce((sum, l) => sum + l.net_amount, 0);
-
+ 
                 const tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
-
+ 
                 if (tdsAmount > 0) {
                     newCoding.push({
                         s_no: currentSNo++,
@@ -1836,12 +1965,12 @@ const GenericInputFields = forwardRef(({
                     });
                 }
             }
-
+ 
             return newCoding;
         });
     }, [lineItems, selectedVendorDetails, formData, readOnly, extractValue,
-        parseCurrencyValue, codingLineItems.length]);
-
+        parseCurrencyValue, codingLineItems.length, isGstApplicable]);
+ 
     // ==================== RENDER TAB CONTENT ====================
     const renderTabContent = useCallback(() => {
         const commonProps = {
@@ -1851,7 +1980,7 @@ const GenericInputFields = forwardRef(({
             handleAddLineItem, exportToExcel, lineItemColumns, readOnly,
             isAmountMismatch, calculationDetails, schema
         };
-
+ 
         switch (activeTab) {
             case '1':
                 console.log("DEBUG: Rendering QuickViewTab case 1");
@@ -1861,10 +1990,10 @@ const GenericInputFields = forwardRef(({
                     setMemo={setMemo} debouncedVendorIdSearch={debouncedVendorIdSearch}
                     debouncedVendorNameSearch={debouncedVendorNameSearch}
                     handleVendorChange={handleVendorChange} skipNextVendorLookup={skipNextVendorLookup}
-                    exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} />;
+                    exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} isGstApplicable={isGstApplicable} />;
             case '2':
                 console.log("DEBUG: Rendering AllFieldsTab case 2", { hasSchema: !!schema, activeTab });
-                return <AllFieldsTab {...commonProps} schema={schema?.flatFields || schema} />;
+                return <AllFieldsTab {...commonProps} schema={schema?.flatFields || schema} isGstApplicable={isGstApplicable} />;
             case '3':
                 return <CodingTab formData={formData} codingLineItems={codingLineItems}
                     headerCoding={headerCoding} disableInputs={disableInputs}
@@ -1892,7 +2021,7 @@ const GenericInputFields = forwardRef(({
                     setMemo={setMemo} debouncedVendorIdSearch={debouncedVendorIdSearch}
                     debouncedVendorNameSearch={debouncedVendorNameSearch}
                     handleVendorChange={handleVendorChange} skipNextVendorLookup={skipNextVendorLookup}
-                    exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} />;
+                    exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} isGstApplicable={isGstApplicable} />;
         }
     }, [activeTab, formData, lineItems, vendorId, vendorIdOptions, vendorNameOptions, memo,
         selectedVendorDetails, isDuplicateError, disableInputs, disabledStyle, getCurrencySymbol,
@@ -1900,8 +2029,8 @@ const GenericInputFields = forwardRef(({
         handleAddLineItem, exportToExcel, lineItemColumns, readOnly, isAmountMismatch, calculationDetails, codingLineItems, headerCoding,
         handleHeaderCodingChange, handleCodingLineItemChange, handleDeleteLineItem, originalData,
         invoiceId, invoiceDisplayId, workflowRefreshTrigger, exchangeRate, setVendorId, setMemo,
-        debouncedVendorIdSearch, debouncedVendorNameSearch, handleVendorChange, setExchangeRate]);
-
+        debouncedVendorIdSearch, debouncedVendorNameSearch, handleVendorChange, setExchangeRate, isGstApplicable]);
+ 
     // ==================== DEBUG RENDER COUNT ====================
     useEffect(() => {
         renderCount.current += 1;
@@ -1909,7 +2038,7 @@ const GenericInputFields = forwardRef(({
             console.warn(`Component rendered ${renderCount.current} times. May indicate infinite loop.`);
         }
     });
-
+ 
     // ==================== RENDER ====================
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -1930,16 +2059,16 @@ const GenericInputFields = forwardRef(({
                             ]}
                         />
                     </div>
-
+ 
                     {renderStatusTag && (
-                        invoiceStatus === "approved" || 
-                        invoiceStatus === "rejected" || 
-                        invoiceStatus === "sage_posted" || 
+                        invoiceStatus === "approved" ||
+                        invoiceStatus === "rejected" ||
+                        invoiceStatus === "sage_posted" ||
                         invoiceStatus === "sage_post_failed"
                     ) && (
                         <div style={{ flexShrink: 0 }}>{renderStatusTag()}</div>
                     )}
-
+ 
                     {invoiceStatus === 'waiting_approval' && (
                         <Space style={{ flexShrink: 0 }}>
                             <Button type="primary" icon={<CheckCircleOutlined />}
@@ -1961,7 +2090,7 @@ const GenericInputFields = forwardRef(({
                             </Button>
                         </Space>
                     )}
-
+ 
                     {(invoiceStatus === 'approved' || invoiceStatus === 'sage_post_failed') && !isCoder && (
                         <Space style={{ flexShrink: 0 }}>
                             <Button
@@ -1975,7 +2104,7 @@ const GenericInputFields = forwardRef(({
                         </Space>
                     )}
                 </div>
-
+ 
                 {isWaitingApproval && (
                     <div style={{ marginBottom: '8px' }}>
                         <TextArea rows={2} placeholder="Add a comment about this approval decision (optional)..."
@@ -1983,7 +2112,7 @@ const GenericInputFields = forwardRef(({
                             maxLength={500} showCount style={{ width: '100%' }} />
                     </div>
                 )}
-
+ 
                 {(invoiceStatus === "approved" || invoiceStatus === "rejected") && validationInfo?.approver_comment && (
                     <div style={{
                         padding: '10px 16px', backgroundColor: 'var(--bg-main-layout, #f6f8fa)', borderLeft: '3px solid #1890ff',
@@ -2002,16 +2131,17 @@ const GenericInputFields = forwardRef(({
                         )}
                     </div>
                 )}
-
+ 
                 {/* Action buttons removed - now in InvoiceReview header */}
-
-
-
+ 
+ 
+ 
             </div>
-
+ 
             <div style={{ flex: 1, overflow: 'auto' }}>{renderTabContent()}</div>
         </div>
     );
 });
-
+ 
 export default GenericInputFields;
+ 

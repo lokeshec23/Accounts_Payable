@@ -16,7 +16,7 @@ import {
     Empty,
     Switch
 } from "antd";
-
+ 
 import {
     PlusOutlined,
     EditOutlined,
@@ -28,12 +28,12 @@ import {
 import { masterDataService, currencyService } from "../services/api";
 import { TableSkeleton } from "../components/SkeletonLoader";
 import "../styles/MainLayout.css";
-
+ 
 const { Title, Text } = Typography;
 const { Search } = Input;
 const { confirm } = Modal;
 const { Dragger } = Upload;
-
+ 
 const MASTER_TABS = [
     { key: "Entity_Master", label: "Entity Master" },
     { key: "Vendor_Master", label: "Vendor Master" },
@@ -45,7 +45,7 @@ const MASTER_TABS = [
     { key: "Item", label: "Item Master" },
     { key: "Currency", label: "Currency" }
 ];
-
+ 
 const EXTRA_CURRENCIES = [
     { code: "USD", name: "US Dollar", symbol: "$" },
     { code: "EUR", name: "Euro", symbol: "€" },
@@ -87,18 +87,18 @@ const EXTRA_CURRENCIES = [
     { code: "TRY", name: "Turkish Lira", symbol: "₺" },
     { code: "RUB", name: "Russian Ruble", symbol: "₽" },
 ];
-
+ 
 const MasterDataPage = () => {
     const [loading, setLoading] = useState(false);
     const [userRole, setUserRole] = useState('');
     const [activeTab, setActiveTab] = useState("Entity_Master");
     const [activeSubTab, setActiveSubTab] = useState(null); // { name, collection_name }
     const [tabStatus, setTabStatus] = useState({}); // { tabKey: { file_name, status, sheets: [] } }
-
+ 
     const [tableData, setTableData] = useState([]);
     const [columns, setColumns] = useState([]);
     const [searchText, setSearchText] = useState("");
-
+ 
     const [currencies, setCurrencies] = useState([]);
     const mergedCurrencies = useMemo(() => {
         return [
@@ -108,10 +108,10 @@ const MasterDataPage = () => {
             )
         ];
     }, [currencies]);
-
+ 
     // TDS Rates for dropdowns in Vendor Master
     const [tdsRates, setTdsRates] = useState([]);
-
+ 
     const [pagination, setPagination] = useState({
         current: 1,
         pageSize: 10,
@@ -119,14 +119,14 @@ const MasterDataPage = () => {
         pageSizeOptions: ["5", "10", "20", "50"],
         showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
     });
-
+ 
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editRecord, setEditRecord] = useState(null);
     const [addMode, setAddMode] = useState(false);
     const [form] = Form.useForm();
     const tdsApplicable = Form.useWatch("TDS/Withhold Tax Applicability Configuration", form);
-
-
+ 
+ 
     // Effect to clear TDS fields when TDS is set to "No"
     useEffect(() => {
         if (tdsApplicable === "No") {
@@ -136,8 +136,8 @@ const MasterDataPage = () => {
             });
         }
     }, [tdsApplicable, form]);
-
-
+ 
+ 
     useEffect(() => {
         const storedUser = sessionStorage.getItem('user');
         if (storedUser) {
@@ -149,16 +149,16 @@ const MasterDataPage = () => {
             }
         }
     }, []);
-
+ 
     useEffect(() => {
         loadTabStatus();
     }, []);
-
+ 
     const loadCurrencyData = async () => {
         try {
             setLoading(true);
             const data = await currencyService.getCurrencies();
-
+ 
             // Fix INR symbol if it fetches '?'
             const processedData = data.map(currency => {
                 if (currency.code === 'INR' && currency.symbol === '?') {
@@ -166,9 +166,9 @@ const MasterDataPage = () => {
                 }
                 return currency;
             });
-
+ 
             setCurrencies(processedData);
-
+ 
             const currencyCols = [
                 { title: "Currency Name", dataIndex: "name", key: "name" },
                 { title: "Symbol", dataIndex: "symbol", key: "symbol" },
@@ -196,20 +196,20 @@ const MasterDataPage = () => {
             setLoading(false);
         }
     };
-
+ 
     useEffect(() => {
         if (activeTab) {
             // Immediately clear current view to avoid showing stale data from previous tab
             setTableData([]);
             setColumns([]);
             setSearchText("");
-
+ 
             if (activeTab === "Currency") {
                 setActiveSubTab(null);
                 loadCurrencyData();
                 return;
             }
-
+ 
             // Reset activeSubTab to the first sheet of this tab if available
             const status = tabStatus[activeTab];
             if (status && status.sheets && status.sheets.length > 0) {
@@ -220,22 +220,22 @@ const MasterDataPage = () => {
             }
         }
     }, [activeTab, tabStatus, userRole]);
-
+ 
     useEffect(() => {
         if (activeSubTab) {
             loadSheetData(activeSubTab.collection_name);
         }
     }, [activeSubTab]);
-
-
-
+ 
+ 
+ 
     // Fetch TDS Rates whenever TDS_Rates tab data would be available
     useEffect(() => {
         if (activeTab === "Vendor_Master") {
             fetchTdsRates();
         }
     }, [activeTab]);
-
+ 
     const fetchTdsRates = async () => {
         try {
             // Intelligent discovery: search for sheet with "TDS" or "Rates" or "Tax"
@@ -255,9 +255,9 @@ const MasterDataPage = () => {
             console.error("Failed to fetch TDS rates for dropdowns", error);
         }
     };
-
-
-
+ 
+ 
+ 
     const loadTabStatus = async () => {
         try {
             setLoading(true);
@@ -273,27 +273,27 @@ const MasterDataPage = () => {
             setLoading(false);
         }
     };
-
+ 
     const loadSheetData = async (targetCollection) => {
         try {
             setLoading(true);
             const collectionName = targetCollection || (activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`);
             const result = await masterDataService.getSheetData(collectionName);
-
-
+ 
+ 
             const rows = result.map((r, index) => ({
                 key: index,
                 ...r,
             }));
-
+ 
             setTableData(rows);
-
+ 
             if (rows.length > 0) {
                 generateColumns(rows[0], rows);
             } else {
                 setColumns([]);
             }
-
+ 
             setPagination(prev => ({ ...prev, current: 1 }));
         } catch (error) {
             console.log(error);
@@ -304,7 +304,7 @@ const MasterDataPage = () => {
             setLoading(false);
         }
     };
-
+ 
     const handleFileUpload = async (file) => {
         try {
             setLoading(true);
@@ -312,7 +312,7 @@ const MasterDataPage = () => {
             message.success(`${activeTab} uploaded successfully`);
             await loadTabStatus();
         } catch (error) {
-
+ 
             console.error(error);
             message.error("Failed to upload file");
         } finally {
@@ -320,7 +320,7 @@ const MasterDataPage = () => {
         }
         return false;
     };
-
+ 
     const handleTabDelete = () => {
         confirm({
             title: `Delete data for ${activeTab.replace(/_/g, " ")}?`,
@@ -337,7 +337,7 @@ const MasterDataPage = () => {
                     setTableData([]);
                     setColumns([]);
                 } catch (error) {
-
+ 
                     message.error("Failed to delete data");
                 } finally {
                     setLoading(false);
@@ -345,20 +345,20 @@ const MasterDataPage = () => {
             },
         });
     };
-
+ 
     const generateColumns = (sampleRow, rows) => {
         const HIDDEN_COLS = new Set(["key", "id", "created_at", "updated_at"]);
         const colKeys = Object.keys(sampleRow).filter(k => !HIDDEN_COLS.has(k));
-
+ 
         const generated = colKeys.map((colKey) => {
             const values = rows.map(r => r[colKey]);
             const uniqueValues = [...new Set(
                 values.filter(v => v !== null && v !== undefined && v !== "")
             )];
-
+ 
             return {
                 title: colKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-
+ 
                 dataIndex: colKey,
                 key: colKey,
                 sorter: (a, b) => String(a[colKey] || "").localeCompare(String(b[colKey] || "")),
@@ -370,7 +370,7 @@ const MasterDataPage = () => {
                 onFilter: (value, record) => record[colKey] === value,
             };
         });
-
+ 
         if (userRole !== 'coder') {
             generated.push({
                 title: "Actions",
@@ -400,7 +400,7 @@ const MasterDataPage = () => {
         }
         setColumns(generated);
     };
-
+ 
     const openAddModal = () => {
         setEditRecord(null);
         setAddMode(true);
@@ -416,18 +416,18 @@ const MasterDataPage = () => {
         }
         setIsModalVisible(true);
     };
-
+ 
     const openEditModal = (record) => {
         setEditRecord(record);
         setAddMode(false);
         form.setFieldsValue(record);
         setIsModalVisible(true);
     };
-
+ 
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
-
+ 
             if (activeTab === "Currency") {
                 if (addMode) {
                     await currencyService.createCurrency(values);
@@ -440,9 +440,9 @@ const MasterDataPage = () => {
                 loadCurrencyData();
                 return;
             }
-
+ 
             const collectionName = activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`;
-
+ 
             if (addMode) {
                 await masterDataService.addRow(collectionName, values);
                 message.success("Row added");
@@ -450,7 +450,7 @@ const MasterDataPage = () => {
                 await masterDataService.editRow(collectionName, editRecord.key, { ...editRecord, ...values });
                 message.success("Row updated");
             }
-
+ 
             setIsModalVisible(false);
             loadSheetData();
         } catch (error) {
@@ -458,14 +458,14 @@ const MasterDataPage = () => {
             message.error("Failed to save row");
         }
     };
-
+ 
     const confirmDelete = (indexOrId) => {
         let title = "Delete this row?";
         if (activeTab === "Currency") {
             const currency = tableData.find(c => c.id === indexOrId);
             if (currency) title = `Currency: ${currency.name} (${currency.symbol})`;
         }
-
+ 
         confirm({
             title: title,
             icon: <ExclamationCircleOutlined />,
@@ -479,11 +479,11 @@ const MasterDataPage = () => {
                         loadCurrencyData();
                         return;
                     }
-
+ 
                     const collectionName = activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`;
                     await masterDataService.deleteRow(collectionName, indexOrId);
                     message.success("Row deleted");
-
+ 
                     loadSheetData();
                 } catch {
                     message.error("Failed to delete row");
@@ -491,7 +491,7 @@ const MasterDataPage = () => {
             },
         });
     };
-
+ 
     const filteredData = useMemo(() => {
         if (!searchText) return tableData;
         return tableData.filter((record) =>
@@ -500,7 +500,7 @@ const MasterDataPage = () => {
             )
         );
     }, [tableData, searchText]);
-
+ 
     const renderUploadView = () => (
         <div style={{ padding: '60px 0', textAlign: 'center' }}>
             <Dragger
@@ -517,10 +517,10 @@ const MasterDataPage = () => {
             </Dragger>
         </div>
     );
-
+ 
     return (
         <div style={{ padding: "24px", fontFamily: "'Inter', sans-serif" }}>
-
+ 
             <Card className="master-data-card" style={{ minHeight: "80vh", borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                     <Title level={4} style={{ margin: 0 }}>Master Data Management</Title>
@@ -544,7 +544,7 @@ const MasterDataPage = () => {
                         </Space>
                     )}
                 </div>
-
+ 
                 <Tabs
                     activeKey={activeTab}
                     onChange={setActiveTab}
@@ -554,7 +554,7 @@ const MasterDataPage = () => {
                     }))}
                     className="master-data-tabs"
                 />
-
+ 
                 {!loading && tabStatus[activeTab]?.sheets?.length > 1 && (
                     <Tabs
                         size="small"
@@ -568,8 +568,8 @@ const MasterDataPage = () => {
                         style={{ marginBottom: 16 }}
                     />
                 )}
-
-
+ 
+ 
                 {loading ? (
                     <TableSkeleton />
                 ) : (
@@ -601,7 +601,7 @@ const MasterDataPage = () => {
                         )}
                     </>
                 )}
-
+ 
                 <Modal
                     title={addMode ? `Add to ${activeTab.replace(/_/g, " ")}` : `Edit Row`}
                     open={isModalVisible}
@@ -628,8 +628,26 @@ const MasterDataPage = () => {
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
                                 {columns.filter(c => c.key !== 'actions').map((col) => {
                                     const fieldKey = col.key;
-
+ 
                                     // Specialized rendering for Vendor Master configuration fields
+                                    if (activeTab === "Entity_Master") {
+                                        if (fieldKey === "GST Applicable") {
+                                            return (
+                                                <Form.Item
+                                                    key={fieldKey}
+                                                    label={fieldKey}
+                                                    name={fieldKey}
+                                                    style={{ width: 'calc(50% - 8px)' }}
+                                                    valuePropName="checked"
+                                                    getValueProps={(value) => ({ checked: value === 'Yes' })}
+                                                    getValueFromEvent={(val) => (val ? 'Yes' : 'No')}
+                                                >
+                                                    <Switch checkedChildren="Yes" unCheckedChildren="No" />
+                                                </Form.Item>
+                                            );
+                                        }
+                                    }
+ 
                                     if (activeTab === "Vendor_Master") {
                                         if (fieldKey === "GST / Use Tax Eligibility Configuration") {
                                             return (
@@ -691,7 +709,7 @@ const MasterDataPage = () => {
                                                 </Form.Item>
                                             );
                                         }
-
+ 
                                         if (fieldKey === "TDS Percentage") {
                                             const isApplicable = tdsApplicable === "Yes";
                                             return (
@@ -717,8 +735,8 @@ const MasterDataPage = () => {
                                                 </Form.Item>
                                             );
                                         }
-
-
+ 
+ 
                                         if (fieldKey === "TDS Section Code and Description") {
                                             const isApplicable = tdsApplicable === "Yes";
                                             return (
@@ -734,7 +752,7 @@ const MasterDataPage = () => {
                                                             const code = r["Section"] || r["Code"] || "";
                                                             const desc = r["Description"] || r["Nature of Payment"] || "";
                                                             const combined = `${code} - ${desc}`;
-
+ 
                                                             return {
                                                                 value: combined,   // ✅ THIS gets stored in DB
                                                                 label: combined
@@ -746,14 +764,14 @@ const MasterDataPage = () => {
                                                                 const desc = r["Description"] || r["Nature of Payment"] || "";
                                                                 return `${code} - ${desc}` === value;
                                                             });
-
+ 
                                                             if (matched) {
                                                                 const rateValue =
                                                                     matched["TDS Percentage"] ||
                                                                     matched["Percentage"] ||
                                                                     matched["Rate"] ||
                                                                     matched["TDS Rate"];
-
+ 
                                                                 if (rateValue) {
                                                                     form.setFieldValue("TDS Percentage", rateValue);
                                                                 }
@@ -761,13 +779,13 @@ const MasterDataPage = () => {
                                                         }}
                                                     />
                                                 </Form.Item>
-
+ 
                                             );
                                         }
-
-
+ 
+ 
                                     }
-
+ 
                                     return (
                                         <Form.Item key={fieldKey} label={col.title} name={fieldKey} style={{ width: 'calc(50% - 8px)' }}>
                                             <Input />
@@ -782,5 +800,6 @@ const MasterDataPage = () => {
         </div>
     );
 };
-
+ 
 export default MasterDataPage;
+ 

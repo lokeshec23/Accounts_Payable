@@ -13,9 +13,9 @@ import {
     Descriptions
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
-
+ 
 const { Panel } = Collapse;
-
+ 
 const QuickViewTab = React.memo(({
     formData,
     lineItems,
@@ -45,7 +45,8 @@ const QuickViewTab = React.memo(({
     readOnly,
     isAmountMismatch,
     calculationDetails,
-    isCodingData = false
+    isCodingData = false,
+    isGstApplicable = true
 }) => {
     const [showDetails, setShowDetails] = useState(false);
     // Memoize vendor master details panel
@@ -99,23 +100,32 @@ const QuickViewTab = React.memo(({
             </div>
         </Panel>
     ), [selectedVendorDetails, disabledStyle]);
-
+ 
     console.log("DEBUG: QuickViewTab render", { lineItemsCount: lineItems?.length, hasFormData: !!formData, readOnly });
-
+ 
     // Memoize table data source
     const tableDataSource = useMemo(() => {
         const data = [];
         const safeLineItems = Array.isArray(lineItems) ? lineItems : [];
-
+ 
         safeLineItems.forEach((item, index) => {
             if (!item) return;
             const desc = (extractValue(item.Description) || item.Description || '').toString().trim();
             const isSystemRow = ['Total GST', 'Total GST (Ineligible)', 'TDS Deduction'].includes(desc);
+            const isGstLike = (d) => {
+                const low = d.toLowerCase().trim();
+                return low === 'gst' || low === 'vat' || low === 'tax' || low === 'igst' || low === 'cgst' || low === 'sgst' ||
+                    low.includes('total gst') || low.includes('total tax') || low.includes('total vat') ||
+                    low.includes('gst @') || low.includes('tax @') || low.includes('vat @');
+            };
+ 
             if (!isSystemRow) {
+                // Reverted: Skip condition removed. Taxes should stay as visible line items.
+                // if (!isGstApplicable && isGstLike(desc)) return;
                 data.push({ ...item, key: `item_${index}` });
             }
         });
-
+ 
         // Single Aggregated GST Row
         const formTaxValue = parseCurrencyValue(extractValue(formData?.['Total Tax Amount']));
         const totalTaxAmount = safeLineItems.reduce((sum, item) => {
@@ -131,22 +141,37 @@ const QuickViewTab = React.memo(({
             parseCurrencyValue(extractValue(formData?.['CGST'])) +
             parseCurrencyValue(extractValue(formData?.['SGST'])) +
             parseCurrencyValue(extractValue(formData?.['IGST']));
-
+ 
         console.log("DEBUG: QuickViewTab tableDataSource", { itemsCount: data.length, totalTaxAmount });
-
+ 
         const finalTaxToDisplay = formTaxValue || totalTaxAmount;
-
-        data.push({
-            key: 'gst_total',
-            Description: { value: 'Total GST' },
-            Quantity: { value: 1 },
-            UnitPrice: { value: finalTaxToDisplay },
-            NetAmount: { value: finalTaxToDisplay },
-            TaxAmount: { value: 0 },
-            Discount: { value: 0 },
-            isSystemRow: true
-        });
-
+ 
+        if (finalTaxToDisplay > 0) {
+            if (isGstApplicable) {
+                data.push({
+                    key: 'gst_total',
+                    Description: { value: 'Total GST' },
+                    Quantity: { value: 1 },
+                    UnitPrice: { value: finalTaxToDisplay },
+                    NetAmount: { value: finalTaxToDisplay },
+                    TaxAmount: { value: 0 },
+                    Discount: { value: 0 },
+                    isSystemRow: true
+                });
+            } else {
+                data.push({
+                    key: 'gst_total',
+                    Description: { value: 'Tax' },
+                    Quantity: { value: 1 },
+                    UnitPrice: { value: finalTaxToDisplay },
+                    NetAmount: { value: finalTaxToDisplay },
+                    TaxAmount: { value: 0 },
+                    Discount: { value: 0 },
+                    isSystemRow: true
+                });
+            }
+        }
+ 
         // Dynamic TDS Row
         const findTDSValue = (keys) => {
             if (!selectedVendorDetails) return null;
@@ -156,15 +181,15 @@ const QuickViewTab = React.memo(({
             });
             return matchKey ? selectedVendorDetails[matchKey] : null;
         };
-
+ 
         const tdsApplicabilityVal = findTDSValue([
             'TDS/Withhold Tax Applicability Configuration',
             'TDS Applicability',
             'TDS Applicable',
             'Withholding Tax Applicable'
         ]);
-
-        if (tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes') {
+ 
+        if (tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes' && isGstApplicable) {
             const tdsRateVal = findTDSValue([
                 'TDS Percentage',
                 'Percentage',
@@ -174,7 +199,7 @@ const QuickViewTab = React.memo(({
             ]) || '0';
             let tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
             if (tdsRate > 1) tdsRate = tdsRate / 100;
-
+ 
             const safeLineItems = Array.isArray(lineItems) ? lineItems : [];
             const subtotal = safeLineItems.reduce((sum, item) => {
                 if (!item) return sum;
@@ -187,9 +212,9 @@ const QuickViewTab = React.memo(({
                 );
                 return sum + net;
             }, 0);
-
+ 
             const tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
-
+ 
             if (tdsAmount > 0) {
                 data.push({
                     key: 'TDS_PREVIEW',
@@ -204,8 +229,8 @@ const QuickViewTab = React.memo(({
             }
         }
         return data;
-    }, [lineItems, formData, selectedVendorDetails, extractValue, parseCurrencyValue, isCodingData]);
-
+    }, [lineItems, formData, selectedVendorDetails, extractValue, parseCurrencyValue, isCodingData, isGstApplicable]);
+ 
     try {
         return (
             <div style={{ padding: '20px' }}>
@@ -242,7 +267,7 @@ const QuickViewTab = React.memo(({
                                     style={disabledStyle}
                                 />
                             </div>
-
+ 
                             {/* Vendor Name */}
                             <div style={{
                                 display: 'grid',
@@ -274,7 +299,7 @@ const QuickViewTab = React.memo(({
                                     style={{ width: '100%', ...disabledStyle }}
                                 />
                             </div>
-
+ 
                             {/* Invoice Number */}
                             <div style={{
                                 display: 'grid',
@@ -292,7 +317,7 @@ const QuickViewTab = React.memo(({
                                     )}
                                 </div>
                             </div>
-
+ 
                             {/* Invoice Date */}
                             <div style={{
                                 display: 'grid',
@@ -303,7 +328,7 @@ const QuickViewTab = React.memo(({
                                 <div style={{ fontWeight: 500 }}>Invoice Date:</div>
                                 <div>{renderFieldInput ? renderFieldInput('Invoice Date', formData['Invoice Date']) : <span>{extractValue(formData['Invoice Date'])}</span>}</div>
                             </div>
-
+ 
                             {/* Due Date */}
                             <div style={{
                                 display: 'grid',
@@ -314,7 +339,7 @@ const QuickViewTab = React.memo(({
                                 <div style={{ fontWeight: 500 }}>Due Date:</div>
                                 <div>{renderFieldInput ? renderFieldInput('Due Date', formData['Due Date']) : <span>{extractValue(formData['Due Date'])}</span>}</div>
                             </div>
-
+ 
                             {/* Payment Terms */}
                             <div style={{
                                 display: 'grid',
@@ -325,7 +350,7 @@ const QuickViewTab = React.memo(({
                                 <div style={{ fontWeight: 500 }}>Payment Terms:</div>
                                 <div>{renderFieldInput ? renderFieldInput('Payment Terms', formData['Payment Terms']) : <span>{extractValue(formData['Payment Terms'])}</span>}</div>
                             </div>
-
+ 
                             {/* Invoice Currency */}
                             <div style={{
                                 display: 'grid',
@@ -336,7 +361,7 @@ const QuickViewTab = React.memo(({
                                 <div style={{ fontWeight: 500 }}>Invoice Currency:</div>
                                 <div>{renderFieldInput ? renderFieldInput('Invoice Currency', formData['Invoice Currency']) : <span>{extractValue(formData['Invoice Currency'])}</span>}</div>
                             </div>
-
+ 
                             {/* Exchange Rate - Only if not USD */}
                             {extractValue(formData['Invoice Currency']) !== 'USD' && (
                                 <div style={{
@@ -357,7 +382,7 @@ const QuickViewTab = React.memo(({
                                     </div>
                                 </div>
                             )}
-
+ 
                             <div style={{
                                 display: 'grid',
                                 gridTemplateColumns: '350px 1fr',
@@ -385,7 +410,7 @@ const QuickViewTab = React.memo(({
                                     )}
                                 </div>
                             </div>
-
+ 
                             <Modal
                                 title="Total Invoice Amount - Calculation Details"
                                 open={showDetails}
@@ -419,7 +444,7 @@ const QuickViewTab = React.memo(({
                                         - {getCurrencySymbol()} {calculationDetails?.tdsAmount?.toFixed(2)}
                                     </Descriptions.Item>
                                 </Descriptions>
-
+ 
                                 <div style={{ marginTop: '20px', padding: '12px', backgroundColor: 'var(--bg-content, #f5f5f5)', borderRadius: '4px' }}>
                                     <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Payable Amount Derivation:</div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
@@ -438,7 +463,7 @@ const QuickViewTab = React.memo(({
                                         <span>{getCurrencySymbol()} {((calculationDetails?.baseTotalUsed || 0) - (calculationDetails?.tdsAmount || 0)).toFixed(2)}</span>
                                     </div>
                                 </div>
-
+ 
                                 <div style={{ marginTop: '20px' }}>
                                     <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>Heuristic Calculations:</div>
                                     <div style={{ padding: '4px 0' }}>
@@ -454,7 +479,7 @@ const QuickViewTab = React.memo(({
                                         </div>
                                     </div>
                                 </div>
-
+ 
                                 <div style={{
                                     marginTop: '20px',
                                     paddingTop: '10px',
@@ -469,7 +494,7 @@ const QuickViewTab = React.memo(({
                                     </div>
                                 </div>
                             </Modal>
-
+ 
                             {/* Total Amount Payable */}
                             <div style={{
                                 display: 'grid',
@@ -480,7 +505,7 @@ const QuickViewTab = React.memo(({
                                 <div style={{ fontWeight: 500 }}>Total Amount Payable:</div>
                                 <div>{renderFieldInput ? renderFieldInput('Total Amount Payable', formData['Total Amount Payable']) : <span>{extractValue(formData['Total Amount Payable'])}</span>}</div>
                             </div>
-
+ 
                             {/* Amount Paid */}
                             <div style={{
                                 display: 'grid',
@@ -491,7 +516,7 @@ const QuickViewTab = React.memo(({
                                 <div style={{ fontWeight: 500 }}>Amount Paid:</div>
                                 <div>{renderFieldInput ? renderFieldInput('Amount Paid', formData['Amount Paid']) : <span>{extractValue(formData['Amount Paid'])}</span>}</div>
                             </div>
-
+ 
                             {/* Memo */}
                             <div style={{
                                 display: 'grid',
@@ -509,10 +534,10 @@ const QuickViewTab = React.memo(({
                             </div>
                         </div>
                     </Panel>
-
+ 
                     {/* Vendor Master Details */}
                     {vendorMasterDetailsPanel}
-
+ 
                     {/* Line Items */}
                     <Panel
                         header={
@@ -551,7 +576,7 @@ const QuickViewTab = React.memo(({
                                 Add Line Item
                             </Button>
                         )}
-
+ 
                         <div style={{
                             marginTop: '20px',
                             padding: '16px',
@@ -564,7 +589,7 @@ const QuickViewTab = React.memo(({
                             borderTop: '1px solid #d9d9d9'
                         }}>
                             <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: '13px', color: '#8c8c8c', marginRight: '12px' }}>Total Sum of Line Items <sub>( Excl GST )</sub>:</span>
+                                <span style={{ fontSize: '13px', color: '#8c8c8c', marginRight: '12px' }}>Total Sum of Line Items <sub>{isGstApplicable ? '( Excl GST )' : '( Excl Tax )'}</sub>:</span>
                                 <span style={{ fontSize: '16px', fontWeight: 500, color: '#595959' }}>
                                     {getCurrencySymbol()} {(Array.isArray(lineItems) ? lineItems : []).reduce((sum, item) => {
                                         if (!item) return sum;
@@ -601,7 +626,7 @@ const QuickViewTab = React.memo(({
         return <div style={{ padding: '20px', color: 'red' }}>Error rendering Quick View. Check console.</div>;
     }
 });
-
+ 
 QuickViewTab.displayName = 'QuickViewTab';
-
+ 
 export default QuickViewTab;

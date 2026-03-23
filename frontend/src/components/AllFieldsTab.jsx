@@ -1,9 +1,9 @@
 import React, { useMemo, useCallback, useState } from 'react';
 import { Collapse, Table, Button, Modal, Descriptions } from 'antd';
 import { PlusOutlined, DownloadOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
-
+ 
 const { Panel } = Collapse;
-
+ 
 const AllFieldsTab = React.memo((props) => {
     const {
         formData,
@@ -22,21 +22,22 @@ const AllFieldsTab = React.memo((props) => {
         calculationDetails,
         schema = [],
         isCodingData = false,
-        readOnly = false
+        readOnly = false,
+        isGstApplicable = true
     } = props;
-
+ 
     const [showDetails, setShowDetails] = useState(false);
-
+ 
     try {
         const safeLineItems = Array.isArray(lineItems) ? lineItems : [];
-
+ 
         // Define renderFieldGroup inside the component using useCallback
         const renderFieldGroup = useCallback((groupName, fields) => {
             const filteredFields = fields;
             console.log(`DEBUG: AllFieldsTab renderFieldGroup ${groupName}`, { fieldsCount: filteredFields.length });
-
+ 
             if (filteredFields.length === 0) return null;
-
+ 
             return (
                 <Panel header={groupName} key={groupName}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '10px 0' }}>
@@ -47,7 +48,7 @@ const AllFieldsTab = React.memo((props) => {
                                     : null;
                                 const label = fieldSchema?.display_name || field;
                                 const value = formData ? formData[field] : '';
-
+ 
                                 return (
                                     <div key={field} style={{
                                         display: 'grid', gridTemplateColumns: '350px 1fr', gap: '16px', alignItems: 'start'
@@ -85,7 +86,7 @@ const AllFieldsTab = React.memo((props) => {
                 </Panel>
             );
         }, [formData, schema, renderFieldInput, isAmountMismatch]);
-
+ 
         // Memoize vendor master details panel
         const vendorMasterDetailsPanel = useMemo(() => (
             <Panel header="Vendor Master Details" key="vendor_details">
@@ -135,7 +136,7 @@ const AllFieldsTab = React.memo((props) => {
                 </div>
             </Panel>
         ), [selectedVendorDetails, disabledStyle]);
-
+ 
         // Memoize table data source
         const tableDataSource = useMemo(() => {
             const data = [];
@@ -143,11 +144,20 @@ const AllFieldsTab = React.memo((props) => {
                 if (!item) return;
                 const desc = (extractValue(item.Description) || item.Description || '').toString().trim();
                 const isSystemRow = ['Total GST', 'Total GST (Ineligible)', 'TDS Deduction'].includes(desc);
+                const isGstLike = (d) => {
+                    const low = d.toLowerCase().trim();
+                    return low === 'gst' || low === 'vat' || low === 'tax' || low === 'igst' || low === 'cgst' || low === 'sgst' ||
+                        low.includes('total gst') || low.includes('total tax') || low.includes('total vat') ||
+                        low.includes('gst @') || low.includes('tax @') || low.includes('vat @');
+                };
+ 
                 if (!isSystemRow) {
+                    // Reverted: Skip condition removed. Taxes should stay as visible line items.
+                    // if (!isGstApplicable && isGstLike(desc)) return;
                     data.push({ ...item, key: `item_${index}` });
                 }
             });
-
+ 
             // Single Aggregated GST Row
             const formTaxValue = parseCurrencyValue(extractValue(formData?.['Total Tax Amount']));
             const totalTaxAmount = safeLineItems.reduce((sum, item) => {
@@ -163,20 +173,35 @@ const AllFieldsTab = React.memo((props) => {
                 parseCurrencyValue(extractValue(formData?.['CGST'])) +
                 parseCurrencyValue(extractValue(formData?.['SGST'])) +
                 parseCurrencyValue(extractValue(formData?.['IGST']));
-
+ 
             const finalTaxToDisplay = formTaxValue || totalTaxAmount;
-
-            data.push({
-                key: 'gst_total',
-                Description: { value: 'Total GST' },
-                Quantity: { value: 1 },
-                UnitPrice: { value: finalTaxToDisplay },
-                NetAmount: { value: finalTaxToDisplay },
-                TaxAmount: { value: 0 },
-                Discount: { value: 0 },
-                isSystemRow: true
-            });
-
+ 
+            if (finalTaxToDisplay > 0) {
+                if (isGstApplicable) {
+                    data.push({
+                        key: 'gst_total',
+                        Description: { value: 'Total GST' },
+                        Quantity: { value: 1 },
+                        UnitPrice: { value: finalTaxToDisplay },
+                        NetAmount: { value: finalTaxToDisplay },
+                        TaxAmount: { value: 0 },
+                        Discount: { value: 0 },
+                        isSystemRow: true
+                    });
+                } else {
+                    data.push({
+                        key: 'gst_total',
+                        Description: { value: 'Tax' },
+                        Quantity: { value: 1 },
+                        UnitPrice: { value: finalTaxToDisplay },
+                        NetAmount: { value: finalTaxToDisplay },
+                        TaxAmount: { value: 0 },
+                        Discount: { value: 0 },
+                        isSystemRow: true
+                    });
+                }
+            }
+ 
             // Dynamic TDS Row
             const findTDSValue = (keys) => {
                 if (!selectedVendorDetails) return null;
@@ -186,21 +211,21 @@ const AllFieldsTab = React.memo((props) => {
                 });
                 return matchKey ? selectedVendorDetails[matchKey] : null;
             };
-
+ 
             const tdsApplicabilityVal = findTDSValue([
                 'TDS/Withhold Tax Applicability Configuration',
                 'TDS Applicability',
                 'TDS Applicable',
                 'Withholding Tax Applicable'
             ]);
-
-            if (tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes') {
+ 
+            if (tdsApplicabilityVal?.toString().toLowerCase().trim() === 'yes' && isGstApplicable) {
                 const tdsRateVal = findTDSValue([
                     'TDS Percentage', 'Percentage', 'Rate', 'TDS Rate', 'Withholding Rate'
                 ]) || '0';
                 let tdsRate = parseFloat(tdsRateVal.toString().replace('%', '')) || 0;
                 if (tdsRate > 1) tdsRate = tdsRate / 100;
-
+ 
                 const subtotal = safeLineItems.reduce((sum, item) => {
                     if (!item) return sum;
                     const net = parseCurrencyValue(
@@ -212,9 +237,9 @@ const AllFieldsTab = React.memo((props) => {
                     );
                     return sum + net;
                 }, 0);
-
+ 
                 const tdsAmount = parseFloat((subtotal * tdsRate).toFixed(2));
-
+ 
                 if (tdsAmount > 0) {
                     data.push({
                         key: 'TDS_PREVIEW',
@@ -229,8 +254,8 @@ const AllFieldsTab = React.memo((props) => {
                 }
             }
             return data;
-        }, [safeLineItems, formData, selectedVendorDetails, extractValue, parseCurrencyValue]);
-
+        }, [safeLineItems, formData, selectedVendorDetails, extractValue, parseCurrencyValue, isGstApplicable]);
+ 
         return (
             <div style={{ padding: '10px 20px' }}>
                 <Collapse defaultActiveKey={['Invoice Header', 'vendor_details', 'Line Items']}>
@@ -240,17 +265,17 @@ const AllFieldsTab = React.memo((props) => {
                         'PO Number', 'Payment Terms', 'Payment Method', 'Cost Center / Project Code (if printed)',
                         'Service period start', 'Service period end'
                     ])}
-
+ 
                     {/* 4. Vendor Level */}
                     {renderFieldGroup('Vendor Level', [
                         'Vendor Name', 'Vendor Address', 'Vendor Country', 'Vendor Tax ID (VAT/GST/TIN/W9, etc.)',
                         'Vendor Contact Email', 'Vendor Phone', 'Vendor Bank Name', 'Vendor Bank Account Number',
                         'Vendor Bank Details (Account/IBAN/SWIFT/Routing No)', 'Vendor Contact Person', 'Vendor Website (if applicable)'
                     ])}
-
+ 
                     {/* 2. Vendor Master Details */}
                     {vendorMasterDetailsPanel}
-
+ 
                     {/* 3. Line Items */}
                     <Panel
                         header={
@@ -290,7 +315,7 @@ const AllFieldsTab = React.memo((props) => {
                             borderTop: '1px solid #d9d9d9'
                         }}>
                             <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: '13px', color: '#8c8c8c', marginRight: '12px' }}>Total Sum of Line Items <sub>( Excl GST )</sub>:</span>
+                                <span style={{ fontSize: '13px', color: '#8c8c8c', marginRight: '12px' }}>Total Sum of Line Items <sub>{isGstApplicable ? '( Excl GST )' : '( Excl Tax )'}</sub>:</span>
                                 <span style={{ fontSize: '15px', fontWeight: 500, color: '#595959' }}>
                                     {getCurrencySymbol ? getCurrencySymbol() : '$'} {safeLineItems.reduce((sum, item) => {
                                         if (!item) return sum;
@@ -330,31 +355,31 @@ const AllFieldsTab = React.memo((props) => {
                             </Button>
                         )}
                     </Panel>
-
-
+ 
+ 
                     {/* 5. Buyer Information */}
                     {renderFieldGroup('Buyer Information', [
                         'Client Name or Company Name', 'Billing Address', 'Shipping Address (if different)',
                         'Phone Number', 'Email Address (if applicable)', 'Client Tax ID (if applicable)', 'Contact Person'
                     ])}
-
+ 
                     {/* 6. Taxes */}
                     {renderFieldGroup('Taxes', [
                         'Total Tax Amount', 'Tax Type Breakdown (VAT/GST/PST/IGST etc.)', 'CGST', 'SGST', 'IGST', 'GST', 'Withholding Tax'
                     ])}
-
+ 
                     {/* 7. Totals */}
                     {renderFieldGroup('Totals', [
                         'Subtotal', 'Shipping / Handling / Fees', 'Surcharges', 'Total Invoice Amount', 'Total Amount Payable',
                         'Amount Paid', 'Amount Due'
                     ])}
-
+ 
                     {/* 8. Compliance */}
                     {renderFieldGroup('Compliance', [
                         'Notes / Terms', 'QR Code / IRN / ZATCA ID (region-specific)', 'Company Registration Number'
                     ])}
                 </Collapse>
-
+ 
                 <Modal
                     title="Total Invoice Amount - Calculation Details"
                     open={showDetails}
@@ -388,7 +413,7 @@ const AllFieldsTab = React.memo((props) => {
                             - {getCurrencySymbol ? getCurrencySymbol() : '$'} {calculationDetails?.tdsAmount?.toFixed(2)}
                         </Descriptions.Item>
                     </Descriptions>
-
+ 
                     <div style={{ marginTop: '20px', padding: '12px', backgroundColor: 'var(--bg-content, #f5f5f5)', borderRadius: '4px' }}>
                         <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Payable Amount Derivation:</div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
@@ -407,7 +432,7 @@ const AllFieldsTab = React.memo((props) => {
                             <span>{getCurrencySymbol ? getCurrencySymbol() : '$'} {((calculationDetails?.baseTotalUsed || 0) - (calculationDetails?.tdsAmount || 0)).toFixed(2)}</span>
                         </div>
                     </div>
-
+ 
                     <div style={{ marginTop: '20px' }}>
                         <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>Heuristic Calculations:</div>
                         <div style={{ padding: '4px 0' }}>
@@ -423,7 +448,7 @@ const AllFieldsTab = React.memo((props) => {
                             </div>
                         </div>
                     </div>
-
+ 
                     <div style={{
                         marginTop: '20px',
                         paddingTop: '10px',
@@ -445,7 +470,7 @@ const AllFieldsTab = React.memo((props) => {
         return <div style={{ padding: '20px', color: 'red' }}>Error rendering All Fields. Check console.</div>;
     }
 });
-
+ 
 AllFieldsTab.displayName = 'AllFieldsTab';
-
+ 
 export default AllFieldsTab;

@@ -354,13 +354,12 @@ class ApproverDefault(Base):
 
 
 # ==================== MASTER DATA ====================
-
 class EntityMaster(Base):
     """
     Entity Master table to store business entity details.
     """
     __tablename__ = "entity_master"
-
+ 
     id = Column(Integer, primary_key=True, autoincrement=True)
     entity_id = Column(String(50), unique=True, nullable=False, index=True)
     entity_name = Column(String(200), nullable=False)
@@ -372,8 +371,10 @@ class EntityMaster(Base):
     state_or_territory = Column(String(100), nullable=True)
     zip_or_postal_code = Column(String(20), nullable=True)
     country_code = Column(String(10), nullable=True)
+    gst_applicable = Column(Boolean, nullable=True, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 
 
 class VendorMaster(Base):
