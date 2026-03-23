@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Dropdown } from "antd";
-import { LogoutOutlined, SettingOutlined, SunFilled, MoonFilled } from "@ant-design/icons";
+import { LogoutOutlined, SettingOutlined, SunFilled, MoonFilled, QuestionCircleOutlined } from "@ant-design/icons";
+import { Modal } from "antd";
 import { authService } from "../services/auth";
 import "../styles/Header.css";
 import { useEntity } from "../context/EntityContext";
@@ -14,6 +15,7 @@ const Header = () => {
   const { settings } = useGlobalSettings();
   const { isDarkMode, toggleTheme } = useTheme();
   const [role, setRole] = useState("");
+  const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -72,6 +74,31 @@ const Header = () => {
 
         {/* RIGHT SIDE - USER DROPDOWN */}
         <div className="header-actions">
+          <div
+            className="user-guide-link"
+            onClick={() => setIsGuideModalOpen(true)}
+            title="User Guide"
+            style={{
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "4px 12px",
+              borderRadius: "20px",
+              background: isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
+              transition: "all 0.3s ease",
+              marginRight: "8px"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = isDarkMode ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)";
+            }}
+          >
+            <QuestionCircleOutlined style={{ fontSize: "16px", color: isDarkMode ? "#fff" : "#303030" }} />
+            <span style={{ fontSize: "14px", fontWeight: 500, color: isDarkMode ? "#fff" : "#303030" }}>User Guide</span>
+          </div>
 
           <div
             className={`theme-switch ${isDarkMode ? "dark" : "light"}`}
@@ -169,6 +196,26 @@ const Header = () => {
           </Dropdown>
         </div>
       </div>
+      <Modal
+        title="AP User Guide"
+        open={isGuideModalOpen}
+        onCancel={() => setIsGuideModalOpen(false)}
+        footer={null}
+        width="90vw"
+        style={{ top: 20 }}
+        styles={{ 
+          body: { height: "calc(100vh - 120px)", padding: 0, overflow: "hidden" },
+          mask: { backdropFilter: "blur(4px)" }
+        }}
+      >
+        <iframe
+          src="/AP_User_Guide.pdf#view=FitH"
+          title="AP User Guide"
+          width="100%"
+          height="100%"
+          style={{ border: "none" }}
+        />
+      </Modal>
     </header>
   );
 };
