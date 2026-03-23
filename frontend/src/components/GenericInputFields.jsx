@@ -1544,30 +1544,6 @@ const GenericInputFields = forwardRef(({
     // ==================== TDS CALCULATION & TOTALS - FIXED ====================
     // Calculate totals using useMemo instead of useEffect
     const { invoiceTotal, payableAmount, tdsAmount, isAmountMismatch, calculationDetails } = useMemo(() => {
-        if (readOnly) {
-            return {
-                invoiceTotal: 0,
-                payableAmount: 0,
-                tdsAmount: 0,
-                isAmountMismatch: false,
-                calculationDetails: {
-                    lineItemsTotal: 0,
-                    totalTax: 0,
-                    extractedSubtotal: 0,
-                    amountPaid: 0,
-                    shipping: 0,
-                    surcharges: 0,
-                    calc1: 0,
-                    calc2: 0,
-                    calc3: 0,
-                    currentTotal: 0,
-                    baseTotalUsed: 0,
-                    baseTotalSource: "N/A",
-                    tdsAmount: 0
-                }
-            };
-        }
-
         const calculatedSubtotal = lineItems.reduce((sum, item) => {
             const val = parseCurrencyValue(extractValue(item.NetAmount) ||
                 extractValue(item.amount) || extractValue(item.net_amount));
