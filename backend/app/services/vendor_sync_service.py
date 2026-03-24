@@ -1,5 +1,6 @@
 import httpx
 import asyncio
+import os
 import logging
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
@@ -19,11 +20,11 @@ class VendorSyncService:
     """
     def __init__(self, db: Session):
         self.db = db
-        self.base_url = settings.SAGE_BASE_URL
-        self.token_url = settings.SAGE_TOKEN_URL
-        self.client_id = settings.SAGE_CLIENT_ID
-        self.client_secret = settings.SAGE_CLIENT_SECRET
-        self.username = settings.SAGE_USERNAME
+        self.base_url = os.getenv("SAGE_BASE_URL", settings.SAGE_BASE_URL)
+        self.token_url = os.getenv("SAGE_TOKEN_URL", settings.SAGE_TOKEN_URL)
+        self.client_id = os.getenv("SAGE_CLIENT_ID", settings.SAGE_CLIENT_ID)
+        self.client_secret = os.getenv("SAGE_CLIENT_SECRET", settings.SAGE_CLIENT_SECRET)
+        self.username = os.getenv("SAGE_USERNAME", settings.SAGE_USERNAME)
         
     async def _get_access_token(self, client: httpx.AsyncClient) -> str:
         """Fetch OAuth2 token with optimized error handling."""
