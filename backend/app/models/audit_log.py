@@ -26,6 +26,7 @@ class AuditLogCreate(BaseModel):
     user: str
     entity: str
     details: Optional[Dict[str, Any]] = None
+    sage_bill_number: Optional[str] = None
     timestamp: Optional[datetime] = None
 
 class AuditLogResponse(AuditLogCreate):

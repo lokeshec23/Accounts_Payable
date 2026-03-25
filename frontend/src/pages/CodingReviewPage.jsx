@@ -900,6 +900,13 @@ const CodingReviewPage = () => {
     const handleSave = async () => {
         try {
             setSaving(true);
+
+            // Check if coding details are filled
+            // const isCodingMissing = codingLineItems.some(item => !item.gl_code || !item.lob || !item.department || !item.customer || !item.item);
+            // if (isCodingMissing) {
+            //     message.warning('Coding details not filled for some line items.');
+            // }
+
             const cleanedLineItems = codingLineItems.map(({ key, ...item }) => ({
                 s_no: parseInt(item.s_no) || 0,
                 description: String(item.description || ''),
@@ -935,6 +942,15 @@ const CodingReviewPage = () => {
     const handleSendToApproval = async () => {
         try {
             setSaving(true);
+
+            // Validate that coding details are filled before sending to approval
+            const isCodingMissing = codingLineItems.some(item => !item.gl_code || !item.lob || !item.department);
+            if (isCodingMissing) {
+                message.error('Coding details not filled. Please fill all details for all line items.');
+                setSaving(false);
+                return;
+            }
+
             const cleanedLineItems = codingLineItems.map(({ key, ...item }) => ({
                 s_no: parseInt(item.s_no) || 0,
                 description: String(item.description || ''),
