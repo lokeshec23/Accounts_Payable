@@ -108,7 +108,7 @@ const CodingReviewPage = () => {
     const isSagePosted = invoiceData?.status === 'sage_posted';
     const isProcessed = invoiceData?.status === 'processed';
     
-    const isTerminalStatus = isApproved || isRejected || isSagePosted;
+    const isTerminalStatus = isApproved || isRejected || isSagePosted || userRole === 'approver' || userRole === 'admin' || (isWaitingApproval && userRole === 'coder');
     const isApprover = normalizedRole === 'approver';
     const isAdmin = normalizedRole === 'admin';
     const isCoder = normalizedRole === 'coder';
