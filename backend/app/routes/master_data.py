@@ -351,9 +351,9 @@ async def get_sheet_data(
             sync_service = service_class(db)
             rows = await sync_service.get_all_data()
         else:
-            rows = db.query(model).all()
+            rows = db.query(model).order_by(model.id).all()
     else:
-        rows = db.query(model).all()
+        rows = db.query(model).order_by(model.id).all()
     
     # Convert SQLAlchemy objects to dicts
     result = []
@@ -366,8 +366,8 @@ async def get_sheet_data(
             elif isinstance(val, (float)) and np.isnan(val):
                 val = None
 
-            # Map back to pretty names for Vendor Master
-            if identifier == "Vendor_Master" or identifier == "vendor_master":
+            # Map back to pretty names for Vendor and Entity Master
+            if identifier in ["Vendor_Master", "vendor_master", "Entity_Master", "entity_master", "Entity"]:
                 pretty_map = {
                     "gst_eligibility": "GST / Use Tax Eligibility Configuration",
                     "tds_applicability": "TDS/Withhold Tax Applicability Configuration",
@@ -388,7 +388,7 @@ async def get_sheet_data(
                     row_dict[pretty_map[column.name]] = pretty_val
                     continue
 
-            if identifier == "TDS_Rates" or identifier == "tds_rates":
+            if identifier in ["TDS_Rates", "tds_rates", "TDS"]:
                 pretty_map = {
                     "section": "Section",
                     "nature_of_payment": "Nature of Payment",
@@ -421,7 +421,7 @@ def add_row(
     
     # Reverse mapping for pretty names
     reverse_map = {}
-    if identifier in ["Vendor_Master", "vendor_master"]:
+    if identifier in ["Vendor_Master", "vendor_master", "Entity_Master", "entity_master", "Entity"]:
         reverse_map = {
             "GST / Use Tax Eligibility Configuration": "gst_eligibility",
             "TDS/Withhold Tax Applicability Configuration": "tds_applicability",
@@ -429,6 +429,12 @@ def add_row(
             "TDS Section Code and Description": "tds_section_code",
             "Workflow Applicability Configuration": "workflow_applicable",
             "Line Grouping": "line_grouping"
+        }
+    elif identifier in ["TDS_Rates", "tds_rates", "TDS"]:
+        reverse_map = {
+            "Section": "section",
+            "Nature of Payment": "nature_of_payment",
+            "TDS Rate": "tds_rate"
         }
     
     final_data = {}
@@ -471,15 +477,15 @@ def edit_row(
         record = db.query(model).get(record_id)
     
     if not record and row_index is not None:
-        # Fallback to offset
-        record = db.query(model).offset(row_index).limit(1).first()
+        # Fallback to offset (Requires order_by for MSSQL)
+        record = db.query(model).order_by(model.id).offset(row_index).limit(1).first()
 
     if not record:
         raise HTTPException(404, "Record not found")
     
     # Reverse mapping for pretty names
     reverse_map = {}
-    if identifier in ["Vendor_Master", "vendor_master"]:
+    if identifier in ["Vendor_Master", "vendor_master", "Entity_Master", "entity_master", "Entity"]:
         reverse_map = {
             "GST / Use Tax Eligibility Configuration": "gst_eligibility",
             "TDS/Withhold Tax Applicability Configuration": "tds_applicability",
@@ -487,6 +493,12 @@ def edit_row(
             "TDS Section Code and Description": "tds_section_code",
             "Workflow Applicability Configuration": "workflow_applicable",
             "Line Grouping": "line_grouping"
+        }
+    elif identifier in ["TDS_Rates", "tds_rates", "TDS"]:
+        reverse_map = {
+            "Section": "section",
+            "Nature of Payment": "nature_of_payment",
+            "TDS Rate": "tds_rate"
         }
         
     for k, v in updated_data.items():
@@ -522,8 +534,8 @@ def delete_row(
         
     # If row_index is actually the ID, use it directly. 
     # But usually frontend 'key' is index.
-    # Let's try to find the ID from the offset if possible, or assume it's ID if large
-    record = db.query(model).offset(row_index).limit(1).first()
+    # Let's try to find the ID from the offset if possible (Requires order_by for MSSQL)
+    record = db.query(model).order_by(model.id).offset(row_index).limit(1).first()
     if record:
         db.delete(record)
         db.commit()
