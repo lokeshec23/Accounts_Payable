@@ -62,7 +62,10 @@ class VendorSyncService:
             "state_or_territory": addr.get("state") or v.get("contacts.default.mailingAddress.state"),
             "zip_or_postal_code": addr.get("postCode") or v.get("contacts.default.mailingAddress.postCode"),
             "country": addr.get("country") or v.get("contacts.default.mailingAddress.country"),
+            "primary_phone": default_contact.get("phone1") or v.get("contacts.default.phone1"),
             "pay_terms": term.get("id") or v.get("term.id"),
+            "tax_id": v.get("taxId") or v.get("tax_id"),
+            "address_line2": addr.get("addressLine2") or v.get("contacts.default.mailingAddress.addressLine2"),
             "raw_data": json.dumps(v, default=str),
             "updated_at": datetime.utcnow()
         }
@@ -117,7 +120,8 @@ class VendorSyncService:
                         "object": "accounts-payable/vendor",
                         "fields": [
                             "key", "id", "name", "status", "taxId", "term.id",
-                            "contacts.default.email1", "contacts.default.mailingAddress.addressLine1",
+                            "contacts.default.email1", "contacts.default.phone1",
+                            "contacts.default.mailingAddress.addressLine1", "contacts.default.mailingAddress.addressLine2",
                             "contacts.default.mailingAddress.city", "contacts.default.mailingAddress.state",
                             "contacts.default.mailingAddress.postCode", "contacts.default.mailingAddress.country"
                         ],
