@@ -54,6 +54,7 @@ class VendorSyncService:
         return {
             "vendor_key": v_key,
             "vendor_id": v_id,
+            "vendor_is_an_individual_person": v.get("isIndividualPerson", False),
             "vendor_name": v.get("name") or v.get("vendorName") or "Unknown",
             "status": v.get("status", "active"),
             "primary_email_address": default_contact.get("email1") or v.get("contacts.default.email1"),
