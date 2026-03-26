@@ -99,6 +99,54 @@ async def trigger_vendor_sync(
     result = await sync_service.sync_vendors()
     return result
 
+@router.post("/sync/{tab_name}")
+async def trigger_master_sync(
+    tab_name: str,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    Trigger manual sync for specific master data.
+    """
+    from app.services.master_sync_services import (
+        GLSyncService, LOBSyncService, DepartmentSyncService, 
+        CustomerSyncService, ItemSyncService
+    )
+    
+    services = {
+        "GL": GLSyncService,
+        "LOB": LOBSyncService,
+        "Department": DepartmentSyncService,
+        "Customer": CustomerSyncService,
+        "Item": ItemSyncService,
+        "Line_Items": ItemSyncService
+    }
+    
+    service_class = services.get(tab_name)
+    if not service_class:
+        if tab_name in ["Vendor", "Vendor_Master"]:
+            from app.services.vendor_sync_service import VendorSyncService
+            return await VendorSyncService(db).sync_vendors()
+        raise HTTPException(400, f"Sync not supported for {tab_name}")
+    
+    sync_service = service_class(db)
+    # Map method names
+    method_map = {
+        "GL": "sync_gl_accounts",
+        "LOB": "sync_lob",
+        "Department": "sync_departments",
+        "Customer": "sync_customers",
+        "Item": "sync_items",
+        "Line_Items": "sync_items"
+    }
+    
+    method_name = method_map.get(tab_name)
+    if hasattr(sync_service, method_name):
+        await getattr(sync_service, method_name)()
+        return {"status": "success", "message": f"Sync started for {tab_name}"}
+    
+    raise HTTPException(500, f"Service method {method_name} not found")
+
 @router.get("/entities")
 def get_entities(
     db: Session = Depends(get_db),
@@ -278,10 +326,32 @@ async def get_sheet_data(
     if not model:
         raise HTTPException(404, "Table not found")
         
-    if identifier in ["Vendor_Master", "vendor_master", "Vendor"]:
+    # Normalize identifier (remove prefix used by some frontend components)
+    clean_id = identifier.replace("master_data_", "")
+    
+    if clean_id in ["Vendor_Master", "Vendor"]:
         from app.services.vendor_sync_service import VendorSyncService
         sync_service = VendorSyncService(db)
         rows = await sync_service.get_all_vendors()
+    elif clean_id in ["GL", "LOB", "Department", "Customer", "Item", "Line_Items"]:
+        from app.services.master_sync_services import (
+            GLSyncService, LOBSyncService, DepartmentSyncService, 
+            CustomerSyncService, ItemSyncService
+        )
+        services = {
+            "GL": GLSyncService,
+            "LOB": LOBSyncService,
+            "Department": DepartmentSyncService,
+            "Customer": CustomerSyncService,
+            "Item": ItemSyncService,
+            "Line_Items": ItemSyncService
+        }
+        service_class = services.get(clean_id)
+        if service_class:
+            sync_service = service_class(db)
+            rows = await sync_service.get_all_data()
+        else:
+            rows = db.query(model).all()
     else:
         rows = db.query(model).all()
     

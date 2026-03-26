@@ -452,6 +452,12 @@ class GLMaster(Base):
     disallow_direct_posting = Column(Boolean, default=False)
     internal_rate = Column(DECIMAL(18, 4), nullable=True)
     
+    # Sage Intacct Sync Fields
+    gl_key = Column(String(100), unique=True, index=True, nullable=True)
+    status = Column(String(50), nullable=True, default="active")
+    raw_data = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -467,6 +473,12 @@ class LOBMaster(Base):
     name = Column(String(200), nullable=False)
     parent_id = Column(String(50), nullable=True)
     
+    # Sage Intacct Sync Fields
+    lob_key = Column(String(100), unique=True, index=True, nullable=True)
+    status = Column(String(50), nullable=True, default="active")
+    raw_data = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class DepartmentMaster(Base):
@@ -479,6 +491,12 @@ class DepartmentMaster(Base):
     department_id = Column(String(50), unique=True, nullable=False, index=True)
     department_name = Column(String(200), nullable=False)
     
+    # Sage Intacct Sync Fields
+    dept_key = Column(String(100), unique=True, index=True, nullable=True)
+    status = Column(String(50), nullable=True, default="active")
+    raw_data = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class CustomerMaster(Base):
@@ -490,6 +508,12 @@ class CustomerMaster(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     customer_id = Column(String(50), unique=True, nullable=False, index=True)
     customer_name = Column(String(200), nullable=False)
+    
+    # Sage Intacct Sync Fields
+    customer_key = Column(String(100), unique=True, index=True, nullable=True)
+    status = Column(String(50), nullable=True, default="active")
+    raw_data = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -504,6 +528,12 @@ class ItemMaster(Base):
     name = Column(String(200), nullable=False)
     product_line_id = Column(String(50), nullable=True)
     gl_group = Column(String(50), nullable=True)
+    
+    # Sage Intacct Sync Fields
+    item_key = Column(String(100), unique=True, index=True, nullable=True)
+    status = Column(String(50), nullable=True, default="active")
+    raw_data = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     created_at = Column(DateTime, default=datetime.utcnow)
 
