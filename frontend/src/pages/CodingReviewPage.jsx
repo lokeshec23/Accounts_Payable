@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin, Checkbox, Tabs } from 'antd';
+import { Button, Table, Input, InputNumber, Select, message, Collapse, Spin, Checkbox, Tabs, Modal } from 'antd';
 const { Panel } = Collapse;
 import { ArrowLeftOutlined, SendOutlined, DeleteOutlined, SaveOutlined, RollbackOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { read, utils } from 'xlsx';
@@ -939,10 +939,58 @@ const CodingReviewPage = () => {
         }
     };
 
+    // const handleSendToApproval = async () => {
+    //     try {
+    //         setSaving(true);
+
+    //         // Validate that coding details are filled before sending to approval
+    //         const isCodingMissing = codingLineItems.some(item => !item.gl_code || !item.lob || !item.department);
+    //         if (isCodingMissing) {
+    //             message.error('Coding details not filled. Please fill all details for all line items.');
+    //             setSaving(false);
+    //             return;
+    //         }
+
+    //         const cleanedLineItems = codingLineItems.map(({ key, ...item }) => ({
+    //             s_no: parseInt(item.s_no) || 0,
+    //             description: String(item.description || ''),
+    //             line_type: String(item.line_type || 'Expense'),
+    //             quantity: parseFloat(item.quantity) || 0,
+    //             unit_price: parseFloat(item.unit_price) || 0,
+    //             net_amount: parseFloat(item.net_amount) || 0,
+    //             gl_code: String(item.gl_code || ''),
+    //             lob: String(item.lob || ''),
+    //             department: String(item.department || ''),
+    //             customer: String(item.customer || ''),
+    //             item: String(item.item || ''),
+    //             original_index: item.original_index ?? -1
+    //         }));
+
+    //         // Save coding first - this ensures "Send for Approval" triggers a save
+    //         await codingService.saveCoding({
+    //             invoice_id: invoiceData.id,
+    //             header_coding: headerCoding,
+    //             line_items: cleanedLineItems,
+    //             vendor_name: invoiceData?.vendorName || '',
+    //         });
+
+    //         // Send to approval using new approval service
+    //         await approvalService.sendToApproval(invoiceData.id);
+
+    //         message.success('Invoice sent to approval successfully!');
+    //         navigate('/coding');
+    //     } catch (error) {
+    //         console.error('Error sending:', error);
+    //         message.error('Failed to send to approval');
+    //     } finally {
+    //         setSaving(false);
+    //     }
+    // };
+
     const handleSendToApproval = async () => {
         try {
             setSaving(true);
-
+ 
             // Validate that coding details are filled before sending to approval
             const isCodingMissing = codingLineItems.some(item => !item.gl_code || !item.lob || !item.department);
             if (isCodingMissing) {
@@ -950,7 +998,7 @@ const CodingReviewPage = () => {
                 setSaving(false);
                 return;
             }
-
+ 
             const cleanedLineItems = codingLineItems.map(({ key, ...item }) => ({
                 s_no: parseInt(item.s_no) || 0,
                 description: String(item.description || ''),
@@ -965,7 +1013,7 @@ const CodingReviewPage = () => {
                 item: String(item.item || ''),
                 original_index: item.original_index ?? -1
             }));
-
+ 
             // Save coding first - this ensures "Send for Approval" triggers a save
             await codingService.saveCoding({
                 invoice_id: invoiceData.id,
@@ -973,10 +1021,18 @@ const CodingReviewPage = () => {
                 line_items: cleanedLineItems,
                 vendor_name: invoiceData?.vendorName || '',
             });
-
+ 
+            // Check workflow configuration before sending to approval
+            const workflowData = await workflowService.getWorkflowHistory(invoiceData.id);
+            if (workflowData && !['vendor', 'codification'].includes(workflowData.workflow_type)) {
+                message.error('Neither vendor workflow nor codification workflow is configured for this vendor. Please Ask admin to assign an approver in Approval Workflow Settings before sending for approval.');
+                setSaving(false);
+                return;
+            }
+ 
             // Send to approval using new approval service
             await approvalService.sendToApproval(invoiceData.id);
-
+ 
             message.success('Invoice sent to approval successfully!');
             navigate('/coding');
         } catch (error) {
@@ -986,6 +1042,10 @@ const CodingReviewPage = () => {
             setSaving(false);
         }
     };
+
+
+
+
 
     const handleRecall = async () => {
         try {
@@ -1441,7 +1501,7 @@ const CodingReviewPage = () => {
             title: 'GL Code',
             dataIndex: 'gl_code',
             key: 'gl_code',
-            width: '20%',
+            width: '30%',
             sorter: (a, b) => (a.gl_code || '').localeCompare(b.gl_code || ''),
             filterSearch: true,
             filters: [...new Set(codingLineItems.map(item => item.gl_code).filter(Boolean))].map(code => ({ text: code, value: code })),
@@ -1469,7 +1529,7 @@ const CodingReviewPage = () => {
             title: 'LOB',
             dataIndex: 'lob',
             key: 'lob',
-            width: '20%',
+            width: '30%',
             sorter: (a, b) => (a.lob || '').localeCompare(b.lob || ''),
             filterSearch: true,
             filters: [...new Set(codingLineItems.map(item => item.lob).filter(Boolean))].map(lob => ({ text: lob, value: lob })),
@@ -1497,7 +1557,7 @@ const CodingReviewPage = () => {
             title: 'Department',
             dataIndex: 'department',
             key: 'department',
-            width: '20%',
+            width: '30%',
             sorter: (a, b) => (a.department || '').localeCompare(b.department || ''),
             filterSearch: true,
             filters: [...new Set(codingLineItems.map(item => item.department).filter(Boolean))].map(dept => ({ text: dept, value: dept })),
@@ -1525,7 +1585,7 @@ const CodingReviewPage = () => {
             title: 'Customer',
             dataIndex: 'customer',
             key: 'customer',
-            width: '20%',
+            width: '30%',
             sorter: (a, b) => (a.customer || '').localeCompare(b.customer || ''),
             filterSearch: true,
             filters: [...new Set(codingLineItems.map(item => item.customer).filter(Boolean))].map(cust => ({ text: cust, value: cust })),
@@ -1553,7 +1613,7 @@ const CodingReviewPage = () => {
             title: 'Item',
             dataIndex: 'item',
             key: 'item',
-            width: '20%',
+            width: '30%',
             sorter: (a, b) => (a.item || '').localeCompare(b.item || ''),
             filterSearch: true,
             filters: [...new Set(codingLineItems.map(item => item.item).filter(Boolean))].map(itm => ({ text: itm, value: itm })),

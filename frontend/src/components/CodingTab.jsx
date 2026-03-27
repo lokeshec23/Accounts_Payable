@@ -188,7 +188,7 @@ const CodingTab = React.memo(({
             title: 'GL Code',
             dataIndex: 'gl_code',
             key: 'gl_code',
-            width: '20%',
+            width: '30%',
             render: (text, record, index) => (
                 <Input
                     value={codingLineItems[index]?.gl_code || ''}
@@ -203,7 +203,7 @@ const CodingTab = React.memo(({
             title: 'LOB',
             dataIndex: 'lob',
             key: 'lob',
-            width: '20%',
+            width: '30%',
             render: (text, record, index) => (
                 <Input
                     value={codingLineItems[index]?.lob || ''}
@@ -218,7 +218,7 @@ const CodingTab = React.memo(({
             title: 'Department',
             dataIndex: 'department',
             key: 'department',
-            width: '20%',
+            width: '30%',
             render: (text, record, index) => (
                 <Input
                     value={codingLineItems[index]?.department || ''}
@@ -233,7 +233,7 @@ const CodingTab = React.memo(({
             title: 'Customer',
             dataIndex: 'customer',
             key: 'customer',
-            width: '20%',
+            width: '30%',
             render: (text, record, index) => (
                 <Input
                     value={codingLineItems[index]?.customer || ''}
@@ -248,7 +248,7 @@ const CodingTab = React.memo(({
             title: 'Item',
             dataIndex: 'item',
             key: 'item',
-            width: '20%',
+            width: '30%',
             minWidth: 200,
             render: (text, record, index) => (
                 <Input
