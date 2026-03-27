@@ -37,13 +37,19 @@ const ApprovalsPage = () => {
             const now = new Date();
             now.setHours(0, 0, 0, 0);
 
+            const userEmail = (storedUser?.email || '').toLowerCase();
+            const userName = (storedUser?.name || storedUser?.username || '').toLowerCase();
+
             const active = delegations.filter(d => {
                 const start = new Date(d.start_date);
                 start.setHours(0, 0, 0, 0);
                 const end = new Date(d.end_date);
                 end.setHours(0, 0, 0, 0);
 
-                return d.substitute_approver.toLowerCase() === storedUser?.email?.toLowerCase() &&
+                const substitute = (d.substitute_approver || '').toLowerCase();
+                const isUserSubstitute = (userEmail && substitute === userEmail) || (userName && substitute === userName);
+
+                return isUserSubstitute &&
                     now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
             }).map(d => d.original_approver.toLowerCase());
 
@@ -90,29 +96,41 @@ const ApprovalsPage = () => {
                 const invoiceRec = item.rawData;
                 const approvedBy = invoiceRec.approved_by || [];
                 const assignedApprovers = invoiceRec.assigned_approvers || [];
-                const currentLevel = invoiceRec.current_approver_level || 1;
+
+                const userEmail = (storedUser?.email || '').toLowerCase();
+                const userName = (storedUser?.name || storedUser?.username || '').toLowerCase();
+                const currentApprover = (item.currentLevelEmail || '').toLowerCase();
+
+                const isDesignatedApprover = (userEmail && userEmail === currentApprover) ||
+                    (userName && userName === currentApprover);
+                const isActiveDelegate = active.includes(currentApprover);
+
                 const hasApproved = approvedBy.some((a) => {
-                    const email = typeof a === 'string' ? a : a?.email;
-                    return (email || '').toLowerCase() === (storedUser?.email || '').toLowerCase();
+                    const approverId = (typeof a === 'string' ? a : a?.email || a?.name || '').toLowerCase();
+                    return (userEmail && approverId === userEmail) || (userName && approverId === userName);
                 });
 
-                const currentLevelEmail = item.currentLevelEmail;
-                const userEmail = (storedUser?.email || '').toLowerCase();
-                const isDesignatedApprover = userEmail === currentLevelEmail;
-                const isActiveDelegate = active.includes(currentLevelEmail); // Use active from local scope!
-
-                // If user has already approved, they can only see it again if they are the DESIGNATED approver OR ACTIVE DELEGATE for the current level
-                // Admins can always see it
-                if (!isAdmin && hasApproved && !isDesignatedApprover && !isActiveDelegate) return false;
-
-                // Define what statuses are considered "Unapproved" for this tab
+                // Only show unapproved statuses in this tab
                 const unapprovedStatuses = ['waiting_approval', 'sage_post_failed'];
                 if (!unapprovedStatuses.includes(item.status)) return false;
 
-                if (!isAdmin && assignedApprovers.length > 0) {
-                    return isDesignatedApprover || isActiveDelegate;
+                // Admins see everything
+                if (isAdmin) return true;
+
+                if (item.status === 'waiting_approval') {
+                    // Show to the current level's designated approver or their active delegate
+                    if (assignedApprovers.length > 0) {
+                        return isDesignatedApprover || isActiveDelegate;
+                    }
+                    return true;
                 }
-                return true;
+
+                if (item.status === 'sage_post_failed') {
+                    // Show only to approvers who have already approved this invoice
+                    return hasApproved;
+                }
+
+                return false;
             });
 
 

@@ -58,6 +58,8 @@ const MainLayout = () => {
     const [fieldsSearchTerm, setFieldsSearchTerm] = useState('');
     const [currencies, setCurrencies] = useState([]);
     const [userRole, setUserRole] = useState('');
+    const [userName, setUserName] = useState('');
+    const [userEmail, setUserEmail] = useState('');
 
     // Tab control - check if navigation state requests a specific tab
     const [activeTab, setActiveTab] = useState(() => {
@@ -65,9 +67,17 @@ const MainLayout = () => {
     });
 
     // Update active tab when location state changes
+    // Approvers cannot see the Dashboard tab
     useEffect(() => {
         if (location.state?.activeTab) {
-            setActiveTab(location.state.activeTab);
+            const storedUser = sessionStorage.getItem('user');
+            let role = '';
+            try { role = JSON.parse(storedUser)?.role || ''; } catch { }
+            if (role === 'approver' && location.state.activeTab === 'dashboard') {
+                setActiveTab('invoices');
+            } else {
+                setActiveTab(location.state.activeTab);
+            }
         }
     }, [location.state]);
 
@@ -110,6 +120,11 @@ const MainLayout = () => {
                 // }
 
 
+                const currentLevel = invoice.current_approver_level || 1;
+                const assignedApprovers = invoice.assigned_approvers || [];
+                const currentLevelEmail = (assignedApprovers[currentLevel - 1] || '').toLowerCase();
+                const isWaiting = invoice.status === 'waiting_approval';
+
                 return {
                     key: invoice._id || invoice.id,
                     id: invoice._id || invoice.id,
@@ -123,7 +138,9 @@ const MainLayout = () => {
                     uploadedBy: invoice.uploaded_by || 'Unknown',
                     status: invoice.status || 'waiting_approval',
                     fileUrl: invoice.file_url || '/sample-invoice.pdf',
-                    approverName: validation.approver_name || '',
+                    approverName: isWaiting
+                        ? (currentLevelEmail || 'Pending')
+                        : (validation.approver_name || ''),
                     approvalTime: validation.approval_timestamp
                         ? formatDateTimeIST(validation.approval_timestamp)
                         : '',
@@ -149,8 +166,17 @@ const MainLayout = () => {
             try {
                 const user = JSON.parse(storedUser);
                 setUserRole(user.role || '');
+                setUserName(user.name || user.username || user.email || '');
+                // Capture email in both state and sessionStorage for matching
+                const email = (user.email || '').toLowerCase();
+                setUserEmail(email);
+                if (email) {
+                    sessionStorage.setItem('userEmail', email);
+                }
             } catch (e) {
                 setUserRole('');
+                setUserName('');
+                setUserEmail('');
             }
         }
     }, []);
@@ -172,11 +198,65 @@ const MainLayout = () => {
     }, []);
 
     // ------------ GLOBAL SEARCH (MAIN TABLE) --------------
-    const filteredInvoices = useMemo(() => {
-        if (!searchTerm) return allInvoices;
-        const q = searchTerm.toLowerCase();
+    // Only show invoices associated with the current user
+    const userFilteredInvoices = useMemo(() => {
+        // 1. Admin and Coder see everything
+        if (userRole === 'admin' || userRole === 'coder') {
+            return allInvoices;
+        }
+
+        const lowerEmail = userEmail.toLowerCase();
+        const lowerUserName = (userName || '').toLowerCase();
+        
+        // Safety: If we don't have user info, restrict to nothing
+        if (!lowerUserName && !lowerEmail) {
+            return [];
+        }
 
         return allInvoices.filter((inv) => {
+            // Check if user is in assigned_approvers list (email-based, primary check)
+            const assignedApprovers = inv.rawData?.assigned_approvers || [];
+            const isAssigned = assignedApprovers.some(a =>
+                a && (
+                    (lowerEmail && a.toLowerCase() === lowerEmail) ||
+                    (lowerUserName && a.toLowerCase() === lowerUserName)
+                )
+            );
+
+            // For approver role: only show if they are in the assigned_approvers list
+            // (covers all statuses: waiting_approval, approved, rejected, etc.)
+            if (userRole === 'approver') {
+                // Also check approved_by in case they approved an earlier level
+                const approvedBy = inv.rawData?.approved_by || [];
+                const hasApproved = approvedBy.some(a => {
+                    const identifier = (typeof a === 'string' ? a : a?.email || a?.name || '').toLowerCase();
+                    return (lowerEmail && identifier === lowerEmail) || (lowerUserName && identifier === lowerUserName);
+                });
+                return isAssigned || hasApproved;
+            }
+
+            // For other roles (non-admin, non-coder): show if they uploaded or are assigned
+            const isUploader = (inv.uploadedBy && inv.uploadedBy !== 'Unknown') && (
+                inv.uploadedBy.toLowerCase() === lowerUserName || 
+                (lowerEmail && inv.uploadedBy.toLowerCase() === lowerEmail)
+            );
+
+            // Check if user has already approved
+            const approvedBy = inv.rawData?.approved_by || [];
+            const hasApproved = approvedBy.some(a => {
+                const identifier = (typeof a === 'string' ? a : a?.email || a?.name || '').toLowerCase();
+                return (lowerEmail && identifier === lowerEmail) || (lowerUserName && identifier === lowerUserName);
+            });
+
+            return isUploader || isAssigned || hasApproved;
+        });
+    }, [allInvoices, userName, userEmail, userRole]);
+
+    const filteredInvoices = useMemo(() => {
+        if (!searchTerm) return userFilteredInvoices;
+        const q = searchTerm.toLowerCase();
+
+        return userFilteredInvoices.filter((inv) => {
             const fieldsToSearch = [
                 inv.filename,
                 inv.vendorName,
@@ -192,7 +272,7 @@ const MainLayout = () => {
                 (field || '').toString().toLowerCase().includes(q)
             );
         });
-    }, [allInvoices, searchTerm]);
+    }, [userFilteredInvoices, searchTerm]);
 
     // ------------ MAIN TABLE COLUMNS --------------
     const columns = [
@@ -427,7 +507,7 @@ const MainLayout = () => {
         try {
             setUploading(true);
 
-            const taskId = uuidv4(); 
+            const taskId = uuidv4();
 
             eventSource = new EventSource(invoiceService.getUploadProgressUrl(taskId));
             let currentProgress = 25;
@@ -687,7 +767,7 @@ const MainLayout = () => {
     // =====================================================
 
     const tabItems = [
-        {
+        ...(userRole !== 'approver' ? [{
             key: 'dashboard',
             label: 'Dashboard',
             children: (
@@ -695,22 +775,22 @@ const MainLayout = () => {
                     <ApDashboard />
                 </div>
             ),
-        },
+        }] : []),
         {
             key: 'invoices',
-            label: 'Invoices',
+            label: userRole === 'approver' ? '' : 'Invoices',
             children: (
                 <>
                     <div className="layout-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                         <div className="layout-actions" style={{ display: 'flex', gap: '10px' }}>
-                            <Button
+                            {userRole !== "approver" && <Button
                                 type="default"
                                 icon={<FolderOpenOutlined />}
                                 onClick={handleViewFiles}
                                 className="view-files-btn"
                             >
                                 View Files
-                            </Button>
+                            </Button>}
                             {userRole !== "approver" && userRole !== "admin" && (
                                 <Button
                                     type="primary"

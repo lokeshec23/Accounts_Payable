@@ -73,6 +73,25 @@ const GenericInputFields = forwardRef(({
     const isCoder = resolvedRole === 'coder';
     const initialStatus = originalData?.status || 'waiting_approval';
 
+    // Check if current user is part of the workflow
+    const isUserInWorkflow = useMemo(() => {
+        const userName = currentUser?.username?.toLowerCase();
+        const userEmail = currentUser?.email?.toLowerCase();
+
+        const assignedApprovers = originalData?.assigned_approvers || [];
+        const isAssigned = assignedApprovers.some(a => 
+            a && (a.toLowerCase() === userName || a.toLowerCase() === userEmail)
+        );
+
+        const approvedBy = originalData?.approved_by || [];
+        const hasApproved = approvedBy.some(a => {
+            const email = (typeof a === 'string' ? a : a?.email || '').toLowerCase();
+            return email === userName || email === userEmail;
+        });
+
+        return isAssigned || hasApproved;
+    }, [resolvedRole, currentUser, originalData]);
+
     const navigate = useNavigate();
     const extractionData = data?.extraction_json || {};
     const lineItemsFromData = data?.items || data?.LineItems || [];
@@ -2077,7 +2096,7 @@ const GenericInputFields = forwardRef(({
                         </Space>
                     )}
  
-                    {(invoiceStatus === 'approved' || invoiceStatus === 'sage_post_failed') && !isCoder && (
+                    {(invoiceStatus === 'approved' || invoiceStatus === 'sage_post_failed') && !isCoder && isUserInWorkflow && (
                         <Space style={{ flexShrink: 0 }}>
                             <Button
                                 type="primary"

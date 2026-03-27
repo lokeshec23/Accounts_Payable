@@ -60,13 +60,16 @@ const Header = () => {
 
             if (!hasPermission) return null;
 
+            // Rename 'Dashboard' to 'Invoices' for approvers in the header, as they only see invoices there
+            const label = (role === 'approver' && navItem.path === '/dashboard') ? 'Invoices' : navItem.label;
+
             return (
               <Link
                 key={navItem.path}
                 to={navItem.path}
                 className={`nav-tab ${isActive(navItem.path) ? "active" : ""}`}
               >
-                {navItem.label}
+                {label}
               </Link>
             );
           })}
