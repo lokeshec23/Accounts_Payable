@@ -1042,6 +1042,9 @@ async def update_invoice_status(
             entity_record = db.query(EntityMaster).filter(EntityMaster.entity_name == inv.entity).first()
             sage_location = entity_record.entity_id if entity_record else (hc.get("location") or hc.get("location_id"))
 
+            # Compute the intended bill number upfront (matches what postapbill.py sends to Sage)
+            intended_bill_no = f"{inv.invoice_number}-{inv.id}"
+
             post_result = post_ap_bill(
                 inv, 
                 pdf_path or "",
@@ -1057,13 +1060,19 @@ async def update_invoice_status(
             if post_result and post_result.get("success"):
                 sage_status = "success"
                 invoice.status = InvoiceStatusEnum.SAGE_POSTED
+                sage_response = post_result.get("data", {})
+                sage_bill_no = sage_response.get("billNumber") or intended_bill_no
+                # Persist the bill number on the invoice record
+                invoice.sage_bill_number = sage_bill_no
+                
                 await audit_service.log_action(
                     db=db,
                     invoice_id=invoice_id,
                     action=AuditAction.SAGE_POSTED.value,
                     user=current_user.username,
                     entity=invoice.entity,
-                    details={"sage_response": post_result.get("data")}
+                    details={"sage_response": sage_response},
+                    sage_bill_number=sage_bill_no
                 )
                 # Create/Update Workflow Step
                 db.add(WorkflowStep(
@@ -1089,20 +1098,24 @@ async def update_invoice_status(
                     action=AuditAction.SAGE_POST_FAILED.value,
                     user=current_user.username,
                     entity=invoice.entity,
-                    details={"error": error_msg}
+                    details={"error": error_msg},
+                    sage_bill_number=intended_bill_no
                 )
         except Exception as bill_err:
             logger.error(f"[PostAPBill] Error: {bill_err}", exc_info=True)
             error_logger.error(f"[PostAPBill Critical Error] Invoice {invoice_id} ({invoice.entity}): {str(bill_err)}", exc_info=True)
             sage_status = "error"
             invoice.status = InvoiceStatusEnum.SAGE_POST_FAILED
+            # Compute intended bill number for exception path too
+            intended_bill_no_exc = f"{invoice.invoice_number}-{invoice.id}"
             await audit_service.log_action(
                 db=db,
                 invoice_id=invoice_id,
                 action=AuditAction.SAGE_POST_FAILED.value,
                 user=current_user.username,
                 entity=invoice.entity,
-                details={"error": str(bill_err)}
+                details={"error": str(bill_err)},
+                sage_bill_number=intended_bill_no_exc
             )
         
         db.commit()
@@ -1169,6 +1182,9 @@ async def repost_to_sage(
         entity_record = db.query(EntityMaster).filter(EntityMaster.entity_name == invoice.entity).first()
         sage_location = entity_record.entity_id if entity_record else (hc.get("location") or hc.get("location_id"))
 
+        # Compute the intended bill number upfront
+        intended_bill_no = f"{invoice.invoice_number}-{invoice.id}"
+
         post_result = post_ap_bill(
             invoice, 
             pdf_path or "",
@@ -1190,13 +1206,19 @@ async def repost_to_sage(
             if isinstance(sage_data, str) and sage_data == "[object Object]":
                 sage_data = {"error": "Received [object Object] from Sage API"}
             
+            sage_response = post_result.get("data", {})
+            sage_bill_no = sage_response.get("billNumber") or intended_bill_no
+            # Persist the bill number on the invoice record
+            invoice.sage_bill_number = sage_bill_no
+
             await audit_service.log_action(
                 db=db,
                 invoice_id=invoice_id,
                 action=AuditAction.SAGE_REPOSTED.value,
                 user=current_user.username,
                 entity=invoice.entity,
-                details={"sage_response": sage_data}
+                details={"sage_response": sage_data},
+                sage_bill_number=sage_bill_no
             )
             
             # Create/Update Workflow Step
@@ -1227,7 +1249,8 @@ async def repost_to_sage(
                 action=AuditAction.SAGE_REPOST_FAILED.value,
                 user=current_user.username,
                 entity=invoice.entity,
-                details={"error": error_msg}
+                details={"error": error_msg},
+                sage_bill_number=intended_bill_no
             )
             return {"success": False, "error": error_msg, "status": invoice.status.value if hasattr(invoice.status, 'value') else invoice.status}
             
@@ -1242,7 +1265,8 @@ async def repost_to_sage(
             action=AuditAction.SAGE_POST_FAILED.value,
             user=current_user.username,
             entity=invoice.entity,
-            details={"error": str(bill_err), "type": "manual_repost"}
+            details={"error": str(bill_err), "type": "manual_repost"},
+            sage_bill_number=f"{invoice.invoice_number}-{invoice.id}"
         )
         return {"success": False, "error": str(bill_err), "status": invoice.status}
 

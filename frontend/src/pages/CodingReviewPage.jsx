@@ -900,6 +900,13 @@ const CodingReviewPage = () => {
     const handleSave = async () => {
         try {
             setSaving(true);
+
+            // Check if coding details are filled
+            // const isCodingMissing = codingLineItems.some(item => !item.gl_code || !item.lob || !item.department || !item.customer || !item.item);
+            // if (isCodingMissing) {
+            //     message.warning('Coding details not filled for some line items.');
+            // }
+
             const cleanedLineItems = codingLineItems.map(({ key, ...item }) => ({
                 s_no: parseInt(item.s_no) || 0,
                 description: String(item.description || ''),
@@ -935,6 +942,15 @@ const CodingReviewPage = () => {
     const handleSendToApproval = async () => {
         try {
             setSaving(true);
+
+            // Validate that coding details are filled before sending to approval
+            const isCodingMissing = codingLineItems.some(item => !item.gl_code || !item.lob || !item.department);
+            if (isCodingMissing) {
+                message.error('Coding details not filled. Please fill all details for all line items.');
+                setSaving(false);
+                return;
+            }
+
             const cleanedLineItems = codingLineItems.map(({ key, ...item }) => ({
                 s_no: parseInt(item.s_no) || 0,
                 description: String(item.description || ''),
@@ -1425,7 +1441,7 @@ const CodingReviewPage = () => {
             title: 'GL Code',
             dataIndex: 'gl_code',
             key: 'gl_code',
-            width: '12%',
+            width: '20%',
             sorter: (a, b) => (a.gl_code || '').localeCompare(b.gl_code || ''),
             filterSearch: true,
             filters: [...new Set(codingLineItems.map(item => item.gl_code).filter(Boolean))].map(code => ({ text: code, value: code })),
@@ -1453,7 +1469,7 @@ const CodingReviewPage = () => {
             title: 'LOB',
             dataIndex: 'lob',
             key: 'lob',
-            width: '10%',
+            width: '20%',
             sorter: (a, b) => (a.lob || '').localeCompare(b.lob || ''),
             filterSearch: true,
             filters: [...new Set(codingLineItems.map(item => item.lob).filter(Boolean))].map(lob => ({ text: lob, value: lob })),
@@ -1481,7 +1497,7 @@ const CodingReviewPage = () => {
             title: 'Department',
             dataIndex: 'department',
             key: 'department',
-            width: '10%',
+            width: '20%',
             sorter: (a, b) => (a.department || '').localeCompare(b.department || ''),
             filterSearch: true,
             filters: [...new Set(codingLineItems.map(item => item.department).filter(Boolean))].map(dept => ({ text: dept, value: dept })),
@@ -1509,7 +1525,7 @@ const CodingReviewPage = () => {
             title: 'Customer',
             dataIndex: 'customer',
             key: 'customer',
-            width: '10%',
+            width: '20%',
             sorter: (a, b) => (a.customer || '').localeCompare(b.customer || ''),
             filterSearch: true,
             filters: [...new Set(codingLineItems.map(item => item.customer).filter(Boolean))].map(cust => ({ text: cust, value: cust })),
@@ -1537,7 +1553,7 @@ const CodingReviewPage = () => {
             title: 'Item',
             dataIndex: 'item',
             key: 'item',
-            width: '10%',
+            width: '20%',
             sorter: (a, b) => (a.item || '').localeCompare(b.item || ''),
             filterSearch: true,
             filters: [...new Set(codingLineItems.map(item => item.item).filter(Boolean))].map(itm => ({ text: itm, value: itm })),

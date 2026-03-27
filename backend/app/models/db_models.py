@@ -116,6 +116,7 @@ class Invoice(Base):
     original_items = Column(Text, nullable=True)  # JSON (array)
     approver_breakdown = Column(Text, nullable=True)  # JSON
     gl_summary = Column(Text, nullable=True)  # JSON (array)
+    sage_bill_number = Column(String(200), nullable=True)  # Bill number returned by Sage Intacct
     
     # Metadata
     confidence_score = Column(String(50), nullable=True)
@@ -227,6 +228,7 @@ class AuditLog(Base):
     user = Column(String(100), nullable=False)
     entity = Column(String(100), nullable=False, index=True)
     details = Column(Text, nullable=True)  # JSON stored as text
+    sage_bill_number = Column(String(200), nullable=True)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
     # Relationships
