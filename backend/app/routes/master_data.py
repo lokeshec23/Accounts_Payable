@@ -337,10 +337,10 @@ async def get_sheet_data(
         from app.services.vendor_sync_service import VendorSyncService
         sync_service = VendorSyncService(db)
         rows = await sync_service.get_all_vendors()
-    elif clean_id in ["GL", "LOB", "Department", "Customer", "Item", "Line_Items"]:
+    elif clean_id in ["GL", "LOB", "Department", "Customer", "Item", "Line_Items", "Exchange_Rate"]:
         from app.services.master_sync_services import (
             GLSyncService, LOBSyncService, DepartmentSyncService, 
-            CustomerSyncService, ItemSyncService
+            CustomerSyncService, ItemSyncService, ExchangeRateSyncService
         )
         services = {
             "GL": GLSyncService,
