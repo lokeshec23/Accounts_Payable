@@ -100,6 +100,7 @@ const GenericInputFields = forwardRef(({
     const [memo, setMemo] = useState('');
     const [exchangeRate, setExchangeRate] = useState(null);
     const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
+    const [exchangeRateNotFound, setExchangeRateNotFound] = useState(false);
     const [isVendorLoading, setIsVendorLoading] = useState(false);
 
     // Line Grouping state
@@ -1403,11 +1404,16 @@ const GenericInputFields = forwardRef(({
     // Whenever the invoice currency (non-USD) or invoice date changes, fetch the
     // best matching rate from exchange_rate_master.
     useEffect(() => {
-        // Only fetch if currency is set and is NOT USD
+        // Clear rate immediately when currency is cleared or set to USD
         if (!currencyValue || currencyValue === 'USD') {
-            if (currencyValue === 'USD') setExchangeRate(null);
+            setExchangeRate(null);
+            setExchangeRateNotFound(false);
             return;
         }
+
+        // Clear the old rate right away so a stale value never shows for a different currency
+        setExchangeRate(null);
+        setExchangeRateNotFound(false);
 
         // Normalise invoice date to YYYY-MM-DD for the API
         let apiDate = null;
@@ -1423,11 +1429,16 @@ const GenericInputFields = forwardRef(({
                 setExchangeRateLoading(true);
                 const result = await currencyService.getExchangeRate(currencyValue, 'USD', apiDate);
                 setExchangeRate(result.exchange_rate);
+                setExchangeRateNotFound(false);
             } catch (err) {
-                if (err.response?.status !== 404) {
+                if (err.response?.status === 404) {
+                    // No master data for this currency pair — allow manual entry
+                    setExchangeRate(null);
+                    setExchangeRateNotFound(true);
+                } else {
                     console.warn('[GenericInputFields] Exchange rate fetch failed:', err);
+                    setExchangeRateNotFound(false);
                 }
-                // Leave existing rate untouched on error
             } finally {
                 setExchangeRateLoading(false);
             }
@@ -1904,7 +1915,8 @@ const GenericInputFields = forwardRef(({
                     setMemo={setMemo} debouncedVendorIdSearch={debouncedVendorIdSearch}
                     debouncedVendorNameSearch={debouncedVendorNameSearch}
                     handleVendorChange={handleVendorChange} skipNextVendorLookup={skipNextVendorLookup}
-                    exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} exchangeRateLoading={exchangeRateLoading} />;
+                    exchangeRate={exchangeRate} setExchangeRate={setExchangeRate}
+                    exchangeRateLoading={exchangeRateLoading} exchangeRateNotFound={exchangeRateNotFound} />;
             case '2':
                 console.log("DEBUG: Rendering AllFieldsTab case 2", { hasSchema: !!schema, activeTab });
                 return <AllFieldsTab {...commonProps} schema={schema?.flatFields || schema} />;
@@ -1935,7 +1947,8 @@ const GenericInputFields = forwardRef(({
                     setMemo={setMemo} debouncedVendorIdSearch={debouncedVendorIdSearch}
                     debouncedVendorNameSearch={debouncedVendorNameSearch}
                     handleVendorChange={handleVendorChange} skipNextVendorLookup={skipNextVendorLookup}
-                    exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} exchangeRateLoading={exchangeRateLoading} />;
+                    exchangeRate={exchangeRate} setExchangeRate={setExchangeRate}
+                    exchangeRateLoading={exchangeRateLoading} exchangeRateNotFound={exchangeRateNotFound} />;
         }
     }, [activeTab, formData, lineItems, vendorId, vendorIdOptions, vendorNameOptions, memo,
         selectedVendorDetails, isDuplicateError, disableInputs, disabledStyle, getCurrencySymbol,

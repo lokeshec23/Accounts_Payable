@@ -48,7 +48,8 @@ const QuickViewTab = React.memo(({
     isCodingData = false,
     exchangeRate,
     setExchangeRate,
-    exchangeRateLoading = false
+    exchangeRateLoading = false,
+    exchangeRateNotFound = false
 }) => {
     const [showDetails, setShowDetails] = useState(false);
     // Memoize vendor master details panel
@@ -360,14 +361,25 @@ const QuickViewTab = React.memo(({
                                             style={{ width: '100%', ...disabledStyle }}
                                             value={exchangeRate}
                                             onChange={(val) => setExchangeRate && setExchangeRate(val)}
-                                            placeholder={exchangeRateLoading ? 'Fetching rate...' : 'Auto-fetched from master'}
+                                            placeholder={
+                                                exchangeRateLoading
+                                                    ? 'Fetching rate…'
+                                                    : exchangeRateNotFound
+                                                        ? 'No master rate — enter manually'
+                                                        : 'Auto-fetched from master'
+                                            }
                                             disabled={disableInputs || exchangeRateLoading}
                                             step={0.000001}
                                             precision={6}
                                         />
                                         {exchangeRateLoading && (
                                             <div style={{ fontSize: '11px', color: '#1890ff', marginTop: '2px' }}>
-                                                🔄 Fetching rate from master...
+                                                🔄 Fetching rate from master…
+                                            </div>
+                                        )}
+                                        {!exchangeRateLoading && exchangeRateNotFound && (
+                                            <div style={{ fontSize: '11px', color: '#faad14', marginTop: '2px' }}>
+                                                ⚠️ No rate found for {extractValue(formData['Invoice Currency'])} → USD in master. Please enter manually.
                                             </div>
                                         )}
                                     </div>
