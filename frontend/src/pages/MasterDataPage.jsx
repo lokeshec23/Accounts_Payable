@@ -473,7 +473,7 @@ const MasterDataPage = () => {
                                     <Button danger icon={<DeleteOutlined />} onClick={handleTabDelete}>Clear Tab</Button>
                                 </>
                             )}
-                            {(activeTab === "Exchange_Rate" || activeTab === "GL" || activeTab === "LOB" || activeTab === "Department" || activeTab === "Customer" || activeTab === "Vendor_Master") && (
+                            {(activeTab === "Exchange_Rate" || activeTab === "GL" || activeTab === "LOB" || activeTab === "Department" || activeTab === "Customer" || activeTab === "Vendor_Master" || activeTab === "Item") && (
                                 <Button 
                                     onClick={async () => {
                                         try {
