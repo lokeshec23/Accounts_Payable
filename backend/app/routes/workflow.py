@@ -176,6 +176,8 @@ def get_required_approver_count(
         vendor_entry = vendor_map.get(norm_name)
 
     if vendor_entry:
+        if not v_id_resolved:
+            v_id_resolved = vendor_entry.get("vendor_id") or vendor_entry.get("VENDOR_ID") or vendor_entry.get("Vendor ID")
         workflow_applicable = None
         for key in vendor_entry.keys():
             kl = key.lower()
@@ -190,24 +192,29 @@ def get_required_approver_count(
         v_workflow = None
         if v_id_resolved:
             v_workflow = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_id == v_id_resolved, VendorWorkflow.entity == entity).first()
+        
+        if not v_workflow and v_name_resolved:
+            v_workflow = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_name == v_name_resolved, VendorWorkflow.entity == entity).first()
+            if not v_workflow:
+                v_workflow = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_name.like(f"%{v_name_resolved}%"), VendorWorkflow.entity == entity).first()
             
-            if v_workflow:
-                # If we found a workflow, we prioritize it
-                workflow_found = True
-                workflow_type = "vendor"
-                count = v_workflow.approver_count
-                mandatory_fields = [
-                    v_workflow.mandatory_approver_1, v_workflow.mandatory_approver_2, 
-                    v_workflow.mandatory_approver_3, v_workflow.mandatory_approver_4, 
-                    v_workflow.mandatory_approver_5
-                ]
-                assigned_approvers = [a for a in mandatory_fields[:count] if a]
-                
-                # Threshold Approver
-                if getattr(v_workflow, 'is_threshold_enabled', False):
-                    if amount is not None and v_workflow.amount_threshold is not None:
-                         if amount >= v_workflow.amount_threshold and v_workflow.threshold_approver:
-                            assigned_approvers.append(v_workflow.threshold_approver)
+        if v_workflow:
+            # If we found a workflow, we prioritize it
+            workflow_found = True
+            workflow_type = "vendor"
+            count = v_workflow.approver_count
+            mandatory_fields = [
+                v_workflow.mandatory_approver_1, v_workflow.mandatory_approver_2, 
+                v_workflow.mandatory_approver_3, v_workflow.mandatory_approver_4, 
+                v_workflow.mandatory_approver_5
+            ]
+            assigned_approvers = [a for a in mandatory_fields[:count] if a]
+            
+            # Threshold Approver
+            if getattr(v_workflow, 'is_threshold_enabled', False):
+                if amount is not None and v_workflow.amount_threshold is not None:
+                     if amount >= v_workflow.amount_threshold and v_workflow.threshold_approver:
+                        assigned_approvers.append(v_workflow.threshold_approver)
 
 
     # 3. Try Codification Based Workflow
@@ -363,6 +370,7 @@ async def get_workflow_history(
         current_status=invoice.status.value if hasattr(invoice.status, "value") else str(invoice.status),
         approver_breakdown=requirement_data["breakdown"],
         delegations=delegations_map,
+        workflow_type=requirement_data.get("workflow_type", "unknown"),
         steps=[
             WorkflowStepResponse(
                 id=str(s.id),

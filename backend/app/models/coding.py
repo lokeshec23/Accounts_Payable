@@ -23,6 +23,7 @@ class CodingBase(BaseModel):
 
 class CodingCreate(CodingBase):
     vendor_name: Optional[str] = None
+    vendor_id: Optional[str] = None
 
 class CodingUpdate(BaseModel):
     header_coding: Optional[str] = None

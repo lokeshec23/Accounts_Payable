@@ -922,11 +922,15 @@ const CodingReviewPage = () => {
                 original_index: item.original_index ?? -1
             }));
 
+            const currentVendorId = formData['Vendor ID'] || invoiceData?.vendorId || '';
+            const currentVendorName = formData['Vendor Name'] || invoiceData?.vendorName || '';
+
             await codingService.saveCoding({
                 invoice_id: invoiceData.id,
                 header_coding: headerCoding,
                 line_items: cleanedLineItems,
-                vendor_name: invoiceData?.vendorName || ''
+                vendor_name: currentVendorName,
+                vendor_id: currentVendorId
             });
 
             message.success('Coding saved successfully!');
@@ -1014,16 +1018,20 @@ const CodingReviewPage = () => {
                 original_index: item.original_index ?? -1
             }));
  
+            const currentVendorId = formData['Vendor ID'] || invoiceData?.vendorId || '';
+            const currentVendorName = formData['Vendor Name'] || invoiceData?.vendorName || '';
+
             // Save coding first - this ensures "Send for Approval" triggers a save
             await codingService.saveCoding({
                 invoice_id: invoiceData.id,
                 header_coding: headerCoding,
                 line_items: cleanedLineItems,
-                vendor_name: invoiceData?.vendorName || '',
+                vendor_name: currentVendorName,
+                vendor_id: currentVendorId,
             });
- 
+
             // Check workflow configuration before sending to approval
-            const workflowData = await workflowService.getWorkflowHistory(invoiceData.id);
+            const workflowData = await workflowService.getWorkflowHistory(invoiceData.id, currentVendorId, currentVendorName);
             if (workflowData && !['vendor', 'codification'].includes(workflowData.workflow_type)) {
                 message.error('Neither vendor workflow nor codification workflow is configured for this vendor. Please Ask admin to assign an approver in Approval Workflow Settings before sending for approval.');
                 setSaving(false);

@@ -51,4 +51,5 @@ class WorkflowHistoryResponse(BaseModel):
     current_status: Optional[str] = None
     approver_breakdown: Optional[dict] = None
     delegations: Optional[dict[str, list[str]]] = None
+    workflow_type: Optional[str] = None
     steps: list[WorkflowStepResponse]
