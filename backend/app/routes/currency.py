@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
-from typing import List
-from datetime import datetime
+from fastapi import APIRouter, HTTPException, Depends, Body, Query
+from typing import List, Optional
+from datetime import datetime, date
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 from app.database.database import get_db
-from app.models.db_models import Currency
+from app.models.db_models import Currency, ExchangeRateMaster
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
 from app.models.currency import CurrencyCreate, CurrencyUpdate, CurrencyResponse
@@ -89,3 +90,79 @@ async def delete_currency(
     db.commit()
     
     return {"message": "Currency deleted successfully"}
+
+
+@router.get("/exchange-rate")
+async def get_exchange_rate(
+    base_currency: str = Query(..., description="Base currency code, e.g. INR"),
+    target_currency: str = Query(..., description="Target currency code, e.g. USD"),
+    invoice_date: Optional[str] = Query(None, description="Invoice date in YYYY-MM-DD format"),
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    Fetch the exchange rate for a currency pair from the master table.
+    
+    Lookup logic:
+    1. If invoice_date is provided and is NOT today, find the record whose
+       effective_date is <= invoice_date (closest match, i.e. latest date not exceeding invoice date).
+    2. If invoice_date is today, or no match found above, fall back to the latest
+       record by effective_date (most recently effective rate).
+    3. If still no record, return 404.
+    """
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    use_fallback = True
+    rate_record = None
+
+    if invoice_date and invoice_date != today_str:
+        try:
+            # Parse invoice date — accept both YYYY-MM-DD and MM-DD-YYYY
+            try:
+                inv_date = datetime.strptime(invoice_date, "%Y-%m-%d")
+            except ValueError:
+                inv_date = datetime.strptime(invoice_date, "%m-%d-%Y")
+
+            # Find the closest rate on or before the invoice date
+            rate_record = (
+                db.query(ExchangeRateMaster)
+                .filter(
+                    ExchangeRateMaster.base_currency == base_currency.upper(),
+                    ExchangeRateMaster.target_currency == target_currency.upper(),
+                    ExchangeRateMaster.status == "active",
+                    ExchangeRateMaster.effective_date <= inv_date
+                )
+                .order_by(ExchangeRateMaster.effective_date.desc())
+                .first()
+            )
+            if rate_record:
+                use_fallback = False
+        except (ValueError, Exception):
+            use_fallback = True
+
+    if use_fallback or not rate_record:
+        # Fall back to the latest effective rate available
+        rate_record = (
+            db.query(ExchangeRateMaster)
+            .filter(
+                ExchangeRateMaster.base_currency == base_currency.upper(),
+                ExchangeRateMaster.target_currency == target_currency.upper(),
+                ExchangeRateMaster.status == "active"
+            )
+            .order_by(ExchangeRateMaster.effective_date.desc())
+            .first()
+        )
+
+    if not rate_record:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No exchange rate found for {base_currency.upper()} → {target_currency.upper()}"
+        )
+
+    return {
+        "base_currency": rate_record.base_currency,
+        "target_currency": rate_record.target_currency,
+        "exchange_rate": float(rate_record.exchange_rate),
+        "effective_date": rate_record.effective_date.isoformat() if rate_record.effective_date else None,
+        "rate_key": rate_record.rate_key,
+        "fallback_used": use_fallback
+    }
