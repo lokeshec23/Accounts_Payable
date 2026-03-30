@@ -194,6 +194,87 @@ class BaseSyncService:
                 logger.error(f"Sync failed for {sage_object}: {e}", exc_info=True)
                 if event: event.set()
 
+    async def sync_rest_object(self, 
+                    model: Type, 
+                    sage_object: str, 
+                    key_field: str,
+                    event: Optional[asyncio.Event] = None):
+        """Pure REST Sync: List Keys -> Fetch Details."""
+        lock = self._get_lock(sage_object)
+        if lock.locked(): 
+            logger.info(f"Sync already in progress for {sage_object}. Skipping.")
+            return
+        
+        async with lock:
+            start_time = datetime.utcnow()
+            logger.info(f"Starting REST Sync for {sage_object}...")
+            
+            try:
+                async with httpx.AsyncClient(timeout=120.0, limits=httpx.Limits(max_connections=50)) as client:
+                    token = await self._get_access_token(client)
+                    # Extract location ID from username if possible
+                    location_id = "201"
+                    if "|" in self.username:
+                        location_id = self.username.split("|")[-1].strip()
+                        
+                    headers = {
+                        "Authorization": f"Bearer {token}", 
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        "locationid": location_id
+                    }
+                    
+                    # 1. Fetch List of Objects (to get keys)
+                    # Note: offset/limit query parameters are NOT supported for all objects in v1 (REST)
+                    list_url = f"{self.base_url}/objects/{sage_object}"
+                    logger.info(f"Fetching REST list from {list_url}...")
+                    r = await client.get(list_url, headers=headers)
+                    if r.status_code == 400:
+                        # Fallback try if it only likes no params
+                        r = await client.get(list_url, headers=headers)
+                    r.raise_for_status()
+                    
+                    res_data = r.json()
+                    all_list_items = res_data.get("ia::result", [])
+                    total_count = res_data.get("ia::meta", {}).get("totalCount", 0)
+                    
+                    if not all_list_items:
+                        logger.info(f"No records found for {sage_object}.")
+                        if event: event.set()
+                        return
+
+                    # 2. Fetch Details for each key concurrently
+                    semaphore = asyncio.Semaphore(15)
+                    async def fetch_one(item):
+                        key = item.get("key")
+                        if not key: return None
+                        async with semaphore:
+                            try:
+                                detail_url = f"{self.base_url}/objects/{sage_object}/{key}"
+                                resp = await client.get(detail_url, headers=headers)
+                                if resp.status_code == 200:
+                                    res_json = resp.json()
+                                    return res_json.get("ia::result", res_json)
+                                return None
+                            except Exception as e:
+                                logger.warning(f"Failed to fetch detail for {key}: {e}")
+                                return None
+                    
+                    tasks = [fetch_one(it) for it in all_list_items]
+                    batch_details = await asyncio.gather(*tasks)
+                    # Filter out None and process
+                    valid_details = [d for d in batch_details if d]
+                    
+                    if valid_details:
+                        self._bulk_upsert(model, valid_details, key_field)
+                        logger.info(f"Synced/Updated {len(valid_details)} records for {sage_object}.")
+
+                logger.info(f"REST Sync complete for {sage_object}. Duration: {datetime.utcnow() - start_time}")
+                if event: event.set()
+            except Exception as e:
+                logger.error(f"REST Sync failed for {sage_object}: {e}", exc_info=True)
+                if event: event.set()
+
     async def get_all_data(self, model: Type, sync_func_name: str) -> List[Any]:
         """Generic entry point for master data; triggers sync if DB empty."""
         count = self.db.query(model).count()

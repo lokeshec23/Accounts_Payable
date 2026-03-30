@@ -14,7 +14,7 @@ from typing import Dict, Any, List, Union
 from app.database.database import get_db
 from app.models.db_models import (
     EntityMaster, VendorMaster, TdsRate, GLMaster, 
-    LOBMaster, DepartmentMaster, CustomerMaster, ItemMaster
+    LOBMaster, DepartmentMaster, CustomerMaster, ItemMaster, ExchangeRateMaster
 )
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
@@ -45,7 +45,9 @@ TAB_MODEL_MAP = {
     "master_data_LOB": LOBMaster,
     "master_data_Department": DepartmentMaster,
     "master_data_Customer": CustomerMaster,
-    "master_data_Item": ItemMaster
+    "master_data_Item": ItemMaster,
+    "Exchange_Rate": ExchangeRateMaster,
+    "master_data_Exchange_Rate": ExchangeRateMaster
 }
 
 def normalize_column(col_name: str) -> str:
@@ -110,7 +112,7 @@ async def trigger_master_sync(
     """
     from app.services.master_sync_services import (
         GLSyncService, LOBSyncService, DepartmentSyncService, 
-        CustomerSyncService, ItemSyncService
+        CustomerSyncService, ItemSyncService, ExchangeRateSyncService
     )
     
     services = {
@@ -119,7 +121,8 @@ async def trigger_master_sync(
         "Department": DepartmentSyncService,
         "Customer": CustomerSyncService,
         "Item": ItemSyncService,
-        "Line_Items": ItemSyncService
+        "Line_Items": ItemSyncService,
+        "Exchange_Rate": ExchangeRateSyncService
     }
     
     service_class = services.get(tab_name)
@@ -137,7 +140,8 @@ async def trigger_master_sync(
         "Department": "sync_departments",
         "Customer": "sync_customers",
         "Item": "sync_items",
-        "Line_Items": "sync_items"
+        "Line_Items": "sync_items",
+        "Exchange_Rate": "sync_exchange_rates"
     }
     
     method_name = method_map.get(tab_name)
@@ -178,7 +182,7 @@ def list_files(
     """
     List status of the fixed master data tabs by checking if tables have data.
     """
-    tabs = ["Entity_Master", "Vendor_Master", "TDS_Rates", "Item"]
+    tabs = ["Entity_Master", "Vendor_Master", "TDS_Rates", "Item", "Exchange_Rate"]
     # Add new tabs if needed by frontend
     additional_tabs = ["GL", "LOB", "Department", "Customer"]
     
@@ -344,7 +348,8 @@ async def get_sheet_data(
             "Department": DepartmentSyncService,
             "Customer": CustomerSyncService,
             "Item": ItemSyncService,
-            "Line_Items": ItemSyncService
+            "Line_Items": ItemSyncService,
+            "Exchange_Rate": ExchangeRateSyncService
         }
         service_class = services.get(clean_id)
         if service_class:

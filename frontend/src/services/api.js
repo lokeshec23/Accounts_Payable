@@ -235,6 +235,11 @@ export const masterDataService = {
     return response.data;
   },
 
+  // 10️⃣ Trigger Sage Sync
+  async triggerSync(tabName) {
+    const response = await api.post(`/master/sync/${tabName}`);
+    return response.data;
+  },
 };
 
 // Workflow service methods

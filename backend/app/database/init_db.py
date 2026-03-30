@@ -209,10 +209,10 @@ async def seed_api_master_data(db):
     from app.services.vendor_sync_service import VendorSyncService
     from app.services.master_sync_services import (
         GLSyncService, LOBSyncService, DepartmentSyncService, 
-        CustomerSyncService, ItemSyncService
+        CustomerSyncService, ItemSyncService, ExchangeRateSyncService
     )
     from app.models.db_models import (
-        VendorMaster, GLMaster, LOBMaster, ItemMaster, DepartmentMaster, CustomerMaster
+        VendorMaster, GLMaster, LOBMaster, ItemMaster, DepartmentMaster, CustomerMaster, ExchangeRateMaster
     )
 
     masters = [
@@ -222,6 +222,7 @@ async def seed_api_master_data(db):
         (ItemMaster, ItemSyncService, "sync_items"),
         (DepartmentMaster, DepartmentSyncService, "sync_departments"),
         (CustomerMaster, CustomerSyncService, "sync_customers"),
+        (ExchangeRateMaster, ExchangeRateSyncService, "sync_exchange_rates")
     ]
 
     print("\n" + "-"*30)
