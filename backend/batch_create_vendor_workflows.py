@@ -125,7 +125,7 @@ def batch_create_vendor_workflows(workflows_list, entity="DEFAULT"):
 
 
 if __name__ == "__main__":
-    ENTITY_ID = "201"
+    ENTITY_NAME = "Consolidated Analytics, Inc."
 
     # Update this path
     # FILE_PATH = os.path.join(os.path.dirname(__file__), "vendors.xlsx")
@@ -139,6 +139,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     print(f"Processing {len(vendors_workflows)} vendors...")
-    batch_create_vendor_workflows(vendors_workflows, ENTITY_ID)
+    batch_create_vendor_workflows(vendors_workflows, ENTITY_NAME)
 
     print("Done.")
