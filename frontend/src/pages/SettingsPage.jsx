@@ -224,6 +224,11 @@ const SettingsPage = () => {
     }
   };
 
+  const formatApprover = (val) => {
+    if (!val || (Array.isArray(val) && val.length === 0)) return "";
+    return Array.isArray(val) ? val.join(", ") : val;
+  };
+
   const vendorWorkflowColumns = [
     {
       title: "Vendor Name",
@@ -240,22 +245,22 @@ const SettingsPage = () => {
         return vendor ? vendor.label : (record.vendor_id ? `${record.vendor_id} - ${val}` : val);
       }
     },
-    { title: "Approver 1", dataIndex: "mandatory_approver_1", key: "mandatory_approver_1" },
-    { title: "Approver 2", dataIndex: "mandatory_approver_2", key: "mandatory_approver_2" },
-    { title: "Approver 3", dataIndex: "mandatory_approver_3", key: "mandatory_approver_3" },
-    { title: "Approver 4", dataIndex: "mandatory_approver_4", key: "mandatory_approver_4" },
-    { title: "Approver 5", dataIndex: "mandatory_approver_5", key: "mandatory_approver_5" },
+    { title: "Approver 1", dataIndex: "mandatory_approver_1", key: "mandatory_approver_1", render: formatApprover },
+    { title: "Approver 2", dataIndex: "mandatory_approver_2", key: "mandatory_approver_2", render: formatApprover },
+    { title: "Approver 3", dataIndex: "mandatory_approver_3", key: "mandatory_approver_3", render: formatApprover },
+    { title: "Approver 4", dataIndex: "mandatory_approver_4", key: "mandatory_approver_4", render: formatApprover },
+    { title: "Approver 5", dataIndex: "mandatory_approver_5", key: "mandatory_approver_5", render: formatApprover },
     {
-      title: "Type",
-      dataIndex: "is_parallel",
-      key: "is_parallel",
-      render: (val) => val ? <Tag color="blue">Parallel</Tag> : <Tag color="green">Sequential</Tag>
+      // title: "Type",
+      // dataIndex: "is_parallel",
+      // key: "is_parallel",
+      // render: (val) => val ? <Tag color="blue">Parallel</Tag> : <Tag color="green">Sequential</Tag>
     },
     {
       title: "Threshold Approver",
       dataIndex: "threshold_approver",
       key: "threshold_approver",
-      render: (val, record) => record.is_threshold_enabled ? (val || "-") : "Disabled"
+      render: (val, record) => record.is_threshold_enabled ? formatApprover(val) : "Disabled"
     },
     {
       title: "Threshold",
@@ -294,16 +299,16 @@ const SettingsPage = () => {
         return opt ? opt.label : val;
       }
     },
-    { title: "Approver 1", dataIndex: "mandatory_approver_1", key: "mandatory_approver_1" },
-    { title: "Approver 2", dataIndex: "mandatory_approver_2", key: "mandatory_approver_2" },
-    { title: "Approver 3", dataIndex: "mandatory_approver_3", key: "mandatory_approver_3" },
-    { title: "Approver 4", dataIndex: "mandatory_approver_4", key: "mandatory_approver_4" },
-    { title: "Approver 5", dataIndex: "mandatory_approver_5", key: "mandatory_approver_5" },
+    { title: "Approver 1", dataIndex: "mandatory_approver_1", key: "mandatory_approver_1", render: formatApprover },
+    { title: "Approver 2", dataIndex: "mandatory_approver_2", key: "mandatory_approver_2", render: formatApprover },
+    { title: "Approver 3", dataIndex: "mandatory_approver_3", key: "mandatory_approver_3", render: formatApprover },
+    { title: "Approver 4", dataIndex: "mandatory_approver_4", key: "mandatory_approver_4", render: formatApprover },
+    { title: "Approver 5", dataIndex: "mandatory_approver_5", key: "mandatory_approver_5", render: formatApprover },
     {
       title: "Threshold Approver",
       dataIndex: "threshold_approver",
       key: "threshold_approver",
-      render: (val, record) => record.is_threshold_enabled ? (val || "-") : "Disabled"
+      render: (val, record) => record.is_threshold_enabled ? formatApprover(val) : "Disabled"
     },
     {
       title: "Threshold",
@@ -396,13 +401,13 @@ const SettingsPage = () => {
           { value: 5, label: '5 Approvers' },
         ]} />
       </Form.Item>
-
+{/* 
       <Form.Item name="is_parallel" label="Approval Type" initialValue={false}>
         <Radio.Group>
           <Radio value={false}>Sequential (Level by Level)</Radio>
           <Radio value={true}>Parallel (Any one per level can approve)</Radio>
         </Radio.Group>
-      </Form.Item>
+      </Form.Item> */}
 
       <Form.Item name="is_threshold_enabled" label="Enable Threshold Approver" initialValue={false}>
         <Radio.Group>

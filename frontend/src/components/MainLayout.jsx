@@ -126,7 +126,7 @@ const MainLayout = () => {
                 
                 let currentLevelEmail = '';
                 if (Array.isArray(rawCurrentLevel)) {
-                    currentLevelEmail = rawCurrentLevel.filter(a => typeof a === 'string').map(a => a.toLowerCase()).join(' / ');
+                    currentLevelEmail = rawCurrentLevel.filter(a => typeof a === 'string').map(a => a.toLowerCase()).join(', ');
                 } else if (typeof rawCurrentLevel === 'string') {
                     currentLevelEmail = rawCurrentLevel.toLowerCase();
                 }
@@ -388,7 +388,7 @@ const MainLayout = () => {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
-            width: 150,
+            width: 200,
             sorter: (a, b) => (a.status || '').localeCompare(b.status || ''),
             multiple: 6,
             filters: [
@@ -451,7 +451,7 @@ const MainLayout = () => {
             title: 'Approver',
             dataIndex: 'approverName',
             key: 'approverName',
-            width: 180,
+            width: 200,
             sorter: (a, b) => (a.approverName || '').localeCompare(b.approverName || ''),
             multiple: 7,
             filterSearch: true,

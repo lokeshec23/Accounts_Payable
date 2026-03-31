@@ -104,7 +104,7 @@ const ApprovalsPage = () => {
                     status: invoice.status || 'pending',
                     // Logic update: for waiting invoices, show expected approver with delegation info
                     approverName: isWaiting
-                        ? (currentLevelApprovers.join(' / ') || 'Pending') + (isActiveDelegate ? ' (Delegated)' : '')
+                        ? (currentLevelApprovers.join(', ') || 'Pending') + (isActiveDelegate ? ' (Delegated)' : '')
                         : (invoice.validation_results?.approver_name || '—'),
                     approvalTime: invoice.validation_results?.approval_timestamp
                         ? formatDateTimeIST(invoice.validation_results.approval_timestamp)
