@@ -118,28 +118,35 @@ const AuditTrail = ({ invoiceId }) => {
                                 </div>
                             );
                         }
-                        
-                        // Otherwise detect or assume failure if it's the error key
+
+                        // Handle failure case
                         const isSuccess = key === 'sage_response' && (value?.totalSuccess === 1 || value?.total_success === 1 || !!value?.key || !!value?.id);
-                        
+
+                        if (!isSuccess) {
+                            // Extract error message from value or details
+                            const errorMsg = typeof value === 'string' ? value : (details.error || "Failed to post to Sage, Try reposting");
+                            return (
+                                <div key={key} style={{ fontSize: '13px', marginTop: 4, fontWeight: '500' }}>
+                                    <Text type="danger">⚠ {errorMsg}</Text>
+                                </div>
+                            );
+                        }
+
+                        // Fallback for successful 'sage_response' if it wasn't caught by isSuccessAction check
                         return (
                             <div key={key} style={{ fontSize: '13px', marginTop: 4, fontWeight: '500' }}>
-                                {isSuccess ? (
-                                    <Text type="success">✓ Bill posted to Sage successfully</Text>
-                                ) : (
-                                    <Text >⚠ Failed to post to Sage, Try reposting</Text>
-                                )}
+                                <Text type="success">✓ Bill posted to Sage successfully</Text>
                             </div>
                         );
                     }
 
                     // If it's a Sage action (success or failure), hide technical details to keep history clean
-                    if (isSageAction && !['comment', 'user'].includes(key.toLowerCase())) return null;
+                    if (isSageAction && !['comment', 'user', 'error'].includes(key.toLowerCase())) return null;
 
                     // Specialized Approver Detail Filtering: only show level and comments
                     const isApprovalAction = action && (
-                        action.includes("Approved") || 
-                        action.includes("Rejected") || 
+                        action.includes("Approved") ||
+                        action.includes("Rejected") ||
                         action.includes("Reworked")
                     );
 
@@ -167,10 +174,10 @@ const AuditTrail = ({ invoiceId }) => {
                     return (
                         <div key={key} style={{ fontSize: '12px', marginBottom: 4 }}>
                             <Text strong>{key.replace(/_/g, ' ')}: </Text>
-                            <pre style={{ 
-                                margin: '4px 0 0 0', 
-                                padding: '4px', 
-                                background: 'rgba(0,0,0,0.02)', 
+                            <pre style={{
+                                margin: '4px 0 0 0',
+                                padding: '4px',
+                                background: 'rgba(0,0,0,0.02)',
                                 borderRadius: '4px',
                                 fontSize: '11px',
                                 overflowX: 'auto',

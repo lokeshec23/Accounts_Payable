@@ -79,9 +79,18 @@ const GenericInputFields = forwardRef(({
         const userEmail = currentUser?.email?.toLowerCase();
 
         const assignedApprovers = originalData?.assigned_approvers || [];
-        const isAssigned = assignedApprovers.some(a => 
-            a && (a.toLowerCase() === userName || a.toLowerCase() === userEmail)
-        );
+        const isAssigned = assignedApprovers.some(level => {
+            if (Array.isArray(level)) {
+                return level.some(a => 
+                    a && typeof a === 'string' && (
+                        a.toLowerCase() === userName || a.toLowerCase() === userEmail
+                    )
+                );
+            }
+            return level && typeof level === 'string' && (
+                level.toLowerCase() === userName || level.toLowerCase() === userEmail
+            );
+        });
 
         const approvedBy = originalData?.approved_by || [];
         const hasApproved = approvedBy.some(a => {
@@ -1133,17 +1142,38 @@ const GenericInputFields = forwardRef(({
 
     const assignedApprovers = workflowData?.assigned_approvers || [];
     const isSequential = assignedApprovers.length > 0;
-    const currentExpectedApprover = assignedApprovers[cycleApprovalsCount]?.toLowerCase();
+
+    const rawExpected = assignedApprovers[cycleApprovalsCount];
+    const expectedApproversList = useMemo(() => {
+        if (!rawExpected) return [];
+        if (Array.isArray(rawExpected)) return rawExpected.map(e => (typeof e === 'string' ? e.toLowerCase() : ''));
+        if (typeof rawExpected === 'string') {
+            try {
+                if (rawExpected.startsWith('[')) {
+                    const parsed = JSON.parse(rawExpected);
+                    if (Array.isArray(parsed)) return parsed.map(e => (typeof e === 'string' ? e.toLowerCase() : ''));
+                }
+            } catch (e) {}
+            return [rawExpected.toLowerCase()];
+        }
+        return [String(rawExpected).toLowerCase()];
+    }, [rawExpected]);
+
     const myEmail = currentUser?.email?.toLowerCase();
 
     const isActiveDelegateForCurrentTurn = useMemo(() => {
-        return currentExpectedApprover &&
-            workflowData?.delegations?.[currentExpectedApprover]?.some(
-                delegateEmail => delegateEmail.toLowerCase() === myEmail
-            );
-    }, [currentExpectedApprover, workflowData, myEmail]);
+        if (!expectedApproversList.length) return false;
+        
+        for (const approver of expectedApproversList) {
+             const dels = workflowData?.delegations?.[approver] || [];
+             if (dels.some(delegateEmail => typeof delegateEmail === 'string' && delegateEmail.toLowerCase() === myEmail)) {
+                 return true;
+             }
+        }
+        return false;
+    }, [expectedApproversList, workflowData, myEmail]);
 
-    const isMyTurn = !isSequential || (currentExpectedApprover === myEmail) || isActiveDelegateForCurrentTurn;
+    const isMyTurn = !isSequential || expectedApproversList.includes(myEmail) || isActiveDelegateForCurrentTurn;
 
     const approveDisabled = currentUserHasActed || isRestrictedUser || !isMyTurn;
     const rejectDisabled = currentUserHasActed || isRestrictedUser || !isMyTurn;

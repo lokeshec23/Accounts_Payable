@@ -116,7 +116,7 @@ import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom
 // import { ConfigProvider, message } from 'antd';
 
 
-import { ConfigProvider, message, theme } from 'antd';
+import { ConfigProvider, message, theme, App as AntdApp } from 'antd';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import Header from './components/Header';
 import { EntityProvider } from './context/EntityContext';
@@ -211,7 +211,9 @@ const AppConfigProvider = ({ children }) => {
         },
       }}
     >
-      {children}
+      <AntdApp>
+        {children}
+      </AntdApp>
     </ConfigProvider>
   );
 };

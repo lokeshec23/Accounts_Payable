@@ -151,6 +151,7 @@ def get_required_approver_count(
     workflow_found = False
     workflow_type = None
     vendor_eligible = False
+    is_parallel = False
     
     # Resolve vendor identity
     if force_vendor_name or force_vendor_id:
@@ -176,6 +177,8 @@ def get_required_approver_count(
         vendor_entry = vendor_map.get(norm_name)
 
     if vendor_entry:
+        if not v_id_resolved:
+            v_id_resolved = vendor_entry.get("vendor_id") or vendor_entry.get("VENDOR_ID") or vendor_entry.get("Vendor ID")
         workflow_applicable = None
         for key in vendor_entry.keys():
             kl = key.lower()
@@ -190,24 +193,39 @@ def get_required_approver_count(
         v_workflow = None
         if v_id_resolved:
             v_workflow = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_id == v_id_resolved, VendorWorkflow.entity == entity).first()
+        
+        if not v_workflow and v_name_resolved:
+            v_workflow = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_name == v_name_resolved, VendorWorkflow.entity == entity).first()
+            if not v_workflow:
+                v_workflow = db.query(VendorWorkflow).filter(VendorWorkflow.vendor_name.like(f"%{v_name_resolved}%"), VendorWorkflow.entity == entity).first()
             
-            if v_workflow:
-                # If we found a workflow, we prioritize it
-                workflow_found = True
-                workflow_type = "vendor"
-                count = v_workflow.approver_count
-                mandatory_fields = [
-                    v_workflow.mandatory_approver_1, v_workflow.mandatory_approver_2, 
-                    v_workflow.mandatory_approver_3, v_workflow.mandatory_approver_4, 
-                    v_workflow.mandatory_approver_5
-                ]
-                assigned_approvers = [a for a in mandatory_fields[:count] if a]
-                
-                # Threshold Approver
-                if getattr(v_workflow, 'is_threshold_enabled', False):
-                    if amount is not None and v_workflow.amount_threshold is not None:
-                         if amount >= v_workflow.amount_threshold and v_workflow.threshold_approver:
-                            assigned_approvers.append(v_workflow.threshold_approver)
+        if v_workflow:
+            # If we found a workflow, we prioritize it
+            workflow_found = True
+            workflow_type = "vendor"
+            count = v_workflow.approver_count
+            def parse_approvers(val):
+                if not val: return []
+                if isinstance(val, str) and val.startswith("["):
+                    try: return json.loads(val)
+                    except: return [val]
+                return [val] if val else []
+
+            mandatory_fields = [
+                parse_approvers(v_workflow.mandatory_approver_1),
+                parse_approvers(v_workflow.mandatory_approver_2),
+                parse_approvers(v_workflow.mandatory_approver_3),
+                parse_approvers(v_workflow.mandatory_approver_4),
+                parse_approvers(v_workflow.mandatory_approver_5)
+            ]
+            assigned_approvers = [a for a in mandatory_fields[:count] if a]
+            is_parallel = getattr(v_workflow, 'is_parallel', False)
+            
+            # Threshold Approver
+            if getattr(v_workflow, 'is_threshold_enabled', False):
+                if amount is not None and v_workflow.amount_threshold is not None:
+                     if amount >= v_workflow.amount_threshold and v_workflow.threshold_approver:
+                        assigned_approvers.append(v_workflow.threshold_approver)
 
 
     # 3. Try Codification Based Workflow
@@ -232,12 +250,22 @@ def get_required_approver_count(
                         workflow_found = True
                         workflow_type = "codification"
                         count = cod_workflow.approver_count
+                        def parse_approvers(val):
+                            if not val: return []
+                            if isinstance(val, str) and val.startswith("["):
+                                try: return json.loads(val)
+                                except: return [val]
+                            return [val] if val else []
+
                         mandatory_fields = [
-                            cod_workflow.mandatory_approver_1, cod_workflow.mandatory_approver_2, 
-                            cod_workflow.mandatory_approver_3, cod_workflow.mandatory_approver_4, 
-                            cod_workflow.mandatory_approver_5
+                            parse_approvers(cod_workflow.mandatory_approver_1),
+                            parse_approvers(cod_workflow.mandatory_approver_2),
+                            parse_approvers(cod_workflow.mandatory_approver_3),
+                            parse_approvers(cod_workflow.mandatory_approver_4),
+                            parse_approvers(cod_workflow.mandatory_approver_5)
                         ]
                         assigned_approvers = [a for a in mandatory_fields[:count] if a]
+                        is_parallel = getattr(cod_workflow, 'is_parallel', False)
                         
                         # Threshold Approver
                         if getattr(cod_workflow, 'is_threshold_enabled', False):
@@ -304,11 +332,26 @@ def get_required_approver_count(
         }
 
     assigned_approvers = [a for a in assigned_approvers if a]
+    
+    # total required = number of levels
+    # each level is a parallel group if is_parallel is true
+    # If is_parallel is false, assigned_approvers might still be lists of 1
+    # We should flatten if not parallel, or keep as is.
+    
+    # Clean assigned_approvers (ensure no empty lists)
+    assigned_approvers = [a for a in assigned_approvers if a]
+    
+    # Parallel means: each level requires 1 approval.
+    # Total required = number of stages.
+    # (Even if sequential, total required = number of stages, because current_approver_level matches stage)
+    req_count = len(assigned_approvers)
+
     return {
-        "required": len(assigned_approvers),
+        "required": req_count,
         "assigned_approvers": assigned_approvers,
         "workflow_type": workflow_type,
-        "breakdown": {"type": workflow_type, "vendor_eligible": vendor_eligible}
+        "is_parallel": is_parallel,
+        "breakdown": {"type": workflow_type, "vendor_eligible": vendor_eligible, "is_parallel": is_parallel}
     }
 
 @router.get("/{invoice_id}", response_model=WorkflowHistoryResponse)
@@ -350,9 +393,32 @@ async def get_workflow_history(
     delegations_map = {}
     from app.models.delegation import check_active_delegation
     assigned_approvers = requirement_data.get("assigned_approvers", [])
-    for email in assigned_approvers:
-        subs = check_active_delegation(db, email, entity)
-        if subs: delegations_map[email.lower()] = subs
+    
+    def _flatten_emails(items):
+        res = []
+        for item in items:
+            if isinstance(item, list):
+                res.extend(_flatten_emails(item))
+            elif isinstance(item, str):
+                item = item.strip()
+                if item.startswith("["):
+                    try:
+                        parsed = json.loads(item)
+                        if isinstance(parsed, list):
+                            res.extend(_flatten_emails(parsed))
+                        else:
+                            res.append(item)
+                    except:
+                        res.append(item)
+                else:
+                    res.append(item)
+        return res
+
+    flat_emails = set(_flatten_emails(assigned_approvers))
+    for email in flat_emails:
+        if email and isinstance(email, str):
+            subs = check_active_delegation(db, email, entity)
+            if subs: delegations_map[email.lower()] = subs
 
     return WorkflowHistoryResponse(
         invoice_id=str(invoice_id),
@@ -363,6 +429,7 @@ async def get_workflow_history(
         current_status=invoice.status.value if hasattr(invoice.status, "value") else str(invoice.status),
         approver_breakdown=requirement_data["breakdown"],
         delegations=delegations_map,
+        workflow_type=requirement_data.get("workflow_type", "unknown"),
         steps=[
             WorkflowStepResponse(
                 id=str(s.id),

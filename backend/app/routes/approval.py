@@ -73,13 +73,16 @@ async def send_to_approval(
     
     # Store assigned approvers
     assigned_approvers = requirement_data.get("assigned_approvers", [])
-    for idx, email in enumerate(assigned_approvers):
-        if email:
-            db.add(InvoiceAssignedApprover(
-                invoice_id=invoice_id,
-                approver_email=email,
-                sequence_order=idx + 1
-            ))
+    for idx, email_item in enumerate(assigned_approvers):
+        # email_item could be a string or a list of strings
+        emails = [email_item] if isinstance(email_item, str) else email_item
+        for email in emails:
+            if email:
+                db.add(InvoiceAssignedApprover(
+                    invoice_id=invoice_id,
+                    approver_email=email,
+                    sequence_order=idx + 1
+                ))
     import json
     
     # Update requirement breakdown if we want to persist it (using JSON field)
@@ -137,32 +140,36 @@ async def send_to_approval(
 
     # 7. TRIGGER FIRST APPROVAL EMAIL
     if assigned_approvers:
-        first_approver_email = assigned_approvers[0]
-        # Get approver's name (optional, using "Approver" as default if user record not found)
-        approver_user = db.query(User).filter(User.email == first_approver_email).first()
-
-        approver_name = approver_user.username if approver_user else "Approver"
+        first_level_approvers = assigned_approvers[0]
+        # emails could be a string or a list of strings
+        emails = [first_level_approvers] if isinstance(first_level_approvers, str) else first_level_approvers
         
-        # Prioritize invoice number from extracted_data with fallback
-        import json
-        extracted_data = {}
-        if invoice.extracted_data:
-            try:
-                extracted_data = json.loads(invoice.extracted_data) if isinstance(invoice.extracted_data, str) else invoice.extracted_data
-            except: pass
+        for approver_email in emails:
+            if not approver_email: continue
             
-        invoice_number = extracted_data.get("invoice_details", {}).get("invoice_number", {}).get("value")
-        if not invoice_number:
-            invoice_number = invoice.invoice_number
+            # Get approver's name
+            approver_user = db.query(User).filter(User.email == approver_email).first()
+            approver_name = approver_user.username if approver_user else "Approver"
+            
+            # Prioritize invoice number from extracted_data
+            extracted_data_json = {}
+            if invoice.extracted_data:
+                try:
+                    extracted_data_json = json.loads(invoice.extracted_data) if isinstance(invoice.extracted_data, str) else invoice.extracted_data
+                except: pass
+                
+            inv_number = extracted_data_json.get("invoice_details", {}).get("invoice_number", {}).get("value")
+            if not inv_number:
+                inv_number = invoice.invoice_number
 
-        email_service.send_approval_request_email(
-            email=first_approver_email,
-            username=approver_name,
-            vendor_name=vendor_name or "Unknown",
-            invoice_number=invoice_number or "N/A",
-            amount=str(total_amount),
-            currency=currency
-        )
+            email_service.send_approval_request_email(
+                email=approver_email,
+                username=approver_name,
+                vendor_name=vendor_name or "Unknown",
+                invoice_number=inv_number or "N/A",
+                amount=str(total_amount),
+                currency=currency
+            )
 
 
 

@@ -692,21 +692,74 @@ async def update_invoice_status(
     
     existing_approvals = sum(1 for h in current_cycle_history if h.status == InvoiceStatusEnum.APPROVED)
     
-    # Who is the EXPECTED approver right now?
-    expected_email = None
+    is_parallel = requirement_data.get("is_parallel", False)
+
+    # Who are the EXPECTED approvers right now?
+    expected_emails = []
     if assigned_approvers and existing_approvals < len(assigned_approvers):
-        expected_email = assigned_approvers[existing_approvals].lower()
+        current_level = assigned_approvers[existing_approvals]
+        if isinstance(current_level, list):
+            expected_emails = current_level
+        elif isinstance(current_level, str):
+            try:
+                parsed = json.loads(current_level)
+                expected_emails = parsed if isinstance(parsed, list) else [current_level]
+            except:
+                expected_emails = [current_level]
+        else:
+            expected_emails = [current_level]
 
     # Is the current user the expected approver OR their active substitute?
     is_authorized = False
-    if expected_email:
-        if current_user.email.lower() == expected_email:
-            is_authorized = True
-        else:
-            from app.models.delegation import check_active_delegation
-            substitutes = check_active_delegation(db, expected_email, invoice.entity)
-            if current_user.email.lower() in substitutes:
+    from app.models.delegation import check_active_delegation
+    import json
+    
+    def _flatten_emails(items):
+        res = []
+        for item in items:
+            if isinstance(item, list):
+                res.extend(_flatten_emails(item))
+            elif isinstance(item, str):
+                item = item.strip()
+                if item.startswith("["):
+                    try:
+                        parsed = json.loads(item)
+                        if isinstance(parsed, list):
+                            res.extend(_flatten_emails(parsed))
+                        else:
+                            res.append(item)
+                    except:
+                        res.append(item)
+                else:
+                    res.append(item)
+        return res
+
+    if is_parallel:
+        # In parallel mode, any assigned approver (or their substitute) is authorized
+        flat_all = _flatten_emails(assigned_approvers)
+        for a_email in flat_all:
+            if not a_email: continue
+            a_email_lower = a_email.lower()
+            if current_user.email.lower() == a_email_lower:
                 is_authorized = True
+                break
+            
+            substitutes = check_active_delegation(db, a_email_lower, invoice.entity)
+            if current_user.email.lower() in [s.lower() for s in substitutes]:
+                is_authorized = True
+                break
+    elif expected_emails:
+        flat_expected = _flatten_emails(expected_emails)
+        for expected_email in flat_expected:
+            if not expected_email: continue
+            if current_user.email.lower() == expected_email.lower():
+                is_authorized = True
+                break
+            else:
+                substitutes = check_active_delegation(db, expected_email.lower(), invoice.entity)
+                if current_user.email.lower() in [s.lower() for s in substitutes]:
+                    is_authorized = True
+                    break
 
     already_acted_for_this_level = any(
         h.user == approver_name and 
@@ -793,6 +846,7 @@ async def update_invoice_status(
         )
         required_approvers = requirement_data["required"]
         assigned_approvers = requirement_data.get("assigned_approvers", [])
+        is_parallel = requirement_data.get("is_parallel", False)
 
         # COUNT ONLY CURRENT CYCLE APPROVALS
         existing_approvals = sum(
@@ -802,9 +856,15 @@ async def update_invoice_status(
 
         if assigned_approvers:
             if not is_authorized:
+                 expected_flat = _flatten_emails(expected_emails)
+                 detail_msg = f"Only {', '.join(expected_flat)} (or their active substitute) can take action at this level."
+                 if is_parallel:
+                     all_flat = _flatten_emails(assigned_approvers)
+                     detail_msg = f"Only designated parallel approvers {', '.join(all_flat)} (or their active substitutes) can take action."
+                 
                  raise HTTPException(
                     status_code=403,
-                    detail=f"Only {expected_email} (or their active substitute) can take action at this level."
+                    detail=detail_msg
                 )
 
         if status == InvoiceStatusEnum.APPROVED:
@@ -824,6 +884,7 @@ async def update_invoice_status(
     # SAVE INVOICE
     # =====================================================
     invoice.status = main_status
+    invoice.is_parallel = is_parallel
     
     validation_results = deserialize_json_field(invoice.validation_results) or {}
     validation_results.update({
@@ -882,31 +943,39 @@ async def update_invoice_status(
     db.commit()
 
 
-    # =====================================================
-    # TRIGGER NEXT APPROVER EMAIL (SEQUENTIAL)
-    # =====================================================
+    # 8. TRIGGER NEXT APPROVER EMAIL
     if status == InvoiceStatusEnum.APPROVED and main_status == InvoiceStatusEnum.WAITING_APPROVAL:
         # We need the next approver's email
-        if assigned_approvers and (existing_approvals + 1) < len(assigned_approvers):
-            next_approver_email = assigned_approvers[existing_approvals + 1]
+        # assigned_approvers is a list of lists
+        if assigned_approvers and (approvals) < len(assigned_approvers):
+            next_level_approvers = assigned_approvers[approvals]
+            emails = [next_level_approvers] if isinstance(next_level_approvers, str) else next_level_approvers
             
-            # Use email service to notify next approver
-            next_approver_user = db.query(User).filter(User.email == next_approver_email).first()
-            next_approver_name = next_approver_user.username if next_approver_user else "Approver"
+            for next_approver_email in emails:
+                if not next_approver_email: continue
+                
+                # Use email service to notify next approver
+                next_approver_user = db.query(User).filter(User.email == next_approver_email).first()
+                next_approver_name = next_approver_user.username if next_approver_user else "Approver"
 
-            extracted_data = deserialize_json_field(invoice.extracted_data) or {}
-            invoice_number = extracted_data.get("invoice_details", {}).get("invoice_number", {}).get("value")
-            if not invoice_number:
-                invoice_number = invoice.invoice_number
+                extracted_data_json = {}
+                if invoice.extracted_data:
+                    try:
+                        extracted_data_json = json.loads(invoice.extracted_data) if isinstance(invoice.extracted_data, str) else invoice.extracted_data
+                    except: pass
+                    
+                inv_number = extracted_data_json.get("invoice_details", {}).get("invoice_number", {}).get("value")
+                if not inv_number:
+                    inv_number = invoice.invoice_number
 
-            email_service.send_approval_request_email(
-                email=next_approver_email,
-                username=next_approver_name,
-                vendor_name=vendor_name or "Unknown",
-                invoice_number=invoice_number or "N/A",
-                amount=str(total_amount),
-                currency=currency
-            )
+                email_service.send_approval_request_email(
+                    email=next_approver_email,
+                    username=next_approver_name,
+                    vendor_name=vendor_name or "Unknown",
+                    invoice_number=inv_number or "N/A",
+                    amount=str(total_amount),
+                    currency=currency
+                )
 
 
 

@@ -1,22 +1,26 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List, Union
 from datetime import datetime
 
 class CodificationWorkflow(BaseModel):
     lob: str  # Line of Business
     department_id: str
-    mandatory_approver_1: Optional[EmailStr] = None
-    mandatory_approver_2: Optional[EmailStr] = None
-    mandatory_approver_3: Optional[EmailStr] = None
-    mandatory_approver_4: Optional[EmailStr] = None
-    mandatory_approver_5: Optional[EmailStr] = None
+    mandatory_approver_1: Optional[Union[str, List[str]]] = None
+    mandatory_approver_2: Optional[Union[str, List[str]]] = None
+    mandatory_approver_3: Optional[Union[str, List[str]]] = None
+    mandatory_approver_4: Optional[Union[str, List[str]]] = None
+    mandatory_approver_5: Optional[Union[str, List[str]]] = None
     is_threshold_enabled: bool = False
-    threshold_approver: Optional[EmailStr] = None  # nth approver based on amount threshold
-    amount_threshold: Optional[float] = None  # threshold for threshold approver
+    threshold_approver: Optional[Union[str, List[str]]] = None
+    amount_threshold: Optional[float] = None
     approver_count: int = 1  # 1 to 5
+    is_parallel: bool = False
     entity: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+    class Config:
+        extra = "ignore"
 
 class CodificationWorkflowInDB(CodificationWorkflow):
     id: str
@@ -25,17 +29,18 @@ class CodificationWorkflowResponse(BaseModel):
     id: int
     lob: str
     department_id: str
-    mandatory_approver_1: Optional[str] = None
-    mandatory_approver_2: Optional[str] = None
-    mandatory_approver_3: Optional[str] = None
-    mandatory_approver_4: Optional[str] = None
-    mandatory_approver_5: Optional[str] = None
+    mandatory_approver_1: Optional[Union[str, List[str]]] = None
+    mandatory_approver_2: Optional[Union[str, List[str]]] = None
+    mandatory_approver_3: Optional[Union[str, List[str]]] = None
+    mandatory_approver_4: Optional[Union[str, List[str]]] = None
+    mandatory_approver_5: Optional[Union[str, List[str]]] = None
     is_threshold_enabled: bool = False
-    threshold_approver: Optional[str] = None
+    threshold_approver: Optional[Union[str, List[str]]] = None
     amount_threshold: Optional[float] = None
-    approver_count: int
-    entity: str
-    created_at: datetime
+    approver_count: int = 1
+    is_parallel: bool = False
+    entity: str = "Consolidated Analytics Inc"
+    created_at: datetime = datetime.utcnow()
     updated_at: Optional[datetime] = None
 
     class Config:

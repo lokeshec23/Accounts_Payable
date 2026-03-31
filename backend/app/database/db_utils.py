@@ -93,12 +93,20 @@ def invoice_to_dict(invoice: Invoice, include_relationships: bool = True) -> Dic
         else:
             result["approved_by"] = []
         
-        # Assigned approvers
+        # Assigned approvers (Grouped by sequence_order/level)
         if invoice.assigned_approvers_list:
-            result["assigned_approvers"] = [
-                a.approver_email 
-                for a in sorted(invoice.assigned_approvers_list, key=lambda x: x.sequence_order)
-            ]
+            # Sort by sequence_order first
+            sorted_approvers = sorted(invoice.assigned_approvers_list, key=lambda x: x.sequence_order)
+            grouped = {}
+            for a in sorted_approvers:
+                if a.sequence_order not in grouped:
+                    grouped[a.sequence_order] = []
+                grouped[a.sequence_order].append(a.approver_email)
+            
+            # Return as a list of levels (each level is a list of emails)
+            # The indices will correspond to current_approver_level - 1
+            # We use the sequence of sorted keys to ensure correct ordering even if there are gaps
+            result["assigned_approvers"] = [grouped[seq] for seq in sorted(grouped.keys())]
         else:
             result["assigned_approvers"] = []
     
@@ -154,13 +162,19 @@ def dict_to_invoice(data: Dict[str, Any], db: Session) -> Invoice:
         approved_entry = InvoiceApprovedBy(approver_email=email)
         invoice.approved_by_list.append(approved_entry)
     
-    # Add assigned approvers
-    for idx, email in enumerate(assigned_approvers_data):
-        assigned_entry = InvoiceAssignedApprover(
-            approver_email=email,
-            sequence_order=idx
-        )
-        invoice.assigned_approvers_list.append(assigned_entry)
+    # Add assigned approvers (Handle flat or nested layout)
+    for idx, item in enumerate(assigned_approvers_data):
+        # item could be a string (email) OR a list of strings (parallel level)
+        emails = [item] if isinstance(item, (str, bytes)) else item
+        if not hasattr(emails, '__iter__'): emails = [emails]
+        
+        for email in emails:
+            if email:
+                assigned_entry = InvoiceAssignedApprover(
+                    approver_email=str(email).strip(),
+                    sequence_order=idx + 1 # sequence_order starts at 1
+                )
+                invoice.assigned_approvers_list.append(assigned_entry)
     
     return invoice
 

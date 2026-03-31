@@ -343,6 +343,11 @@ async def create_or_update_coding(
         )
         db.add(new_coding)
     
+    if coding_data.vendor_name is not None:
+        invoice.vendor_name = coding_data.vendor_name
+    if getattr(coding_data, 'vendor_id', None) is not None:
+        invoice.vendor_id = coding_data.vendor_id
+        
     db.commit()
 
     # Update history and gl_summary
