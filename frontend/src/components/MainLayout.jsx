@@ -122,7 +122,15 @@ const MainLayout = () => {
 
                 const currentLevel = invoice.current_approver_level || 1;
                 const assignedApprovers = invoice.assigned_approvers || [];
-                const currentLevelEmail = (assignedApprovers[currentLevel - 1] || '').toLowerCase();
+                const rawCurrentLevel = assignedApprovers[currentLevel - 1];
+                
+                let currentLevelEmail = '';
+                if (Array.isArray(rawCurrentLevel)) {
+                    currentLevelEmail = rawCurrentLevel.filter(a => typeof a === 'string').map(a => a.toLowerCase()).join(' / ');
+                } else if (typeof rawCurrentLevel === 'string') {
+                    currentLevelEmail = rawCurrentLevel.toLowerCase();
+                }
+                
                 const isWaiting = invoice.status === 'waiting_approval';
 
                 return {
@@ -139,7 +147,7 @@ const MainLayout = () => {
                     status: invoice.status || 'waiting_approval',
                     fileUrl: invoice.file_url || '/sample-invoice.pdf',
                     approverName: isWaiting
-                        ? (currentLevelEmail || 'Pending')
+                        ? (invoice.is_parallel ? 'Parallel Approval' : (currentLevelEmail || 'Pending'))
                         : (validation.approver_name || ''),
                     approvalTime: validation.approval_timestamp
                         ? formatDateTimeIST(validation.approval_timestamp)
@@ -216,12 +224,20 @@ const MainLayout = () => {
         return allInvoices.filter((inv) => {
             // Check if user is in assigned_approvers list (email-based, primary check)
             const assignedApprovers = inv.rawData?.assigned_approvers || [];
-            const isAssigned = assignedApprovers.some(a =>
-                a && (
-                    (lowerEmail && a.toLowerCase() === lowerEmail) ||
-                    (lowerUserName && a.toLowerCase() === lowerUserName)
-                )
-            );
+            const isAssigned = assignedApprovers.some(level => {
+                if (Array.isArray(level)) {
+                    return level.some(a => 
+                        a && typeof a === 'string' && (
+                            (lowerEmail && a.toLowerCase() === lowerEmail) ||
+                            (lowerUserName && a.toLowerCase() === lowerUserName)
+                        )
+                    );
+                }
+                return level && typeof level === 'string' && (
+                    (lowerEmail && level.toLowerCase() === lowerEmail) ||
+                    (lowerUserName && level.toLowerCase() === lowerUserName)
+                );
+            });
 
             // For approver role: only show if they are in the assigned_approvers list
             // (covers all statuses: waiting_approval, approved, rejected, etc.)
@@ -856,7 +872,7 @@ const MainLayout = () => {
                 onCancel={handleCloseModal}
                 footer={null}
                 width={700}
-                destroyOnClose
+                destroyOnHidden
             >
                 <InvoiceUpload onUploadSuccess={handleUploadSuccess} />
             </Modal>
@@ -868,7 +884,7 @@ const MainLayout = () => {
                 onCancel={() => setIsFieldsModalOpen(false)}
                 footer={null}
                 width="95%"
-                destroyOnClose
+                destroyOnHidden
                 centered
             >
                 {/* Global search above View Files modal table */}
@@ -1098,7 +1114,7 @@ const MainLayout = () => {
                 }}
                 footer={null}
                 width={700}
-                destroyOnClose
+                destroyOnHidden
             >
                 <div style={{ padding: '20px 0' }}>
                     <p style={{ marginBottom: '16px', color: '#666' }}>

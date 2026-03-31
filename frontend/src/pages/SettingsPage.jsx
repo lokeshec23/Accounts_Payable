@@ -51,30 +51,52 @@ const SettingsPage = () => {
   const fetchRules = async () => {
     setLoading(true);
     try {
-      const [
-        vendorWorkflowData,
-        codificationWorkflowData,
-        approversData,
-        vendorsData,
-        lobsData,
-        departmentsData,
-      ] = await Promise.all([
-        workflowConfigService.getVendorWorkflows(),
-        workflowConfigService.getCodificationWorkflows(),
-        workflowConfigService.getApprovers(),
-        workflowConfigService.getWorkflowVendors(),
-        workflowConfigService.getLOBs(),
-        workflowConfigService.getDepartments(),
-      ]);
+      // Fetch workflows
+      try {
+        const vWorkflows = await workflowConfigService.getVendorWorkflows();
+        setVendorWorkflows(vWorkflows || []);
+      } catch (e) {
+        console.error("Error fetching vendor workflows:", e);
+      }
 
-      setVendorWorkflows(vendorWorkflowData);
-      setCodificationWorkflows(codificationWorkflowData);
-      setApprovers(approversData);
-      setWorkflowVendors(vendorsData);
-      setLobs(lobsData);
-      setDepartments(departmentsData);
+      try {
+        const cWorkflows = await workflowConfigService.getCodificationWorkflows();
+        setCodificationWorkflows(cWorkflows || []);
+      } catch (e) {
+        console.error("Error fetching codification workflows:", e);
+      }
+
+      // Fetch master data for dropdowns
+      try {
+        const approversData = await workflowConfigService.getApprovers();
+        setApprovers(approversData || []);
+      } catch (e) {
+        console.error("Error fetching approvers:", e);
+      }
+
+      try {
+        const vendorsData = await workflowConfigService.getWorkflowVendors();
+        setWorkflowVendors(vendorsData || []);
+      } catch (e) {
+        console.error("Error fetching workflow vendors:", e);
+      }
+
+      try {
+        const lobsData = await workflowConfigService.getLOBs();
+        setLobs(lobsData || []);
+      } catch (e) {
+        console.error("Error fetching LOBs:", e);
+      }
+
+      try {
+        const departmentsData = await workflowConfigService.getDepartments();
+        setDepartments(departmentsData || []);
+      } catch (e) {
+        console.error("Error fetching departments:", e);
+      }
+
     } catch (error) {
-      console.error("Error fetching rules:", error);
+      console.error("Error in fetchRules general:", error);
       message.error("Failed to fetch workflow configuration");
     } finally {
       setLoading(false);
@@ -115,6 +137,9 @@ const SettingsPage = () => {
     // Ensure is_threshold_enabled for old records
     if (recordToEdit.is_threshold_enabled === undefined) {
       recordToEdit.is_threshold_enabled = !!recordToEdit.threshold_approver;
+    }
+    if (recordToEdit.is_parallel === undefined) {
+      recordToEdit.is_parallel = false;
     }
     // Ensure unique value for select if vendor_id exists
     if (recordToEdit.vendor_id && recordToEdit.vendor_name) {
@@ -180,11 +205,21 @@ const SettingsPage = () => {
     } catch (error) {
       if (error.errorFields) {
         message.error("Please fill in all required fields correctly");
-      } else if (error.response?.data?.detail) {
-        message.error(error.response.data.detail);
       } else {
+        const errorDetail = error.response?.data?.detail;
+        let errorMsg = "Failed to save configuration";
+        
+        if (typeof errorDetail === 'string') {
+          errorMsg = errorDetail;
+        } else if (Array.isArray(errorDetail)) {
+          // Robustly handle FastAPI validation error list
+          errorMsg = errorDetail.map(err => `${err.loc?.join('.')}: ${err.msg}`).join(', ');
+        } else if (errorDetail && typeof errorDetail === 'object') {
+          errorMsg = JSON.stringify(errorDetail);
+        }
+        
         console.error("Error saving configuration:", error);
-        message.error("Failed to save configuration");
+        message.error(errorMsg);
       }
     }
   };
@@ -210,6 +245,12 @@ const SettingsPage = () => {
     { title: "Approver 3", dataIndex: "mandatory_approver_3", key: "mandatory_approver_3" },
     { title: "Approver 4", dataIndex: "mandatory_approver_4", key: "mandatory_approver_4" },
     { title: "Approver 5", dataIndex: "mandatory_approver_5", key: "mandatory_approver_5" },
+    {
+      title: "Type",
+      dataIndex: "is_parallel",
+      key: "is_parallel",
+      render: (val) => val ? <Tag color="blue">Parallel</Tag> : <Tag color="green">Sequential</Tag>
+    },
     {
       title: "Threshold Approver",
       dataIndex: "threshold_approver",
@@ -356,6 +397,13 @@ const SettingsPage = () => {
         ]} />
       </Form.Item>
 
+      <Form.Item name="is_parallel" label="Approval Type" initialValue={false}>
+        <Radio.Group>
+          <Radio value={false}>Sequential (Level by Level)</Radio>
+          <Radio value={true}>Parallel (Any one per level can approve)</Radio>
+        </Radio.Group>
+      </Form.Item>
+
       <Form.Item name="is_threshold_enabled" label="Enable Threshold Approver" initialValue={false}>
         <Radio.Group>
           <Radio value={true}>Yes</Radio>
@@ -375,9 +423,11 @@ const SettingsPage = () => {
           const count = getFieldValue('approver_count') || 1;
           const isThresholdEnabled = getFieldValue('is_threshold_enabled');
 
-          const getFilteredOptions = (currentValue) => {
-            const allSelected = [a1, a2, a3, a4, a5, thresholdApp];
-            const selectedOther = allSelected.filter(v => v && v !== currentValue);
+          const getFilteredOptions = (currentValue = []) => {
+            // Flatten in case some are arrays (mode="multiple")
+            const flatCurrent = Array.isArray(currentValue) ? currentValue : [currentValue].filter(Boolean);
+            const allSelected = [a1, a2, a3, a4, a5, thresholdApp].flat().filter(Boolean);
+            const selectedOther = allSelected.filter(v => !flatCurrent.includes(v));
             return approvers.filter(opt => !selectedOther.includes(opt.value));
           };
 
@@ -385,34 +435,34 @@ const SettingsPage = () => {
             <>
               {count >= 1 && (
                 <Form.Item name="mandatory_approver_1" label="Approver 1 (Mandatory)" rules={[{ required: true }]}>
-                  <Select showSearch options={getFilteredOptions(a1)} placeholder="Select Approver 1" />
+                  <Select mode="multiple" showSearch options={getFilteredOptions(a1)} placeholder="Select Approver(s) 1" />
                 </Form.Item>
               )}
               {count >= 2 && (
                 <Form.Item name="mandatory_approver_2" label="Approver 2 (Mandatory)" rules={[{ required: true }]}>
-                  <Select showSearch options={getFilteredOptions(a2)} placeholder="Select Approver 2" />
+                  <Select mode="multiple" showSearch options={getFilteredOptions(a2)} placeholder="Select Approver(s) 2" />
                 </Form.Item>
               )}
               {count >= 3 && (
                 <Form.Item name="mandatory_approver_3" label="Approver 3 (Mandatory)" rules={[{ required: true }]}>
-                  <Select showSearch options={getFilteredOptions(a3)} placeholder="Select Approver 3" />
+                  <Select mode="multiple" showSearch options={getFilteredOptions(a3)} placeholder="Select Approver(s) 3" />
                 </Form.Item>
               )}
               {count >= 4 && (
                 <Form.Item name="mandatory_approver_4" label="Approver 4 (Mandatory)" rules={[{ required: true }]}>
-                  <Select showSearch options={getFilteredOptions(a4)} placeholder="Select Approver 4" />
+                  <Select mode="multiple" showSearch options={getFilteredOptions(a4)} placeholder="Select Approver(s) 4" />
                 </Form.Item>
               )}
               {count >= 5 && (
                 <Form.Item name="mandatory_approver_5" label="Approver 5 (Mandatory)" rules={[{ required: true }]}>
-                  <Select showSearch options={getFilteredOptions(a5)} placeholder="Select Approver 5" />
+                  <Select mode="multiple" showSearch options={getFilteredOptions(a5)} placeholder="Select Approver(s) 5" />
                 </Form.Item>
               )}
 
               {isThresholdEnabled && (
                 <>
                   <Form.Item name="threshold_approver" label="Threshold Approver" rules={[{ required: true }]}>
-                    <Select showSearch options={getFilteredOptions(thresholdApp)} placeholder="Select Threshold Approver" />
+                    <Select mode="multiple" showSearch options={getFilteredOptions(thresholdApp)} placeholder="Select Threshold Approver(s)" />
                   </Form.Item>
                   <Form.Item name="amount_threshold" label="Amount Threshold" rules={[{ required: true }]}>
                     <InputNumber style={{ width: "100%" }} min={0} placeholder="Enter threshold amount" />

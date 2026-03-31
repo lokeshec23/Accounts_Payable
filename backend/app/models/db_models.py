@@ -126,6 +126,7 @@ class Invoice(Base):
     # Approval tracking
     required_approvers = Column(Integer, nullable=True)
     current_approver_level = Column(Integer, nullable=True, default=1)
+    is_parallel = Column(Boolean, default=False)
     
     # Relationships
     uploader = relationship("User", back_populates="invoices", foreign_keys=[uploaded_by_id])
@@ -551,14 +552,15 @@ class VendorWorkflow(Base):
     vendor_id = Column(String(100), nullable=True, index=True)
     vendor_name = Column(String(500), nullable=True)
     approver_count = Column(Integer, default=3)
-    mandatory_approver_1 = Column(String(200), nullable=True)
-    mandatory_approver_2 = Column(String(200), nullable=True)
-    mandatory_approver_3 = Column(String(200), nullable=True)
-    mandatory_approver_4 = Column(String(200), nullable=True)
-    mandatory_approver_5 = Column(String(200), nullable=True)
+    mandatory_approver_1 = Column(Text, nullable=True) # JSON list
+    mandatory_approver_2 = Column(Text, nullable=True) # JSON list
+    mandatory_approver_3 = Column(Text, nullable=True) # JSON list
+    mandatory_approver_4 = Column(Text, nullable=True) # JSON list
+    mandatory_approver_5 = Column(Text, nullable=True) # JSON list
     is_threshold_enabled = Column(Boolean, default=False)
     amount_threshold = Column(Float, default=0.0)
-    threshold_approver = Column(String(200), nullable=True)
+    threshold_approver = Column(Text, nullable=True) # JSON list
+    is_parallel = Column(Boolean, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 class CodificationWorkflow(Base):
@@ -569,14 +571,15 @@ class CodificationWorkflow(Base):
     lob = Column(String(200), nullable=False)
     department_id = Column(String(200), nullable=False)
     approver_count = Column(Integer, default=3)
-    mandatory_approver_1 = Column(String(200), nullable=True)
-    mandatory_approver_2 = Column(String(200), nullable=True)
-    mandatory_approver_3 = Column(String(200), nullable=True)
-    mandatory_approver_4 = Column(String(200), nullable=True)
-    mandatory_approver_5 = Column(String(200), nullable=True)
+    mandatory_approver_1 = Column(Text, nullable=True)
+    mandatory_approver_2 = Column(Text, nullable=True)
+    mandatory_approver_3 = Column(Text, nullable=True)
+    mandatory_approver_4 = Column(Text, nullable=True)
+    mandatory_approver_5 = Column(Text, nullable=True)
     is_threshold_enabled = Column(Boolean, default=False)
     amount_threshold = Column(Float, default=0.0)
-    threshold_approver = Column(String(200), nullable=True)
+    threshold_approver = Column(Text, nullable=True)
+    is_parallel = Column(Boolean, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 

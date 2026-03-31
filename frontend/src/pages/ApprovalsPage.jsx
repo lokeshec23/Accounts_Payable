@@ -61,12 +61,37 @@ const ApprovalsPage = () => {
             const transformedData = invoicesArray.map((invoice) => {
                 const currentLevel = invoice.current_approver_level || 1;
                 const assignedApprovers = invoice.assigned_approvers || [];
-                const currentLevelEmail = (assignedApprovers[currentLevel - 1] || '').toLowerCase();
-                const isWaiting = invoice.status === 'waiting_approval';
+                const rawCurrentLevel = assignedApprovers[currentLevel - 1];
+                
+                let currentLevelApprovers = [];
+                if (Array.isArray(rawCurrentLevel)) {
+                    currentLevelApprovers = rawCurrentLevel.map(a => typeof a === 'string' ? a.toLowerCase() : '');
+                } else if (typeof rawCurrentLevel === 'string') {
+                    try {
+                        if (rawCurrentLevel.startsWith('[')) {
+                            const parsed = JSON.parse(rawCurrentLevel);
+                            if (Array.isArray(parsed)) {
+                                currentLevelApprovers = parsed.map(a => typeof a === 'string' ? a.toLowerCase() : '');
+                            } else {
+                                currentLevelApprovers = [rawCurrentLevel.toLowerCase()];
+                            }
+                        } else {
+                            currentLevelApprovers = [rawCurrentLevel.toLowerCase()];
+                        }
+                    } catch (e) {
+                        currentLevelApprovers = [rawCurrentLevel.toLowerCase()];
+                    }
+                } else if (rawCurrentLevel) {
+                    currentLevelApprovers = [String(rawCurrentLevel).toLowerCase()];
+                }
 
-                const isActiveDelegate = active.includes(currentLevelEmail);
+                const isWaiting = invoice.status === 'waiting_approval';
+                const isParallel = invoice.is_parallel || false;
+
+                const isActiveDelegate = active.some(d => currentLevelApprovers.includes(d));
 
                 return {
+                    
                     key: invoice._id || invoice.id,
                     id: invoice._id || invoice.id,
                     filename: invoice.original_filename || invoice.filename || 'N/A',
@@ -79,7 +104,7 @@ const ApprovalsPage = () => {
                     status: invoice.status || 'pending',
                     // Logic update: for waiting invoices, show expected approver with delegation info
                     approverName: isWaiting
-                        ? (currentLevelEmail || 'Pending') + (isActiveDelegate ? ' (Delegated)' : '')
+                        ? (currentLevelApprovers.join(' / ') || 'Pending') + (isActiveDelegate ? ' (Delegated)' : '')
                         : (invoice.validation_results?.approver_name || '—'),
                     approvalTime: invoice.validation_results?.approval_timestamp
                         ? formatDateTimeIST(invoice.validation_results.approval_timestamp)
@@ -87,8 +112,9 @@ const ApprovalsPage = () => {
                     approverComment: invoice.validation_results?.approver_comment || '',
                     rawData: invoice,
                     currency: invoice.extracted_data?.invoice_details?.currency?.value || 'USD',
-                    currentLevelEmail,
-                    isActiveDelegate
+                    currentLevelApprovers,
+                    isActiveDelegate,
+                    isParallel
                 };
             });
 
@@ -99,11 +125,13 @@ const ApprovalsPage = () => {
 
                 const userEmail = (storedUser?.email || '').toLowerCase();
                 const userName = (storedUser?.name || storedUser?.username || '').toLowerCase();
-                const currentApprover = (item.currentLevelEmail || '').toLowerCase();
 
-                const isDesignatedApprover = (userEmail && userEmail === currentApprover) ||
-                    (userName && userName === currentApprover);
-                const isActiveDelegate = active.includes(currentApprover);
+                const isDesignatedApprover = item.currentLevelApprovers.some(a => 
+                    (userEmail && userEmail === a) || (userName && userName === a)
+                );
+                
+                // Item already calculated if there's any active delegate matched for the current level
+                const isActiveDelegate = item.isActiveDelegate;
 
                 const hasApproved = approvedBy.some((a) => {
                     const approverId = (typeof a === 'string' ? a : a?.email || a?.name || '').toLowerCase();

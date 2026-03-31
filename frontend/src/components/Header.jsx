@@ -117,7 +117,7 @@ const Header = () => {
           <Dropdown
             trigger={["click"]}
             placement="bottomRight"
-            dropdownRender={() => (
+            popupRender={() => (
               <div className="dropdown-wrapper">
                 {/* ARROW POINTER */}
                 <div className="dropdown-arrow"></div>

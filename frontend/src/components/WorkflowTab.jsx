@@ -150,9 +150,37 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId, previewVendo
       const type = `approver_${i}`;
       if (existingApprovers.has(type)) continue;
 
-      const assignedUser = workflowData.assigned_approvers?.[i - 1];
-      const delegationsForUser = workflowData.delegations?.[(assignedUser || '').toLowerCase()] || [];
-      const delegateInfo = delegationsForUser.length > 0 ? ` (Delegated to ${delegationsForUser.join(', ')})` : '';
+      const rawAssigned = workflowData.assigned_approvers?.[i - 1];
+      let userDisplayText = 'Pending';
+      
+      if (Array.isArray(rawAssigned)) {
+        userDisplayText = rawAssigned.map(u => {
+          const strU = typeof u === 'string' ? u : '';
+          const dels = workflowData.delegations?.[strU.toLowerCase()] || [];
+          return dels.length > 0 ? `${strU} (Delegated to ${dels.join(', ')})` : strU;
+        }).filter(Boolean).join(' / ') || 'Pending';
+      } else if (rawAssigned) {
+        const typeofAssigned = typeof rawAssigned === 'string' ? rawAssigned : String(rawAssigned);
+        try {
+          // If the backend sent a JSON stringified array instead of normal array
+          if (typeofAssigned.startsWith('[')) {
+            const parsed = JSON.parse(typeofAssigned);
+            if (Array.isArray(parsed)) {
+              userDisplayText = parsed.map(u => {
+                 const strU = typeof u === 'string' ? u : '';
+                 const dels = workflowData.delegations?.[strU.toLowerCase()] || [];
+                 return dels.length > 0 ? `${strU} (Delegated to ${dels.join(', ')})` : strU;
+              }).filter(Boolean).join(' / ') || 'Pending';
+            }
+          } else {
+            const dels = workflowData.delegations?.[typeofAssigned.toLowerCase()] || [];
+            userDisplayText = dels.length > 0 ? `${typeofAssigned} (Delegated to ${dels.join(', ')})` : typeofAssigned;
+          }
+        } catch {
+            const dels = workflowData.delegations?.[typeofAssigned.toLowerCase()] || [];
+            userDisplayText = dels.length > 0 ? `${typeofAssigned} (Delegated to ${dels.join(', ')})` : typeofAssigned;
+        }
+      }
 
       const isWaitingApproval = (workflowData.current_status || workflowData.status) === 'waiting_approval';
       const isActuallyPending = i === startFrom && isWaitingApproval;
@@ -162,7 +190,7 @@ const WorkflowTab = ({ invoiceId, refreshTrigger, invoiceDisplayId, previewVendo
         step_type: type,
         status: isActuallyPending ? 'pending' : 'queued',
         step_name: getPendingStepName(i),
-        user: (assignedUser || 'Pending') + delegateInfo,
+        user: userDisplayText,
         timestamp: null
       });
     }
