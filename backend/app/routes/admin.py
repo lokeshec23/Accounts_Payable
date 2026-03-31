@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
+from datetime import datetime
 from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -23,6 +24,48 @@ def get_current_admin(current_user: UserResponse = Depends(get_current_user)):
             detail="Admin privileges required"
         )
     return current_user
+ 
+class UserCreate(BaseModel):
+    username: str
+    email: str
+    role: str
+    status: str
+
+@router.post("/", response_model=UserResponse)
+async def create_new_user(
+    user_data: UserCreate,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin)
+):
+    """Create a new user by Admin"""
+    # Check if user already exists
+    existing_user = db.query(DBUser).filter(DBUser.email == user_data.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    existing_username = db.query(DBUser).filter(DBUser.username == user_data.username).first()
+    if existing_username:
+        raise HTTPException(status_code=400, detail="Username already taken")
+
+    from app.auth.jwt import get_password_hash
+    hashed_password = get_password_hash("Apex2026")
+
+    new_user = DBUser(
+        username=user_data.username,
+        email=user_data.email,
+        password=hashed_password,
+        role=user_data.role,
+        status=user_data.status,
+        isCreatedByUser=False,
+        createdby="admin",
+        ispasswordchange=False,
+        created_at=datetime.utcnow()
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
 
 @router.get("/", response_model=List[UserResponse])
 async def get_all_users(

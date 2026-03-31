@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.orm import Session
-from app.models.auth import LoginRequest, Token, CheckEmailRequest, ResetPasswordRequest, SendOTPRequest, VerifyOTPRequest
+from app.models.auth import LoginRequest, Token, CheckEmailRequest, ResetPasswordRequest, SendOTPRequest, VerifyOTPRequest, ChangePasswordFirstTimeRequest
 from app.models.user import User as UserPydantic, UserResponse
 from app.models.db_models import User as UserDB
 from app.database.database import get_db
@@ -81,6 +81,9 @@ async def register(user: UserPydantic, db: Session = Depends(get_db)):
         password=hashed_password,
         status="pending",
         role="coder", # Default role, can be changed during approval
+        isCreatedByUser=True,
+        createdby="self",
+        ispasswordchange=True,
         created_at=datetime.utcnow()
     )
     
@@ -131,13 +134,29 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
         data={"sub": user.email},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    
     return {
         "access_token": access_token, 
         "token_type": "bearer",
         "username": user.username,
-        "role": user.role
+        "role": user.role,
+        "ispasswordchange": user.ispasswordchange
     }
+
+@router.post("/change-password-first-time")
+async def change_password_first_time(request: ChangePasswordFirstTimeRequest, db: Session = Depends(get_db)):
+    user = db.query(UserDB).filter(UserDB.email == request.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    hashed_password = get_password_hash(request.new_password)
+    user.password = hashed_password
+    user.ispasswordchange = True
+    db.commit()
+    
+    return {"message": "Password updated successfully"}
 
 @router.post("/check-email")
 async def check_email(request: CheckEmailRequest, db: Session = Depends(get_db)):

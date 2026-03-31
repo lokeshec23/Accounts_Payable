@@ -62,9 +62,22 @@ export const authService = {
         sessionStorage.setItem('user', JSON.stringify({
           email: credentials.email,
           username: response.data.username || credentials.email.split('@')[0],
-          role: response.data.role
+          role: response.data.role,
+          ispasswordchange: response.data.ispasswordchange
         }));
       }
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  async changePasswordFirstTime(email, newPassword) {
+    try {
+      const response = await api.post('/auth/change-password-first-time', {
+        email,
+        new_password: newPassword
+      });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

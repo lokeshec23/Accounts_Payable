@@ -26,7 +26,12 @@ const LoginPage = () => {
       console.log('Login response:', response); // Add this for debugging
 
       message.success('Login successful!');
-      navigate('/select-entity');
+      
+      if (response.ispasswordchange === false) {
+        navigate('/force-password-change', { state: { email: values.email } });
+      } else {
+        navigate('/select-entity');
+      }
     } catch (error) {
       message.error(error.detail || 'Login failed. Please check your credentials.');
     } finally {

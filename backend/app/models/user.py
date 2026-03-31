@@ -19,6 +19,9 @@ class UserResponse(BaseModel):
     email: EmailStr
     role: str
     status: str 
+    isCreatedByUser: bool = True
+    createdby: str = "self"
+    ispasswordchange: bool = True
     created_at: datetime
 
     class Config:

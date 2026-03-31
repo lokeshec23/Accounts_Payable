@@ -134,6 +134,7 @@ const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const DesignSystemPage = lazy(() => import('./pages/DesignSystemPage'));
 const SelectEntity = lazy(() => import('./pages/SelectEntity'));
+const ForcePasswordChange = lazy(() => import('./pages/ForcePasswordChange'));
 
 /** No Header here */
 const AuthLayout = () => (
@@ -172,6 +173,7 @@ const AppRoutes = () => {
         <Route path="/" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/force-password-change" element={<ForcePasswordChange />} />
       </Route>
 
       {/* Protected routes (WITH header) */}

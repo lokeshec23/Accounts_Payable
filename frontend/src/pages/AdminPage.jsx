@@ -111,6 +111,25 @@ const AdminPage = () => {
     setUserModalOpen(false);
     fetchUsers();
   };
+ 
+  const handleAddUser = async () => {
+    try {
+      const values = await userForm.validateFields();
+      await adminService.createUser({
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        role: values.role,
+        status: values.status,
+      });
+      message.success("User created successfully");
+      setUserModalOpen(false);
+      userForm.resetFields();
+      fetchUsers();
+    } catch (err) {
+      message.error(err.detail || "Failed to create user");
+    }
+  };
 
   const userColumns = [
     { title: "Username", dataIndex: "username" },
@@ -321,6 +340,15 @@ const AdminPage = () => {
               label: "User Management",
               children: (
                 <>
+                  <div style={{ marginBottom: 16, textAlign: "right" }}>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => setUserModalOpen(true)}
+                    >
+                      Add User
+                    </Button>
+                  </div>
                   {loadingUsers ? (
                     <TableSkeleton />
                   ) : (
@@ -331,11 +359,11 @@ const AdminPage = () => {
                     />
                   )}
 
-                  {/* ✅ EDIT USER MODAL (ADD HERE) */}
+                  {/* USER MODAL (ADD / EDIT) */}
                   <Modal
-                    title="Edit User"
+                    title={editingUser ? "Edit User" : "Add User"}
                     open={userModalOpen}
-                    onOk={handleSaveUser}
+                    onOk={editingUser ? handleSaveUser : handleAddUser}
                     onCancel={() => {
                       setUserModalOpen(false);
                       setEditingUser(null);
@@ -344,9 +372,40 @@ const AdminPage = () => {
                     destroyOnClose
                   >
                     <Form form={userForm} layout="vertical">
+                      {!editingUser && (
+                        <>
+                          <Form.Item
+                            name="username"
+                            label="Username"
+                            rules={[{ required: true, message: "Enter username" }]}
+                          >
+                            <Input placeholder="Enter username" />
+                          </Form.Item>
+                          <Form.Item
+                            name="email"
+                            label="Email"
+                            rules={[
+                              { required: true, message: "Enter email" },
+                              { type: "email", message: "Enter valid email" },
+                            ]}
+                          >
+                            <Input placeholder="Enter email" />
+                          </Form.Item>
+                          <Form.Item
+                            name="password"
+                            label="Password"
+                            initialValue="Apex2026"
+                            rules={[{ required: true, message: "Enter password" }]}
+                          >
+                            <Input.Password placeholder="Enter password" />
+                          </Form.Item>
+                        </>
+                      )}
+
                       <Form.Item
                         name="role"
                         label="Role"
+                        initialValue={editingUser ? undefined : "approver"}
                         rules={[{ required: true, message: "Select role" }]}
                       >
                         <Select>
@@ -361,6 +420,7 @@ const AdminPage = () => {
                       <Form.Item
                         name="status"
                         label="Status"
+                        initialValue={editingUser ? undefined : "active"}
                         rules={[{ required: true, message: "Select status" }]}
                       >
                         <Select>
