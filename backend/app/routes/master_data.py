@@ -13,8 +13,8 @@ from typing import Dict, Any, List, Union
  
 from app.database.database import get_db
 from app.models.db_models import (
-    EntityMaster, VendorMaster, TdsRate, GLMaster,
-    LOBMaster, DepartmentMaster, CustomerMaster, ItemMaster
+    EntityMaster, VendorMaster, TdsRate, GLMaster, 
+    LOBMaster, DepartmentMaster, CustomerMaster, ItemMaster, ExchangeRateMaster
 )
 from app.auth.jwt import get_current_user
 from app.models.user import UserResponse
@@ -45,7 +45,9 @@ TAB_MODEL_MAP = {
     "master_data_LOB": LOBMaster,
     "master_data_Department": DepartmentMaster,
     "master_data_Customer": CustomerMaster,
-    "master_data_Item": ItemMaster
+    "master_data_Item": ItemMaster,
+    "Exchange_Rate": ExchangeRateMaster,
+    "master_data_Exchange_Rate": ExchangeRateMaster
 }
  
 def normalize_column(col_name: str) -> str:
@@ -85,7 +87,70 @@ def search_vendor(
     if result and result["match"]:
         return {"match": result["match"], "score": result["score"], "method": result["method"]}
     return {"match": None, "score": 0.0, "method": "none"}
- 
+
+@router.post("/sync-vendors")
+async def trigger_vendor_sync(
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    Trigger manual sync of vendors from Sage Intacct.
+    """
+    from app.services.vendor_sync_service import VendorSyncService
+    sync_service = VendorSyncService(db)
+    result = await sync_service.sync_vendors()
+    return result
+
+@router.post("/sync/{tab_name}")
+async def trigger_master_sync(
+    tab_name: str,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    Trigger manual sync for specific master data.
+    """
+    from app.services.master_sync_services import (
+        GLSyncService, LOBSyncService, DepartmentSyncService, 
+        CustomerSyncService, ItemSyncService, ExchangeRateSyncService
+    )
+    
+    services = {
+        "GL": GLSyncService,
+        "LOB": LOBSyncService,
+        "Department": DepartmentSyncService,
+        "Customer": CustomerSyncService,
+        "Item": ItemSyncService,
+        "Line_Items": ItemSyncService,
+        "Exchange_Rate": ExchangeRateSyncService
+    }
+    
+    service_class = services.get(tab_name)
+    if not service_class:
+        if tab_name in ["Vendor", "Vendor_Master"]:
+            from app.services.vendor_sync_service import VendorSyncService
+            return await VendorSyncService(db).sync_vendors()
+        raise HTTPException(400, f"Sync not supported for {tab_name}")
+    
+    sync_service = service_class(db)
+    # Map method names
+    method_map = {
+        "GL": "sync_gl_accounts",
+        "LOB": "sync_lob",
+        "Department": "sync_departments",
+        "Customer": "sync_customers",
+        "Item": "sync_items",
+        "Line_Items": "sync_items",
+        "Exchange_Rate": "sync_exchange_rates"
+    }
+    
+    method_name = method_map.get(tab_name)
+    if hasattr(sync_service, method_name):
+        await getattr(sync_service, method_name)()
+        return {"status": "success", "message": f"Sync started for {tab_name}"}
+    
+    raise HTTPException(500, f"Service method {method_name} not found")
+
 @router.get("/entities")
 def get_entities(
     db: Session = Depends(get_db),
@@ -117,7 +182,7 @@ def list_files(
     """
     List status of the fixed master data tabs by checking if tables have data.
     """
-    tabs = ["Entity_Master", "Vendor_Master", "TDS_Rates", "Item"]
+    tabs = ["Entity_Master", "Vendor_Master", "TDS_Rates", "Item", "Exchange_Rate"]
     # Add new tabs if needed by frontend
     additional_tabs = ["GL", "LOB", "Department", "Customer"]
    
@@ -129,13 +194,14 @@ def list_files(
             continue
            
         count = db.query(func.count(model.id)).scalar()
-       
-        if count > 0:
+        is_vendor = tab in ["Vendor_Master", "vendor_master", "Vendor"]
+        
+        if count > 0 or is_vendor:
             result.append({
                 "id": tab,
                 "tab_name": tab,
-                "file_name": f"Structured Table ({count} rows)",
-                "uploaded_at": None, # Could track this separately if needed
+                "file_name": f"API Sync ({count} rows)" if is_vendor else f"Structured Table ({count} rows)",
+                "uploaded_at": None,
                 "uploaded_by": "system",
                 "status": "active",
                 "sheets": [{"name": "Default", "collection_name": tab}]
@@ -160,7 +226,10 @@ async def upload_master_file(
         model = TAB_MODEL_MAP.get(tab_name)
         if not model:
             raise HTTPException(400, f"Unsupported tab: {tab_name}")
- 
+
+        if tab_name in ["Vendor_Master", "vendor_master"]:
+            raise HTTPException(400, "Vendor Master upload is disabled. Please use the Sync API.")
+
         if not file.filename.endswith(('.xls', '.xlsx', '.csv')):
              raise HTTPException(400, "Invalid format. Use .xls, .xlsx, or .csv")
              
@@ -263,9 +332,37 @@ async def get_sheet_data(
     model = TAB_MODEL_MAP.get(identifier)
     if not model:
         raise HTTPException(404, "Table not found")
-       
-    rows = db.query(model).all()
-   
+        
+    # Normalize identifier (remove prefix used by some frontend components)
+    clean_id = identifier.replace("master_data_", "")
+    
+    if clean_id in ["Vendor_Master", "Vendor"]:
+        from app.services.vendor_sync_service import VendorSyncService
+        sync_service = VendorSyncService(db)
+        rows = await sync_service.get_all_vendors()
+    elif clean_id in ["GL", "LOB", "Department", "Customer", "Item", "Line_Items", "Exchange_Rate"]:
+        from app.services.master_sync_services import (
+            GLSyncService, LOBSyncService, DepartmentSyncService, 
+            CustomerSyncService, ItemSyncService, ExchangeRateSyncService
+        )
+        services = {
+            "GL": GLSyncService,
+            "LOB": LOBSyncService,
+            "Department": DepartmentSyncService,
+            "Customer": CustomerSyncService,
+            "Item": ItemSyncService,
+            "Line_Items": ItemSyncService,
+            "Exchange_Rate": ExchangeRateSyncService
+        }
+        service_class = services.get(clean_id)
+        if service_class:
+            sync_service = service_class(db)
+            rows = await sync_service.get_all_data()
+        else:
+            rows = db.query(model).order_by(model.id).all()
+    else:
+        rows = db.query(model).order_by(model.id).all()
+    
     # Convert SQLAlchemy objects to dicts
     result = []
     for row in rows:
@@ -276,14 +373,9 @@ async def get_sheet_data(
                 val = val.isoformat()
             elif isinstance(val, (float)) and np.isnan(val):
                 val = None
- 
-            # Map back to pretty names for Vendor Master
-            if identifier in ["Entity_Master", "entity_master"]:
-                if column.name == "gst_applicable":
-                    row_dict["GST Applicable"] = "Yes" if val is True or val == 1 else "No"
-                    continue
- 
-            if identifier == "Vendor_Master" or identifier == "vendor_master":
+
+            # Map back to pretty names for Vendor and Entity Master
+            if identifier in ["Vendor_Master", "vendor_master", "Entity_Master", "entity_master", "Entity"]:
                 pretty_map = {
                     "gst_eligibility": "GST / Use Tax Eligibility Configuration",
                     "tds_applicability": "TDS/Withhold Tax Applicability Configuration",
@@ -303,8 +395,8 @@ async def get_sheet_data(
                    
                     row_dict[pretty_map[column.name]] = pretty_val
                     continue
- 
-            if identifier == "TDS_Rates" or identifier == "tds_rates":
+
+            if identifier in ["TDS_Rates", "tds_rates", "TDS"]:
                 pretty_map = {
                     "section": "Section",
                     "nature_of_payment": "Nature of Payment",
@@ -337,11 +429,7 @@ def add_row(
    
     # Reverse mapping for pretty names
     reverse_map = {}
-    if identifier in ["Entity_Master", "entity_master"]:
-        reverse_map = {
-            "GST Applicable": "gst_applicable"
-        }
-    if identifier in ["Vendor_Master", "vendor_master"]:
+    if identifier in ["Vendor_Master", "vendor_master", "Entity_Master", "entity_master", "Entity"]:
         reverse_map = {
             "GST / Use Tax Eligibility Configuration": "gst_eligibility",
             "TDS/Withhold Tax Applicability Configuration": "tds_applicability",
@@ -350,7 +438,13 @@ def add_row(
             "Workflow Applicability Configuration": "workflow_applicable",
             "Line Grouping": "line_grouping"
         }
-   
+    elif identifier in ["TDS_Rates", "tds_rates", "TDS"]:
+        reverse_map = {
+            "Section": "section",
+            "Nature of Payment": "nature_of_payment",
+            "TDS Rate": "tds_rate"
+        }
+    
     final_data = {}
     for k, v in data.items():
         m_col = reverse_map.get(k, k)
@@ -391,19 +485,15 @@ def edit_row(
         record = db.query(model).get(record_id)
    
     if not record and row_index is not None:
-        # Fallback to offset
-        record = db.query(model).offset(row_index).limit(1).first()
- 
+        # Fallback to offset (Requires order_by for MSSQL)
+        record = db.query(model).order_by(model.id).offset(row_index).limit(1).first()
+
     if not record:
         raise HTTPException(404, "Record not found")
    
     # Reverse mapping for pretty names
     reverse_map = {}
-    if identifier in ["Entity_Master", "entity_master"]:
-        reverse_map = {
-            "GST Applicable": "gst_applicable"
-        }
-    if identifier in ["Vendor_Master", "vendor_master"]:
+    if identifier in ["Vendor_Master", "vendor_master", "Entity_Master", "entity_master", "Entity"]:
         reverse_map = {
             "GST / Use Tax Eligibility Configuration": "gst_eligibility",
             "TDS/Withhold Tax Applicability Configuration": "tds_applicability",
@@ -412,7 +502,13 @@ def edit_row(
             "Workflow Applicability Configuration": "workflow_applicable",
             "Line Grouping": "line_grouping"
         }
-       
+    elif identifier in ["TDS_Rates", "tds_rates", "TDS"]:
+        reverse_map = {
+            "Section": "section",
+            "Nature of Payment": "nature_of_payment",
+            "TDS Rate": "tds_rate"
+        }
+        
     for k, v in updated_data.items():
         if k in ['id', 'created_at', 'updated_at']:
             continue
@@ -446,8 +542,8 @@ def delete_row(
        
     # If row_index is actually the ID, use it directly.
     # But usually frontend 'key' is index.
-    # Let's try to find the ID from the offset if possible, or assume it's ID if large
-    record = db.query(model).offset(row_index).limit(1).first()
+    # Let's try to find the ID from the offset if possible (Requires order_by for MSSQL)
+    record = db.query(model).order_by(model.id).offset(row_index).limit(1).first()
     if record:
         db.delete(record)
         db.commit()

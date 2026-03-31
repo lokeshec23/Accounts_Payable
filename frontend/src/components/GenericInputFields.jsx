@@ -27,7 +27,7 @@ import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 dayjs.extend(customParseFormat);
 
-import { invoiceService, codingService, workflowService, masterDataService } from '../services/api';
+import { invoiceService, codingService, workflowService, masterDataService, currencyService } from '../services/api';
 import { authService } from '../services/auth';
 import WorkflowTab from './WorkflowTab';
 import AuditTrail from './AuditTrail';
@@ -118,6 +118,8 @@ const GenericInputFields = forwardRef(({
     const [vendorNameOptions, setVendorNameOptions] = useState([]);
     const [memo, setMemo] = useState('');
     const [exchangeRate, setExchangeRate] = useState(null);
+    const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
+    const [exchangeRateNotFound, setExchangeRateNotFound] = useState(false);
     const [isVendorLoading, setIsVendorLoading] = useState(false);
 
     // Entity Master config
@@ -1507,11 +1509,63 @@ const GenericInputFields = forwardRef(({
         );
     }, [formData, schema, renderFieldInput]);
 
-    // ==================== DUE DATE CALCULATION - FIXED ====================
-    // Extract specific values to minimize effect triggers
+    // ==================== DERIVED FORM VALUES ====================
+    // Extract specific values to minimize effect triggers (shared by multiple effects below)
     const invoiceDateValue = useMemo(() => extractValue(formData['Invoice Date']), [formData, extractValue]);
     const paymentTermsValue = useMemo(() => extractValue(formData['Payment Terms']), [formData, extractValue]);
     const currencyValue = useMemo(() => extractValue(formData['Invoice Currency']), [formData, extractValue]);
+
+    // ==================== EXCHANGE RATE AUTO-FETCH ====================
+    // Whenever the invoice currency (non-USD) or invoice date changes, fetch the
+    // best matching rate from exchange_rate_master.
+    useEffect(() => {
+        // Clear rate immediately when currency is cleared or set to USD
+        if (!currencyValue || currencyValue === 'USD') {
+            setExchangeRate(null);
+            setExchangeRateNotFound(false);
+            return;
+        }
+
+        // Clear the old rate right away so a stale value never shows for a different currency
+        setExchangeRate(null);
+        setExchangeRateNotFound(false);
+
+        // Normalise invoice date to YYYY-MM-DD for the API
+        let apiDate = null;
+        if (invoiceDateValue) {
+            const parsed = parseStoredDate(invoiceDateValue);
+            if (parsed && parsed.isValid()) {
+                apiDate = parsed.format('YYYY-MM-DD');
+            }
+        }
+
+        const fetchRate = async () => {
+            try {
+                setExchangeRateLoading(true);
+                const result = await currencyService.getExchangeRate(currencyValue, 'USD', apiDate);
+                setExchangeRate(result.exchange_rate);
+                setExchangeRateNotFound(false);
+            } catch (err) {
+                if (err.response?.status === 404) {
+                    // No master data for this currency pair — allow manual entry
+                    setExchangeRate(null);
+                    setExchangeRateNotFound(true);
+                } else {
+                    console.warn('[GenericInputFields] Exchange rate fetch failed:', err);
+                    setExchangeRateNotFound(false);
+                }
+            } finally {
+                setExchangeRateLoading(false);
+            }
+        };
+
+        const timer = setTimeout(fetchRate, 300);
+        return () => clearTimeout(timer);
+    }, [currencyValue, invoiceDateValue, parseStoredDate]);
+
+    // ==================== DUE DATE CALCULATION - FIXED ====================
+    // Extract specific values to minimize effect triggers
+
 
     useEffect(() => {
         if (readOnly || !invoiceDateValue) return;
@@ -1995,7 +2049,8 @@ const GenericInputFields = forwardRef(({
                     setMemo={setMemo} debouncedVendorIdSearch={debouncedVendorIdSearch}
                     debouncedVendorNameSearch={debouncedVendorNameSearch}
                     handleVendorChange={handleVendorChange} skipNextVendorLookup={skipNextVendorLookup}
-                    exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} isGstApplicable={isGstApplicable} />;
+                    exchangeRate={exchangeRate} setExchangeRate={setExchangeRate}
+                    exchangeRateLoading={exchangeRateLoading} exchangeRateNotFound={exchangeRateNotFound} isGstApplicable={isGstApplicable}/>;
             case '2':
                 console.log("DEBUG: Rendering AllFieldsTab case 2", { hasSchema: !!schema, activeTab });
                 return <AllFieldsTab {...commonProps} schema={schema?.flatFields || schema} isGstApplicable={isGstApplicable} />;
@@ -2026,7 +2081,8 @@ const GenericInputFields = forwardRef(({
                     setMemo={setMemo} debouncedVendorIdSearch={debouncedVendorIdSearch}
                     debouncedVendorNameSearch={debouncedVendorNameSearch}
                     handleVendorChange={handleVendorChange} skipNextVendorLookup={skipNextVendorLookup}
-                    exchangeRate={exchangeRate} setExchangeRate={setExchangeRate} isGstApplicable={isGstApplicable} />;
+                    exchangeRate={exchangeRate} setExchangeRate={setExchangeRate}
+                    exchangeRateLoading={exchangeRateLoading} exchangeRateNotFound={exchangeRateNotFound} isGstApplicable={isGstApplicable}/>;
         }
     }, [activeTab, formData, lineItems, vendorId, vendorIdOptions, vendorNameOptions, memo,
         selectedVendorDetails, isDuplicateError, disableInputs, disabledStyle, getCurrencySymbol,

@@ -41,4 +41,11 @@ class Settings:
     # App Settings
     BASE_URL: str = os.getenv("BASE_URL", "http://localhost:3000")
 
+    # Sage Intacct API
+    SAGE_TOKEN_URL: str = os.getenv("SAGE_TOKEN_URL", "https://api.intacct.com/ia/api/v1/oauth2/token")
+    SAGE_BASE_URL: str = os.getenv("SAGE_BASE_URL", "https://api.intacct.com/ia/api/v1")
+    SAGE_CLIENT_ID: str = os.getenv("SAGE_CLIENT_ID", "3f83ee41b095ea8e5659.app.sage.com")
+    SAGE_CLIENT_SECRET: str = os.getenv("SAGE_CLIENT_SECRET", "e49424e23f3df286f49e1f052e897ea944e3dce1")
+    SAGE_USERNAME: str = os.getenv("SAGE_USERNAME", "Apex@consolidatedanalytics-sandbox")
+
 settings = Settings()

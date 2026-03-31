@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes import auth, invoices, coding, dashboard, currency
 from app.routes import master_data, workflow, approval, admin, settings as settings_route, workflow_config, delegation, audit
 from app.database.database import engine, Base
-from app.database.init_db import init_database
+from app.database.init_db import init_database, seed_api_master_data
 
 from app.middleware.trace_middleware import TraceMiddleware
 
@@ -59,9 +59,18 @@ async def startup_event():
         # Initialize database (create tables and default data)
         init_database()
         print("✓ Database initialized successfully")
+
+        # Seed Master Data from Sage (Vendors, GL, LOB, etc.)
+        from app.database.database import SessionLocal
+        db = SessionLocal()
+        try:
+            await seed_api_master_data(db)
+        finally:
+            db.close()
     except Exception as e:
-        print(f"✗ Database initialization error: {e}")
-        # Don't fail startup - allow app to run for debugging
+        print(f"✗ Startup initialization error: {e}")
+        import traceback
+        traceback.print_exc()
     
     print("="*60 + "\n")
 

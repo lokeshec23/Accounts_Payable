@@ -235,6 +235,11 @@ export const masterDataService = {
     return response.data;
   },
 
+  // 10️⃣ Trigger Sage Sync
+  async triggerSync(tabName) {
+    const response = await api.post(`/master/sync/${tabName}`);
+    return response.data;
+  },
 };
 
 // Workflow service methods
@@ -315,6 +320,19 @@ export const currencyService = {
   },
   async deleteCurrency(id) {
     const response = await api.delete(`/currency/${id}`);
+    return response.data;
+  },
+  /**
+   * Fetch the exchange rate from the master table.
+   * @param {string} baseCurrency  e.g. "INR"
+   * @param {string} targetCurrency e.g. "USD"
+   * @param {string|null} invoiceDate  e.g. "2025-10-06" or null
+   * @returns {{ exchange_rate, base_currency, target_currency, effective_date, fallback_used }}
+   */
+  async getExchangeRate(baseCurrency, targetCurrency, invoiceDate = null) {
+    const params = { base_currency: baseCurrency, target_currency: targetCurrency };
+    if (invoiceDate) params.invoice_date = invoiceDate;
+    const response = await api.get('/currency/exchange-rate', { params });
     return response.data;
   }
 };

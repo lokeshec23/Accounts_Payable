@@ -43,7 +43,7 @@ const MASTER_TABS = [
     { key: "Department", label: "Department Master" },
     { key: "Customer", label: "Customer Master" },
     { key: "Item", label: "Item Master" },
-    { key: "Currency", label: "Currency" }
+    { key: "Exchange_Rate", label: "Currency" }
 ];
  
 const EXTRA_CURRENCIES = [
@@ -153,63 +153,15 @@ const MasterDataPage = () => {
     useEffect(() => {
         loadTabStatus();
     }, []);
- 
-    const loadCurrencyData = async () => {
-        try {
-            setLoading(true);
-            const data = await currencyService.getCurrencies();
- 
-            // Fix INR symbol if it fetches '?'
-            const processedData = data.map(currency => {
-                if (currency.code === 'INR' && currency.symbol === '?') {
-                    return { ...currency, symbol: '₹' };
-                }
-                return currency;
-            });
- 
-            setCurrencies(processedData);
- 
-            const currencyCols = [
-                { title: "Currency Name", dataIndex: "name", key: "name" },
-                { title: "Symbol", dataIndex: "symbol", key: "symbol" },
-                { title: "Code", dataIndex: "code", key: "code" },
-            ];
-            if (userRole !== 'coder') {
-                currencyCols.push({
-                    title: "Actions",
-                    key: "actions",
-                    fixed: 'right',
-                    width: 150,
-                    render: (_, record) => (
-                        <Space>
-                            <Button type="link" icon={<EditOutlined />} onClick={() => openEditModal(record)}>Edit</Button>
-                            <Button type="link" danger icon={<DeleteOutlined />} onClick={() => confirmDelete(record.id)}>Delete</Button>
-                        </Space>
-                    ),
-                });
-            }
-            setColumns(currencyCols);
-            setTableData(processedData.map(d => ({ ...d, key: d.id })));
-        } catch (error) {
-            message.error("Failed to load currencies");
-        } finally {
-            setLoading(false);
-        }
-    };
- 
     useEffect(() => {
         if (activeTab) {
             // Immediately clear current view to avoid showing stale data from previous tab
             setTableData([]);
             setColumns([]);
             setSearchText("");
- 
-            if (activeTab === "Currency") {
-                setActiveSubTab(null);
-                loadCurrencyData();
-                return;
-            }
- 
+
+            // No specialized logic needed for Exchange_Rate as it follows standard master data flow
+
             // Reset activeSubTab to the first sheet of this tab if available
             const status = tabStatus[activeTab];
             if (status && status.sheets && status.sheets.length > 0) {
@@ -347,7 +299,7 @@ const MasterDataPage = () => {
     };
  
     const generateColumns = (sampleRow, rows) => {
-        const HIDDEN_COLS = new Set(["key", "id", "created_at", "updated_at"]);
+        const HIDDEN_COLS = new Set(["key", "id", "created_at", "updated_at", "raw_data", "vendor_key", "entity_id"]);
         const colKeys = Object.keys(sampleRow).filter(k => !HIDDEN_COLS.has(k));
  
         const generated = colKeys.map((colKey) => {
@@ -427,20 +379,6 @@ const MasterDataPage = () => {
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
- 
-            if (activeTab === "Currency") {
-                if (addMode) {
-                    await currencyService.createCurrency(values);
-                    message.success("Currency added successfully");
-                } else {
-                    await currencyService.updateCurrency(editRecord.id, values);
-                    message.success("Currency updated successfully");
-                }
-                setIsModalVisible(false);
-                loadCurrencyData();
-                return;
-            }
- 
             const collectionName = activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`;
  
             if (addMode) {
@@ -473,13 +411,6 @@ const MasterDataPage = () => {
             okType: "danger",
             onOk: async () => {
                 try {
-                    if (activeTab === "Currency") {
-                        await currencyService.deleteCurrency(indexOrId);
-                        message.success("Currency deleted successfully");
-                        loadCurrencyData();
-                        return;
-                    }
- 
                     const collectionName = activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`;
                     await masterDataService.deleteRow(collectionName, indexOrId);
                     message.success("Row deleted");
@@ -532,7 +463,7 @@ const MasterDataPage = () => {
                                 onChange={(e) => setSearchText(e.target.value)}
                                 style={{ width: 250 }}
                             />
-                            {activeTab !== "Currency" && (
+                            {activeTab !== "Exchange_Rate" && (
                                 <>
                                     <Upload beforeUpload={handleFileUpload} showUploadList={false} accept=".xls,.xlsx,.csv">
                                         <Button icon={<UploadOutlined />}>Re-upload</Button>
@@ -540,7 +471,27 @@ const MasterDataPage = () => {
                                     <Button danger icon={<DeleteOutlined />} onClick={handleTabDelete}>Clear Tab</Button>
                                 </>
                             )}
-                            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>Add {activeTab === "Currency" ? "Currency" : "Row"}</Button>
+                            {(activeTab === "Exchange_Rate" || activeTab === "GL" || activeTab === "LOB" || activeTab === "Department" || activeTab === "Customer" || activeTab === "Vendor_Master" || activeTab === "Item") && (
+                                <Button 
+                                    onClick={async () => {
+                                        try {
+                                            setLoading(true);
+                                            await masterDataService.triggerSync(activeTab);
+                                            message.success(`${activeTab.replace(/_/g, " ")} sync started`);
+                                            // Refresh data after a short delay to allow sync to progress
+                                            setTimeout(() => loadSheetData(), 2000);
+                                        } catch (error) {
+                                            message.error("Sync failed");
+                                        } finally {
+                                            setLoading(false);
+                                        }
+                                    }}
+                                    icon={<UploadOutlined />}
+                                >
+                                    Sync from Sage
+                                </Button>
+                            )}
+                            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>Add {activeTab === "Exchange_Rate" ? "Currency" : "Row"}</Button>
                         </Space>
                     )}
                 </div>
@@ -588,9 +539,9 @@ const MasterDataPage = () => {
                                 className="master-data-table invoices-table"
                             />
                         ) : (
-                            activeTab === "Currency" ? (
+                            activeTab === "Exchange_Rate" ? (
                                 <Empty
-                                    description="No Currencies Found"
+                                    description="No Exchange Rates Found"
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                                 >
                                     <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>

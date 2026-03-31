@@ -201,6 +201,52 @@ def init_database():
         db.close()
 
 
+async def seed_api_master_data(db):
+    """
+    Seed master data from Sage Intacct if tables are empty.
+    Calls sync services for Vendors, GL, LOB, Items, Departments, and Customers.
+    """
+    from app.services.vendor_sync_service import VendorSyncService
+    from app.services.master_sync_services import (
+        GLSyncService, LOBSyncService, DepartmentSyncService, 
+        CustomerSyncService, ItemSyncService, ExchangeRateSyncService
+    )
+    from app.models.db_models import (
+        VendorMaster, GLMaster, LOBMaster, ItemMaster, DepartmentMaster, CustomerMaster, ExchangeRateMaster
+    )
+
+    masters = [
+        (VendorMaster, VendorSyncService, "sync_vendors"),
+        (GLMaster, GLSyncService, "sync_gl_accounts"),
+        (LOBMaster, LOBSyncService, "sync_lob"),
+        (ItemMaster, ItemSyncService, "sync_items"),
+        (DepartmentMaster, DepartmentSyncService, "sync_departments"),
+        (CustomerMaster, CustomerSyncService, "sync_customers"),
+        (ExchangeRateMaster, ExchangeRateSyncService, "sync_exchange_rates")
+    ]
+
+    print("\n" + "-"*30)
+    print("SEEDING MASTER DATA FROM SAGE")
+    print("-"*30)
+
+    for model, service_class, sync_method in masters:
+        try:
+            count = db.query(model).count()
+            if count == 0:
+                print(f"→ Seeding {model.__name__}...")
+                service = service_class(db)
+                sync_func = getattr(service, sync_method)
+                await sync_func()
+                new_count = db.query(model).count()
+                print(f"  ✓ {model.__name__} seeded ({new_count} records)")
+            else:
+                print(f"✓ {model.__name__} already has {count} records, skipping seed")
+        except Exception as e:
+            print(f"  ✗ Error checking/seeding {model.__name__}: {e}")
+    
+    print("-"*30 + "\n")
+
+
 if __name__ == "__main__":
     # Run initialization when script is executed directly
     init_database()

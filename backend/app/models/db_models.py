@@ -416,6 +416,11 @@ class VendorMaster(Base):
     # Suggested Foreign Key to Entity
     entity_id = Column(String(50), nullable=True)
     
+    # Sage Intacct Sync Fields
+    vendor_key = Column(String(100), unique=True, index=True, nullable=True)
+    status = Column(String(50), nullable=True)
+    raw_data = Column(Text, nullable=True) # Full JSON response
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -450,6 +455,12 @@ class GLMaster(Base):
     disallow_direct_posting = Column(Boolean, default=False)
     internal_rate = Column(DECIMAL(18, 4), nullable=True)
     
+    # Sage Intacct Sync Fields
+    gl_key = Column(String(100), unique=True, index=True, nullable=True)
+    status = Column(String(50), nullable=True, default="active")
+    raw_data = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -465,6 +476,12 @@ class LOBMaster(Base):
     name = Column(String(200), nullable=False)
     parent_id = Column(String(50), nullable=True)
     
+    # Sage Intacct Sync Fields
+    lob_key = Column(String(100), unique=True, index=True, nullable=True)
+    status = Column(String(50), nullable=True, default="active")
+    raw_data = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class DepartmentMaster(Base):
@@ -477,6 +494,12 @@ class DepartmentMaster(Base):
     department_id = Column(String(50), unique=True, nullable=False, index=True)
     department_name = Column(String(200), nullable=False)
     
+    # Sage Intacct Sync Fields
+    dept_key = Column(String(100), unique=True, index=True, nullable=True)
+    status = Column(String(50), nullable=True, default="active")
+    raw_data = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class CustomerMaster(Base):
@@ -488,6 +511,12 @@ class CustomerMaster(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     customer_id = Column(String(50), unique=True, nullable=False, index=True)
     customer_name = Column(String(200), nullable=False)
+    
+    # Sage Intacct Sync Fields
+    customer_key = Column(String(100), unique=True, index=True, nullable=True)
+    status = Column(String(50), nullable=True, default="active")
+    raw_data = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -502,6 +531,12 @@ class ItemMaster(Base):
     name = Column(String(200), nullable=False)
     product_line_id = Column(String(50), nullable=True)
     gl_group = Column(String(50), nullable=True)
+    
+    # Sage Intacct Sync Fields
+    item_key = Column(String(100), unique=True, index=True, nullable=True)
+    status = Column(String(50), nullable=True, default="active")
+    raw_data = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -578,6 +613,25 @@ class CodificationWorkflow(Base):
     amount_threshold = Column(Float, default=0.0)
     threshold_approver = Column(String(200), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class ExchangeRateMaster(Base):
+    """
+    Exchange Rate Master table to store point-in-time exchange rates from Sage.
+    """
+    __tablename__ = "exchange_rate_master"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rate_key = Column(String(100), unique=True, index=True, nullable=False)
+    rate_type = Column(String(50), nullable=True)
+    base_currency = Column(String(10), nullable=False, index=True)
+    target_currency = Column(String(10), nullable=False, index=True)
+    exchange_rate = Column(Float, nullable=False)
+    effective_date = Column(DateTime, nullable=True)
+    status = Column(String(50), nullable=True, default="active")
+    raw_data = Column(Text, nullable=True)  # Full JSON response
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class CodingHistory(Base):

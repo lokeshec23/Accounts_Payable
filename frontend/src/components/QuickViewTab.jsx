@@ -46,7 +46,11 @@ const QuickViewTab = React.memo(({
     isAmountMismatch,
     calculationDetails,
     isCodingData = false,
-    isGstApplicable = true
+    isGstApplicable,
+    exchangeRate,
+    setExchangeRate,
+    exchangeRateLoading = false,
+    exchangeRateNotFound = false
 }) => {
     const [showDetails, setShowDetails] = useState(false);
     // Memoize vendor master details panel
@@ -361,22 +365,46 @@ const QuickViewTab = React.memo(({
                             </div>
  
                             {/* Exchange Rate - Only if not USD */}
-                            {extractValue(formData['Invoice Currency']) !== 'USD' && (
+                            {extractValue(formData['Invoice Currency']) && extractValue(formData['Invoice Currency']) !== 'USD' && (
                                 <div style={{
                                     display: 'grid',
                                     gridTemplateColumns: '350px 1fr',
                                     gap: '16px',
                                     alignItems: 'center'
                                 }}>
-                                    <div style={{ fontWeight: 500 }}>Exchange Rate:</div>
+                                    <div style={{ fontWeight: 500 }}>
+                                        Exchange Rate
+                                        <span style={{ fontWeight: 400, fontSize: '12px', color: '#8c8c8c', marginLeft: '6px' }}>
+                                            ({extractValue(formData['Invoice Currency'])} → USD)
+                                        </span>
+                                        :
+                                    </div>
                                     <div>
                                         <InputNumber
                                             style={{ width: '100%', ...disabledStyle }}
-                                            value={formData.exchangeRate}
-                                            onChange={(val) => handleInputChange('exchangeRate', val)}
-                                            placeholder="Enter exchange rate"
-                                            disabled={disableInputs}
+                                            value={exchangeRate}
+                                            onChange={(val) => setExchangeRate && setExchangeRate(val)}
+                                            placeholder={
+                                                exchangeRateLoading
+                                                    ? 'Fetching rate…'
+                                                    : exchangeRateNotFound
+                                                        ? 'No master rate — enter manually'
+                                                        : 'Auto-fetched from master'
+                                            }
+                                            disabled={disableInputs || exchangeRateLoading}
+                                            step={0.000001}
+                                            precision={6}
                                         />
+                                        {exchangeRateLoading && (
+                                            <div style={{ fontSize: '11px', color: '#1890ff', marginTop: '2px' }}>
+                                                🔄 Fetching rate from master…
+                                            </div>
+                                        )}
+                                        {!exchangeRateLoading && exchangeRateNotFound && (
+                                            <div style={{ fontSize: '11px', color: '#faad14', marginTop: '2px' }}>
+                                                ⚠️ No rate found for {extractValue(formData['Invoice Currency'])} → USD in master. Please enter manually.
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
