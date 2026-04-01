@@ -7,7 +7,7 @@ import pandas as pd
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.database.database import SessionLocal
-from app.models.db_models import VendorWorkflow, User as UserDB
+from app.models.db_models import VendorWorkflow, User as UserDB, EntityMaster
 
 
 def load_vendors_from_excel(file_path):
@@ -125,11 +125,9 @@ def batch_create_vendor_workflows(workflows_list, entity="DEFAULT"):
 
 
 if __name__ == "__main__":
-    ENTITY_NAME = "Consolidated Analytics, Inc."
-
     # Update this path
-    # FILE_PATH = os.path.join(os.path.dirname(__file__), "vendors.xlsx")
-    FILE_PATH = "C:\\Users\\ldna40067\\Downloads\\Apex Approver Wise Vendor List_03262026.xlsx"
+    FILE_PATH = os.path.join(os.path.dirname(__file__), "vendors_approvers.xlsx")
+    # FILE_PATH = "C:\\Users\\ldna40067\\Downloads\\Apex Approver Wise Vendor List_03262026.xlsx"
 
     print("Loading vendor data from Excel...")
     vendors_workflows = load_vendors_from_excel(FILE_PATH)
@@ -138,7 +136,27 @@ if __name__ == "__main__":
         print("No data loaded. Exiting.")
         sys.exit(1)
 
-    print(f"Processing {len(vendors_workflows)} vendors...")
-    batch_create_vendor_workflows(vendors_workflows, ENTITY_NAME)
+    print(f"Loaded {len(vendors_workflows)} vendor mappings from Excel")
 
-    print("Done.")
+    # Fetch all entities from master data
+    db = SessionLocal()
+    try:
+        entities = db.query(EntityMaster).all()
+        entity_names = [e.entity_name for e in entities if e.entity_name]
+
+        if not entity_names:
+            print("No entities found in EntityMaster. Using DEFAULT.")
+            entity_names = ["DEFAULT"]
+
+        print(f"Found {len(entity_names)} entities in EntityMaster")
+
+        for entity_name in entity_names:
+            print(f"\n>>> Processing Entity: {entity_name}")
+            batch_create_vendor_workflows(vendors_workflows, entity_name)
+
+    except Exception as e:
+        print(f"Error fetching entities: {str(e)}")
+    finally:
+        db.close()
+
+    print("\nBatch process complete.")
