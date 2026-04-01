@@ -138,9 +138,6 @@ const SettingsPage = () => {
     if (recordToEdit.is_threshold_enabled === undefined) {
       recordToEdit.is_threshold_enabled = !!recordToEdit.threshold_approver;
     }
-    if (recordToEdit.is_parallel === undefined) {
-      recordToEdit.is_parallel = false;
-    }
     // Ensure unique value for select if vendor_id exists
     if (recordToEdit.vendor_id && recordToEdit.vendor_name) {
       recordToEdit.vendor_unique_val = `${recordToEdit.vendor_id}|${recordToEdit.vendor_name}`;
@@ -250,12 +247,6 @@ const SettingsPage = () => {
     { title: "Approver 3", dataIndex: "mandatory_approver_3", key: "mandatory_approver_3", render: formatApprover },
     { title: "Approver 4", dataIndex: "mandatory_approver_4", key: "mandatory_approver_4", render: formatApprover },
     { title: "Approver 5", dataIndex: "mandatory_approver_5", key: "mandatory_approver_5", render: formatApprover },
-    {
-      // title: "Type",
-      // dataIndex: "is_parallel",
-      // key: "is_parallel",
-      // render: (val) => val ? <Tag color="blue">Parallel</Tag> : <Tag color="green">Sequential</Tag>
-    },
     {
       title: "Threshold Approver",
       dataIndex: "threshold_approver",
@@ -401,13 +392,6 @@ const SettingsPage = () => {
           { value: 5, label: '5 Approvers' },
         ]} />
       </Form.Item>
-{/* 
-      <Form.Item name="is_parallel" label="Approval Type" initialValue={false}>
-        <Radio.Group>
-          <Radio value={false}>Sequential (Level by Level)</Radio>
-          <Radio value={true}>Parallel (Any one per level can approve)</Radio>
-        </Radio.Group>
-      </Form.Item> */}
 
       <Form.Item name="is_threshold_enabled" label="Enable Threshold Approver" initialValue={false}>
         <Radio.Group>

@@ -86,8 +86,7 @@ const ApprovalsPage = () => {
                 }
 
                 const isWaiting = invoice.status === 'waiting_approval';
-                const isParallel = invoice.is_parallel || false;
-
+                
                 const isActiveDelegate = active.some(d => currentLevelApprovers.includes(d));
 
                 return {
@@ -113,8 +112,7 @@ const ApprovalsPage = () => {
                     rawData: invoice,
                     currency: invoice.extracted_data?.invoice_details?.currency?.value || 'USD',
                     currentLevelApprovers,
-                    isActiveDelegate,
-                    isParallel
+                    isActiveDelegate
                 };
             });
 

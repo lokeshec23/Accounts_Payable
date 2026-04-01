@@ -692,8 +692,6 @@ async def update_invoice_status(
     
     existing_approvals = sum(1 for h in current_cycle_history if h.status == InvoiceStatusEnum.APPROVED)
     
-    is_parallel = requirement_data.get("is_parallel", False)
-    
     # Who are the EXPECTED approvers right now?
     current_active_level_idx = existing_approvals
     expected_emails = []
@@ -865,7 +863,6 @@ async def update_invoice_status(
         )
         required_approvers = requirement_data["required"]
         assigned_approvers = requirement_data.get("assigned_approvers", [])
-        is_parallel = requirement_data.get("is_parallel", False)
 
         # COUNT ONLY CURRENT CYCLE APPROVALS
         existing_approvals = sum(
@@ -875,13 +872,13 @@ async def update_invoice_status(
 
         if assigned_approvers:
             if not is_authorized:
-                 expected_flat = _flatten_emails(expected_emails)
-                 detail_msg = f"Only {', '.join(expected_flat)} (or their active substitute) can take action at this level."
-                 if is_parallel:
-                     all_flat = _flatten_emails(assigned_approvers)
-                     detail_msg = f"Only designated parallel approvers {', '.join(all_flat)} (or their active substitutes) can take action."
-                 
-                 raise HTTPException(
+                expected_flat = _flatten_emails(expected_emails)
+                if len(expected_emails) > 1:
+                    detail_msg = f"Only designated approvers {', '.join(expected_flat)} (or their active substitutes) can take action at this level."
+                else:
+                    detail_msg = f"Only {', '.join(expected_flat)} (or their active substitute) can take action at this level."
+                
+                raise HTTPException(
                     status_code=403,
                     detail=detail_msg
                 )
@@ -903,7 +900,6 @@ async def update_invoice_status(
     # SAVE INVOICE
     # =====================================================
     invoice.status = main_status
-    invoice.is_parallel = is_parallel
     
     validation_results = deserialize_json_field(invoice.validation_results) or {}
     validation_results.update({

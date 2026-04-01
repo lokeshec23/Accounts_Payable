@@ -14,7 +14,6 @@ class VendorWorkflow(BaseModel):
     threshold_approver: Optional[Union[str, List[str]]] = None
     amount_threshold: Optional[float] = None
     approver_count: int = 1  # 1 to 5
-    is_parallel: bool = False
     entity: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -38,7 +37,6 @@ class VendorWorkflowResponse(BaseModel):
     threshold_approver: Optional[Union[str, List[str]]] = None
     amount_threshold: Optional[float] = None
     approver_count: int = 1
-    is_parallel: bool = False
     entity: str = "Consolidated Analytics Inc"
     created_at: datetime = datetime.utcnow()
     updated_at: Optional[datetime] = None

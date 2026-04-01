@@ -151,7 +151,6 @@ def get_required_approver_count(
     workflow_found = False
     workflow_type = None
     vendor_eligible = False
-    is_parallel = False
     
     # Resolve vendor identity
     if force_vendor_name or force_vendor_id:
@@ -219,7 +218,6 @@ def get_required_approver_count(
                 parse_approvers(v_workflow.mandatory_approver_5)
             ]
             assigned_approvers = [a for a in mandatory_fields[:count] if a]
-            is_parallel = getattr(v_workflow, 'is_parallel', False)
             
             # Threshold Approver
             if getattr(v_workflow, 'is_threshold_enabled', False):
@@ -265,7 +263,6 @@ def get_required_approver_count(
                             parse_approvers(cod_workflow.mandatory_approver_5)
                         ]
                         assigned_approvers = [a for a in mandatory_fields[:count] if a]
-                        is_parallel = getattr(cod_workflow, 'is_parallel', False)
                         
                         # Threshold Approver
                         if getattr(cod_workflow, 'is_threshold_enabled', False):
@@ -334,8 +331,7 @@ def get_required_approver_count(
     assigned_approvers = [a for a in assigned_approvers if a]
     
     # total required = number of levels
-    # each level is a parallel group if is_parallel is true
-    # If is_parallel is false, assigned_approvers might still be lists of 1
+    # assigned_approvers might still be lists of 1
     # We should flatten if not parallel, or keep as is.
     
     # Clean assigned_approvers (ensure no empty lists)
@@ -350,8 +346,7 @@ def get_required_approver_count(
         "required": req_count,
         "assigned_approvers": assigned_approvers,
         "workflow_type": workflow_type,
-        "is_parallel": is_parallel,
-        "breakdown": {"type": workflow_type, "vendor_eligible": vendor_eligible, "is_parallel": is_parallel}
+        "breakdown": {"type": workflow_type, "vendor_eligible": vendor_eligible}
     }
 
 @router.get("/{invoice_id}", response_model=WorkflowHistoryResponse)
