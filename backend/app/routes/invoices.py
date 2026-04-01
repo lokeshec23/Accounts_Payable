@@ -693,23 +693,26 @@ async def update_invoice_status(
     existing_approvals = sum(1 for h in current_cycle_history if h.status == InvoiceStatusEnum.APPROVED)
     
     is_parallel = requirement_data.get("is_parallel", False)
-
+    
     # Who are the EXPECTED approvers right now?
+    current_active_level_idx = existing_approvals
     expected_emails = []
-    if assigned_approvers and existing_approvals < len(assigned_approvers):
-        current_level = assigned_approvers[existing_approvals]
-        if isinstance(current_level, list):
-            expected_emails = current_level
-        elif isinstance(current_level, str):
+    if assigned_approvers and current_active_level_idx < len(assigned_approvers):
+        current_level_data = assigned_approvers[current_active_level_idx]
+        if isinstance(current_level_data, list):
+            expected_emails = current_level_data
+        elif isinstance(current_level_data, str):
             try:
-                parsed = json.loads(current_level)
-                expected_emails = parsed if isinstance(parsed, list) else [current_level]
+                parsed = json.loads(current_level_data)
+                expected_emails = parsed if isinstance(parsed, list) else [current_level_data]
             except:
-                expected_emails = [current_level]
+                expected_emails = [current_level_data]
         else:
-            expected_emails = [current_level]
+            expected_emails = [current_level_data]
 
-    # Is the current user the expected approver OR their active substitute?
+    # ---------------------------------------------------------
+    # LEVEL-SPECIFIC AUTHORIZATION & PROGRESSION CHECK
+    # ---------------------------------------------------------
     is_authorized = False
     from app.models.delegation import check_active_delegation
     import json
@@ -734,36 +737,52 @@ async def update_invoice_status(
                     res.append(item)
         return res
 
-    if is_parallel:
-        # In parallel mode, any assigned approver (or their substitute) is authorized
-        flat_all = _flatten_emails(assigned_approvers)
-        for a_email in flat_all:
+    # Find which level(s) the current user belongs to
+    user_assigned_levels = []
+    for idx, level_approvers in enumerate(assigned_approvers):
+        # Allow input as string or list
+        level_list = [level_approvers] if not isinstance(level_approvers, list) else level_approvers
+        flat_level = _flatten_emails(level_list)
+        for a_email in flat_level:
             if not a_email: continue
             a_email_lower = a_email.lower()
             if current_user.email.lower() == a_email_lower:
-                is_authorized = True
+                user_assigned_levels.append(idx + 1)
                 break
             
             substitutes = check_active_delegation(db, a_email_lower, invoice.entity)
             if current_user.email.lower() in [s.lower() for s in substitutes]:
-                is_authorized = True
+                user_assigned_levels.append(idx + 1)
                 break
-    elif expected_emails:
-        flat_expected = _flatten_emails(expected_emails)
-        for expected_email in flat_expected:
-            if not expected_email: continue
-            if current_user.email.lower() == expected_email.lower():
-                is_authorized = True
-                break
+
+    current_active_level = existing_approvals + 1
+    
+    # If the user is in assigned_approvers, they MUST be in the current active level
+    if user_assigned_levels:
+        if current_active_level in user_assigned_levels:
+            is_authorized = True
+        else:
+            # If they were in a previous level, it means that level is already completed
+            if any(lvl < current_active_level for lvl in user_assigned_levels):
+                completed_lvl = max([lvl for lvl in user_assigned_levels if lvl < current_active_level])
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Approval for level {completed_lvl} has already been completed by another approver."
+                )
             else:
-                substitutes = check_active_delegation(db, expected_email.lower(), invoice.entity)
-                if current_user.email.lower() in [s.lower() for s in substitutes]:
-                    is_authorized = True
-                    break
+                # They are from a future level
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"It is not yet your turn to approve. Current active level is {current_active_level}."
+                )
+    else:
+        # Fallback for non-assigned users if needed (legacy check)
+        # In current design, if assigned_approvers exists, they must be in it
+        pass
 
     already_acted_for_this_level = any(
         h.user == approver_name and 
-        h.approver_level == existing_approvals + 1 and 
+        h.approver_level == current_active_level and 
         h.status in [InvoiceStatusEnum.APPROVED, InvoiceStatusEnum.REJECTED, InvoiceStatusEnum.REWORKED]
         for h in current_cycle_history
     )
@@ -771,7 +790,7 @@ async def update_invoice_status(
     if already_acted_for_this_level and status in [InvoiceStatusEnum.APPROVED, InvoiceStatusEnum.REJECTED, InvoiceStatusEnum.REWORKED]:
          raise HTTPException(
             status_code=400,
-            detail=f"User {approver_name} has already taken action for this level."
+            detail=f"User {approver_name} has already taken action for level {current_active_level}."
         )
 
     # =====================================================
