@@ -1,6 +1,6 @@
 """
 Database initialization and bootstrap utilities.
-Creates the accounts_payable database if it doesn't exist,
+Creates the database if it doesn't exist,
 then creates tables and inserts default data.
 """
 
@@ -13,39 +13,47 @@ from app.auth.jwt import get_password_hash
 from app.config.settings import settings
 from datetime import datetime
 import json
+import os
+from dotenv import load_dotenv
+
+# Ensure environment variables are loaded
+load_dotenv()
+
+# Load DB Name directly from .env
+DB_NAME = os.getenv("DATABASE_NAME", "accounts_payable")
 
 
 def create_database_if_not_exists():
     """
     Connect to the 'master' database (which always exists in SQL Server)
-    and create the 'accounts_payable' database if it doesn't already exist.
-    This must be done BEFORE SQLAlchemy tries to connect to accounts_payable.
+    and create the database if it doesn't already exist.
+    This must be done BEFORE SQLAlchemy tries to connect to it.
     """
     db_url = settings.DATABASE_URL
-    # Build a URL that points to 'master' instead of 'accounts_payable'
+    # Build a URL that points to 'master' instead of the target database
     # Handles both formats:
-    #   mssql+pymssql://user:pass@host:port/accounts_payable
-    #   mssql+pymssql://user:pass@host:port/accounts_payable?...
-    if "/accounts_payable" in db_url:
-        master_url = db_url.replace("/accounts_payable", "/master", 1)
+    #   mssql+pymssql://user:pass@host:port/dbname
+    #   mssql+pymssql://user:pass@host:port/dbname?...
+    if f"/{DB_NAME}" in db_url:
+        master_url = db_url.replace(f"/{DB_NAME}", "/master", 1)
     else:
         # Fallback: append /master
         master_url = db_url.rsplit("/", 1)[0] + "/master"
 
-    print(f"Connecting to master DB to ensure 'accounts_payable' exists...")
+    print(f"Connecting to master DB to ensure '{DB_NAME}' exists...")
     try:
         # isolation_level=AUTOCOMMIT is required for CREATE DATABASE
         master_engine = create_engine(master_url, isolation_level="AUTOCOMMIT")
         with master_engine.connect() as conn:
             result = conn.execute(
-                text("SELECT COUNT(*) FROM sys.databases WHERE name = 'accounts_payable'")
+                text(f"SELECT COUNT(*) FROM sys.databases WHERE name = '{DB_NAME}'")
             )
             count = result.scalar()
             if count == 0:
-                conn.execute(text("CREATE DATABASE accounts_payable"))
-                print("✓ Database 'accounts_payable' created successfully")
+                conn.execute(text(f"CREATE DATABASE {DB_NAME}"))
+                print(f"✓ Database '{DB_NAME}' created successfully")
             else:
-                print("✓ Database 'accounts_payable' already exists")
+                print(f"✓ Database '{DB_NAME}' already exists")
         master_engine.dispose()
     except Exception as e:
         print(f"✗ Failed to create database: {e}")
@@ -172,9 +180,9 @@ def init_database():
     print("DATABASE INITIALIZATION")
     print("="*50 + "\n")
 
-    # Step 1: Ensure the 'accounts_payable' database exists in SQL Server.
+    # Step 1: Ensure the database exists in SQL Server.
     # SQL Server Docker images only ship with 'master'; we must create our DB
-    # BEFORE the main engine (which points to accounts_payable) is first used.
+    # BEFORE the main engine (which points to it) is first used.
     create_database_if_not_exists()
 
     # Step 2: Create all ORM tables
