@@ -26,39 +26,38 @@ DB_NAME = os.getenv("DATABASE_NAME", "accounts_payable")
 def create_database_if_not_exists():
     """
     Connect to the 'master' database (which always exists in SQL Server)
-    and create the database if it doesn't already exist.
-    This must be done BEFORE SQLAlchemy tries to connect to it.
+    and create the 'accounts_payable' database if it doesn't already exist.
+    This must be done BEFORE SQLAlchemy tries to connect to accounts_payable.
     """
     db_url = settings.DATABASE_URL
-    # Build a URL that points to 'master' instead of the target database
+    # Build a URL that points to 'master' instead of 'accounts_payable'
     # Handles both formats:
-    #   mssql+pymssql://user:pass@host:port/dbname
-    #   mssql+pymssql://user:pass@host:port/dbname?...
-    if f"/{DB_NAME}" in db_url:
-        master_url = db_url.replace(f"/{DB_NAME}", "/master", 1)
+    #   mssql+pymssql://user:pass@host:port/accounts_payable
+    #   mssql+pymssql://user:pass@host:port/accounts_payable?...
+    if "/accounts_payable" in db_url:
+        master_url = db_url.replace("/accounts_payable", "/master", 1)
     else:
         # Fallback: append /master
         master_url = db_url.rsplit("/", 1)[0] + "/master"
 
-    print(f"Connecting to master DB to ensure '{DB_NAME}' exists...")
+    print(f"Connecting to master DB to ensure 'accounts_payable' exists...")
     try:
         # isolation_level=AUTOCOMMIT is required for CREATE DATABASE
         master_engine = create_engine(master_url, isolation_level="AUTOCOMMIT")
         with master_engine.connect() as conn:
             result = conn.execute(
-                text(f"SELECT COUNT(*) FROM sys.databases WHERE name = '{DB_NAME}'")
+                text("SELECT COUNT(*) FROM sys.databases WHERE name = 'accounts_payable'")
             )
             count = result.scalar()
             if count == 0:
-                conn.execute(text(f"CREATE DATABASE {DB_NAME}"))
-                print(f"✓ Database '{DB_NAME}' created successfully")
+                conn.execute(text("CREATE DATABASE accounts_payable"))
+                print("✓ Database 'accounts_payable' created successfully")
             else:
-                print(f"✓ Database '{DB_NAME}' already exists")
+                print("✓ Database 'accounts_payable' already exists")
         master_engine.dispose()
     except Exception as e:
         print(f"✗ Failed to create database: {e}")
         raise
-
 
 def create_tables():
     """Create all database tables"""
