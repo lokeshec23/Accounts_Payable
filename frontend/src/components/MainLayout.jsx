@@ -147,7 +147,7 @@ const MainLayout = () => {
                     status: invoice.status || 'waiting_approval',
                     fileUrl: invoice.file_url || '/sample-invoice.pdf',
                     approverName: isWaiting
-                        ? (invoice.is_parallel ? 'Parallel Approval' : (currentLevelEmail || 'Pending'))
+                        ? (currentLevelEmail || 'Pending')
                         : (validation.approver_name || ''),
                     approvalTime: validation.approval_timestamp
                         ? formatDateTimeIST(validation.approval_timestamp)

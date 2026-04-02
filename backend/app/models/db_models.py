@@ -129,7 +129,6 @@ class Invoice(Base):
     # Approval tracking
     required_approvers = Column(Integer, nullable=True)
     current_approver_level = Column(Integer, nullable=True, default=1)
-    is_parallel = Column(Boolean, default=False)
     
     # Relationships
     uploader = relationship("User", back_populates="invoices", foreign_keys=[uploaded_by_id])
@@ -651,7 +650,6 @@ class VendorWorkflow(Base):
     is_threshold_enabled = Column(Boolean, default=False)
     amount_threshold = Column(Float, default=0.0)
     threshold_approver = Column(Text, nullable=True) # JSON list
-    is_parallel = Column(Boolean, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 class CodificationWorkflow(Base):
@@ -670,7 +668,6 @@ class CodificationWorkflow(Base):
     is_threshold_enabled = Column(Boolean, default=False)
     amount_threshold = Column(Float, default=0.0)
     threshold_approver = Column(Text, nullable=True)
-    is_parallel = Column(Boolean, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
 

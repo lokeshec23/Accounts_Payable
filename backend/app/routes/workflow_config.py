@@ -47,7 +47,6 @@ def transform_workflow_response(w):
         "amount_threshold": w.amount_threshold,
         "threshold_approver": deserialize_approver(w.threshold_approver),
         "approver_count": w.approver_count or 1,
-        "is_parallel": w.is_parallel or False,
         "entity": getattr(w, 'entity', 'Consolidated Analytics Inc'),
         "created_at": getattr(w, 'created_at', datetime.utcnow()),
         "updated_at": getattr(w, 'updated_at', None)
@@ -96,7 +95,6 @@ async def create_vendor_workflow(
             is_threshold_enabled=workflow.is_threshold_enabled,
             amount_threshold=workflow.amount_threshold,
             threshold_approver=serialize_approver(workflow.threshold_approver),
-            is_parallel=workflow.is_parallel,
             created_at=datetime.utcnow()
         )
         db.add(new_workflow)
@@ -139,7 +137,6 @@ async def update_vendor_workflow(
         existing.is_threshold_enabled = workflow.is_threshold_enabled
         existing.amount_threshold = workflow.amount_threshold
         existing.threshold_approver = serialize_approver(workflow.threshold_approver)
-        existing.is_parallel = workflow.is_parallel
         existing.entity = entity
         
         db.commit()
@@ -238,7 +235,6 @@ async def create_codification_workflow(
             is_threshold_enabled=workflow.is_threshold_enabled,
             amount_threshold=workflow.amount_threshold,
             threshold_approver=serialize_approver(workflow.threshold_approver),
-            is_parallel=workflow.is_parallel,
             created_at=datetime.utcnow()
         )
         db.add(new_workflow)
@@ -278,7 +274,6 @@ async def update_codification_workflow(
         existing.is_threshold_enabled = workflow.is_threshold_enabled
         existing.amount_threshold = workflow.amount_threshold
         existing.threshold_approver = serialize_approver(workflow.threshold_approver)
-        existing.is_parallel = workflow.is_parallel
         existing.entity = entity
         
         db.commit()

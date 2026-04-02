@@ -27,7 +27,6 @@ class InvoiceBase(BaseModel):
     status: InvoiceStatus = InvoiceStatus.WAITING_APPROVAL
     status_history: Optional[List[StatusHistoryItem]] = []
     required_approvers: Optional[int] = None
-    is_parallel: Optional[bool] = False
     approver_breakdown: Optional[Dict[str, Any]] = None
     entity: Optional[str] = None
     approved_by: Optional[List[str]] = []
