@@ -43,7 +43,8 @@ const MASTER_TABS = [
     { key: "Department", label: "Department Master" },
     { key: "Customer", label: "Customer Master" },
     { key: "Item", label: "Item Master" },
-    { key: "Exchange_Rate", label: "Currency" }
+    { key: "Exchange_Rate", label: "Exchange Rate Master" },
+    { key: "Currency", label: "Currencies" }
 ];
  
 const EXTRA_CURRENCIES = [
@@ -160,15 +161,17 @@ const MasterDataPage = () => {
             setColumns([]);
             setSearchText("");
 
-            // No specialized logic needed for Exchange_Rate as it follows standard master data flow
-
-            // Reset activeSubTab to the first sheet of this tab if available
-            const status = tabStatus[activeTab];
-            if (status && status.sheets && status.sheets.length > 0) {
-                setActiveSubTab(status.sheets[0]);
-            } else {
+            if (activeTab === "Currency") {
                 setActiveSubTab(null);
-                loadSheetData(`master_data_${activeTab}`);
+                loadSheetData();
+            } else {
+                const status = tabStatus[activeTab];
+                if (status && status.sheets && status.sheets.length > 0) {
+                    setActiveSubTab(status.sheets[0]);
+                } else {
+                    setActiveSubTab(null);
+                    loadSheetData(`master_data_${activeTab}`);
+                }
             }
         }
     }, [activeTab, tabStatus, userRole]);
@@ -229,12 +232,16 @@ const MasterDataPage = () => {
     const loadSheetData = async (targetCollection) => {
         try {
             setLoading(true);
-            const collectionName = targetCollection || (activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`);
-            const result = await masterDataService.getSheetData(collectionName);
- 
+            let result;
+            if (activeTab === "Currency") {
+                result = await currencyService.getCurrencies();
+            } else {
+                const collectionName = targetCollection || (activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`);
+                result = await masterDataService.getSheetData(collectionName);
+            }
  
             const rows = result.map((r, index) => ({
-                key: index,
+                key: activeTab === "Currency" ? r.id : index,
                 ...r,
             }));
  
@@ -379,14 +386,24 @@ const MasterDataPage = () => {
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
-            const collectionName = activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`;
- 
-            if (addMode) {
-                await masterDataService.addRow(collectionName, values);
-                message.success("Row added");
+            
+            if (activeTab === "Currency") {
+                if (addMode) {
+                    await currencyService.createCurrency(values);
+                    message.success("Currency added");
+                } else {
+                    await currencyService.updateCurrency(editRecord.id, values);
+                    message.success("Currency updated");
+                }
             } else {
-                await masterDataService.editRow(collectionName, editRecord.key, { ...editRecord, ...values });
-                message.success("Row updated");
+                const collectionName = activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`;
+                if (addMode) {
+                    await masterDataService.addRow(collectionName, values);
+                    message.success("Row added");
+                } else {
+                    await masterDataService.editRow(collectionName, editRecord.key, { ...editRecord, ...values });
+                    message.success("Row updated");
+                }
             }
  
             setIsModalVisible(false);
@@ -411,9 +428,14 @@ const MasterDataPage = () => {
             okType: "danger",
             onOk: async () => {
                 try {
-                    const collectionName = activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`;
-                    await masterDataService.deleteRow(collectionName, indexOrId);
-                    message.success("Row deleted");
+                    if (activeTab === "Currency") {
+                        await currencyService.deleteCurrency(indexOrId);
+                        message.success("Currency deleted");
+                    } else {
+                        const collectionName = activeSubTab ? activeSubTab.collection_name : `master_data_${activeTab}`;
+                        await masterDataService.deleteRow(collectionName, indexOrId);
+                        message.success("Row deleted");
+                    }
  
                     loadSheetData();
                 } catch {
@@ -463,7 +485,7 @@ const MasterDataPage = () => {
                                 onChange={(e) => setSearchText(e.target.value)}
                                 style={{ width: 250 }}
                             />
-                            {activeTab !== "Exchange_Rate" && (
+                            {activeTab !== "Exchange_Rate" && activeTab !== "Currency" && (
                                 <>
                                     <Upload beforeUpload={handleFileUpload} showUploadList={false} accept=".xls,.xlsx,.csv">
                                         <Button icon={<UploadOutlined />}>Re-upload</Button>
@@ -491,7 +513,7 @@ const MasterDataPage = () => {
                                     Sync from Sage
                                 </Button>
                             )}
-                            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>Add {activeTab === "Exchange_Rate" ? "Currency" : "Row"}</Button>
+                            <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>Add {activeTab === "Currency" ? "Currency" : "Row"}</Button>
                         </Space>
                     )}
                 </div>
@@ -539,13 +561,13 @@ const MasterDataPage = () => {
                                 className="master-data-table invoices-table"
                             />
                         ) : (
-                            activeTab === "Exchange_Rate" ? (
+                            (activeTab === "Exchange_Rate" || activeTab === "Currency") ? (
                                 <Empty
-                                    description="No Exchange Rates Found"
+                                    description={`No ${activeTab === "Currency" ? "Currencies" : "Exchange Rates"} Found`}
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                                 >
                                     <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
-                                        Add Currency
+                                        Add {activeTab === "Currency" ? "Currency" : "Row"}
                                     </Button>
                                 </Empty>
                             ) : renderUploadView()
