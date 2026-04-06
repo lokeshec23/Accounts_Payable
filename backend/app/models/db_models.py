@@ -427,15 +427,6 @@ class VendorMaster(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    __table_args__ = (
-        Index(
-            "IX_vendor_master_vendor_key",
-            "vendor_key",
-            unique=True,
-            mssql_where=(vendor_key != None)
-        ),
-    )
-
 class TdsRate(Base):
     """
     TDS Rates table for tax calculations.
@@ -473,15 +464,6 @@ class GLMaster(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     created_at = Column(DateTime, default=datetime.utcnow)
-
-    __table_args__ = (
-        Index(
-            "IX_gl_master_gl_key",
-            "gl_key",
-            unique=True,
-            mssql_where=(gl_key != None)
-        ),
-    )
     
     # Relationships
 
@@ -504,15 +486,6 @@ class LOBMaster(Base):
     
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index(
-            "IX_lob_master_lob_key",
-            "lob_key",
-            unique=True,
-            mssql_where=(lob_key != None)
-        ),
-    )
-
 class DepartmentMaster(Base):
     """
     Department Master table.
@@ -531,15 +504,6 @@ class DepartmentMaster(Base):
     
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index(
-            "IX_department_master_dept_key",
-            "dept_key",
-            unique=True,
-            mssql_where=(dept_key != None)
-        ),
-    )
-
 class CustomerMaster(Base):
     """
     Customer Master table.
@@ -557,15 +521,6 @@ class CustomerMaster(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     created_at = Column(DateTime, default=datetime.utcnow)
-
-    __table_args__ = (
-        Index(
-            "IX_customer_master_customer_key",
-            "customer_key",
-            unique=True,
-            mssql_where=(customer_key != None)
-        ),
-    )
 
 class ItemMaster(Base):
     """
@@ -586,15 +541,6 @@ class ItemMaster(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     created_at = Column(DateTime, default=datetime.utcnow)
-
-    __table_args__ = (
-        Index(
-            "IX_item_master_item_key",
-            "item_key",
-            unique=True,
-            mssql_where=(item_key != None)
-        ),
-    )
 
 class InvoiceRegistry(Base):
     """Fast lookup registry for duplicate invoice detection"""
