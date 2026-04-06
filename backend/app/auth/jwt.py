@@ -60,7 +60,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         email=user.email,
         created_at=user.created_at,
         role=user.role,
-        status=user.status
+        status=user.status,
+        department=user.department
     )
         
     return user_response

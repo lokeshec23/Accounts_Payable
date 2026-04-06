@@ -287,8 +287,8 @@ export const adminService = {
     return response.data;
   },
 
-  async updateUserRole(userId, role, status) {
-    const response = await api.put(`/users/${userId}/role`, { role, status });
+  async updateUserRole(userId, role, status, department) {
+    const response = await api.put(`/users/${userId}/role`, { role, status, department });
     return response.data;
   },
   async createUser(userData) {

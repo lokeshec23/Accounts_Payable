@@ -77,6 +77,7 @@ def create_admin_user(db):
             password=get_password_hash(settings.ADMIN_PASSWORD),
             role="admin",
             status="active",
+            department="finance team",
             created_at=datetime.utcnow()
         )
         db.add(admin_user)
