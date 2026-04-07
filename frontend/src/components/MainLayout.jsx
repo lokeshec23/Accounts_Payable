@@ -221,6 +221,11 @@ const MainLayout = () => {
             return allInvoices;
         }
 
+        // 2. Finance Team approvers see everything (same as admin/coder)
+        if (userRole === 'approver' && (userDepartment || '').toLowerCase().trim() === 'finance team') {
+            return allInvoices;
+        }
+
         const lowerEmail = userEmail.toLowerCase();
         const lowerUserName = (userName || '').toLowerCase();
         
@@ -274,7 +279,7 @@ const MainLayout = () => {
 
             return isUploader || isAssigned || hasApproved;
         });
-    }, [allInvoices, userName, userEmail, userRole]);
+    }, [allInvoices, userName, userEmail, userRole, userDepartment]);
 
     const filteredInvoices = useMemo(() => {
         if (!searchTerm) return userFilteredInvoices;

@@ -23,7 +23,7 @@ def get_accessible_invoices_query(db: Session, current_user: UserResponse, entit
         return base_query
         
     # 2. Full access for Finance Team members
-    if current_user.department == "finance team":
+    if (current_user.department or "").strip().lower() == "finance team":
         return base_query
         
     # 3. Restricted access for non-finance approvers and other users
