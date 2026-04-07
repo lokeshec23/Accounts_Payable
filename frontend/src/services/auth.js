@@ -63,6 +63,7 @@ export const authService = {
           email: credentials.email,
           username: response.data.username || credentials.email.split('@')[0],
           role: response.data.role,
+          department: response.data.department,
           ispasswordchange: response.data.ispasswordchange
         }));
       }

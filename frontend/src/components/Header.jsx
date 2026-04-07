@@ -15,6 +15,7 @@ const Header = () => {
   const { settings } = useGlobalSettings();
   const { isDarkMode, toggleTheme } = useTheme();
   const [role, setRole] = useState("");
+  const [department, setDepartment] = useState("");
   const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ const Header = () => {
         const user = JSON.parse(storedUser);
         setUsername(user.username || user.email || "User");
         setRole(user.role || "");
+        setDepartment(user.department || "");
       } catch {
         setUsername("User");
       }
@@ -48,9 +50,11 @@ const Header = () => {
     <header className="app-header">
       <div className="header-container">
         {/* Logo */}
-        <div className="header-logo">
-          <img src={isDarkMode ? "/image.png" : "/loandna-logo.png"} alt="loanDNA" />
-        </div>
+        <Link to="/dashboard" state={{ activeTab: 'dashboard' }} className="logo-link">
+          <div className="header-logo">
+            <img src={isDarkMode ? "/image.png" : "/loandna-logo.png"} alt="loanDNA" />
+          </div>
+        </Link>
 
         {/* NAVIGATION */}
         <nav className="header-nav">
@@ -60,14 +64,16 @@ const Header = () => {
 
             if (!hasPermission) return null;
 
-            // Rename 'Dashboard' to 'Invoices' for approvers in the header, as they only see invoices there
-            const label = (role === 'approver' && navItem.path === '/dashboard') ? 'Invoices' : navItem.label;
+            // Use the original navItem label
+            const label = navItem.label;
 
             return (
               <Link
                 key={navItem.path}
                 to={navItem.path}
+                state={{ activeTab: label === 'Dashboard' ? 'dashboard' : 'invoices' }}
                 className={`nav-tab ${isActive(navItem.path) ? "active" : ""}`}
+                onClick={() => console.log('Navigation link clicked:', { label, path: navItem.path })}
               >
                 {label}
               </Link>

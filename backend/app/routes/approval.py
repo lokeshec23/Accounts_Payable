@@ -15,6 +15,7 @@ from app.dependencies import get_current_entity
 from app.models.user import UserResponse
 from app.services.audit_service import audit_service
 from app.models.audit_log import AuditAction
+from app.auth.permissions import is_invoice_accessible
 from app.routes.workflow import (
     get_vendor_data_from_invoice, 
     get_required_approver_count, 
@@ -36,6 +37,10 @@ async def send_to_approval(
     Send invoice to approval workflow using SQLAlchemy.
     """
     # 1. Verify invoice exists
+    # Enforce permissions
+    if not is_invoice_accessible(db, invoice_id, current_user, entity):
+        raise HTTPException(status_code=404, detail="Invoice not found or access denied")
+        
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")

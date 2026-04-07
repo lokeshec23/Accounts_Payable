@@ -140,6 +140,7 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
         "token_type": "bearer",
         "username": user.username,
         "role": user.role,
+        "department": user.department,
         "ispasswordchange": user.ispasswordchange
     }
 

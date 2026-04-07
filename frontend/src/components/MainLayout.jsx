@@ -60,10 +60,11 @@ const MainLayout = () => {
     const [userRole, setUserRole] = useState('');
     const [userName, setUserName] = useState('');
     const [userEmail, setUserEmail] = useState('');
+    const [userDepartment, setUserDepartment] = useState('');
 
     // Tab control - check if navigation state requests a specific tab
     const [activeTab, setActiveTab] = useState(() => {
-        return location.state?.activeTab || 'invoices';
+        return location.state?.activeTab || 'dashboard';
     });
 
     // Update active tab when location state changes
@@ -72,8 +73,13 @@ const MainLayout = () => {
         if (location.state?.activeTab) {
             const storedUser = sessionStorage.getItem('user');
             let role = '';
-            try { role = JSON.parse(storedUser)?.role || ''; } catch { }
-            if (role === 'approver' && location.state.activeTab === 'dashboard') {
+            let department = '';
+            try { 
+                const user = JSON.parse(storedUser);
+                role = user?.role || ''; 
+                department = (user?.department || '').toLowerCase().trim();
+            } catch { }
+            if (role === 'approver' && department !== 'finance team' && location.state.activeTab === 'dashboard') {
                 setActiveTab('invoices');
             } else {
                 setActiveTab(location.state.activeTab);
@@ -175,6 +181,7 @@ const MainLayout = () => {
                 const user = JSON.parse(storedUser);
                 setUserRole(user.role || '');
                 setUserName(user.name || user.username || user.email || '');
+                setUserDepartment(user.department || '');
                 // Capture email in both state and sessionStorage for matching
                 const email = (user.email || '').toLowerCase();
                 setUserEmail(email);
@@ -185,6 +192,7 @@ const MainLayout = () => {
                 setUserRole('');
                 setUserName('');
                 setUserEmail('');
+                setUserDepartment('');
             }
         }
     }, []);
@@ -782,8 +790,10 @@ const MainLayout = () => {
     //            ⭐  TABS INTEGRATION  ⭐
     // =====================================================
 
+    const isDashboardVisible = userRole !== 'approver' || (userDepartment || '').toLowerCase().trim() === 'finance team';
+
     const tabItems = [
-        ...(userRole !== 'approver' ? [{
+        ...(isDashboardVisible ? [{
             key: 'dashboard',
             label: 'Dashboard',
             children: (
@@ -794,7 +804,7 @@ const MainLayout = () => {
         }] : []),
         {
             key: 'invoices',
-            label: userRole === 'approver' ? '' : 'Invoices',
+            label: 'Invoices',
             children: (
                 <>
                     <div className="layout-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>

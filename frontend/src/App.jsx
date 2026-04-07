@@ -194,7 +194,12 @@ const AppRoutes = () => {
       </Route>
 
       {/* Optional fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Catch-all Redirect (Diagnostic) */}
+      <Route path="*" element={
+        <Navigate to="/" replace 
+          onLoad={() => console.log('Catch-all triggered for path:', window.location.pathname)} 
+        />
+      } />
     </Routes>
   );
 };
