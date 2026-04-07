@@ -88,6 +88,7 @@ const AdminPage = () => {
     userForm.setFieldsValue({
       role: user.role,
       status: user.status,
+      department: user.department,
     });
     setUserModalOpen(true);
   };
@@ -105,7 +106,8 @@ const AdminPage = () => {
     await adminService.updateUserRole(
       editingUser.id,
       values.role,
-      values.status
+      values.status,
+      values.department
     );
     message.success("User updated");
     setUserModalOpen(false);
@@ -121,6 +123,7 @@ const AdminPage = () => {
         password: values.password,
         role: values.role,
         status: values.status,
+        department: values.department,
       });
       message.success("User created successfully");
       setUserModalOpen(false);
@@ -145,6 +148,15 @@ const AdminPage = () => {
       title: "Status",
       dataIndex: "status",
       render: (s) => <Tag color="gold">{s.toUpperCase()}</Tag>,
+    },
+    {
+      title: "Department",
+      dataIndex: "department",
+      render: (d) => (
+        <Tag color={d === "finance team" ? "green" : "orange"}>
+          {d.toUpperCase()}
+        </Tag>
+      ),
     },
     {
       title: "Actions",
@@ -429,6 +441,17 @@ const AdminPage = () => {
                               {s.toUpperCase()}
                             </Option>
                           ))}
+                        </Select>
+                      </Form.Item>
+                      <Form.Item
+                        name="department"
+                        label="Department"
+                        initialValue={editingUser ? undefined : "non-finance team"}
+                        rules={[{ required: true, message: "Select department" }]}
+                      >
+                        <Select>
+                          <Option value="non-finance team">NON-FINANCE TEAM</Option>
+                          <Option value="finance team">FINANCE TEAM</Option>
                         </Select>
                       </Form.Item>
                     </Form>

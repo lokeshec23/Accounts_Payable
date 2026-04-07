@@ -15,6 +15,7 @@ router = APIRouter()
 class UserRoleUpdate(BaseModel):
     role: str
     status: str
+    department: str
 
 # Helper to check if user is admin
 def get_current_admin(current_user: UserResponse = Depends(get_current_user)):
@@ -30,6 +31,7 @@ class UserCreate(BaseModel):
     email: str
     role: str
     status: str
+    department: str = "non-finance team"
 
 @router.post("/", response_model=UserResponse)
 async def create_new_user(
@@ -56,6 +58,7 @@ async def create_new_user(
         password=hashed_password,
         role=user_data.role,
         status=user_data.status,
+        department=user_data.department,
         isCreatedByUser=False,
         createdby="admin",
         ispasswordchange=False,
@@ -122,6 +125,7 @@ async def update_user_role(
     old_status = user.status
     user.role = update_data.role
     user.status = update_data.status
+    user.department = update_data.department
     db.commit()
     db.refresh(user)
 

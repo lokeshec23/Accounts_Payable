@@ -15,6 +15,7 @@ const AdminPage = lazy(() => import('./pages/AdminPage'));
 export const routeMap = {
   "/dashboard": <Suspense fallback={<DashboardSkeleton />}> <DashboardPage /> </Suspense>,
   "/invoice": <Suspense fallback={<FormSkeleton />}> <InvoicePage /> </Suspense>,
+  "/invoices": <Suspense fallback={<FormSkeleton />}> <InvoicePage /> </Suspense>,
   "/coding": <Suspense fallback={<TableSkeleton />}> <CodingPage /> </Suspense>,
   "/approvals": <Suspense fallback={<TableSkeleton />}> <ApprovalsPage /> </Suspense>,
   "/master-data": <Suspense fallback={<TableSkeleton />}> <MasterDataPage /> </Suspense>,

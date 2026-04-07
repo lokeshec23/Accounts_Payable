@@ -15,6 +15,7 @@ from app.database.db_utils import invoice_to_dict
 from app.auth.jwt import get_current_user
 from app.dependencies import get_current_entity
 from app.models.user import UserResponse
+from app.auth.permissions import is_invoice_accessible
 
 # AI helpers
 from app.ai.normalizer import normalize_description, normalize_vendor
@@ -213,9 +214,13 @@ async def get_coding(
     current_user: UserResponse = Depends(get_current_user),
     entity: str = Depends(get_current_entity)
 ):
+    # Enforce permissions
+    if not is_invoice_accessible(db, invoice_id, current_user, entity):
+        raise HTTPException(404, "Invoice not found or access denied")
+        
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice or invoice.entity != entity:
-        raise HTTPException(404, "Invoice not found or access denied")
+        raise HTTPException(404, "Invoice not found")
 
     existing = db.query(DBCoding).filter(DBCoding.invoice_id == invoice_id).first()
     if existing:
@@ -290,9 +295,13 @@ async def get_suggestions(
     """
     Fetch coding suggestions for an invoice, optionally overriding the vendor_id.
     """
+    # Enforce permissions
+    if not is_invoice_accessible(db, invoice_id, current_user, entity):
+        raise HTTPException(404, "Invoice not found or access denied")
+        
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice or invoice.entity != entity:
-        raise HTTPException(404, "Invoice not found or access denied")
+        raise HTTPException(404, "Invoice not found")
 
     vendor_name = get_vendor_name(invoice)
     items = get_line_items(invoice)
@@ -322,8 +331,13 @@ async def create_or_update_coding(
     except: raise HTTPException(400, "Invalid invoice ID")
 
     invoice = db.query(Invoice).filter(Invoice.id == inv_id).first()
+
     if not invoice or invoice.entity != entity:
         raise HTTPException(404, "Invoice not found or access denied")
+
+    # Enforce permissions
+    if not is_invoice_accessible(db, inv_id, current_user, entity):
+        raise HTTPException(403, "Access denied. You do not have permission to code this invoice.")
 
     existing_coding = db.query(DBCoding).filter(DBCoding.invoice_id == inv_id).first()
     

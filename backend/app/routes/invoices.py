@@ -28,6 +28,7 @@ from app.database.db_utils import (
 from app.auth.jwt import get_current_user
 from app.dependencies import get_current_entity
 from app.models.user import UserResponse
+from app.auth.permissions import get_accessible_invoices_query, is_invoice_accessible
 from datetime import datetime
 import os
 import uuid
@@ -560,7 +561,7 @@ async def get_invoices(
     db: Session = Depends(get_db)
 ):
     from sqlalchemy import desc
-    query = db.query(Invoice).filter(Invoice.entity == entity)
+    query = get_accessible_invoices_query(db, current_user, entity)
     
     if not show_all:
         query = query.filter(Invoice.uploaded_by == current_user.username)
@@ -577,6 +578,10 @@ async def get_invoice(
     entity: str = Depends(get_current_entity),
     db: Session = Depends(get_db)
 ):
+    # Enforce permissions
+    if not is_invoice_accessible(db, invoice_id, current_user, entity):
+        raise HTTPException(status_code=404, detail="Invoice not found or access denied")
+        
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.entity == entity).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
@@ -595,8 +600,13 @@ async def get_raw_invoice(invoice_id: int, db: Session = Depends(get_db)):
 async def get_invoice_pdf(
     invoice_id: int,
     current_user: UserResponse = Depends(get_current_user),
+    entity: str = Depends(get_current_entity),
     db: Session = Depends(get_db)
 ):
+    # Enforce permissions
+    if not is_invoice_accessible(db, invoice_id, current_user, entity):
+        raise HTTPException(status_code=404, detail="Invoice not found or access denied")
+        
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")

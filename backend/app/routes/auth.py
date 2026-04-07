@@ -109,6 +109,7 @@ async def register(user: UserPydantic, db: Session = Depends(get_db)):
         email=new_user.email,
         role=new_user.role,
         status=new_user.status,
+        department=new_user.department,
         created_at=new_user.created_at
     )
 
@@ -139,6 +140,7 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
         "token_type": "bearer",
         "username": user.username,
         "role": user.role,
+        "department": user.department,
         "ispasswordchange": user.ispasswordchange
     }
 

@@ -358,7 +358,7 @@ def _create_ap_bill(
     # Bill payload
     # --------------------------------------------------
     bill_payload = {
-        "billNumber": f"{invoice_number}-{invoice.id}",
+        "billNumber": str(invoice_number),
         "vendor": {
             "id": str(vendor_id)
         },

@@ -26,6 +26,7 @@ class Token(BaseModel):
     token_type: str
     username: str
     role: Optional[str] = None
+    department: Optional[str] = None
     ispasswordchange: bool = True
 
 class ChangePasswordFirstTimeRequest(BaseModel):
