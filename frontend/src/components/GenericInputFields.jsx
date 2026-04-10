@@ -12,7 +12,11 @@ import {
     Space,
     Tag,
     Table,
-    Collapse
+    Collapse,
+    Modal,
+    Tooltip,
+    List,
+    Typography
 } from 'antd';
 import {
     SaveOutlined,
@@ -21,13 +25,14 @@ import {
     RollbackOutlined,
     SendOutlined,
     DeleteOutlined,
-    SyncOutlined
+    SyncOutlined,
+    EyeOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 dayjs.extend(customParseFormat);
 
-import { invoiceService, codingService, workflowService, masterDataService, currencyService } from '../services/api';
+import { invoiceService, codingService, workflowService, masterDataService, currencyService, auditService } from '../services/api';
 import { authService } from '../services/auth';
 import WorkflowTab from './WorkflowTab';
 import AuditTrail from './AuditTrail';
@@ -168,6 +173,11 @@ const GenericInputFields = forwardRef(({
     const [approverComment, setApproverComment] = useState('');
     const [workflowRefreshTrigger, setWorkflowRefreshTrigger] = useState(0);
     const [reposting, setReposting] = useState(false);
+
+    // Comments History state
+    const [isCommentsHistoryModalVisible, setIsCommentsHistoryModalVisible] = useState(false);
+    const [commentsHistory, setCommentsHistory] = useState([]);
+    const [loadingComments, setLoadingComments] = useState(false);
 
 
     useEffect(() => {
@@ -1096,6 +1106,31 @@ const GenericInputFields = forwardRef(({
             message.error({ content: 'Failed to trigger repost. Please try again.', key: 'repost' });
         } finally {
             setReposting(false);
+        }
+    }, [invoiceId]);
+
+    const fetchCommentsHistory = useCallback(async () => {
+        if (!invoiceId) return;
+        try {
+            setLoadingComments(true);
+            const logs = await auditService.getAuditTrail(invoiceId);
+            const filteredComments = logs.filter(log => {
+                const action = (log.action || '').toLowerCase();
+                const hasComment = log.details && log.details.comment && log.details.comment.trim() !== '';
+                return (action.includes('approved') || action.includes('rejected') || action.includes('reworked')) && hasComment;
+            }).map(log => ({
+                id: log.id,
+                user: log.user,
+                action: log.action,
+                comment: log.details.comment,
+                timestamp: log.timestamp
+            }));
+            setCommentsHistory(filteredComments);
+        } catch (error) {
+            console.error("Failed to fetch comments history:", error);
+            message.error("Failed to load comments history");
+        } finally {
+            setLoadingComments(false);
         }
     }, [invoiceId]);
 
@@ -2198,6 +2233,21 @@ const GenericInputFields = forwardRef(({
  
                 {isWaitingApproval && (
                     <div style={{ marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 500, color: '#595959' }}>Approver Comments</span>
+                            <Tooltip title="View previous comments">
+                                <Button 
+                                    type="text" 
+                                    icon={<EyeOutlined />} 
+                                    size="small" 
+                                    onClick={() => {
+                                        setIsCommentsHistoryModalVisible(true);
+                                        fetchCommentsHistory();
+                                    }}
+                                    style={{ color: '#1890ff' }}
+                                />
+                            </Tooltip>
+                        </div>
                         <TextArea rows={2} placeholder="Add a comment about this approval decision (optional)..."
                             value={approverComment} onChange={(e) => setApproverComment(e.target.value)}
                             maxLength={500} showCount style={{ width: '100%' }} />
@@ -2230,6 +2280,55 @@ const GenericInputFields = forwardRef(({
             </div>
  
             <div style={{ flex: 1, overflow: 'auto' }}>{renderTabContent()}</div>
+
+            <Modal
+                title="Approver Comments History"
+                open={isCommentsHistoryModalVisible}
+                onCancel={() => setIsCommentsHistoryModalVisible(false)}
+                footer={null}
+                width={700}
+            >
+                <List
+                    loading={loadingComments}
+                    itemLayout="horizontal"
+                    dataSource={commentsHistory}
+                    locale={{ emptyText: 'No previous approver comments found.' }}
+                    renderItem={(item) => (
+                        <List.Item>
+                            <List.Item.Meta
+                                title={
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <Typography.Text strong>{item.user}</Typography.Text>
+                                        <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
+                                            {dayjs(item.timestamp).format('MMM D, YYYY hh:mm A')}
+                                        </Typography.Text>
+                                    </div>
+                                }
+                                description={
+                                    <div style={{ marginTop: '8px' }}>
+                                        <Tag color={
+                                            item.action.toLowerCase().includes('approved') ? 'green' : 
+                                            item.action.toLowerCase().includes('rejected') ? 'red' : 'orange'
+                                        }>
+                                            {item.action}
+                                        </Tag>
+                                        <div style={{ 
+                                            marginTop: '8px', 
+                                            padding: '8px 12px', 
+                                            backgroundColor: '#f5f5f5', 
+                                            borderRadius: '4px',
+                                            fontStyle: 'italic',
+                                            color: '#555'
+                                        }}>
+                                            "{item.comment}"
+                                        </div>
+                                    </div>
+                                }
+                            />
+                        </List.Item>
+                    )}
+                />
+            </Modal>
         </div>
     );
 });

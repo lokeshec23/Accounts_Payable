@@ -22,10 +22,13 @@ app = FastAPI(title="Accounts Payable API", version="1.0.0")
 # Register Trace Middleware
 app.add_middleware(TraceMiddleware)
 
+frontend_url = os.getenv("FRONTEND_URL")
+
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=frontend_url,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
