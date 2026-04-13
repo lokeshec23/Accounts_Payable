@@ -15,6 +15,7 @@ import {
   Spin,
   Tag,
   Radio,
+  Checkbox,
 } from "antd";
 import {
   PlusOutlined,
@@ -223,7 +224,9 @@ const SettingsPage = () => {
 
   const formatApprover = (val) => {
     if (!val || (Array.isArray(val) && val.length === 0)) return "";
-    return Array.isArray(val) ? val.join(", ") : val;
+    let arr = Array.isArray(val) ? val : [val];
+    arr = arr.map(v => v === '[FINANCE_TEAM]' ? 'Finance Team' : v);
+    return arr.join(", ");
   };
 
   const vendorWorkflowColumns = [
@@ -423,28 +426,118 @@ const SettingsPage = () => {
           return (
             <>
               {count >= 1 && (
-                <Form.Item name="mandatory_approver_1" label="Approver 1 (Mandatory)" rules={[{ required: true }]}>
-                  <Select mode="multiple" showSearch options={getFilteredOptions(a1)} placeholder="Select Approver(s) 1" />
+                <Form.Item label="Approver 1 (Mandatory)" required>
+                  <Space direction="vertical" style={{ width: "100%" }}>
+                    <Checkbox 
+                      checked={a1?.includes('[FINANCE_TEAM]')}
+                      onChange={(e) => {
+                        form.setFieldsValue({ mandatory_approver_1: e.target.checked ? ['[FINANCE_TEAM]'] : [] });
+                      }}
+                    >
+                      Assign to Finance Team
+                    </Checkbox>
+                    <Form.Item name="mandatory_approver_1" noStyle rules={[{ required: true, message: "Please select an approver or assign to Finance Team" }]}>
+                      <Select 
+                        mode="multiple" 
+                        showSearch 
+                        options={getFilteredOptions(a1)} 
+                        placeholder="Select Approver(s) 1" 
+                        disabled={a1?.includes('[FINANCE_TEAM]')}
+                      />
+                    </Form.Item>
+                  </Space>
                 </Form.Item>
               )}
               {count >= 2 && (
-                <Form.Item name="mandatory_approver_2" label="Approver 2 (Mandatory)" rules={[{ required: true }]}>
-                  <Select mode="multiple" showSearch options={getFilteredOptions(a2)} placeholder="Select Approver(s) 2" />
+                <Form.Item label="Approver 2 (Mandatory)" required>
+                  <Space direction="vertical" style={{ width: "100%" }}>
+                    <Checkbox 
+                      checked={a2?.includes('[FINANCE_TEAM]')}
+                      onChange={(e) => {
+                        form.setFieldsValue({ mandatory_approver_2: e.target.checked ? ['[FINANCE_TEAM]'] : [] });
+                      }}
+                    >
+                      Assign to Finance Team
+                    </Checkbox>
+                    <Form.Item name="mandatory_approver_2" noStyle rules={[{ required: true, message: "Please select an approver or assign to Finance Team" }]}>
+                      <Select 
+                        mode="multiple" 
+                        showSearch 
+                        options={getFilteredOptions(a2)} 
+                        placeholder="Select Approver(s) 2" 
+                        disabled={a2?.includes('[FINANCE_TEAM]')}
+                      />
+                    </Form.Item>
+                  </Space>
                 </Form.Item>
               )}
               {count >= 3 && (
-                <Form.Item name="mandatory_approver_3" label="Approver 3 (Mandatory)" rules={[{ required: true }]}>
-                  <Select mode="multiple" showSearch options={getFilteredOptions(a3)} placeholder="Select Approver(s) 3" />
+                <Form.Item label="Approver 3 (Mandatory)" required>
+                  <Space direction="vertical" style={{ width: "100%" }}>
+                    <Checkbox 
+                      checked={a3?.includes('[FINANCE_TEAM]')}
+                      onChange={(e) => {
+                        form.setFieldsValue({ mandatory_approver_3: e.target.checked ? ['[FINANCE_TEAM]'] : [] });
+                      }}
+                    >
+                      Assign to Finance Team
+                    </Checkbox>
+                    <Form.Item name="mandatory_approver_3" noStyle rules={[{ required: true, message: "Please select an approver or assign to Finance Team" }]}>
+                      <Select 
+                        mode="multiple" 
+                        showSearch 
+                        options={getFilteredOptions(a3)} 
+                        placeholder="Select Approver(s) 3" 
+                        disabled={a3?.includes('[FINANCE_TEAM]')}
+                      />
+                    </Form.Item>
+                  </Space>
                 </Form.Item>
               )}
               {count >= 4 && (
-                <Form.Item name="mandatory_approver_4" label="Approver 4 (Mandatory)" rules={[{ required: true }]}>
-                  <Select mode="multiple" showSearch options={getFilteredOptions(a4)} placeholder="Select Approver(s) 4" />
+                <Form.Item label="Approver 4 (Mandatory)" required>
+                  <Space direction="vertical" style={{ width: "100%" }}>
+                    <Checkbox 
+                      checked={a4?.includes('[FINANCE_TEAM]')}
+                      onChange={(e) => {
+                        form.setFieldsValue({ mandatory_approver_4: e.target.checked ? ['[FINANCE_TEAM]'] : [] });
+                      }}
+                    >
+                      Assign to Finance Team
+                    </Checkbox>
+                    <Form.Item name="mandatory_approver_4" noStyle rules={[{ required: true, message: "Please select an approver or assign to Finance Team" }]}>
+                      <Select 
+                        mode="multiple" 
+                        showSearch 
+                        options={getFilteredOptions(a4)} 
+                        placeholder="Select Approver(s) 4" 
+                        disabled={a4?.includes('[FINANCE_TEAM]')}
+                      />
+                    </Form.Item>
+                  </Space>
                 </Form.Item>
               )}
               {count >= 5 && (
-                <Form.Item name="mandatory_approver_5" label="Approver 5 (Mandatory)" rules={[{ required: true }]}>
-                  <Select mode="multiple" showSearch options={getFilteredOptions(a5)} placeholder="Select Approver(s) 5" />
+                <Form.Item label="Approver 5 (Mandatory)" required>
+                  <Space direction="vertical" style={{ width: "100%" }}>
+                    <Checkbox 
+                      checked={a5?.includes('[FINANCE_TEAM]')}
+                      onChange={(e) => {
+                        form.setFieldsValue({ mandatory_approver_5: e.target.checked ? ['[FINANCE_TEAM]'] : [] });
+                      }}
+                    >
+                      Assign to Finance Team
+                    </Checkbox>
+                    <Form.Item name="mandatory_approver_5" noStyle rules={[{ required: true, message: "Please select an approver or assign to Finance Team" }]}>
+                      <Select 
+                        mode="multiple" 
+                        showSearch 
+                        options={getFilteredOptions(a5)} 
+                        placeholder="Select Approver(s) 5" 
+                        disabled={a5?.includes('[FINANCE_TEAM]')}
+                      />
+                    </Form.Item>
+                  </Space>
                 </Form.Item>
               )}
 

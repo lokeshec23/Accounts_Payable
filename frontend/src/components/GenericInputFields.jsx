@@ -2203,11 +2203,11 @@ const GenericInputFields = forwardRef(({
                                 loading={saving}>
                                 Approve
                             </Button>
-                            <Button type="primary" icon={<CloseCircleOutlined />} danger
+                            {/* <Button type="primary" icon={<CloseCircleOutlined />} danger
                                 onClick={handleReject} disabled={rejectDisabled || saving}
                                 loading={saving}>
                                 Reject
-                            </Button>
+                            </Button> */}
                             <Button type="primary" icon={<RollbackOutlined />}
                                 style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
                                 onClick={handleRework} disabled={reworkDisabled || saving}

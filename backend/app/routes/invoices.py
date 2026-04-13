@@ -788,17 +788,16 @@ async def update_invoice_status(
         # In current design, if assigned_approvers exists, they must be in it
         pass
 
-    already_acted_for_this_level = any(
+    already_acted_any_level = any(
         h.user == approver_name and 
-        h.approver_level == current_active_level and 
         h.status in [InvoiceStatusEnum.APPROVED, InvoiceStatusEnum.REJECTED, InvoiceStatusEnum.REWORKED]
         for h in current_cycle_history
     )
 
-    if already_acted_for_this_level and status in [InvoiceStatusEnum.APPROVED, InvoiceStatusEnum.REJECTED, InvoiceStatusEnum.REWORKED]:
+    if already_acted_any_level and status in [InvoiceStatusEnum.APPROVED, InvoiceStatusEnum.REJECTED, InvoiceStatusEnum.REWORKED]:
          raise HTTPException(
             status_code=400,
-            detail=f"User {approver_name} has already taken action for level {current_active_level}."
+            detail=f"User {approver_name} has already taken action on this invoice during the current cycle."
         )
 
     # =====================================================

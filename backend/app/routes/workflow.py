@@ -9,7 +9,7 @@ from datetime import datetime
 from app.database.database import get_db
 from app.models.db_models import (
     Invoice, WorkflowStep, VendorWorkflow, CodificationWorkflow, 
-    VendorMaster, Coding as DBCoding,
+    VendorMaster, Coding as DBCoding, User,
     ApproverAmount, ApproverGL, ApproverNumber, ApproverDefault
 )
 from app.auth.jwt import get_current_user
@@ -159,6 +159,24 @@ def get_required_approver_count(
     else:
         v_name_resolved, v_id_resolved = get_vendor_data_from_invoice(db, invoice_id) if invoice_id else (vendor_name, None)
 
+    def _parse_and_expand_approvers(val):
+        if not val: return []
+        res = []
+        if isinstance(val, str) and val.startswith("["):
+            try: res = json.loads(val)
+            except: res = [val]
+        else:
+            res = [val] if val else []
+        
+        final_res = []
+        for email in res:
+            if email == "[FINANCE_TEAM]":
+                finance_users = db.query(User).filter(User.department == "finance team", User.status == "active").all()
+                final_res.extend([u.email for u in finance_users if u.email])
+            else:
+                final_res.append(email)
+        return final_res
+
     # 1. Check Vendor Eligibility in Vendor Master (Using Cache)
     vendors, vendor_map, address_map = get_cached_vendors(db)
     
@@ -203,19 +221,12 @@ def get_required_approver_count(
             workflow_found = True
             workflow_type = "vendor"
             count = v_workflow.approver_count
-            def parse_approvers(val):
-                if not val: return []
-                if isinstance(val, str) and val.startswith("["):
-                    try: return json.loads(val)
-                    except: return [val]
-                return [val] if val else []
-
             mandatory_fields = [
-                parse_approvers(v_workflow.mandatory_approver_1),
-                parse_approvers(v_workflow.mandatory_approver_2),
-                parse_approvers(v_workflow.mandatory_approver_3),
-                parse_approvers(v_workflow.mandatory_approver_4),
-                parse_approvers(v_workflow.mandatory_approver_5)
+                _parse_and_expand_approvers(v_workflow.mandatory_approver_1),
+                _parse_and_expand_approvers(v_workflow.mandatory_approver_2),
+                _parse_and_expand_approvers(v_workflow.mandatory_approver_3),
+                _parse_and_expand_approvers(v_workflow.mandatory_approver_4),
+                _parse_and_expand_approvers(v_workflow.mandatory_approver_5)
             ]
             assigned_approvers = [a for a in mandatory_fields[:count] if a]
             
@@ -248,19 +259,12 @@ def get_required_approver_count(
                         workflow_found = True
                         workflow_type = "codification"
                         count = cod_workflow.approver_count
-                        def parse_approvers(val):
-                            if not val: return []
-                            if isinstance(val, str) and val.startswith("["):
-                                try: return json.loads(val)
-                                except: return [val]
-                            return [val] if val else []
-
                         mandatory_fields = [
-                            parse_approvers(cod_workflow.mandatory_approver_1),
-                            parse_approvers(cod_workflow.mandatory_approver_2),
-                            parse_approvers(cod_workflow.mandatory_approver_3),
-                            parse_approvers(cod_workflow.mandatory_approver_4),
-                            parse_approvers(cod_workflow.mandatory_approver_5)
+                            _parse_and_expand_approvers(cod_workflow.mandatory_approver_1),
+                            _parse_and_expand_approvers(cod_workflow.mandatory_approver_2),
+                            _parse_and_expand_approvers(cod_workflow.mandatory_approver_3),
+                            _parse_and_expand_approvers(cod_workflow.mandatory_approver_4),
+                            _parse_and_expand_approvers(cod_workflow.mandatory_approver_5)
                         ]
                         assigned_approvers = [a for a in mandatory_fields[:count] if a]
                         
