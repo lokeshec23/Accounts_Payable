@@ -144,6 +144,9 @@ const ApprovalsPage = () => {
                 if (isAdmin) return true;
 
                 if (item.status === 'waiting_approval') {
+                    // If the user has already approved this invoice, do not show it in unapproved list
+                    if (hasApproved) return false;
+
                     // Show to the current level's designated approver or their active delegate
                     if (assignedApprovers.length > 0) {
                         return isDesignatedApprover || isActiveDelegate;

@@ -335,5 +335,6 @@ async def get_approvers(db: Session = Depends(get_db)):
     approvers = db.query(DBUser).filter(DBUser.role == "approver").all()
     return [{
         "value": a.email,
-        "label": f"{a.username or a.email.split('@')[0]} ({a.email})"
+        "label": f"{a.username or a.email.split('@')[0]} ({a.email})",
+        "department": getattr(a, "department", None)
     } for a in approvers if a.email]

@@ -139,6 +139,25 @@ const SettingsPage = () => {
     if (recordToEdit.is_threshold_enabled === undefined) {
       recordToEdit.is_threshold_enabled = !!recordToEdit.threshold_approver;
     }
+
+    // Expand [FINANCE_TEAM] into actual emails so users can see and remove them
+    const financeTeamEmailsExp = approvers.filter(a => (a.department || '').toLowerCase().trim() === 'finance team').map(a => a.value);
+    const expandFinanceTeam = (approversList) => {
+      if (!approversList) return [];
+      const list = Array.isArray(approversList) ? approversList : [approversList];
+      if (list.includes('[FINANCE_TEAM]')) {
+        return Array.from(new Set([...list.filter(v => v !== '[FINANCE_TEAM]'), ...financeTeamEmailsExp]));
+      }
+      return list;
+    };
+
+    recordToEdit.mandatory_approver_1 = expandFinanceTeam(recordToEdit.mandatory_approver_1);
+    recordToEdit.mandatory_approver_2 = expandFinanceTeam(recordToEdit.mandatory_approver_2);
+    recordToEdit.mandatory_approver_3 = expandFinanceTeam(recordToEdit.mandatory_approver_3);
+    recordToEdit.mandatory_approver_4 = expandFinanceTeam(recordToEdit.mandatory_approver_4);
+    recordToEdit.mandatory_approver_5 = expandFinanceTeam(recordToEdit.mandatory_approver_5);
+    recordToEdit.threshold_approver = expandFinanceTeam(recordToEdit.threshold_approver);
+
     // Ensure unique value for select if vendor_id exists
     if (recordToEdit.vendor_id && recordToEdit.vendor_name) {
       recordToEdit.vendor_unique_val = `${recordToEdit.vendor_id}|${recordToEdit.vendor_name}`;
@@ -423,16 +442,33 @@ const SettingsPage = () => {
             return approvers.filter(opt => !selectedOther.includes(opt.value));
           };
 
+          const financeTeamEmails = approvers.filter(a => (a.department || '').toLowerCase().trim() === 'finance team').map(a => a.value);
+
+          const isFinanceTeamSelected = (val) => {
+            if (!val || !financeTeamEmails.length) return false;
+            if (val.includes('[FINANCE_TEAM]')) return true;
+            return financeTeamEmails.every(email => val.includes(email));
+          };
+
+          const handleFinanceTeamChange = (e, fieldName, currentVal) => {
+            const currentValues = Array.isArray(currentVal) ? currentVal.filter(v => v !== '[FINANCE_TEAM]') : [];
+            if (e.target.checked) {
+              const newValues = Array.from(new Set([...currentValues, ...financeTeamEmails]));
+              form.setFieldsValue({ [fieldName]: newValues });
+            } else {
+              const newValues = currentValues.filter(email => !financeTeamEmails.includes(email));
+              form.setFieldsValue({ [fieldName]: newValues });
+            }
+          };
+
           return (
             <>
               {count >= 1 && (
                 <Form.Item label="Approver 1 (Mandatory)" required>
                   <Space direction="vertical" style={{ width: "100%" }}>
                     <Checkbox 
-                      checked={a1?.includes('[FINANCE_TEAM]')}
-                      onChange={(e) => {
-                        form.setFieldsValue({ mandatory_approver_1: e.target.checked ? ['[FINANCE_TEAM]'] : [] });
-                      }}
+                      checked={isFinanceTeamSelected(a1)}
+                      onChange={(e) => handleFinanceTeamChange(e, 'mandatory_approver_1', a1)}
                     >
                       Assign to Finance Team
                     </Checkbox>
@@ -442,7 +478,6 @@ const SettingsPage = () => {
                         showSearch 
                         options={getFilteredOptions(a1)} 
                         placeholder="Select Approver(s) 1" 
-                        disabled={a1?.includes('[FINANCE_TEAM]')}
                       />
                     </Form.Item>
                   </Space>
@@ -452,10 +487,8 @@ const SettingsPage = () => {
                 <Form.Item label="Approver 2 (Mandatory)" required>
                   <Space direction="vertical" style={{ width: "100%" }}>
                     <Checkbox 
-                      checked={a2?.includes('[FINANCE_TEAM]')}
-                      onChange={(e) => {
-                        form.setFieldsValue({ mandatory_approver_2: e.target.checked ? ['[FINANCE_TEAM]'] : [] });
-                      }}
+                      checked={isFinanceTeamSelected(a2)}
+                      onChange={(e) => handleFinanceTeamChange(e, 'mandatory_approver_2', a2)}
                     >
                       Assign to Finance Team
                     </Checkbox>
@@ -465,7 +498,6 @@ const SettingsPage = () => {
                         showSearch 
                         options={getFilteredOptions(a2)} 
                         placeholder="Select Approver(s) 2" 
-                        disabled={a2?.includes('[FINANCE_TEAM]')}
                       />
                     </Form.Item>
                   </Space>
@@ -475,10 +507,8 @@ const SettingsPage = () => {
                 <Form.Item label="Approver 3 (Mandatory)" required>
                   <Space direction="vertical" style={{ width: "100%" }}>
                     <Checkbox 
-                      checked={a3?.includes('[FINANCE_TEAM]')}
-                      onChange={(e) => {
-                        form.setFieldsValue({ mandatory_approver_3: e.target.checked ? ['[FINANCE_TEAM]'] : [] });
-                      }}
+                      checked={isFinanceTeamSelected(a3)}
+                      onChange={(e) => handleFinanceTeamChange(e, 'mandatory_approver_3', a3)}
                     >
                       Assign to Finance Team
                     </Checkbox>
@@ -488,7 +518,6 @@ const SettingsPage = () => {
                         showSearch 
                         options={getFilteredOptions(a3)} 
                         placeholder="Select Approver(s) 3" 
-                        disabled={a3?.includes('[FINANCE_TEAM]')}
                       />
                     </Form.Item>
                   </Space>
@@ -498,10 +527,8 @@ const SettingsPage = () => {
                 <Form.Item label="Approver 4 (Mandatory)" required>
                   <Space direction="vertical" style={{ width: "100%" }}>
                     <Checkbox 
-                      checked={a4?.includes('[FINANCE_TEAM]')}
-                      onChange={(e) => {
-                        form.setFieldsValue({ mandatory_approver_4: e.target.checked ? ['[FINANCE_TEAM]'] : [] });
-                      }}
+                      checked={isFinanceTeamSelected(a4)}
+                      onChange={(e) => handleFinanceTeamChange(e, 'mandatory_approver_4', a4)}
                     >
                       Assign to Finance Team
                     </Checkbox>
@@ -511,7 +538,6 @@ const SettingsPage = () => {
                         showSearch 
                         options={getFilteredOptions(a4)} 
                         placeholder="Select Approver(s) 4" 
-                        disabled={a4?.includes('[FINANCE_TEAM]')}
                       />
                     </Form.Item>
                   </Space>
@@ -521,10 +547,8 @@ const SettingsPage = () => {
                 <Form.Item label="Approver 5 (Mandatory)" required>
                   <Space direction="vertical" style={{ width: "100%" }}>
                     <Checkbox 
-                      checked={a5?.includes('[FINANCE_TEAM]')}
-                      onChange={(e) => {
-                        form.setFieldsValue({ mandatory_approver_5: e.target.checked ? ['[FINANCE_TEAM]'] : [] });
-                      }}
+                      checked={isFinanceTeamSelected(a5)}
+                      onChange={(e) => handleFinanceTeamChange(e, 'mandatory_approver_5', a5)}
                     >
                       Assign to Finance Team
                     </Checkbox>
@@ -534,7 +558,6 @@ const SettingsPage = () => {
                         showSearch 
                         options={getFilteredOptions(a5)} 
                         placeholder="Select Approver(s) 5" 
-                        disabled={a5?.includes('[FINANCE_TEAM]')}
                       />
                     </Form.Item>
                   </Space>
@@ -543,8 +566,13 @@ const SettingsPage = () => {
 
               {isThresholdEnabled && (
                 <>
-                  <Form.Item name="threshold_approver" label="Threshold Approver" rules={[{ required: true }]}>
-                    <Select mode="multiple" showSearch options={getFilteredOptions(thresholdApp)} placeholder="Select Threshold Approver(s)" />
+                  <Form.Item name="threshold_approver" label="Threshold Approver" rules={[{ required: true, message: "Please select an approver" }]}>
+                    <Select 
+                      mode="multiple" 
+                      showSearch 
+                      options={approvers} 
+                      placeholder="Select Threshold Approver(s)" 
+                    />
                   </Form.Item>
                   <Form.Item name="amount_threshold" label="Amount Threshold" rules={[{ required: true }]}>
                     <InputNumber style={{ width: "100%" }} min={0} placeholder="Enter threshold amount" />
